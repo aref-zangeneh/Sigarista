@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sugarista Cafe | Digital Menu</title>
+  <meta
+    name="description"
+    content="منوی دیجیتال کافه شوگریستا؛ مرور سریع دسته‌ها، جستجوی آسان و تجربه بهتر برای مهمان‌های QR."
+  >
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
+    rel="stylesheet"
+  >
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+  >
+  <link rel="preload" href="assets/fonts/YekanBakh-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body x-data="cafeMenu()" x-init="init()">
+  <div class="page-shell">
+    <header class="hero-section">
+      <div class="container py-4 py-lg-5">
+        <nav class="top-nav mb-4">
+          <div>
+            <span class="eyebrow" x-text="settings.eyebrow"></span>
+            <h1 class="brand-title mb-1" x-text="settings.brandTitle"></h1>
+            <p class="brand-subtitle mb-0" x-text="settings.brandSubtitle"></p>
+          </div>
+          <a :href="callHref()" class="btn btn-light rounded-pill px-3 top-call-btn">
+            <i class="bi bi-telephone me-1"></i>
+            <span x-text="settings.footerCallLabel"></span>
+          </a>
+        </nav>
+
+        <div class="alert alert-light border-0 shadow-sm rounded-4 mb-4" x-show="loading">
+          در حال بارگذاری منو...
+        </div>
+        <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4" x-show="error" x-text="error"></div>
+
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <span class="hero-badge">
+              <i class="bi bi-qr-code-scan"></i>
+              <span x-text="settings.heroBadgeText"></span>
+            </span>
+            <h2 class="hero-title" x-text="settings.heroTitle"></h2>
+            <p class="hero-text" x-text="settings.heroDescription"></p>
+
+            <div class="hero-actions">
+              <a href="#menu" class="btn btn-light btn-lg rounded-pill px-4">
+                <i class="bi bi-cup-hot me-1"></i>
+                <span x-text="settings.heroPrimaryButtonLabel"></span>
+              </a>
+              <a href="#popular" class="btn btn-outline-light btn-lg rounded-pill px-4">
+                <i class="bi bi-stars me-1"></i>
+                <span x-text="settings.heroSecondaryButtonLabel"></span>
+              </a>
+            </div>
+
+            <div class="hero-stats">
+              <div class="stat-chip">
+                <strong x-text="items.length"></strong>
+                <span>آیتم</span>
+              </div>
+              <div class="stat-chip">
+                <strong x-text="categories.length"></strong>
+                <span>دسته</span>
+              </div>
+              <div class="stat-chip">
+                <strong x-text="settings.heroHours"></strong>
+                <span>ساعت کاری</span>
+              </div>
+            </div>
+          </div>
+
+          <aside class="hero-panel">
+            <div class="hero-panel-head">
+              <div>
+                <span class="mini-label" x-text="settings.howToOrderLabel"></span>
+                <h3 class="h5 mb-0" x-text="settings.howToOrderTitle"></h3>
+              </div>
+              <span class="status-pill" x-text="settings.howToOrderStatus"></span>
+            </div>
+
+            <div class="step-list">
+              <div class="step-item">
+                <span class="step-number">1</span>
+                <div>
+                  <strong x-text="settings.stepOneTitle"></strong>
+                  <p class="mb-0" x-text="settings.stepOneDescription"></p>
+                </div>
+              </div>
+              <div class="step-item">
+                <span class="step-number">2</span>
+                <div>
+                  <strong x-text="settings.stepTwoTitle"></strong>
+                  <p class="mb-0" x-text="settings.stepTwoDescription"></p>
+                </div>
+              </div>
+              <div class="step-item">
+                <span class="step-number">3</span>
+                <div>
+                  <strong x-text="settings.stepThreeTitle"></strong>
+                  <p class="mb-0" x-text="settings.stepThreeDescription"></p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="quick-strip">
+        <div class="container">
+          <div class="quick-strip-card">
+            <div class="quick-strip-head">
+              <div>
+                <span class="section-kicker" x-text="settings.quickAccessLabel"></span>
+                <h2 class="quick-title mb-1" x-text="settings.quickAccessTitle"></h2>
+                <p class="quick-text mb-0" x-text="settings.quickAccessDescription"></p>
+              </div>
+              <button
+                type="button"
+                class="btn btn-link reset-link p-0"
+                x-show="hasFilters"
+                @click="resetFilters()"
+              >
+                پاک کردن فیلترها
+              </button>
+            </div>
+
+            <div class="category-rail">
+              <button
+                type="button"
+                class="category-pill"
+                :class="{ active: selectedCategory === 'all' }"
+                @click="setCategory('all')"
+              >
+                همه
+              </button>
+              <template x-for="category in categories" :key="category.id">
+                <button
+                  type="button"
+                  class="category-pill"
+                  :class="{ active: selectedCategory === category.id }"
+                  @click="setCategory(category.id)"
+                >
+                  <span x-text="category.label"></span>
+                  <small x-text="countForCategory(category.id)"></small>
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="popular" class="popular-section">
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <span class="section-kicker" x-text="settings.popularLabel"></span>
+              <h2 class="section-title mb-2" x-text="settings.popularTitle"></h2>
+              <p class="section-text mb-0" x-text="settings.popularDescription"></p>
+            </div>
+          </div>
+
+          <div class="popular-scroller">
+            <template x-for="item in featuredItems" :key="`popular-${item.id}`">
+              <article class="popular-card">
+                <div class="popular-top">
+                  <div class="popular-avatar" :style="`background:${item.accent}`" x-text="item.short"></div>
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="d-flex align-items-start justify-content-between gap-2">
+                      <div>
+                        <span class="item-category" x-text="item.categoryLabel"></span>
+                        <h3 class="h6 mt-2 mb-1" x-text="item.name"></h3>
+                      </div>
+                      <span class="price-pill" x-text="formatPrice(item.price)"></span>
+                    </div>
+                    <p class="popular-text mb-0" x-text="item.description"></p>
+                  </div>
+                </div>
+              </article>
+            </template>
+          </div>
+        </div>
+      </section>
+
+      <section id="menu" class="menu-section pb-5">
+        <div class="container">
+          <div class="menu-toolbar">
+            <div class="toolbar-main">
+              <div>
+                <span class="section-kicker" x-text="settings.menuLabel"></span>
+                <h2 class="section-title mb-2" x-text="settings.menuTitle"></h2>
+                <p class="section-text mb-0">
+                  <span x-show="selectedCategory === 'all'">همه آیتم‌ها نمایش داده می‌شوند.</span>
+                  <span x-show="selectedCategory !== 'all'">
+                    در حال مشاهده دسته
+                    <strong x-text="activeCategoryLabel"></strong>
+                  </span>
+                </p>
+              </div>
+              <div class="toolbar-meta">
+                <span class="result-pill">
+                  <strong x-text="filteredItems.length"></strong>
+                  <span>آیتم</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="search-box">
+              <i class="bi bi-search"></i>
+              <input
+                type="search"
+                class="form-control"
+                :placeholder="settings.searchPlaceholder"
+                x-model.debounce.200ms="search"
+              >
+            </div>
+
+            <div class="toolbar-hint">
+              <i class="bi bi-info-circle"></i>
+              <span x-text="settings.menuToolbarHint"></span>
+            </div>
+          </div>
+
+          <div class="group-stack" x-show="filteredGroups.length">
+            <template x-for="group in filteredGroups" :key="group.id">
+              <section class="menu-group" :id="`group-${group.id}`">
+                <div class="group-head">
+                  <div>
+                    <h3 class="group-title" x-text="group.label"></h3>
+                    <p class="group-subtitle mb-0">
+                      <span x-text="group.items.length"></span>
+                      آیتم در این دسته
+                    </p>
+                  </div>
+                </div>
+
+                <div class="menu-list">
+                  <template x-for="item in group.items" :key="item.id">
+                    <article class="menu-item">
+                      <div class="menu-item-accent" :style="`background:${item.accent}`"></div>
+                      <div class="menu-item-body">
+                        <div class="menu-item-head">
+                          <div class="min-w-0">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                              <h4 class="menu-item-title mb-0" x-text="item.name"></h4>
+                              <span
+                                class="badge rounded-pill text-bg-warning badge-soft"
+                                x-show="item.badge"
+                                x-text="item.badge"
+                              ></span>
+                            </div>
+                            <p class="menu-description mb-2" x-text="item.description"></p>
+                          </div>
+                          <strong class="menu-price" x-text="formatPrice(item.price)"></strong>
+                        </div>
+
+                        <div class="menu-item-foot">
+                          <div class="tag-list">
+                            <template x-for="tag in item.tags" :key="`${item.id}-${tag}`">
+                              <span class="tag-chip" x-text="tag"></span>
+                            </template>
+                          </div>
+                          <span class="order-note">اعلام به صندوق</span>
+                        </div>
+                      </div>
+                    </article>
+                  </template>
+                </div>
+              </section>
+            </template>
+          </div>
+
+          <div class="empty-state text-center py-5" x-show="!filteredGroups.length">
+            <div class="empty-icon mx-auto mb-3">
+              <i class="bi bi-search-heart"></i>
+            </div>
+            <h3 class="h4 mb-2">موردی پیدا نشد</h3>
+            <p class="text-secondary mb-4">جستجوی دیگری امتحان کنید یا فیلتر فعلی را پاک کنید.</p>
+            <button type="button" class="btn btn-dark rounded-pill px-4" @click="resetFilters()">
+              نمایش همه آیتم‌ها
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="visit-section pb-5">
+        <div class="container">
+          <div class="visit-card">
+            <div class="visit-layout">
+              <div>
+                <span class="section-kicker" x-text="settings.visitLabel"></span>
+                <h2 class="section-title mb-3" x-text="settings.visitTitle"></h2>
+                <p class="section-text mb-4" x-text="settings.visitDescription"></p>
+                <div class="visit-actions">
+                  <a :href="callHref()" class="btn btn-dark rounded-pill px-4">
+                    <i class="bi bi-telephone me-1"></i>
+                    تماس با کافه
+                  </a>
+                  <a :href="instagramHref()" target="_blank" rel="noreferrer" class="btn btn-outline-dark rounded-pill px-4">
+                    <i class="bi bi-instagram me-1"></i>
+                    اینستاگرام
+                  </a>
+                </div>
+              </div>
+
+              <div class="visit-meta">
+                <div>
+                  <span>آدرس</span>
+                  <strong x-text="settings.address"></strong>
+                </div>
+                <div>
+                  <span>سرو صبحانه</span>
+                  <strong x-text="settings.breakfastHours"></strong>
+                </div>
+                <div>
+                  <span>بیرون‌بر</span>
+                  <strong x-text="settings.takeawayStatus"></strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer py-4">
+      <div class="container footer-layout">
+        <p class="mb-0" x-text="settings.footerText"></p>
+        <div class="footer-links">
+          <a href="#popular" x-text="settings.footerPopularLabel"></a>
+          <a href="#menu" x-text="settings.footerMenuLabel"></a>
+          <a :href="callHref()" x-text="settings.footerCallLabel"></a>
+        </div>
+      </div>
+    </footer>
+
+    <div class="mobile-order-bar d-lg-none">
+      <a href="#menu" class="mobile-order-link">
+        <i class="bi bi-grid"></i>
+        <span>منو</span>
+      </a>
+      <a href="#popular" class="mobile-order-link">
+        <i class="bi bi-stars"></i>
+        <span>پرفروش</span>
+      </a>
+      <a :href="callHref()" class="mobile-order-link mobile-order-link--primary">
+        <i class="bi bi-telephone"></i>
+        <span x-text="settings.footerCallLabel"></span>
+      </a>
+    </div>
+  </div>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

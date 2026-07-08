@@ -1,0 +1,1 @@
+window.SUGARISTA_API_BASE_URL = window.SUGARISTA_API_BASE_URL || "/api";

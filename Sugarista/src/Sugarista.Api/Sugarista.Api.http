@@ -1,0 +1,6 @@
+@Sugarista.Api_HostAddress = https://localhost:7231
+
+GET {{Sugarista.Api_HostAddress}}/api/health
+Accept: application/json
+
+###

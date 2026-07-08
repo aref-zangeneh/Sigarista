@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sugarista}
+      POSTGRES_USER: ${POSTGRES_USER:-sugarista}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe123!}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sugarista} -d ${POSTGRES_DB:-sugarista}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./Sugarista
+      dockerfile: src/Sugarista.Api/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sugarista};Username=${POSTGRES_USER:-sugarista};Password=${POSTGRES_PASSWORD:-ChangeMe123!}
+      Jwt__Issuer: ${JWT_ISSUER:-Sugarista}
+      Jwt__Audience: ${JWT_AUDIENCE:-SugaristaAdmin}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-SugaristaProductionSigningKeyChangeMe1234567890}
+      Jwt__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-120}
+      AdminBootstrap__Username: ${ADMIN_BOOTSTRAP_USERNAME:-admin}
+      AdminBootstrap__DisplayName: ${ADMIN_BOOTSTRAP_DISPLAY_NAME:-Sugarista Admin}
+      AdminBootstrap__Password: ${ADMIN_BOOTSTRAP_PASSWORD:-ChangeMe123!}
+      Cors__AllowedOrigins__0: ${APP_PUBLIC_ORIGIN:-http://localhost}
+      Cors__AllowedOrigins__1: ${APP_ADMIN_ORIGIN:-http://localhost}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  admin-ui:
+    build:
+      context: ./Sugarista-Admin
+    restart: unless-stopped
+
+  public-ui:
+    build:
+      context: ./Sugarista-Theme
+    restart: unless-stopped
+
+  db-admin:
+    image: adminer:5
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - admin-ui
+      - public-ui
+      - db-admin
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  postgres-data:

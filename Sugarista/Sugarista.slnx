@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sugarista.Api/Sugarista.Api.csproj" />
+    <Project Path="src/Sugarista.Application/Sugarista.Application.csproj" />
+    <Project Path="src/Sugarista.Domain/Sugarista.Domain.csproj" />
+    <Project Path="src/Sugarista.Infrastructure/Sugarista.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sugarista.Application.UnitTests/Sugarista.Application.UnitTests.csproj" />
+    <Project Path="tests/Sugarista.Domain.UnitTests/Sugarista.Domain.UnitTests.csproj" />
+  </Folder>
+</Solution>

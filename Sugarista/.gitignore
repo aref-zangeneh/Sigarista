@@ -1,0 +1,52 @@
+## Build artifacts
+bin/
+obj/
+out/
+
+## IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+## NuGet
+*.nupkg
+*.snupkg
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## EF Core
+*.db
+*.db-shm
+*.db-wal
+
+## Secrets
+appsettings.*.local.json
+secrets.json
+.env
+.env.*
+
+## Logs
+*.log
+logs/
+
+## Rider
+.idea/
+*.sln.iml
+
+## ASP.NET
+ScaffoldingReadMe.txt

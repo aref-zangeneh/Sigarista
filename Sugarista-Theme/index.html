@@ -172,14 +172,20 @@
             <template x-for="item in featuredItems" :key="`popular-${item.id}`">
               <article class="popular-card">
                 <div class="popular-top">
-                  <div class="popular-avatar" :style="`background:${item.accent}`" x-text="item.short"></div>
+                  <template x-if="item.imageUrl">
+                    <img class="popular-image" :src="item.imageUrl" :alt="item.name">
+                  </template>
+                  <template x-if="!item.imageUrl">
+                    <div class="popular-avatar" :style="`background:${item.accent}`" x-text="item.short"></div>
+                  </template>
                   <div class="flex-grow-1 min-w-0">
                     <div class="d-flex align-items-start justify-content-between gap-2">
                       <div>
                         <span class="item-category" x-text="item.categoryLabel"></span>
                         <h3 class="h6 mt-2 mb-1" x-text="item.name"></h3>
+                        <small class="english-name" x-text="item.englishName"></small>
                       </div>
-                      <span class="price-pill" x-text="formatPrice(item.price)"></span>
+                      <span class="price-pill" x-text="formatPrice(displayPrice(item))"></span>
                     </div>
                     <p class="popular-text mb-0" x-text="item.description"></p>
                   </div>
@@ -246,6 +252,9 @@
                   <template x-for="item in group.items" :key="item.id">
                     <article class="menu-item">
                       <div class="menu-item-accent" :style="`background:${item.accent}`"></div>
+                      <template x-if="item.imageUrl">
+                        <img class="menu-item-image" :src="item.imageUrl" :alt="item.name">
+                      </template>
                       <div class="menu-item-body">
                         <div class="menu-item-head">
                           <div class="min-w-0">
@@ -257,9 +266,32 @@
                                 x-text="item.badge"
                               ></span>
                             </div>
+                            <p class="english-name mb-1" x-text="item.englishName"></p>
                             <p class="menu-description mb-2" x-text="item.description"></p>
+                            <div class="meta-list" x-show="itemMeta(item).length">
+                              <template x-for="meta in itemMeta(item)" :key="`${item.id}-${meta}`">
+                                <span x-text="meta"></span>
+                              </template>
+                            </div>
                           </div>
-                          <strong class="menu-price" x-text="formatPrice(item.price)"></strong>
+                          <div class="price-stack">
+                            <strong class="menu-price" x-text="formatPrice(displayPrice(item))"></strong>
+                            <span
+                              class="old-price"
+                              x-show="hasOffer(item)"
+                              x-text="formatPrice(item.price)"
+                            ></span>
+                          </div>
+                        </div>
+
+                        <div class="variant-list" x-show="item.variants && item.variants.length">
+                          <template x-for="variant in item.variants" :key="`${item.id}-${variant.key}`">
+                            <span>
+                              <strong x-text="variant.label"></strong>
+                              <span x-text="formatPrice(variant.specialOfferPrice || variant.price)"></span>
+                              <small x-show="variant.volume" x-text="variant.volume"></small>
+                            </span>
+                          </template>
                         </div>
 
                         <div class="menu-item-foot">
@@ -267,8 +299,14 @@
                             <template x-for="tag in item.tags" :key="`${item.id}-${tag}`">
                               <span class="tag-chip" x-text="tag"></span>
                             </template>
+                            <template x-for="allergen in item.allergens || []" :key="`${item.id}-allergen-${allergen}`">
+                              <span class="tag-chip tag-chip-alert" x-text="allergen"></span>
+                            </template>
                           </div>
-                          <span class="order-note">اعلام به صندوق</span>
+                          <span
+                            :class="item.isOrderable ? 'order-note' : 'order-note order-note-disabled'"
+                            x-text="item.isOrderable ? 'قابل سفارش' : 'فعلا غیرقابل سفارش'"
+                          ></span>
                         </div>
                       </div>
                     </article>

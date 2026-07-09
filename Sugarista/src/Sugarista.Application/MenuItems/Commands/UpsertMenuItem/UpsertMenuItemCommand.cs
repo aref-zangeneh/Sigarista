@@ -6,9 +6,27 @@ namespace Sugarista.Application.MenuItems.Commands.UpsertMenuItem;
 public record UpsertMenuItemCommand(
     Guid? Id,
     Guid CategoryId,
-    string Name,
+    string PersianName,
+    string EnglishName,
     string Description,
-    int Price,
+    string? ImageUrl,
+    IReadOnlyCollection<string> GalleryImageUrls,
+    int? SpecialOfferPrice,
+    decimal TaxPercent,
+    bool IsOrderable,
+    int? PreparingDurationMinutes,
+    int? Calories,
+    IReadOnlyCollection<string> Allergens,
+    string? Volume,
+    int? SmallPrice,
+    int? SmallSpecialOfferPrice,
+    string? SmallVolume,
+    int? MediumPrice,
+    int? MediumSpecialOfferPrice,
+    string? MediumVolume,
+    int? LargePrice,
+    int? LargeSpecialOfferPrice,
+    string? LargeVolume,
     IReadOnlyCollection<string> Tags,
     string? Badge,
     bool Featured,
@@ -22,9 +40,27 @@ public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCo
     public UpsertMenuItemCommandValidator()
     {
         RuleFor(command => command.CategoryId).NotEmpty();
-        RuleFor(command => command.Name).NotEmpty().MaximumLength(200);
+        RuleFor(command => command.PersianName).NotEmpty().MaximumLength(200);
+        RuleFor(command => command.EnglishName).NotEmpty().MaximumLength(200);
         RuleFor(command => command.Description).NotEmpty().MaximumLength(1000);
-        RuleFor(command => command.Price).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.ImageUrl).MaximumLength(1000);
+        RuleFor(command => command.SpecialOfferPrice).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.TaxPercent).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.PreparingDurationMinutes).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.Calories).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.Volume).MaximumLength(100);
+        RuleFor(command => command.SmallPrice).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.SmallSpecialOfferPrice).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.SmallVolume).MaximumLength(100);
+        RuleFor(command => command.MediumPrice).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.MediumSpecialOfferPrice).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.MediumVolume).MaximumLength(100);
+        RuleFor(command => command.LargePrice).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.LargeSpecialOfferPrice).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.LargeVolume).MaximumLength(100);
+        RuleFor(command => command)
+            .Must(command => command.SmallPrice.HasValue || command.MediumPrice.HasValue || command.LargePrice.HasValue)
+            .WithMessage("At least one size price is required.");
         RuleFor(command => command.Accent).NotEmpty().MaximumLength(200);
         RuleFor(command => command.ShortLabel).NotEmpty().MaximumLength(10);
         RuleFor(command => command.DisplayOrder).GreaterThanOrEqualTo(0);
@@ -58,9 +94,27 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
 
             existingItem.Update(
                 request.CategoryId,
-                request.Name,
+                request.PersianName,
+                request.EnglishName,
                 request.Description,
-                request.Price,
+                request.ImageUrl,
+                request.GalleryImageUrls,
+                request.SpecialOfferPrice,
+                request.TaxPercent,
+                request.IsOrderable,
+                request.PreparingDurationMinutes,
+                request.Calories,
+                request.Allergens,
+                request.Volume,
+                request.SmallPrice,
+                request.SmallSpecialOfferPrice,
+                request.SmallVolume,
+                request.MediumPrice,
+                request.MediumSpecialOfferPrice,
+                request.MediumVolume,
+                request.LargePrice,
+                request.LargeSpecialOfferPrice,
+                request.LargeVolume,
                 request.Tags,
                 request.Badge,
                 request.Featured,
@@ -73,9 +127,27 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
         {
             var menuItem = new MenuItem(
                 request.CategoryId,
-                request.Name,
+                request.PersianName,
+                request.EnglishName,
                 request.Description,
-                request.Price,
+                request.ImageUrl,
+                request.GalleryImageUrls,
+                request.SpecialOfferPrice,
+                request.TaxPercent,
+                request.IsOrderable,
+                request.PreparingDurationMinutes,
+                request.Calories,
+                request.Allergens,
+                request.Volume,
+                request.SmallPrice,
+                request.SmallSpecialOfferPrice,
+                request.SmallVolume,
+                request.MediumPrice,
+                request.MediumSpecialOfferPrice,
+                request.MediumVolume,
+                request.LargePrice,
+                request.LargeSpecialOfferPrice,
+                request.LargeVolume,
                 request.Tags,
                 request.Badge,
                 request.Featured,

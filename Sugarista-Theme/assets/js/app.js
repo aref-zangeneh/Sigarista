@@ -73,7 +73,13 @@ document.addEventListener("alpine:init", () => {
           label: category.label,
           order: category.displayOrder
         }));
-        this.items = menuData.items;
+        this.items = menuData.items.map((item) => ({
+          ...item,
+          tags: item.tags || [],
+          allergens: item.allergens || [],
+          variants: item.variants || [],
+          galleryImageUrls: item.galleryImageUrls || []
+        }));
         this.settings = { ...this.settings, ...settingsData };
         this.applyPageMetadata();
       } catch (error) {
@@ -111,7 +117,16 @@ document.addEventListener("alpine:init", () => {
           this.selectedCategory === "all" || item.category === this.selectedCategory;
 
         const haystack = this.normalizeText(
-          [item.name, item.description, item.categoryLabel, item.tags.join(" ")].join(" ")
+          [
+            item.name,
+            item.persianName,
+            item.englishName,
+            item.description,
+            item.categoryLabel,
+            item.volume,
+            item.allergens.join(" "),
+            item.tags.join(" ")
+          ].join(" ")
         );
         const matchesSearch = !query || haystack.includes(query);
 
@@ -146,7 +161,24 @@ document.addEventListener("alpine:init", () => {
         .trim();
     },
     formatPrice(value) {
-      return `${new Intl.NumberFormat("fa-IR").format(value)} تومان`;
+      return `${new Intl.NumberFormat("fa-IR").format(value || 0)} تومان`;
+    },
+    displayPrice(item) {
+      return item.specialOfferPrice || item.price;
+    },
+    hasOffer(item) {
+      return Boolean(item.specialOfferPrice && item.specialOfferPrice < item.price);
+    },
+    itemMeta(item) {
+      return [
+        item.preparingDurationMinutes ? `${this.toPersianNumber(item.preparingDurationMinutes)} دقیقه آماده‌سازی` : "",
+        item.calories ? `${this.toPersianNumber(item.calories)} کالری` : "",
+        item.volume || "",
+        item.taxPercent ? `مالیات ${this.toPersianNumber(item.taxPercent)}٪` : ""
+      ].filter(Boolean);
+    },
+    toPersianNumber(value) {
+      return new Intl.NumberFormat("fa-IR").format(value);
     },
     callHref() {
       return `tel:${this.settings.contactPhone}`;

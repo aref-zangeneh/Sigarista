@@ -11,16 +11,35 @@ public record PublicMenuCategoryDto(Guid Id, string Slug, string Label, int Disp
 public record PublicMenuItemDto(
     Guid Id,
     string Name,
+    string PersianName,
+    string EnglishName,
     string Category,
     string CategoryLabel,
     string Description,
     int Price,
+    string? ImageUrl,
+    IReadOnlyCollection<string> GalleryImageUrls,
+    int? SpecialOfferPrice,
+    decimal TaxPercent,
+    bool IsOrderable,
+    int? PreparingDurationMinutes,
+    int? Calories,
+    IReadOnlyCollection<string> Allergens,
+    string? Volume,
+    IReadOnlyCollection<PublicMenuItemVariantDto> Variants,
     IReadOnlyCollection<string> Tags,
     string? Badge,
     bool Featured,
     string Accent,
     string Short,
     int DisplayOrder);
+
+public record PublicMenuItemVariantDto(
+    string Key,
+    string Label,
+    int? Price,
+    int? SpecialOfferPrice,
+    string? Volume);
 
 public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, PublicMenuDto>
 {
@@ -45,26 +64,81 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 category.DisplayOrder))
             .ToListAsync(cancellationToken);
 
-        var items = await _dbContext.MenuItems
+        var menuRows = await _dbContext.MenuItems
             .AsNoTracking()
             .Where(item => item.IsActive && item.Category.IsActive)
             .OrderBy(item => item.Category.DisplayOrder)
             .ThenBy(item => item.DisplayOrder)
             .ThenBy(item => item.Name)
-            .Select(item => new PublicMenuItemDto(
+            .Select(item => new
+            {
                 item.Id,
                 item.Name,
-                item.Category.Slug,
-                item.Category.Name,
+                item.PersianName,
+                item.EnglishName,
+                Category = item.Category.Slug,
+                CategoryLabel = item.Category.Name,
                 item.Description,
                 item.Price,
+                item.ImageUrl,
+                item.GalleryImageUrls,
+                item.SpecialOfferPrice,
+                item.TaxPercent,
+                item.IsOrderable,
+                item.PreparingDurationMinutes,
+                item.Calories,
+                item.Allergens,
+                item.Volume,
+                item.SmallPrice,
+                item.SmallSpecialOfferPrice,
+                item.SmallVolume,
+                item.MediumPrice,
+                item.MediumSpecialOfferPrice,
+                item.MediumVolume,
+                item.LargePrice,
+                item.LargeSpecialOfferPrice,
+                item.LargeVolume,
                 item.Tags,
                 item.Badge,
                 item.Featured,
                 item.Accent,
-                item.ShortLabel,
-                item.DisplayOrder))
+                Short = item.ShortLabel,
+                item.DisplayOrder
+            })
             .ToListAsync(cancellationToken);
+
+        var items = menuRows
+            .Select(item => new PublicMenuItemDto(
+                item.Id,
+                item.Name,
+                item.PersianName,
+                item.EnglishName,
+                item.Category,
+                item.CategoryLabel,
+                item.Description,
+                item.Price,
+                item.ImageUrl,
+                item.GalleryImageUrls,
+                item.SpecialOfferPrice,
+                item.TaxPercent,
+                item.IsOrderable,
+                item.PreparingDurationMinutes,
+                item.Calories,
+                item.Allergens,
+                item.Volume,
+                new[]
+                {
+                    new PublicMenuItemVariantDto("small", "کوچک", item.SmallPrice, item.SmallSpecialOfferPrice, item.SmallVolume),
+                    new PublicMenuItemVariantDto("medium", "متوسط", item.MediumPrice, item.MediumSpecialOfferPrice, item.MediumVolume),
+                    new PublicMenuItemVariantDto("large", "بزرگ", item.LargePrice, item.LargeSpecialOfferPrice, item.LargeVolume)
+                }.Where(variant => variant.Price.HasValue).ToArray(),
+                item.Tags,
+                item.Badge,
+                item.Featured,
+                item.Accent,
+                item.Short,
+                item.DisplayOrder))
+            .ToList();
 
         return new PublicMenuDto(categories, items);
     }

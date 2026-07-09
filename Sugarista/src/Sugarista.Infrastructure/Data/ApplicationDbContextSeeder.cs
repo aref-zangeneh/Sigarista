@@ -33,6 +33,7 @@ public class ApplicationDbContextSeeder
 
         await SeedSiteSettingsAsync(cancellationToken);
         await SeedMenuAsync(cancellationToken);
+        await SeedSalonAsync(cancellationToken);
         await SeedAdminAsync(cancellationToken);
     }
 
@@ -114,19 +115,63 @@ public class ApplicationDbContextSeeder
 
         var categoryMap = categories.ToDictionary(category => category.Slug, StringComparer.OrdinalIgnoreCase);
 
+        MenuItem CreateMenuItem(
+            string categorySlug,
+            string persianName,
+            string englishName,
+            string description,
+            int price,
+            string[] tags,
+            string? badge,
+            bool featured,
+            string accent,
+            string shortLabel,
+            int displayOrder)
+        {
+            return new MenuItem(
+                categoryMap[categorySlug].Id,
+                persianName,
+                englishName,
+                description,
+                imageUrl: null,
+                galleryImageUrls: [],
+                specialOfferPrice: null,
+                taxPercent: 0,
+                isOrderable: true,
+                preparingDurationMinutes: null,
+                calories: null,
+                allergens: [],
+                volume: null,
+                smallPrice: null,
+                smallSpecialOfferPrice: null,
+                smallVolume: null,
+                mediumPrice: price,
+                mediumSpecialOfferPrice: null,
+                mediumVolume: null,
+                largePrice: null,
+                largeSpecialOfferPrice: null,
+                largeVolume: null,
+                tags,
+                badge,
+                featured,
+                accent,
+                shortLabel,
+                displayOrder);
+        }
+
         _dbContext.MenuItems.AddRange(
-            new MenuItem(categoryMap["coffee"].Id, "اسپرسو دوبل", "شات دوبل با کرمای غلیظ و طعمی متعادل؛ انتخاب کلاسیک برای شروع روز.", 98000, ["Strong", "Hot", "Classic"], "پرفروش", true, "linear-gradient(135deg, #5b3425, #8a5339)", "ES", 1),
-            new MenuItem(categoryMap["coffee"].Id, "کارامل ماکیاتو", "اسپرسو، شیر بخار داده شده و لایه کارامل برای طعمی نرم و محبوب.", 145000, ["Sweet", "Milk", "Signature"], "ویژه", true, "linear-gradient(135deg, #8a4f36, #d38b52)", "CM", 2),
-            new MenuItem(categoryMap["cold-drinks"].Id, "آیس لاته وانیل", "لاته خنک با رایحه وانیل، مناسب روزهای گرم و سفارش‌های بیرون‌بر.", 158000, ["Cold", "Vanilla", "Takeaway"], string.Empty, true, "linear-gradient(135deg, #7b5d4a, #c7a383)", "VL", 1),
-            new MenuItem(categoryMap["cold-drinks"].Id, "موکا فراپه", "ترکیب قهوه، شکلات و یخ با بافتی خامه‌ای و طعمی دسرگونه.", 168000, ["Chocolate", "Cold", "Blended"], "جدید", false, "linear-gradient(135deg, #4f342c, #8f6655)", "MF", 2),
-            new MenuItem(categoryMap["breakfast"].Id, "املت آووکادو", "املت نرم با نان تست، آووکادو و سالاد کوچک؛ مناسب صبحانه سبک و سالم.", 225000, ["Healthy", "Breakfast", "Fresh"], string.Empty, false, "linear-gradient(135deg, #507c4a, #9fc370)", "AO", 1),
-            new MenuItem(categoryMap["breakfast"].Id, "پنکیک بری بری", "پنکیک نرم با میوه تازه، سس بری و کمی عسل؛ مناسب اشتراک دو نفره.", 248000, ["Sweet", "Berry", "Brunch"], "محبوب", true, "linear-gradient(135deg, #7b3754, #d9899f)", "PB", 2),
-            new MenuItem(categoryMap["dessert"].Id, "چیزکیک سن سباستین", "بافت کرمی با رویه برشته و سرو کنار سس کارامل یا شکلات.", 175000, ["Dessert", "Creamy", "Best Seller"], "پرفروش", true, "linear-gradient(135deg, #a0653f, #e1b487)", "CS", 1),
-            new MenuItem(categoryMap["dessert"].Id, "براونی گرم با بستنی", "براونی شکلاتی تازه با اسکوپ بستنی وانیلی و سس شکلات داغ.", 182000, ["Chocolate", "Warm", "Dessert"], string.Empty, false, "linear-gradient(135deg, #4d3025, #7f5546)", "BW", 2),
-            new MenuItem(categoryMap["tea-mocktail"].Id, "موکتل رد بری", "ترکیب ردبری، لیمو و نعناع با طعمی ترش و خنک برای عصرهای تابستانی.", 152000, ["Fruity", "Iced", "Refreshing"], "Fresh", false, "linear-gradient(135deg, #8c3145, #d46b84)", "RB", 1),
-            new MenuItem(categoryMap["tea-mocktail"].Id, "چای ماسالا", "چای معطر با ادویه‌های گرم و شیر، مناسب مهمان‌هایی که طعم متفاوت می‌خواهند.", 118000, ["Spicy", "Hot", "Aromatic"], string.Empty, false, "linear-gradient(135deg, #7b4937, #b97f56)", "TM", 2),
-            new MenuItem(categoryMap["cold-drinks"].Id, "کلد برو پرتقال", "کلد برو روشن با عصاره پرتقال؛ سبک، میوه‌ای و مناسب دوستداران طعم خاص.", 149000, ["Cold Brew", "Citrus", "Specialty"], "باریستا چویس", false, "linear-gradient(135deg, #7b4426, #e3a155)", "CB", 3),
-            new MenuItem(categoryMap["breakfast"].Id, "ساندویچ کروسان بوقلمون", "کروسان کره‌ای با بوقلمون دودی، پنیر و سس خردل ملایم.", 235000, ["Savory", "Croissant", "Popular"], string.Empty, false, "linear-gradient(135deg, #916239, #d6aa75)", "CT", 3)
+            CreateMenuItem("coffee", "اسپرسو دوبل", "Double Espresso", "شات دوبل با کرمای غلیظ و طعمی متعادل؛ انتخاب کلاسیک برای شروع روز.", 98000, ["Strong", "Hot", "Classic"], "پرفروش", true, "linear-gradient(135deg, #5b3425, #8a5339)", "ES", 1),
+            CreateMenuItem("coffee", "کارامل ماکیاتو", "Caramel Macchiato", "اسپرسو، شیر بخار داده شده و لایه کارامل برای طعمی نرم و محبوب.", 145000, ["Sweet", "Milk", "Signature"], "ویژه", true, "linear-gradient(135deg, #8a4f36, #d38b52)", "CM", 2),
+            CreateMenuItem("cold-drinks", "آیس لاته وانیل", "Vanilla Iced Latte", "لاته خنک با رایحه وانیل، مناسب روزهای گرم و سفارش‌های بیرون‌بر.", 158000, ["Cold", "Vanilla", "Takeaway"], string.Empty, true, "linear-gradient(135deg, #7b5d4a, #c7a383)", "VL", 1),
+            CreateMenuItem("cold-drinks", "موکا فراپه", "Mocha Frappe", "ترکیب قهوه، شکلات و یخ با بافتی خامه‌ای و طعمی دسرگونه.", 168000, ["Chocolate", "Cold", "Blended"], "جدید", false, "linear-gradient(135deg, #4f342c, #8f6655)", "MF", 2),
+            CreateMenuItem("breakfast", "املت آووکادو", "Avocado Omelet", "املت نرم با نان تست، آووکادو و سالاد کوچک؛ مناسب صبحانه سبک و سالم.", 225000, ["Healthy", "Breakfast", "Fresh"], string.Empty, false, "linear-gradient(135deg, #507c4a, #9fc370)", "AO", 1),
+            CreateMenuItem("breakfast", "پنکیک بری بری", "Berry Pancake", "پنکیک نرم با میوه تازه، سس بری و کمی عسل؛ مناسب اشتراک دو نفره.", 248000, ["Sweet", "Berry", "Brunch"], "محبوب", true, "linear-gradient(135deg, #7b3754, #d9899f)", "PB", 2),
+            CreateMenuItem("dessert", "چیزکیک سن سباستین", "San Sebastian Cheesecake", "بافت کرمی با رویه برشته و سرو کنار سس کارامل یا شکلات.", 175000, ["Dessert", "Creamy", "Best Seller"], "پرفروش", true, "linear-gradient(135deg, #a0653f, #e1b487)", "CS", 1),
+            CreateMenuItem("dessert", "براونی گرم با بستنی", "Warm Brownie With Ice Cream", "براونی شکلاتی تازه با اسکوپ بستنی وانیلی و سس شکلات داغ.", 182000, ["Chocolate", "Warm", "Dessert"], string.Empty, false, "linear-gradient(135deg, #4d3025, #7f5546)", "BW", 2),
+            CreateMenuItem("tea-mocktail", "موکتل رد بری", "Red Berry Mocktail", "ترکیب ردبری، لیمو و نعناع با طعمی ترش و خنک برای عصرهای تابستانی.", 152000, ["Fruity", "Iced", "Refreshing"], "Fresh", false, "linear-gradient(135deg, #8c3145, #d46b84)", "RB", 1),
+            CreateMenuItem("tea-mocktail", "چای ماسالا", "Masala Tea", "چای معطر با ادویه‌های گرم و شیر، مناسب مهمان‌هایی که طعم متفاوت می‌خواهند.", 118000, ["Spicy", "Hot", "Aromatic"], string.Empty, false, "linear-gradient(135deg, #7b4937, #b97f56)", "TM", 2),
+            CreateMenuItem("cold-drinks", "کلد برو پرتقال", "Orange Cold Brew", "کلد برو روشن با عصاره پرتقال؛ سبک، میوه‌ای و مناسب دوستداران طعم خاص.", 149000, ["Cold Brew", "Citrus", "Specialty"], "باریستا چویس", false, "linear-gradient(135deg, #7b4426, #e3a155)", "CB", 3),
+            CreateMenuItem("breakfast", "ساندویچ کروسان بوقلمون", "Turkey Croissant Sandwich", "کروسان کره‌ای با بوقلمون دودی، پنیر و سس خردل ملایم.", 235000, ["Savory", "Croissant", "Popular"], string.Empty, false, "linear-gradient(135deg, #916239, #d6aa75)", "CT", 3)
         );
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -152,5 +197,23 @@ public class ApplicationDbContextSeeder
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Seeded default admin user {Username}.", adminUser.Username);
+    }
+
+    private async Task SeedSalonAsync(CancellationToken cancellationToken)
+    {
+        if (await _dbContext.SalonTables.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        _dbContext.SalonTables.AddRange(
+            new SalonTable("میز ۱", 2, 1),
+            new SalonTable("میز ۲", 2, 2),
+            new SalonTable("میز ۳", 4, 3),
+            new SalonTable("میز ۴", 4, 4),
+            new SalonTable("میز ۵", 6, 5),
+            new SalonTable("میز VIP", 8, 6));
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

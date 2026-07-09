@@ -6,6 +6,7 @@ const SESSION_STORAGE_KEY = 'sugarista.admin.session'
 
 const tabOptions = [
   { id: 'overview', label: 'نمای کلی' },
+  { id: 'salon', label: 'وضعیت سالن' },
   { id: 'categories', label: 'دسته‌بندی‌ها' },
   { id: 'menu-items', label: 'آیتم‌های منو' },
   { id: 'site-settings', label: 'تنظیمات سایت' },
@@ -22,9 +23,27 @@ const emptyCategoryForm = {
 const emptyMenuItemForm = {
   id: '',
   categoryId: '',
-  name: '',
+  persianName: '',
+  englishName: '',
   description: '',
-  price: 0,
+  imageUrl: '',
+  galleryImageUrls: '',
+  specialOfferPrice: '',
+  taxPercent: 0,
+  isOrderable: true,
+  preparingDurationMinutes: '',
+  calories: '',
+  allergens: '',
+  volume: '',
+  smallPrice: '',
+  smallSpecialOfferPrice: '',
+  smallVolume: '',
+  mediumPrice: '',
+  mediumSpecialOfferPrice: '',
+  mediumVolume: '',
+  largePrice: '',
+  largeSpecialOfferPrice: '',
+  largeVolume: '',
   tags: '',
   badge: '',
   featured: false,
@@ -32,6 +51,29 @@ const emptyMenuItemForm = {
   shortLabel: '',
   displayOrder: 0,
   isActive: true,
+}
+
+const emptySalonTableForm = {
+  id: '',
+  name: '',
+  capacity: 2,
+  displayOrder: 0,
+  isActive: true,
+}
+
+const emptyOccupyForm = {
+  tableId: '',
+  peopleCount: 1,
+  note: '',
+}
+
+const emptySalonStatus = {
+  timestamp: '',
+  totalTables: 0,
+  occupiedTables: 0,
+  freeTables: 0,
+  currentCustomers: 0,
+  tables: [],
 }
 
 const emptySettings = {
@@ -172,8 +214,57 @@ function joinTags(tags) {
   return tags.join('، ')
 }
 
+function splitList(value) {
+  return value
+    .split(/[\n,،]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function joinList(values) {
+  return values.join('\n')
+}
+
+function optionalNumber(value) {
+  if (value === '' || value === null || value === undefined) {
+    return null
+  }
+
+  return Number(value)
+}
+
 function toPersianNumber(value) {
   return new Intl.NumberFormat('fa-IR').format(value)
+}
+
+function formatDuration(minutes) {
+  if (!minutes) {
+    return 'کمتر از ۱ دقیقه'
+  }
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+
+  if (hours === 0) {
+    return `${toPersianNumber(remainingMinutes)} دقیقه`
+  }
+
+  if (remainingMinutes === 0) {
+    return `${toPersianNumber(hours)} ساعت`
+  }
+
+  return `${toPersianNumber(hours)} ساعت و ${toPersianNumber(remainingMinutes)} دقیقه`
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return 'ثبت نشده'
+  }
+
+  return new Intl.DateTimeFormat('fa-IR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value))
 }
 
 function getReadableError(error) {
@@ -233,9 +324,14 @@ function App() {
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'ChangeMe123!' })
   const [categories, setCategories] = useState([])
   const [menuItems, setMenuItems] = useState([])
+  const [salonStatus, setSalonStatus] = useState(emptySalonStatus)
   const [siteSettings, setSiteSettings] = useState(emptySettings)
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [menuItemForm, setMenuItemForm] = useState(emptyMenuItemForm)
+  const [salonTableForm, setSalonTableForm] = useState(emptySalonTableForm)
+  const [occupyForm, setOccupyForm] = useState(emptyOccupyForm)
+  const [isSalonTableModalOpen, setIsSalonTableModalOpen] = useState(false)
+  const [isOccupyModalOpen, setIsOccupyModalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -245,6 +341,7 @@ function App() {
     () => menuItems.filter((item) => item.featured && item.isActive).length,
     [menuItems],
   )
+  const activeSalonTables = salonStatus.tables.filter((table) => table.isActive)
 
   useEffect(() => {
     document.documentElement.lang = 'fa'
@@ -262,6 +359,32 @@ function App() {
     window.localStorage.removeItem(SESSION_STORAGE_KEY)
   }, [session])
 
+  useEffect(() => {
+    if (!session?.token || activeTab !== 'salon') {
+      return undefined
+    }
+
+    const intervalId = window.setInterval(() => {
+      loadSalonStatus(session.token)
+    }, 5000)
+
+    return () => window.clearInterval(intervalId)
+  }, [activeTab, session])
+
+  async function loadSalonStatus(token = session?.token) {
+    if (!token) {
+      return
+    }
+
+    const statusData = await apiRequest('/admin/salon/status', { token })
+    setSalonStatus(statusData)
+    setSalonTableForm((currentForm) =>
+      currentForm.id
+        ? currentForm
+        : { ...emptySalonTableForm, displayOrder: statusData.tables.length },
+    )
+  }
+
   async function loadAdminData(token = session?.token) {
     if (!token) {
       return
@@ -271,15 +394,17 @@ function App() {
     setError('')
 
     try {
-      const [categoryData, itemData, settingsData] = await Promise.all([
+      const [categoryData, itemData, settingsData, salonData] = await Promise.all([
         apiRequest('/admin/categories', { token }),
         apiRequest('/admin/menu-items', { token }),
         apiRequest('/admin/site-settings', { token }),
+        apiRequest('/admin/salon/status', { token }),
       ])
 
       setCategories(categoryData)
       setMenuItems(itemData)
       setSiteSettings(settingsData)
+      setSalonStatus(salonData)
       setCategoryForm((currentForm) =>
         currentForm.id ? currentForm : { ...emptyCategoryForm, displayOrder: categoryData.length },
       )
@@ -291,6 +416,11 @@ function App() {
               categoryId: categoryData[0]?.id ?? '',
               displayOrder: itemData.length,
             },
+      )
+      setSalonTableForm((currentForm) =>
+        currentForm.id
+          ? currentForm
+          : { ...emptySalonTableForm, displayOrder: salonData.tables.length },
       )
     } catch (requestError) {
       if (requestError.message.includes('401')) {
@@ -328,10 +458,128 @@ function App() {
     setSession(null)
     setCategories([])
     setMenuItems([])
+    setSalonStatus(emptySalonStatus)
     setSiteSettings(emptySettings)
     setCategoryForm(emptyCategoryForm)
     setMenuItemForm(emptyMenuItemForm)
+    setSalonTableForm(emptySalonTableForm)
+    setOccupyForm(emptyOccupyForm)
+    setIsSalonTableModalOpen(false)
+    setIsOccupyModalOpen(false)
     setMessage('از حساب کاربری خارج شدید.')
+  }
+
+  async function handleSalonTableSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const path = salonTableForm.id
+        ? `/admin/salon/tables/${salonTableForm.id}`
+        : '/admin/salon/tables'
+
+      await apiRequest(path, {
+        method: salonTableForm.id ? 'PUT' : 'POST',
+        token: session.token,
+        body: {
+          name: salonTableForm.name,
+          capacity: Number(salonTableForm.capacity),
+          displayOrder: Number(salonTableForm.displayOrder),
+          isActive: salonTableForm.isActive,
+        },
+      })
+
+      setSalonTableForm({ ...emptySalonTableForm, displayOrder: salonStatus.tables.length })
+      setIsSalonTableModalOpen(false)
+      setMessage('میز سالن با موفقیت ذخیره شد.')
+      await loadSalonStatus()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteSalonTable(tableId) {
+    if (!window.confirm('از حذف این میز مطمئن هستید؟ میزهای دارای سابقه نشست بهتر است غیرفعال شوند.')) {
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await apiRequest(`/admin/salon/tables/${tableId}`, {
+        method: 'DELETE',
+        token: session.token,
+      })
+
+      if (salonTableForm.id === tableId) {
+        setSalonTableForm(emptySalonTableForm)
+      }
+
+      setIsSalonTableModalOpen(false)
+      setMessage('میز حذف شد.')
+      await loadSalonStatus()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleOccupyTable(event) {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await apiRequest(`/admin/salon/tables/${occupyForm.tableId}/occupy`, {
+        method: 'POST',
+        token: session.token,
+        body: {
+          peopleCount: Number(occupyForm.peopleCount),
+          note: occupyForm.note.trim() || null,
+        },
+      })
+
+      setOccupyForm(emptyOccupyForm)
+      setIsOccupyModalOpen(false)
+      setMessage('میز اشغال شد و زمان حضور مشتریان ثبت شد.')
+      await loadSalonStatus()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleReleaseTable(tableId) {
+    if (!window.confirm('این میز آزاد شود؟')) {
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await apiRequest(`/admin/salon/tables/${tableId}/release`, {
+        method: 'POST',
+        token: session.token,
+      })
+
+      setMessage('میز آزاد شد.')
+      await loadSalonStatus()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleCategorySubmit(event) {
@@ -411,9 +659,27 @@ function App() {
         token: session.token,
         body: {
           categoryId: menuItemForm.categoryId,
-          name: menuItemForm.name,
+          persianName: menuItemForm.persianName,
+          englishName: menuItemForm.englishName,
           description: menuItemForm.description,
-          price: Number(menuItemForm.price),
+          imageUrl: menuItemForm.imageUrl.trim() || null,
+          galleryImageUrls: splitList(menuItemForm.galleryImageUrls),
+          specialOfferPrice: optionalNumber(menuItemForm.specialOfferPrice),
+          taxPercent: Number(menuItemForm.taxPercent),
+          isOrderable: menuItemForm.isOrderable,
+          preparingDurationMinutes: optionalNumber(menuItemForm.preparingDurationMinutes),
+          calories: optionalNumber(menuItemForm.calories),
+          allergens: splitList(menuItemForm.allergens),
+          volume: menuItemForm.volume.trim() || null,
+          smallPrice: optionalNumber(menuItemForm.smallPrice),
+          smallSpecialOfferPrice: optionalNumber(menuItemForm.smallSpecialOfferPrice),
+          smallVolume: menuItemForm.smallVolume.trim() || null,
+          mediumPrice: optionalNumber(menuItemForm.mediumPrice),
+          mediumSpecialOfferPrice: optionalNumber(menuItemForm.mediumSpecialOfferPrice),
+          mediumVolume: menuItemForm.mediumVolume.trim() || null,
+          largePrice: optionalNumber(menuItemForm.largePrice),
+          largeSpecialOfferPrice: optionalNumber(menuItemForm.largeSpecialOfferPrice),
+          largeVolume: menuItemForm.largeVolume.trim() || null,
           tags: splitTags(menuItemForm.tags),
           badge: menuItemForm.badge.trim() || null,
           featured: menuItemForm.featured,
@@ -508,9 +774,27 @@ function App() {
     setMenuItemForm({
       id: item.id,
       categoryId: item.categoryId,
-      name: item.name,
+      persianName: item.persianName ?? item.name,
+      englishName: item.englishName ?? '',
       description: item.description,
-      price: item.price,
+      imageUrl: item.imageUrl ?? '',
+      galleryImageUrls: joinList(item.galleryImageUrls ?? []),
+      specialOfferPrice: item.specialOfferPrice ?? '',
+      taxPercent: item.taxPercent ?? 0,
+      isOrderable: item.isOrderable ?? true,
+      preparingDurationMinutes: item.preparingDurationMinutes ?? '',
+      calories: item.calories ?? '',
+      allergens: joinList(item.allergens ?? []),
+      volume: item.volume ?? '',
+      smallPrice: item.smallPrice ?? '',
+      smallSpecialOfferPrice: item.smallSpecialOfferPrice ?? '',
+      smallVolume: item.smallVolume ?? '',
+      mediumPrice: item.mediumPrice ?? item.price ?? '',
+      mediumSpecialOfferPrice: item.mediumSpecialOfferPrice ?? '',
+      mediumVolume: item.mediumVolume ?? '',
+      largePrice: item.largePrice ?? '',
+      largeSpecialOfferPrice: item.largeSpecialOfferPrice ?? '',
+      largeVolume: item.largeVolume ?? '',
       tags: joinTags(item.tags),
       badge: item.badge ?? '',
       featured: item.featured,
@@ -520,6 +804,44 @@ function App() {
       isActive: item.isActive,
     })
     setActiveTab('menu-items')
+  }
+
+  function editSalonTable(table) {
+    setSalonTableForm({
+      id: table.id,
+      name: table.name,
+      capacity: table.capacity,
+      displayOrder: table.displayOrder,
+      isActive: table.isActive,
+    })
+    setIsSalonTableModalOpen(true)
+  }
+
+  function openCreateSalonTableModal() {
+    setSalonTableForm({
+      ...emptySalonTableForm,
+      displayOrder: salonStatus.tables.length,
+    })
+    setIsSalonTableModalOpen(true)
+  }
+
+  function closeSalonTableModal() {
+    setIsSalonTableModalOpen(false)
+    resetSalonTableForm()
+  }
+
+  function openOccupyTableModal(table) {
+    setOccupyForm({
+      tableId: table.id,
+      peopleCount: Math.min(table.capacity, 1),
+      note: '',
+    })
+    setIsOccupyModalOpen(true)
+  }
+
+  function closeOccupyModal() {
+    setIsOccupyModalOpen(false)
+    setOccupyForm(emptyOccupyForm)
   }
 
   function resetCategoryForm() {
@@ -534,6 +856,13 @@ function App() {
       ...emptyMenuItemForm,
       categoryId: categories[0]?.id ?? '',
       displayOrder: menuItems.length,
+    })
+  }
+
+  function resetSalonTableForm() {
+    setSalonTableForm({
+      ...emptySalonTableForm,
+      displayOrder: salonStatus.tables.length,
     })
   }
 
@@ -646,6 +975,10 @@ function App() {
                 <span>آیتم‌های ویژه</span>
                 <strong>{toPersianNumber(featuredCount)}</strong>
               </article>
+              <article className="stat-card">
+                <span>میزهای اشغال</span>
+                <strong>{toPersianNumber(salonStatus.occupiedTables)}</strong>
+              </article>
             </section>
 
             <section className="panel">
@@ -656,6 +989,9 @@ function App() {
                 </button>
                 <button type="button" onClick={() => setActiveTab('menu-items')}>
                   افزودن آیتم منو
+                </button>
+                <button type="button" onClick={() => setActiveTab('salon')}>
+                  مدیریت وضعیت سالن
                 </button>
                 <button type="button" onClick={() => setActiveTab('site-settings')}>
                   ویرایش متن‌های عمومی
@@ -680,6 +1016,279 @@ function App() {
                 </div>
               </div>
             </section>
+          </section>
+        ) : null}
+
+        {activeTab === 'salon' ? (
+          <section className="panel-stack">
+            <section className="stat-grid">
+              <article className="stat-card">
+                <span>کل میزها</span>
+                <strong>{toPersianNumber(salonStatus.totalTables)}</strong>
+              </article>
+              <article className="stat-card">
+                <span>میزهای اشغال</span>
+                <strong>{toPersianNumber(salonStatus.occupiedTables)}</strong>
+              </article>
+              <article className="stat-card">
+                <span>میزهای آزاد</span>
+                <strong>{toPersianNumber(salonStatus.freeTables)}</strong>
+              </article>
+              <article className="stat-card">
+                <span>مشتریان حاضر</span>
+                <strong>{toPersianNumber(salonStatus.currentCustomers)}</strong>
+              </article>
+            </section>
+
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>وضعیت زنده سالن</h3>
+                  <p>
+                    این بخش هر ۵ ثانیه تازه‌سازی می‌شود. آخرین بروزرسانی:{' '}
+                    {formatDateTime(salonStatus.timestamp)}
+                  </p>
+                </div>
+                <button type="button" className="ghost-button" onClick={() => loadSalonStatus()}>
+                  بروزرسانی دستی
+                </button>
+              </div>
+
+              <div className="salon-grid">
+                {activeSalonTables.map((table) => (
+                  <article
+                    key={table.id}
+                    className={table.isOccupied ? 'salon-card salon-card-occupied' : 'salon-card'}
+                  >
+                    <div className="salon-card-head">
+                      <div>
+                        <h4>{table.name}</h4>
+                        <p>ظرفیت {toPersianNumber(table.capacity)} نفر</p>
+                      </div>
+                      <span className={table.isOccupied ? 'status-badge busy' : 'status-badge free'}>
+                        {table.isOccupied ? 'اشغال' : 'آزاد'}
+                      </span>
+                    </div>
+
+                    {table.isOccupied ? (
+                      <div className="salon-card-body">
+                        <div>
+                          <span className="field-label">تعداد افراد</span>
+                          <strong>{toPersianNumber(table.peopleCount)} نفر</strong>
+                        </div>
+                        <div>
+                          <span className="field-label">شروع حضور</span>
+                          <strong>{formatDateTime(table.startedAt)}</strong>
+                        </div>
+                        <div>
+                          <span className="field-label">مدت استفاده</span>
+                          <strong>{formatDuration(table.durationMinutes)}</strong>
+                        </div>
+                        {table.note ? (
+                          <div className="full-width">
+                            <span className="field-label">یادداشت</span>
+                            <strong>{table.note}</strong>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="salon-empty">این میز آماده پذیرش مشتری است.</p>
+                    )}
+
+                    <div className="salon-card-actions">
+                      {table.isOccupied ? (
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => handleReleaseTable(table.id)}
+                          disabled={saving}
+                        >
+                          آزاد کردن میز
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => openOccupyTableModal(table)}
+                        >
+                          اشغال کردن
+                        </button>
+                      )}
+                      <button type="button" className="link-button" onClick={() => editSalonTable(table)}>
+                        ویرایش میز
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>مدیریت میزها</h3>
+                  <p>برای افزودن میز جدید یا ویرایش میزهای موجود از پنجره popup استفاده کنید.</p>
+                </div>
+                <button type="button" className="ghost-button" onClick={openCreateSalonTableModal}>
+                  افزودن میز جدید
+                </button>
+              </div>
+            </section>
+
+            {isOccupyModalOpen ? (
+              <div className="modal-backdrop" role="presentation">
+                <form className="panel form-panel modal-card" onSubmit={handleOccupyTable}>
+                  <div className="panel-head">
+                    <div>
+                      <h3>ثبت اشغال میز</h3>
+                      <p>تعداد افراد را وارد کنید تا زمان شروع حضور مشتریان ذخیره شود.</p>
+                    </div>
+                    <button type="button" className="ghost-button" onClick={closeOccupyModal}>
+                      بستن
+                    </button>
+                  </div>
+                  <label>
+                    <span>میز</span>
+                    <select
+                      value={occupyForm.tableId}
+                      onChange={(event) =>
+                        setOccupyForm((currentForm) => ({
+                          ...currentForm,
+                          tableId: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">یک میز آزاد انتخاب کنید</option>
+                      {activeSalonTables
+                        .filter((table) => !table.isOccupied)
+                        .map((table) => (
+                          <option key={table.id} value={table.id}>
+                            {table.name} - ظرفیت {toPersianNumber(table.capacity)} نفر
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>تعداد افراد</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="1"
+                      value={occupyForm.peopleCount}
+                      onChange={(event) =>
+                        setOccupyForm((currentForm) => ({
+                          ...currentForm,
+                          peopleCount: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>یادداشت اختیاری</span>
+                    <textarea
+                      rows="3"
+                      value={occupyForm.note}
+                      onChange={(event) =>
+                        setOccupyForm((currentForm) => ({
+                          ...currentForm,
+                          note: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <button type="submit" disabled={saving || !occupyForm.tableId}>
+                    {saving ? 'در حال ثبت...' : 'ثبت اشغال میز'}
+                  </button>
+                </form>
+              </div>
+            ) : null}
+
+            {isSalonTableModalOpen ? (
+              <div className="modal-backdrop" role="presentation">
+                <form className="panel form-panel modal-card" onSubmit={handleSalonTableSubmit}>
+                <div className="panel-head">
+                  <div>
+                    <h3>{salonTableForm.id ? 'ویرایش میز' : 'میز جدید'}</h3>
+                    <p>میزها، ظرفیت سالن و نقشه عملیاتی کافه را مشخص می‌کنند.</p>
+                  </div>
+                  <button type="button" className="ghost-button" onClick={closeSalonTableModal}>
+                    بستن
+                  </button>
+                </div>
+                <label>
+                  <span>نام میز</span>
+                  <input
+                    value={salonTableForm.name}
+                    onChange={(event) =>
+                      setSalonTableForm((currentForm) => ({
+                        ...currentForm,
+                        name: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <div className="field-grid">
+                  <label>
+                    <span>ظرفیت</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="1"
+                      value={salonTableForm.capacity}
+                      onChange={(event) =>
+                        setSalonTableForm((currentForm) => ({
+                          ...currentForm,
+                          capacity: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>ترتیب نمایش</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="0"
+                      value={salonTableForm.displayOrder}
+                      onChange={(event) =>
+                        setSalonTableForm((currentForm) => ({
+                          ...currentForm,
+                          displayOrder: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={salonTableForm.isActive}
+                    onChange={(event) =>
+                      setSalonTableForm((currentForm) => ({
+                        ...currentForm,
+                        isActive: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>میز فعال باشد</span>
+                </label>
+                <div className="form-actions">
+                  <button type="submit" disabled={saving}>
+                    {saving ? 'در حال ذخیره...' : 'ذخیره میز'}
+                  </button>
+                  {salonTableForm.id ? (
+                    <button
+                      type="button"
+                      className="link-button link-danger"
+                      onClick={() => handleDeleteSalonTable(salonTableForm.id)}
+                    >
+                      حذف میز
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -823,15 +1432,36 @@ function App() {
                   ))}
                 </select>
               </label>
-              <label>
-                <span>نام آیتم</span>
-                <input
-                  value={menuItemForm.name}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({ ...currentForm, name: event.target.value }))
-                  }
-                />
-              </label>
+              <div className="form-section">
+                <h4>هویت آیتم</h4>
+                <div className="field-grid">
+                  <label>
+                    <span>نام فارسی</span>
+                    <input
+                      value={menuItemForm.persianName}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          persianName: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>نام انگلیسی</span>
+                    <input
+                      className="ltr-input"
+                      value={menuItemForm.englishName}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          englishName: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
               <label>
                 <span>توضیحات</span>
                 <textarea
@@ -845,106 +1475,289 @@ function App() {
                   }
                 />
               </label>
-              <div className="field-grid">
+              <div className="form-section">
+                <h4>تصاویر</h4>
                 <label>
-                  <span>قیمت</span>
+                  <span>آدرس تصویر اصلی</span>
                   <input
                     className="ltr-input"
-                    type="number"
-                    value={menuItemForm.price}
+                    type="url"
+                    value={menuItemForm.imageUrl}
                     onChange={(event) =>
                       setMenuItemForm((currentForm) => ({
                         ...currentForm,
-                        price: Number(event.target.value),
+                        imageUrl: event.target.value,
                       }))
                     }
                   />
                 </label>
                 <label>
-                  <span>حروف کوتاه</span>
-                  <input
+                  <span>گالری تصاویر (هر آدرس در یک خط)</span>
+                  <textarea
                     className="ltr-input"
-                    value={menuItemForm.shortLabel}
+                    rows="3"
+                    value={menuItemForm.galleryImageUrls}
                     onChange={(event) =>
                       setMenuItemForm((currentForm) => ({
                         ...currentForm,
-                        shortLabel: event.target.value,
+                        galleryImageUrls: event.target.value,
                       }))
                     }
                   />
                 </label>
               </div>
-              <label>
-                <span>برچسب‌ها (با کاما جدا کنید)</span>
-                <input
-                  value={menuItemForm.tags}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({ ...currentForm, tags: event.target.value }))
-                  }
-                />
-              </label>
-              <div className="field-grid">
-                <label>
-                  <span>نشان ویژه</span>
-                  <input
-                    value={menuItemForm.badge}
-                    onChange={(event) =>
-                      setMenuItemForm((currentForm) => ({ ...currentForm, badge: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>ترتیب نمایش</span>
-                  <input
-                    className="ltr-input"
-                    type="number"
-                    value={menuItemForm.displayOrder}
-                    onChange={(event) =>
-                      setMenuItemForm((currentForm) => ({
-                        ...currentForm,
-                        displayOrder: Number(event.target.value),
-                      }))
-                    }
-                  />
-                </label>
+
+              <div className="form-section">
+                <h4>قیمت‌گذاری و سایزها</h4>
+                <div className="variant-grid">
+                  {[
+                    ['small', 'کوچک'],
+                    ['medium', 'متوسط'],
+                    ['large', 'بزرگ'],
+                  ].map(([variantKey, variantLabel]) => (
+                    <div key={variantKey} className="variant-card">
+                      <strong>{variantLabel}</strong>
+                      <label>
+                        <span>قیمت</span>
+                        <input
+                          className="ltr-input"
+                          type="number"
+                          min="0"
+                          value={menuItemForm[`${variantKey}Price`]}
+                          onChange={(event) =>
+                            setMenuItemForm((currentForm) => ({
+                              ...currentForm,
+                              [`${variantKey}Price`]: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>قیمت پیشنهادی</span>
+                        <input
+                          className="ltr-input"
+                          type="number"
+                          min="0"
+                          value={menuItemForm[`${variantKey}SpecialOfferPrice`]}
+                          onChange={(event) =>
+                            setMenuItemForm((currentForm) => ({
+                              ...currentForm,
+                              [`${variantKey}SpecialOfferPrice`]: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>حجم همین سایز</span>
+                        <input
+                          value={menuItemForm[`${variantKey}Volume`]}
+                          onChange={(event) =>
+                            setMenuItemForm((currentForm) => ({
+                              ...currentForm,
+                              [`${variantKey}Volume`]: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <div className="field-grid">
+                  <label>
+                    <span>قیمت پیشنهادی عمومی</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="0"
+                      value={menuItemForm.specialOfferPrice}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          specialOfferPrice: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>درصد مالیات</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={menuItemForm.taxPercent}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          taxPercent: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
               </div>
-              <label>
-                <span>گرادینت پس‌زمینه</span>
-                <input
-                  className="ltr-input"
-                  value={menuItemForm.accent}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({ ...currentForm, accent: event.target.value }))
-                  }
-                />
-              </label>
-              <div className="field-grid compact-grid">
-                <label className="checkbox-row">
+
+              <div className="form-section">
+                <h4>جزئیات محصول</h4>
+                <div className="field-grid">
+                  <label>
+                    <span>زمان آماده‌سازی (دقیقه)</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="0"
+                      value={menuItemForm.preparingDurationMinutes}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          preparingDurationMinutes: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>کالری</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="0"
+                      value={menuItemForm.calories}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          calories: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>حجم عمومی</span>
+                    <input
+                      value={menuItemForm.volume}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          volume: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>آلرژن‌ها (با کاما یا خط جدید جدا کنید)</span>
+                    <textarea
+                      rows="3"
+                      value={menuItemForm.allergens}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          allergens: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="form-section">
+                <h4>نمایش و وضعیت</h4>
+                <label>
+                  <span>برچسب‌ها (با کاما جدا کنید)</span>
                   <input
-                    type="checkbox"
-                    checked={menuItemForm.featured}
+                    value={menuItemForm.tags}
                     onChange={(event) =>
-                      setMenuItemForm((currentForm) => ({
-                        ...currentForm,
-                        featured: event.target.checked,
-                      }))
+                      setMenuItemForm((currentForm) => ({ ...currentForm, tags: event.target.value }))
                     }
                   />
-                  <span>در بخش ویژه نمایش داده شود</span>
                 </label>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={menuItemForm.isActive}
-                    onChange={(event) =>
-                      setMenuItemForm((currentForm) => ({
-                        ...currentForm,
-                        isActive: event.target.checked,
-                      }))
-                    }
-                  />
-                  <span>قابل نمایش باشد</span>
-                </label>
+                <div className="field-grid">
+                  <label>
+                    <span>نشان ویژه</span>
+                    <input
+                      value={menuItemForm.badge}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({ ...currentForm, badge: event.target.value }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>حروف کوتاه</span>
+                    <input
+                      className="ltr-input"
+                      value={menuItemForm.shortLabel}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          shortLabel: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>ترتیب نمایش</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      value={menuItemForm.displayOrder}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          displayOrder: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>گرادینت پس‌زمینه</span>
+                    <input
+                      className="ltr-input"
+                      value={menuItemForm.accent}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({ ...currentForm, accent: event.target.value }))
+                      }
+                    />
+                  </label>
+                </div>
+                <div className="field-grid compact-grid">
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={menuItemForm.featured}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          featured: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>در بخش ویژه نمایش داده شود</span>
+                  </label>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={menuItemForm.isActive}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          isActive: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>قابل نمایش باشد</span>
+                  </label>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={menuItemForm.isOrderable}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          isOrderable: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>قابل سفارش باشد</span>
+                  </label>
+                </div>
               </div>
               <button type="submit" disabled={saving || !categories.length}>
                 {saving ? 'در حال ذخیره...' : 'ذخیره آیتم منو'}
@@ -964,7 +1777,7 @@ function App() {
                     <tr>
                       <th>نام</th>
                       <th>دسته‌بندی</th>
-                      <th>قیمت</th>
+                      <th>قیمت پایه</th>
                       <th>وضعیت</th>
                       <th></th>
                     </tr>
@@ -973,12 +1786,25 @@ function App() {
                     {menuItems.map((item) => (
                       <tr key={item.id}>
                         <td>
-                          <strong>{item.name}</strong>
+                          <strong>{item.persianName ?? item.name}</strong>
+                          <div className="table-subtext ltr-text">{item.englishName}</div>
                           <div className="table-subtext">{joinTags(item.tags)}</div>
                         </td>
                         <td>{item.categoryName}</td>
-                        <td>{toPersianNumber(item.price)}</td>
-                        <td>{item.isActive ? 'نمایش داده می‌شود' : 'مخفی'}</td>
+                        <td>
+                          {toPersianNumber(item.price)}
+                          {item.specialOfferPrice ? (
+                            <div className="table-subtext">
+                              پیشنهاد: {toPersianNumber(item.specialOfferPrice)}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td>
+                          {item.isActive ? 'نمایش داده می‌شود' : 'مخفی'}
+                          <div className="table-subtext">
+                            {item.isOrderable ? 'قابل سفارش' : 'فعلا غیرقابل سفارش'}
+                          </div>
+                        </td>
                         <td className="table-actions">
                           <button type="button" className="link-button" onClick={() => editMenuItem(item)}>
                             ویرایش

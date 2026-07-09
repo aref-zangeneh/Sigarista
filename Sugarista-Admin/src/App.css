@@ -152,7 +152,7 @@ button[type='submit'] {
 
 .two-column-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(360px, 560px) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -208,9 +208,134 @@ button[type='submit'] {
   background: linear-gradient(135deg, rgba(229, 170, 47, 0.22), rgba(170, 49, 113, 0.16));
 }
 
+.salon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.salon-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(12, 52, 79, 0.12);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(254, 253, 241, 0.92));
+  box-shadow: 0 14px 30px rgba(12, 52, 79, 0.08);
+}
+
+.salon-card-occupied {
+  border-color: rgba(170, 49, 113, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(170, 49, 113, 0.07));
+}
+
+.salon-card-head,
+.salon-card-actions,
+.form-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.salon-card h4 {
+  margin: 0 0 4px;
+  color: var(--heading);
+}
+
+.salon-card p {
+  color: var(--muted);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.status-badge.free {
+  color: #0c344f;
+  background: rgba(229, 170, 47, 0.18);
+}
+
+.status-badge.busy {
+  color: #aa3171;
+  background: rgba(170, 49, 113, 0.12);
+}
+
+.salon-card-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.salon-empty {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(229, 170, 47, 0.12);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(12, 52, 79, 0.42);
+  backdrop-filter: blur(6px);
+}
+
+.modal-card {
+  width: min(640px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
 .snapshot-grid,
 .settings-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(12, 52, 79, 0.1);
+  border-radius: 18px;
+  background: rgba(254, 253, 241, 0.58);
+}
+
+.form-section h4 {
+  margin: 0;
+  color: var(--heading);
+}
+
+.variant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.variant-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(170, 49, 113, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.variant-card strong {
+  color: var(--accent);
 }
 
 label {
@@ -367,11 +492,19 @@ code {
   .snapshot-grid,
   .settings-grid,
   .field-grid,
-  .compact-grid {
+  .variant-grid,
+  .compact-grid,
+  .salon-card-body {
     grid-template-columns: 1fr;
   }
 
   .quick-actions {
     grid-template-columns: 1fr;
+  }
+
+  .salon-card-head,
+  .salon-card-actions,
+  .form-actions {
+    flex-direction: column;
   }
 }

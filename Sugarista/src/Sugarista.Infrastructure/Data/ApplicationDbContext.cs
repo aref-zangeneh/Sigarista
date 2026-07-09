@@ -17,7 +17,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
 
+    public DbSet<SalonTable> SalonTables => Set<SalonTable>();
+
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
+
+    public DbSet<TableSession> TableSessions => Set<TableSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

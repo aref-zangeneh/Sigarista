@@ -11,6 +11,7 @@ import {
   buildSalePreviewColumns,
   buildSaleResultColumns,
   buildStockHistoryColumns,
+  buildOrderColumns,
 } from './components/adminTableColumns'
 import './App.css'
 
@@ -28,6 +29,7 @@ const tabOptions = [
   { id: 'recipes', label: 'دستور پخت' },
   { id: 'inventory', label: 'انبار موجودی' },
   { id: 'record-sale', label: 'ثبت فروش' },
+  { id: 'orders', label: 'سفارش‌ها' },
   { id: 'site-settings', label: 'تنظیمات سایت' },
 ]
 
@@ -414,6 +416,8 @@ function App() {
   const [salePreview, setSalePreview] = useState([])
   const [salePreviewLoading, setSalePreviewLoading] = useState(false)
   const [saleResult, setSaleResult] = useState(null)
+  const [orders, setOrders] = useState([])
+  const [selectedOrder, setSelectedOrder] = useState(null)
   const [salonStatus, setSalonStatus] = useState(emptySalonStatus)
   const [siteSettings, setSiteSettings] = useState(emptySettings)
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
@@ -541,6 +545,7 @@ function App() {
       { key: 'inventoryStatus', promise: apiRequest('/admin/inventory', { token }) },
       { key: 'siteSettings', promise: apiRequest('/admin/site-settings', { token }) },
       { key: 'salonStatus', promise: apiRequest('/admin/salon/status', { token }) },
+      { key: 'orders', promise: apiRequest('/admin/orders', { token }) },
     ]
 
     try {
@@ -611,6 +616,10 @@ function App() {
             ? currentForm
             : { ...emptySalonTableForm, displayOrder: data.salonStatus.tables.length },
         )
+      }
+
+      if (data.orders) {
+        setOrders(data.orders)
       }
 
       if (failures.length > 0) {
@@ -1182,6 +1191,11 @@ function App() {
   const saleResultColumns = useMemo(
     () => buildSaleResultColumns({ toPersianNumber }),
     [saleResult],
+  )
+
+  const orderColumns = useMemo(
+    () => buildOrderColumns({ toPersianNumber, formatDateTime, setSelectedOrder }),
+    [orders],
   )
 
   if (!session?.token) {
@@ -2992,6 +3006,85 @@ function App() {
               )}
             </section>
           </section>
+        ) : null}
+
+        {activeTab === 'orders' ? (
+          <section className="panel-stack">
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>سفارش‌های آنلاین</h3>
+                  <p>لیست سفارش‌های ثبت‌شده از منوی دیجیتال با وضعیت پرداخت.</p>
+                </div>
+                <button type="button" className="ghost-button" onClick={() => loadAdminData()}>
+                  بروزرسانی
+                </button>
+              </div>
+              <DataTable
+                data={orders}
+                columns={orderColumns}
+                searchPlaceholder="جستجو بر اساس کد پیگیری، نام یا شماره تماس..."
+              />
+            </section>
+          </section>
+        ) : null}
+
+        {selectedOrder ? (
+          <div className="modal-backdrop" onClick={() => setSelectedOrder(null)}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <div className="panel-head">
+                <div>
+                  <h3>جزئیات سفارش {selectedOrder.trackingCode}</h3>
+                  <p>
+                    {selectedOrder.customerName} · {selectedOrder.customerPhone}
+                  </p>
+                </div>
+                <button type="button" className="ghost-button" onClick={() => setSelectedOrder(null)}>
+                  بستن
+                </button>
+              </div>
+              <div className="order-detail-meta">
+                <span>وضعیت: {selectedOrder.status}</span>
+                <span>مبلغ: {toPersianNumber(selectedOrder.totalAmount)} تومان</span>
+                <span>تاریخ: {formatDateTime(selectedOrder.createdAt)}</span>
+              </div>
+              <DataTable
+                data={selectedOrder.lines}
+                columns={[
+                  {
+                    id: 'name',
+                    header: 'آیتم',
+                    accessorFn: (row) => `${row.persianName} ${row.englishName}`,
+                    cell: ({ row }) => (
+                      <>
+                        <strong>{row.original.persianName}</strong>
+                        <div className="table-subtext ltr-text">{row.original.englishName}</div>
+                        {row.original.sizeLabel ? (
+                          <div className="table-subtext">{row.original.sizeLabel}</div>
+                        ) : null}
+                        {row.original.modifierLabels?.length ? (
+                          <div className="table-subtext">{row.original.modifierLabels.join('، ')}</div>
+                        ) : null}
+                      </>
+                    ),
+                  },
+                  {
+                    accessorKey: 'quantity',
+                    header: 'تعداد',
+                    cell: ({ getValue }) => toPersianNumber(getValue()),
+                  },
+                  {
+                    accessorKey: 'lineTotal',
+                    header: 'جمع',
+                    cell: ({ getValue }) => `${toPersianNumber(getValue())} تومان`,
+                  },
+                ]}
+                enableSearch={false}
+                enablePagination={false}
+                compact
+              />
+            </div>
+          </div>
         ) : null}
 
         {activeTab === 'site-settings' ? (

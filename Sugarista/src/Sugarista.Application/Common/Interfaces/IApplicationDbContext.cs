@@ -20,6 +20,10 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.StockMovement> StockMovements { get; }
 
+    DbSet<Sugarista.Domain.Entities.Order> Orders { get; }
+
+    DbSet<Sugarista.Domain.Entities.OrderLine> OrderLines { get; }
+
     DbSet<Sugarista.Domain.Entities.SalonTable> SalonTables { get; }
 
     DbSet<Sugarista.Domain.Entities.SiteSettings> SiteSettings { get; }

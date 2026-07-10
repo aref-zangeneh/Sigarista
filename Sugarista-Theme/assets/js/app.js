@@ -1,4 +1,6 @@
 document.addEventListener("alpine:init", () => {
+  const CART_STORAGE_KEY = "sugarista_cart";
+
   Alpine.data("cafeMenu", () => ({
     apiBaseUrl: window.SUGARISTA_API_BASE_URL || "/api",
     loading: true,
@@ -9,7 +11,20 @@ document.addEventListener("alpine:init", () => {
     items: [],
     addons: [],
     modifiers: [],
-    selectedModifiers: [],
+    cart: [],
+    cartDrawerOpen: false,
+    cartView: "cart",
+    checkoutForm: {
+      customerName: "",
+      customerPhone: "",
+      note: ""
+    },
+    checkoutLoading: false,
+    checkoutError: "",
+    addToCartModal: null,
+    mockPayment: null,
+    orderSuccess: null,
+    paymentLoading: false,
     settings: {
       browserTitle: "Sugarista Cafe | Digital Menu",
       metaDescription: "منوی دیجیتال کافه شوگریستا",
@@ -55,6 +70,8 @@ document.addEventListener("alpine:init", () => {
       footerCallLabel: "تماس"
     },
     async init() {
+      this.loadCart();
+      this.handleRouteState();
       this.loading = true;
       this.error = "";
 
@@ -96,6 +113,24 @@ document.addEventListener("alpine:init", () => {
         this.loading = false;
       }
     },
+    handleRouteState() {
+      const params = new URLSearchParams(window.location.search);
+
+      const successCode = params.get("code");
+      if (params.get("order") === "success" && successCode) {
+        this.orderSuccess = { trackingCode: successCode };
+        return;
+      }
+
+      const payOrderId = params.get("pay");
+      const authority = params.get("authority");
+      if (payOrderId && authority) {
+        this.mockPayment = {
+          orderId: payOrderId,
+          authority
+        };
+      }
+    },
     applyPageMetadata() {
       document.title = this.settings.browserTitle;
 
@@ -103,6 +138,23 @@ document.addEventListener("alpine:init", () => {
       if (descriptionTag) {
         descriptionTag.setAttribute("content", this.settings.metaDescription);
       }
+    },
+    loadCart() {
+      try {
+        const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+        this.cart = raw ? JSON.parse(raw) : [];
+      } catch {
+        this.cart = [];
+      }
+    },
+    saveCart() {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(this.cart));
+    },
+    get cartCount() {
+      return this.cart.reduce((total, line) => total + line.quantity, 0);
+    },
+    get cartTotal() {
+      return this.cart.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
     },
     get featuredItems() {
       return this.items.filter((item) => item.featured);
@@ -160,22 +212,226 @@ document.addEventListener("alpine:init", () => {
       this.search = "";
       this.selectedCategory = "all";
     },
-    toggleModifier(modifierId) {
-      if (this.selectedModifiers.includes(modifierId)) {
-        this.selectedModifiers = this.selectedModifiers.filter((id) => id !== modifierId);
+    openCartDrawer(view = "cart") {
+      this.cartView = view;
+      this.cartDrawerOpen = true;
+      this.checkoutError = "";
+    },
+    closeCartDrawer() {
+      this.cartDrawerOpen = false;
+      this.cartView = "cart";
+      this.checkoutError = "";
+    },
+    openAddToCartModal(item) {
+      if (!item.isOrderable) {
         return;
       }
 
-      this.selectedModifiers = [...this.selectedModifiers, modifierId];
+      const defaultVariant = this.defaultVariantForItem(item);
+      this.addToCartModal = {
+        item,
+        selectedSizeKey: defaultVariant?.key || null,
+        selectedModifierIds: [],
+        quantity: 1
+      };
     },
-    isModifierSelected(modifierId) {
-      return this.selectedModifiers.includes(modifierId);
+    closeAddToCartModal() {
+      this.addToCartModal = null;
     },
-    selectedModifierLabels() {
-      return this.modifiers
-        .filter((modifier) => this.selectedModifiers.includes(modifier.id))
-        .map((modifier) => modifier.persianName)
-        .join("، ");
+    defaultVariantForItem(item) {
+      if (!item.variants?.length) {
+        return null;
+      }
+
+      return (
+        item.variants.find((variant) => variant.key === "medium") ||
+        item.variants[0]
+      );
+    },
+    modalSelectedVariant() {
+      if (!this.addToCartModal?.item?.variants?.length) {
+        return null;
+      }
+
+      return (
+        this.addToCartModal.item.variants.find(
+          (variant) => variant.key === this.addToCartModal.selectedSizeKey
+        ) || this.addToCartModal.item.variants[0]
+      );
+    },
+    modalUnitPrice() {
+      const variant = this.modalSelectedVariant();
+      if (variant) {
+        return variant.specialOfferPrice || variant.price || 0;
+      }
+
+      const item = this.addToCartModal?.item;
+      if (!item) {
+        return 0;
+      }
+
+      return item.specialOfferPrice || item.price || 0;
+    },
+    modalSizeLabel() {
+      return this.modalSelectedVariant()?.label || null;
+    },
+    toggleModalModifier(modifierId) {
+      if (!this.addToCartModal) {
+        return;
+      }
+
+      const selected = this.addToCartModal.selectedModifierIds;
+      if (selected.includes(modifierId)) {
+        this.addToCartModal.selectedModifierIds = selected.filter((id) => id !== modifierId);
+        return;
+      }
+
+      this.addToCartModal.selectedModifierIds = [...selected, modifierId];
+    },
+    isModalModifierSelected(modifierId) {
+      return this.addToCartModal?.selectedModifierIds.includes(modifierId);
+    },
+    buildCartKey(menuItemId, sizeKey, modifierIds) {
+      const sortedModifiers = [...modifierIds].sort().join("-");
+      return `${menuItemId}-${sizeKey || "default"}-${sortedModifiers}`;
+    },
+    confirmAddToCart() {
+      if (!this.addToCartModal) {
+        return;
+      }
+
+      const { item, selectedSizeKey, selectedModifierIds, quantity } = this.addToCartModal;
+      const variant = item.variants?.length
+        ? item.variants.find((entry) => entry.key === selectedSizeKey) || item.variants[0]
+        : null;
+      const unitPrice = variant
+        ? variant.specialOfferPrice || variant.price
+        : item.specialOfferPrice || item.price;
+      const modifierLabels = this.modifiers
+        .filter((modifier) => selectedModifierIds.includes(modifier.id))
+        .map((modifier) => modifier.persianName);
+      const cartKey = this.buildCartKey(item.id, variant?.key || null, selectedModifierIds);
+      const existingLine = this.cart.find((line) => line.cartKey === cartKey);
+
+      if (existingLine) {
+        existingLine.quantity += quantity;
+      } else {
+        this.cart.push({
+          cartKey,
+          menuItemId: item.id,
+          persianName: item.persianName || item.name,
+          englishName: item.englishName,
+          sizeKey: variant?.key || null,
+          sizeLabel: variant?.label || null,
+          unitPrice,
+          quantity,
+          modifierIds: [...selectedModifierIds],
+          modifierLabels
+        });
+      }
+
+      this.saveCart();
+      this.closeAddToCartModal();
+      this.openCartDrawer("cart");
+    },
+    updateCartQuantity(cartKey, delta) {
+      const line = this.cart.find((entry) => entry.cartKey === cartKey);
+      if (!line) {
+        return;
+      }
+
+      line.quantity += delta;
+      if (line.quantity <= 0) {
+        this.removeFromCart(cartKey);
+        return;
+      }
+
+      this.saveCart();
+    },
+    removeFromCart(cartKey) {
+      this.cart = this.cart.filter((line) => line.cartKey !== cartKey);
+      this.saveCart();
+    },
+    clearCart() {
+      this.cart = [];
+      this.saveCart();
+    },
+    async submitCheckout() {
+      if (!this.cart.length) {
+        return;
+      }
+
+      this.checkoutLoading = true;
+      this.checkoutError = "";
+
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/orders/checkout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerName: this.checkoutForm.customerName.trim(),
+            customerPhone: this.checkoutForm.customerPhone.trim(),
+            note: this.checkoutForm.note.trim() || null,
+            items: this.cart.map((line) => ({
+              menuItemId: line.menuItemId,
+              sizeKey: line.sizeKey,
+              quantity: line.quantity,
+              modifierIds: line.modifierIds || []
+            }))
+          })
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.title || payload.detail || "ثبت سفارش با خطا مواجه شد.");
+        }
+
+        const result = await response.json();
+        this.clearCart();
+        this.closeCartDrawer();
+        window.location.href = result.redirectUrl;
+      } catch (error) {
+        this.checkoutError = error.message || "ثبت سفارش با خطا مواجه شد.";
+      } finally {
+        this.checkoutLoading = false;
+      }
+    },
+    async confirmMockPayment() {
+      if (!this.mockPayment) {
+        return;
+      }
+
+      this.paymentLoading = true;
+
+      try {
+        const response = await fetch(
+          `${this.apiBaseUrl}/orders/${this.mockPayment.orderId}/confirm-mock`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ authority: this.mockPayment.authority })
+          }
+        );
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.title || payload.detail || "تأیید پرداخت با خطا مواجه شد.");
+        }
+
+        const result = await response.json();
+        window.location.href = `/?order=success&code=${encodeURIComponent(result.trackingCode)}`;
+      } catch (error) {
+        this.checkoutError = error.message || "تأیید پرداخت با خطا مواجه شد.";
+      } finally {
+        this.paymentLoading = false;
+      }
+    },
+    cancelMockPayment() {
+      window.location.href = "/";
+    },
+    dismissOrderSuccess() {
+      this.orderSuccess = null;
+      window.history.replaceState({}, "", "/");
     },
     normalizeText(value) {
       return value

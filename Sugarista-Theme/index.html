@@ -235,7 +235,7 @@
             </div>
           </div>
 
-          <section class="modifier-section" x-show="modifiers.length">
+          <section class="modifier-section d-none" x-show="false">
             <div class="modifier-head">
               <div>
                 <h3 class="group-title">تغییرات سفارش</h3>
@@ -328,10 +328,21 @@
                               <span class="tag-chip tag-chip-alert" x-text="allergen"></span>
                             </template>
                           </div>
-                          <span
-                            :class="item.isOrderable ? 'order-note' : 'order-note order-note-disabled'"
-                            x-text="item.isOrderable ? 'قابل سفارش' : 'فعلا غیرقابل سفارش'"
-                          ></span>
+                          <div class="menu-item-actions">
+                            <span
+                              :class="item.isOrderable ? 'order-note' : 'order-note order-note-disabled'"
+                              x-text="item.isOrderable ? 'قابل سفارش' : 'فعلا غیرقابل سفارش'"
+                            ></span>
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-dark rounded-pill add-to-cart-btn"
+                              x-show="item.isOrderable"
+                              @click="openAddToCartModal(item)"
+                            >
+                              <i class="bi bi-bag-plus"></i>
+                              افزودن به سبد
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </article>
@@ -433,7 +444,231 @@
       </div>
     </footer>
 
+    <div class="cart-bar" x-show="cartCount > 0 && !mockPayment && !orderSuccess" x-cloak>
+      <div class="container cart-bar-inner">
+        <div class="cart-bar-summary">
+          <span class="cart-bar-count" x-text="toPersianNumber(cartCount)"></span>
+          <div>
+            <strong x-text="formatPrice(cartTotal)"></strong>
+            <small>جمع سبد خرید</small>
+          </div>
+        </div>
+        <button type="button" class="btn btn-dark rounded-pill px-4" @click="openCartDrawer('cart')">
+          مشاهده سبد
+        </button>
+      </div>
+    </div>
+
+    <div class="cart-overlay" x-show="cartDrawerOpen" x-cloak @click.self="closeCartDrawer()">
+      <aside class="cart-drawer">
+        <div class="cart-drawer-head">
+          <div>
+            <h3 class="h5 mb-1" x-text="cartView === 'checkout' ? 'تسویه حساب' : 'سبد خرید'"></h3>
+            <p class="mb-0 text-secondary" x-show="cartView === 'cart'">
+              <span x-text="toPersianNumber(cartCount)"></span> قلم
+            </p>
+          </div>
+          <button type="button" class="btn btn-light btn-sm rounded-circle" @click="closeCartDrawer()">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="cart-drawer-body" x-show="cartView === 'cart'">
+          <template x-if="!cart.length">
+            <div class="cart-empty">
+              <i class="bi bi-basket"></i>
+              <p>سبد خرید شما خالی است.</p>
+            </div>
+          </template>
+          <template x-for="line in cart" :key="line.cartKey">
+            <article class="cart-line">
+              <div class="cart-line-main">
+                <strong x-text="line.persianName"></strong>
+                <small class="english-name d-block" x-text="line.englishName"></small>
+                <div class="cart-line-meta">
+                  <span x-show="line.sizeLabel" x-text="line.sizeLabel"></span>
+                  <span x-show="line.modifierLabels.length" x-text="line.modifierLabels.join('، ')"></span>
+                </div>
+                <strong class="cart-line-price" x-text="formatPrice(line.unitPrice * line.quantity)"></strong>
+              </div>
+              <div class="cart-line-actions">
+                <div class="qty-control">
+                  <button type="button" @click="updateCartQuantity(line.cartKey, -1)">−</button>
+                  <span x-text="toPersianNumber(line.quantity)"></span>
+                  <button type="button" @click="updateCartQuantity(line.cartKey, 1)">+</button>
+                </div>
+                <button type="button" class="btn btn-link link-danger p-0" @click="removeFromCart(line.cartKey)">
+                  حذف
+                </button>
+              </div>
+            </article>
+          </template>
+        </div>
+
+        <div class="cart-drawer-body" x-show="cartView === 'checkout'">
+          <div class="alert alert-danger border-0" x-show="checkoutError" x-text="checkoutError"></div>
+          <div class="mb-3">
+            <label class="form-label">نام و نام خانوادگی</label>
+            <input type="text" class="form-control" x-model="checkoutForm.customerName" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">شماره تماس</label>
+            <input type="tel" class="form-control ltr-text" x-model="checkoutForm.customerPhone" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">توضیحات (اختیاری)</label>
+            <textarea class="form-control" rows="3" x-model="checkoutForm.note"></textarea>
+          </div>
+          <div class="checkout-summary">
+            <span>مبلغ قابل پرداخت</span>
+            <strong x-text="formatPrice(cartTotal)"></strong>
+          </div>
+        </div>
+
+        <div class="cart-drawer-foot" x-show="cart.length">
+          <template x-if="cartView === 'cart'">
+            <div class="cart-drawer-foot-inner">
+              <div>
+                <small>جمع کل</small>
+                <strong x-text="formatPrice(cartTotal)"></strong>
+              </div>
+              <button type="button" class="btn btn-dark rounded-pill px-4" @click="cartView = 'checkout'">
+                ادامه و پرداخت
+              </button>
+            </div>
+          </template>
+          <template x-if="cartView === 'checkout'">
+            <div class="cart-drawer-foot-inner">
+              <button type="button" class="btn btn-outline-dark rounded-pill" @click="cartView = 'cart'">
+                بازگشت
+              </button>
+              <button
+                type="button"
+                class="btn btn-dark rounded-pill px-4"
+                :disabled="checkoutLoading || !checkoutForm.customerName || !checkoutForm.customerPhone"
+                @click="submitCheckout()"
+              >
+                <span x-show="!checkoutLoading">پرداخت</span>
+                <span x-show="checkoutLoading">در حال ثبت...</span>
+              </button>
+            </div>
+          </template>
+        </div>
+      </aside>
+    </div>
+
+    <div class="add-cart-overlay" x-show="addToCartModal" x-cloak @click.self="closeAddToCartModal()">
+      <div class="add-cart-modal" x-show="addToCartModal">
+        <div class="add-cart-modal-head">
+          <div>
+            <h3 class="h5 mb-1" x-text="addToCartModal?.item?.name"></h3>
+            <small class="english-name" x-text="addToCartModal?.item?.englishName"></small>
+          </div>
+          <button type="button" class="btn btn-light btn-sm rounded-circle" @click="closeAddToCartModal()">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="add-cart-modal-body">
+          <div class="mb-3" x-show="addToCartModal?.item?.variants?.length">
+            <label class="form-label">اندازه</label>
+            <div class="size-options">
+              <template x-for="variant in addToCartModal.item.variants" :key="variant.key">
+                <button
+                  type="button"
+                  class="size-option"
+                  :class="{ active: addToCartModal.selectedSizeKey === variant.key }"
+                  @click="addToCartModal.selectedSizeKey = variant.key"
+                >
+                  <span x-text="variant.label"></span>
+                  <small x-text="formatPrice(variant.specialOfferPrice || variant.price)"></small>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <div class="mb-3" x-show="modifiers.length">
+            <label class="form-label">تغییرات سفارش</label>
+            <div class="modifier-list">
+              <template x-for="modifier in modifiers" :key="modifier.id">
+                <button
+                  type="button"
+                  :class="isModalModifierSelected(modifier.id) ? 'modifier-chip modifier-chip-active' : 'modifier-chip'"
+                  @click="toggleModalModifier(modifier.id)"
+                >
+                  <span x-text="modifier.persianName"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">تعداد</label>
+            <div class="qty-control qty-control-lg">
+              <button type="button" @click="addToCartModal.quantity = Math.max(1, addToCartModal.quantity - 1)">−</button>
+              <span x-text="toPersianNumber(addToCartModal.quantity)"></span>
+              <button type="button" @click="addToCartModal.quantity += 1">+</button>
+            </div>
+          </div>
+
+          <div class="add-cart-price">
+            <span>قیمت</span>
+            <strong x-text="formatPrice(modalUnitPrice() * addToCartModal.quantity)"></strong>
+          </div>
+        </div>
+
+        <div class="add-cart-modal-foot">
+          <button type="button" class="btn btn-dark rounded-pill w-100" @click="confirmAddToCart()">
+            افزودن به سبد
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="payment-overlay" x-show="mockPayment" x-cloak>
+      <div class="payment-card">
+        <span class="payment-badge">درگاه پرداخت (آزمایشی)</span>
+        <h2 class="h4 mb-2">تأیید پرداخت</h2>
+        <p class="text-secondary mb-4">
+          این یک درگاه آزمایشی است. پس از تأیید، سفارش شما ثبت و برای تحویل در پیشخوان آماده می‌شود.
+        </p>
+        <div class="alert alert-danger border-0" x-show="checkoutError" x-text="checkoutError"></div>
+        <div class="payment-actions">
+          <button type="button" class="btn btn-outline-dark rounded-pill px-4" @click="cancelMockPayment()">
+            انصراف
+          </button>
+          <button
+            type="button"
+            class="btn btn-dark rounded-pill px-4"
+            :disabled="paymentLoading"
+            @click="confirmMockPayment()"
+          >
+            <span x-show="!paymentLoading">تأیید پرداخت</span>
+            <span x-show="paymentLoading">در حال پردازش...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="success-overlay" x-show="orderSuccess" x-cloak>
+      <div class="success-card">
+        <div class="success-icon">
+          <i class="bi bi-check2-circle"></i>
+        </div>
+        <h2 class="h4 mb-2">سفارش با موفقیت ثبت شد</h2>
+        <p class="text-secondary mb-3">لطفاً با کد پیگیری زیر به پیشخوان مراجعه کنید.</p>
+        <div class="tracking-code" x-text="orderSuccess?.trackingCode"></div>
+        <button type="button" class="btn btn-dark rounded-pill px-4 mt-4" @click="dismissOrderSuccess()">
+          بازگشت به منو
+        </button>
+      </div>
+    </div>
+
     <div class="mobile-order-bar d-lg-none">
+      <button type="button" class="mobile-order-link" @click="openCartDrawer('cart')" x-show="cartCount > 0">
+        <i class="bi bi-basket"></i>
+        <span x-text="toPersianNumber(cartCount)"></span>
+      </button>
       <a href="#menu" class="mobile-order-link">
         <i class="bi bi-grid"></i>
         <span>منو</span>

@@ -32,6 +32,8 @@ services:
       AdminBootstrap__Password: ${ADMIN_BOOTSTRAP_PASSWORD:-ChangeMe123!}
       Cors__AllowedOrigins__0: ${APP_PUBLIC_ORIGIN:-http://localhost}
       Cors__AllowedOrigins__1: ${APP_ADMIN_ORIGIN:-http://localhost}
+      Payment__Provider: ${Payment__Provider:-Mock}
+      Payment__PublicBaseUrl: ${Payment__PublicBaseUrl:-http://localhost}
     depends_on:
       postgres:
         condition: service_healthy

@@ -647,3 +647,49 @@ export function buildSaleResultColumns({ toPersianNumber }) {
     },
   ]
 }
+
+function orderStatusBadge(status) {
+  if (status === 'Paid') return <span className="stock-badge stock-badge--ok">پرداخت شده</span>
+  if (status === 'PendingPayment') return <span className="stock-badge stock-badge--low">در انتظار پرداخت</span>
+  if (status === 'Failed') return <span className="stock-badge stock-badge--negative">ناموفق</span>
+  if (status === 'Cancelled') return <span className="stock-badge">لغو شده</span>
+  return <span className="stock-badge">{status}</span>
+}
+
+export function buildOrderColumns({ toPersianNumber, formatDateTime, setSelectedOrder }) {
+  return [
+    { accessorKey: 'trackingCode', header: 'کد پیگیری', meta: { className: 'ltr-text' } },
+    { accessorKey: 'customerName', header: 'مشتری' },
+    { accessorKey: 'customerPhone', header: 'تماس', meta: { className: 'ltr-text' } },
+    {
+      accessorKey: 'totalAmount',
+      header: 'مبلغ',
+      cell: ({ getValue }) => `${toPersianNumber(getValue())} تومان`,
+    },
+    {
+      accessorKey: 'status',
+      header: 'وضعیت',
+      cell: ({ getValue }) => orderStatusBadge(getValue()),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'تاریخ',
+      cell: ({ getValue }) => formatDateTime(getValue()),
+    },
+    {
+      accessorKey: 'lineCount',
+      header: 'اقلام',
+      cell: ({ getValue }) => toPersianNumber(getValue()),
+    },
+    {
+      id: 'actions',
+      header: 'عملیات',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <button type="button" className="link-button" onClick={() => setSelectedOrder(row.original)}>
+          جزئیات
+        </button>
+      ),
+    },
+  ]
+}

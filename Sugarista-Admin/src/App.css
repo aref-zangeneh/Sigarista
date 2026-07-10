@@ -294,6 +294,15 @@ button[type='submit'] {
   backdrop-filter: blur(6px);
 }
 
+.order-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 1rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .modal-card {
   width: min(640px, 100%);
   max-height: calc(100vh - 48px);

@@ -5,6 +5,8 @@ using Sugarista.Application.Common.Interfaces;
 using Sugarista.Infrastructure.Auth;
 using Sugarista.Infrastructure.Data;
 using Sugarista.Infrastructure.Data.Interceptors;
+using Sugarista.Application.Common.Options;
+using Sugarista.Infrastructure.Payments;
 using Sugarista.Infrastructure.Settings;
 using Sugarista.Infrastructure.Services;
 
@@ -26,6 +28,8 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
+        services.Configure<PaymentOptions>(configuration.GetSection(PaymentOptions.SectionName));
+        services.AddScoped<IPaymentGateway, MockPaymentGateway>();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");

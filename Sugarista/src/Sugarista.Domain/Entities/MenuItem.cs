@@ -138,6 +138,8 @@ public class MenuItem : BaseAuditableEntity
 
     public bool IsActive { get; private set; } = true;
 
+    public ICollection<RecipeItem> RecipeItems { get; private set; } = [];
+
     public void Update(
         Guid categoryId,
         string persianName,

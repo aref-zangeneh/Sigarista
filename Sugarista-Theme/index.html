@@ -235,6 +235,31 @@
             </div>
           </div>
 
+          <section class="modifier-section" x-show="modifiers.length">
+            <div class="modifier-head">
+              <div>
+                <h3 class="group-title">تغییرات سفارش</h3>
+                <p class="group-subtitle mb-0">در صورت نیاز، گزینه‌های موردنظر برای سفارش خود را انتخاب کنید.</p>
+              </div>
+            </div>
+            <div class="modifier-list">
+              <template x-for="modifier in modifiers" :key="modifier.id">
+                <button
+                  type="button"
+                  :class="isModifierSelected(modifier.id) ? 'modifier-chip modifier-chip-active' : 'modifier-chip'"
+                  @click="toggleModifier(modifier.id)"
+                >
+                  <span x-text="modifier.persianName"></span>
+                  <small x-text="modifier.englishName"></small>
+                </button>
+              </template>
+            </div>
+            <p class="modifier-note" x-show="selectedModifiers.length">
+              انتخاب شما:
+              <strong x-text="selectedModifierLabels()"></strong>
+            </p>
+          </section>
+
           <div class="group-stack" x-show="filteredGroups.length">
             <template x-for="group in filteredGroups" :key="group.id">
               <section class="menu-group" :id="`group-${group.id}`">
@@ -315,6 +340,34 @@
               </section>
             </template>
           </div>
+
+          <section class="addons-section" x-show="addons.length">
+            <div class="addons-head">
+              <div>
+                <h3 class="group-title">افزودنی‌ها و اضافات</h3>
+                <p class="group-subtitle mb-0">گزینه‌های اضافه مثل شات اسپرسو، انواع شیر و شربت‌ها.</p>
+              </div>
+            </div>
+            <div class="addons-list">
+              <template x-for="addon in addons" :key="addon.id">
+                <article class="addon-item">
+                  <div class="addon-main">
+                    <div>
+                      <h4 class="addon-title" x-text="addon.persianName"></h4>
+                      <p class="addon-english" x-text="addon.englishName"></p>
+                      <p class="addon-description mb-0" x-text="addon.description"></p>
+                    </div>
+                    <strong class="addon-price" x-text="formatPrice(addon.price)"></strong>
+                  </div>
+                  <div class="addon-tags" x-show="addon.tags.length">
+                    <template x-for="tag in addon.tags" :key="`${addon.id}-tag-${tag}`">
+                      <span class="tag-chip" x-text="tag"></span>
+                    </template>
+                  </div>
+                </article>
+              </template>
+            </div>
+          </section>
 
           <div class="empty-state text-center py-5" x-show="!filteredGroups.length">
             <div class="empty-icon mx-auto mb-3">

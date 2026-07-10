@@ -8,6 +8,18 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.MenuItem> MenuItems { get; }
 
+    DbSet<Sugarista.Domain.Entities.AddonItem> AddonItems { get; }
+
+    DbSet<Sugarista.Domain.Entities.MenuModifier> MenuModifiers { get; }
+
+    DbSet<Sugarista.Domain.Entities.Ingredient> Ingredients { get; }
+
+    DbSet<Sugarista.Domain.Entities.RecipeItem> RecipeItems { get; }
+
+    DbSet<Sugarista.Domain.Entities.InventoryStock> InventoryStocks { get; }
+
+    DbSet<Sugarista.Domain.Entities.StockMovement> StockMovements { get; }
+
     DbSet<Sugarista.Domain.Entities.SalonTable> SalonTables { get; }
 
     DbSet<Sugarista.Domain.Entities.SiteSettings> SiteSettings { get; }

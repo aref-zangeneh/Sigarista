@@ -7,6 +7,9 @@ document.addEventListener("alpine:init", () => {
     selectedCategory: "all",
     categories: [],
     items: [],
+    addons: [],
+    modifiers: [],
+    selectedModifiers: [],
     settings: {
       browserTitle: "Sugarista Cafe | Digital Menu",
       metaDescription: "منوی دیجیتال کافه شوگریستا",
@@ -80,6 +83,11 @@ document.addEventListener("alpine:init", () => {
           variants: item.variants || [],
           galleryImageUrls: item.galleryImageUrls || []
         }));
+        this.addons = (menuData.addons || []).map((addon) => ({
+          ...addon,
+          tags: addon.tags || []
+        }));
+        this.modifiers = menuData.modifiers || [];
         this.settings = { ...this.settings, ...settingsData };
         this.applyPageMetadata();
       } catch (error) {
@@ -151,6 +159,23 @@ document.addEventListener("alpine:init", () => {
     resetFilters() {
       this.search = "";
       this.selectedCategory = "all";
+    },
+    toggleModifier(modifierId) {
+      if (this.selectedModifiers.includes(modifierId)) {
+        this.selectedModifiers = this.selectedModifiers.filter((id) => id !== modifierId);
+        return;
+      }
+
+      this.selectedModifiers = [...this.selectedModifiers, modifierId];
+    },
+    isModifierSelected(modifierId) {
+      return this.selectedModifiers.includes(modifierId);
+    },
+    selectedModifierLabels() {
+      return this.modifiers
+        .filter((modifier) => this.selectedModifiers.includes(modifier.id))
+        .map((modifier) => modifier.persianName)
+        .join("، ");
     },
     normalizeText(value) {
       return value

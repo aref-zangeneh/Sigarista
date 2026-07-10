@@ -17,6 +17,18 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
 
+    public DbSet<AddonItem> AddonItems => Set<AddonItem>();
+
+    public DbSet<MenuModifier> MenuModifiers => Set<MenuModifier>();
+
+    public DbSet<Ingredient> Ingredients => Set<Ingredient>();
+
+    public DbSet<RecipeItem> RecipeItems => Set<RecipeItem>();
+
+    public DbSet<InventoryStock> InventoryStocks => Set<InventoryStock>();
+
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
     public DbSet<SalonTable> SalonTables => Set<SalonTable>();
 
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();

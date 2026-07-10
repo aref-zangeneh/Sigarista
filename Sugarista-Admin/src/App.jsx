@@ -1,4 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import { DataTable } from './components/DataTable'
+import {
+  buildAddonColumns,
+  buildCategoryColumns,
+  buildIngredientColumns,
+  buildInventoryColumns,
+  buildMenuItemColumns,
+  buildModifierColumns,
+  buildRecipeColumns,
+  buildSalePreviewColumns,
+  buildSaleResultColumns,
+  buildStockHistoryColumns,
+} from './components/adminTableColumns'
 import './App.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
@@ -9,8 +22,29 @@ const tabOptions = [
   { id: 'salon', label: 'وضعیت سالن' },
   { id: 'categories', label: 'دسته‌بندی‌ها' },
   { id: 'menu-items', label: 'آیتم‌های منو' },
+  { id: 'addons', label: 'افزودنی‌ها (اضافات)' },
+  { id: 'modifiers', label: 'تغییرات سفارش' },
+  { id: 'ingredients', label: 'مواد اولیه' },
+  { id: 'recipes', label: 'دستور پخت' },
+  { id: 'inventory', label: 'انبار موجودی' },
+  { id: 'record-sale', label: 'ثبت فروش' },
   { id: 'site-settings', label: 'تنظیمات سایت' },
 ]
+
+const UNIT_OPTIONS = ['ml', 'l', 'gr', 'kg', 'oz', 'tsp', 'tbsp', 'cup', 'pieces']
+
+const LOCATION_OPTIONS = [
+  { value: 'main', label: 'انبار اصلی' },
+  { value: 'bar', label: 'بار' },
+  { value: 'kitchen', label: 'آشپزخانه' },
+  { value: 'dry', label: 'انبار خشک' },
+  { value: 'refrigerator', label: 'یخچال' },
+]
+
+const emptyRestockForm = { quantity: '', note: '' }
+const emptyAdjustForm = { delta: '', note: '' }
+const emptyAlertForm = { minAlertQuantity: '' }
+const emptySaleForm = { menuItemId: '', quantitySold: 1 }
 
 const emptyCategoryForm = {
   id: '',
@@ -51,6 +85,47 @@ const emptyMenuItemForm = {
   shortLabel: '',
   displayOrder: 0,
   isActive: true,
+}
+
+const emptyAddonForm = {
+  id: '',
+  persianName: '',
+  englishName: '',
+  description: '',
+  price: 0,
+  tags: '',
+  displayOrder: 0,
+  isActive: true,
+}
+
+const emptyModifierForm = {
+  id: '',
+  persianName: '',
+  englishName: '',
+  displayOrder: 0,
+  isActive: true,
+}
+
+const emptyIngredientForm = {
+  id: '',
+  persianName: '',
+  englishName: '',
+  unit: 'ml',
+  description: '',
+  displayOrder: 0,
+  isActive: true,
+  inventoryLocation: 'main',
+}
+
+const emptyRecipeLineForm = {
+  ingredientId: '',
+  quantity: '',
+}
+
+const emptyRecipeState = {
+  selectedMenuItemId: '',
+  lines: [],
+  lineForm: emptyRecipeLineForm,
 }
 
 const emptySalonTableForm = {
@@ -324,10 +399,27 @@ function App() {
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'ChangeMe123!' })
   const [categories, setCategories] = useState([])
   const [menuItems, setMenuItems] = useState([])
+  const [addonItems, setAddonItems] = useState([])
+  const [modifiers, setModifiers] = useState([])
+  const [ingredients, setIngredients] = useState([])
+  const [recipeState, setRecipeState] = useState(emptyRecipeState)
+  const [ingredientForm, setIngredientForm] = useState(emptyIngredientForm)
+  const [inventoryStatus, setInventoryStatus] = useState(null)
+  const [inventoryAction, setInventoryAction] = useState({ ingredientId: null, mode: null }) // mode: 'restock' | 'adjust' | 'alert' | 'history'
+  const [restockForm, setRestockForm] = useState(emptyRestockForm)
+  const [adjustForm, setAdjustForm] = useState(emptyAdjustForm)
+  const [alertForm, setAlertForm] = useState(emptyAlertForm)
+  const [stockHistory, setStockHistory] = useState([])
+  const [saleForm, setSaleForm] = useState(emptySaleForm)
+  const [salePreview, setSalePreview] = useState([])
+  const [salePreviewLoading, setSalePreviewLoading] = useState(false)
+  const [saleResult, setSaleResult] = useState(null)
   const [salonStatus, setSalonStatus] = useState(emptySalonStatus)
   const [siteSettings, setSiteSettings] = useState(emptySettings)
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [menuItemForm, setMenuItemForm] = useState(emptyMenuItemForm)
+  const [addonForm, setAddonForm] = useState(emptyAddonForm)
+  const [modifierForm, setModifierForm] = useState(emptyModifierForm)
   const [salonTableForm, setSalonTableForm] = useState(emptySalonTableForm)
   const [occupyForm, setOccupyForm] = useState(emptyOccupyForm)
   const [isSalonTableModalOpen, setIsSalonTableModalOpen] = useState(false)
@@ -371,6 +463,53 @@ function App() {
     return () => window.clearInterval(intervalId)
   }, [activeTab, session])
 
+  useEffect(() => {
+    if (!session?.token || activeTab !== 'record-sale' || !saleForm.menuItemId || saleResult) {
+      setSalePreview([])
+      return undefined
+    }
+
+    let cancelled = false
+
+    async function loadSalePreview() {
+      setSalePreviewLoading(true)
+      try {
+        const recipeLines = await apiRequest(`/admin/recipes/${saleForm.menuItemId}`, {
+          token: session.token,
+        })
+
+        if (cancelled) {
+          return
+        }
+
+        const soldCount = Number(saleForm.quantitySold) || 1
+        setSalePreview(
+          recipeLines.map((line) => ({
+            ingredientPersianName: line.ingredientPersianName,
+            ingredientEnglishName: line.ingredientEnglishName,
+            unit: line.unit,
+            perItemQuantity: line.quantity,
+            totalQuantity: line.quantity * soldCount,
+          })),
+        )
+      } catch {
+        if (!cancelled) {
+          setSalePreview([])
+        }
+      } finally {
+        if (!cancelled) {
+          setSalePreviewLoading(false)
+        }
+      }
+    }
+
+    loadSalePreview()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, saleForm.menuItemId, saleForm.quantitySold, saleResult, session?.token])
+
   async function loadSalonStatus(token = session?.token) {
     if (!token) {
       return
@@ -393,35 +532,90 @@ function App() {
     setLoading(true)
     setError('')
 
-    try {
-      const [categoryData, itemData, settingsData, salonData] = await Promise.all([
-        apiRequest('/admin/categories', { token }),
-        apiRequest('/admin/menu-items', { token }),
-        apiRequest('/admin/site-settings', { token }),
-        apiRequest('/admin/salon/status', { token }),
-      ])
+    const requests = [
+      { key: 'categories', promise: apiRequest('/admin/categories', { token }) },
+      { key: 'menuItems', promise: apiRequest('/admin/menu-items', { token }) },
+      { key: 'addonItems', promise: apiRequest('/admin/addons', { token }) },
+      { key: 'modifiers', promise: apiRequest('/admin/modifiers', { token }) },
+      { key: 'ingredients', promise: apiRequest('/admin/ingredients', { token }) },
+      { key: 'inventoryStatus', promise: apiRequest('/admin/inventory', { token }) },
+      { key: 'siteSettings', promise: apiRequest('/admin/site-settings', { token }) },
+      { key: 'salonStatus', promise: apiRequest('/admin/salon/status', { token }) },
+    ]
 
-      setCategories(categoryData)
-      setMenuItems(itemData)
-      setSiteSettings(settingsData)
-      setSalonStatus(salonData)
-      setCategoryForm((currentForm) =>
-        currentForm.id ? currentForm : { ...emptyCategoryForm, displayOrder: categoryData.length },
-      )
-      setMenuItemForm((currentForm) =>
-        currentForm.id
-          ? currentForm
-          : {
-              ...emptyMenuItemForm,
-              categoryId: categoryData[0]?.id ?? '',
-              displayOrder: itemData.length,
-            },
-      )
-      setSalonTableForm((currentForm) =>
-        currentForm.id
-          ? currentForm
-          : { ...emptySalonTableForm, displayOrder: salonData.tables.length },
-      )
+    try {
+      const results = await Promise.allSettled(requests.map((request) => request.promise))
+      const data = {}
+      const failures = []
+
+      results.forEach((result, index) => {
+        const { key } = requests[index]
+        if (result.status === 'fulfilled') {
+          data[key] = result.value
+          return
+        }
+
+        failures.push(key)
+        if (result.reason?.message?.includes('401')) {
+          setSession(null)
+        }
+      })
+
+      if (data.categories) {
+        setCategories(data.categories)
+        setCategoryForm((currentForm) =>
+          currentForm.id ? currentForm : { ...emptyCategoryForm, displayOrder: data.categories.length },
+        )
+      }
+
+      if (data.menuItems) {
+        setMenuItems(data.menuItems)
+        setMenuItemForm((currentForm) =>
+          currentForm.id
+            ? currentForm
+            : {
+                ...emptyMenuItemForm,
+                categoryId: data.categories?.[0]?.id ?? '',
+                displayOrder: data.menuItems.length,
+              },
+        )
+      }
+
+      if (data.addonItems) {
+        setAddonItems(data.addonItems)
+      }
+
+      if (data.modifiers) {
+        setModifiers(data.modifiers)
+        setModifierForm((currentForm) =>
+          currentForm.id ? currentForm : { ...emptyModifierForm, displayOrder: data.modifiers.length },
+        )
+      }
+
+      if (data.ingredients) {
+        setIngredients(data.ingredients)
+      }
+
+      if (data.inventoryStatus) {
+        setInventoryStatus(data.inventoryStatus)
+      }
+
+      if (data.siteSettings) {
+        setSiteSettings(data.siteSettings)
+      }
+
+      if (data.salonStatus) {
+        setSalonStatus(data.salonStatus)
+        setSalonTableForm((currentForm) =>
+          currentForm.id
+            ? currentForm
+            : { ...emptySalonTableForm, displayOrder: data.salonStatus.tables.length },
+        )
+      }
+
+      if (failures.length > 0) {
+        setError(`بارگذاری برخی بخش‌ها ناموفق بود: ${failures.join('، ')}`)
+      }
     } catch (requestError) {
       if (requestError.message.includes('401')) {
         setSession(null)
@@ -458,10 +652,22 @@ function App() {
     setSession(null)
     setCategories([])
     setMenuItems([])
+    setAddonItems([])
+    setModifiers([])
+    setIngredients([])
+    setRecipeState(emptyRecipeState)
+    setIngredientForm(emptyIngredientForm)
+    setInventoryStatus(null)
+    setInventoryAction({ ingredientId: null, mode: null })
+    setStockHistory([])
+    setSaleForm(emptySaleForm)
+    setSaleResult(null)
     setSalonStatus(emptySalonStatus)
     setSiteSettings(emptySettings)
     setCategoryForm(emptyCategoryForm)
     setMenuItemForm(emptyMenuItemForm)
+    setAddonForm(emptyAddonForm)
+    setModifierForm(emptyModifierForm)
     setSalonTableForm(emptySalonTableForm)
     setOccupyForm(emptyOccupyForm)
     setIsSalonTableModalOpen(false)
@@ -865,6 +1071,118 @@ function App() {
       displayOrder: salonStatus.tables.length,
     })
   }
+
+  const categoryColumns = useMemo(
+    () => buildCategoryColumns({ toPersianNumber, editCategory, handleDeleteCategory }),
+    [categories],
+  )
+
+  const menuItemColumns = useMemo(
+    () => buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, handleDeleteMenuItem }),
+    [menuItems, categories],
+  )
+
+  const addonColumns = useMemo(
+    () =>
+      buildAddonColumns({
+        toPersianNumber,
+        joinTags,
+        setAddonForm,
+        emptyAddonForm,
+        setAddonItems,
+        addonForm,
+        session,
+        apiRequest,
+        setSaving,
+        setError,
+        setMessage,
+        getReadableError,
+      }),
+    [addonItems, addonForm, session],
+  )
+
+  const modifierColumns = useMemo(
+    () =>
+      buildModifierColumns({
+        toPersianNumber,
+        setModifierForm,
+        emptyModifierForm,
+        setModifiers,
+        modifierForm,
+        session,
+        apiRequest,
+        setSaving,
+        setError,
+        setMessage,
+        getReadableError,
+      }),
+    [modifiers, modifierForm, session],
+  )
+
+  const ingredientColumns = useMemo(
+    () =>
+      buildIngredientColumns({
+        setIngredientForm,
+        emptyIngredientForm,
+        setIngredients,
+        ingredientForm,
+        session,
+        apiRequest,
+        setSaving,
+        setError,
+        setMessage,
+        getReadableError,
+        LOCATION_OPTIONS,
+      }),
+    [ingredients, ingredientForm, session],
+  )
+
+  const recipeColumns = useMemo(
+    () =>
+      buildRecipeColumns({
+        setRecipeState,
+        session,
+        apiRequest,
+        setSaving,
+        setError,
+        setMessage,
+        getReadableError,
+      }),
+    [recipeState.lines, session],
+  )
+
+  const inventoryColumns = useMemo(
+    () =>
+      buildInventoryColumns({
+        setInventoryAction,
+        setRestockForm,
+        setAdjustForm,
+        setAlertForm,
+        emptyRestockForm,
+        emptyAdjustForm,
+        setStockHistory,
+        session,
+        apiRequest,
+        setError,
+        getReadableError,
+      }),
+    [session],
+  )
+
+  const stockHistoryColumns = useMemo(
+    () => buildStockHistoryColumns({ formatDateTime }),
+    [stockHistory],
+  )
+
+  const salePreviewColumns = useMemo(
+    () => buildSalePreviewColumns({ toPersianNumber, quantitySold: saleForm.quantitySold }),
+    [salePreview, saleForm.quantitySold],
+  )
+
+  const saleResultColumns = useMemo(
+    () => buildSaleResultColumns({ toPersianNumber }),
+    [saleResult],
+  )
 
   if (!session?.token) {
     return (
@@ -1362,41 +1680,11 @@ function App() {
                   <p>{toPersianNumber(categories.length)} رکورد</p>
                 </div>
               </div>
-              <div className="table-shell">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>نام</th>
-                      <th>اسلاگ</th>
-                      <th>تعداد آیتم</th>
-                      <th>وضعیت</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categories.map((category) => (
-                      <tr key={category.id}>
-                        <td>{category.name}</td>
-                        <td className="ltr-text">{category.slug}</td>
-                        <td>{toPersianNumber(category.itemCount)}</td>
-                        <td>{category.isActive ? 'فعال' : 'مخفی'}</td>
-                        <td className="table-actions">
-                          <button type="button" className="link-button" onClick={() => editCategory(category)}>
-                            ویرایش
-                          </button>
-                          <button
-                            type="button"
-                            className="link-button link-danger"
-                            onClick={() => handleDeleteCategory(category.id)}
-                          >
-                            حذف
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable
+                data={categories}
+                columns={categoryColumns}
+                searchPlaceholder="جستجو در دسته‌بندی‌ها..."
+              />
             </section>
           </section>
         ) : null}
@@ -1771,57 +2059,937 @@ function App() {
                   <p>{toPersianNumber(menuItems.length)} رکورد</p>
                 </div>
               </div>
-              <div className="table-shell">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>نام</th>
-                      <th>دسته‌بندی</th>
-                      <th>قیمت پایه</th>
-                      <th>وضعیت</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {menuItems.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <strong>{item.persianName ?? item.name}</strong>
-                          <div className="table-subtext ltr-text">{item.englishName}</div>
-                          <div className="table-subtext">{joinTags(item.tags)}</div>
-                        </td>
-                        <td>{item.categoryName}</td>
-                        <td>
-                          {toPersianNumber(item.price)}
-                          {item.specialOfferPrice ? (
-                            <div className="table-subtext">
-                              پیشنهاد: {toPersianNumber(item.specialOfferPrice)}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td>
-                          {item.isActive ? 'نمایش داده می‌شود' : 'مخفی'}
-                          <div className="table-subtext">
-                            {item.isOrderable ? 'قابل سفارش' : 'فعلا غیرقابل سفارش'}
-                          </div>
-                        </td>
-                        <td className="table-actions">
-                          <button type="button" className="link-button" onClick={() => editMenuItem(item)}>
-                            ویرایش
-                          </button>
-                          <button
-                            type="button"
-                            className="link-button link-danger"
-                            onClick={() => handleDeleteMenuItem(item.id)}
-                          >
-                            حذف
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <DataTable
+                data={menuItems}
+                columns={menuItemColumns}
+                searchPlaceholder="جستجو در آیتم‌های منو..."
+                pageSize={8}
+              />
+            </section>
+          </section>
+        ) : null}
+
+        {activeTab === 'addons' ? (
+          <section className="two-column-layout">
+            <form
+              className="panel form-panel"
+              onSubmit={async (event) => {
+                event.preventDefault()
+                setSaving(true)
+                setError('')
+                setMessage('')
+
+                try {
+                  const path = addonForm.id ? `/admin/addons/${addonForm.id}` : '/admin/addons'
+
+                  await apiRequest(path, {
+                    method: addonForm.id ? 'PUT' : 'POST',
+                    token: session.token,
+                    body: {
+                      persianName: addonForm.persianName,
+                      englishName: addonForm.englishName,
+                      description: addonForm.description,
+                      price: Number(addonForm.price),
+                      tags: splitTags(addonForm.tags),
+                      displayOrder: Number(addonForm.displayOrder),
+                      isActive: addonForm.isActive,
+                    },
+                  })
+
+                  setAddonForm({ ...emptyAddonForm, displayOrder: addonItems.length })
+                  setMessage('افزودنی با موفقیت ذخیره شد.')
+                  const nextAddonItems = await apiRequest('/admin/addons', { token: session.token })
+                  setAddonItems(nextAddonItems)
+                } catch (requestError) {
+                  setError(getReadableError(requestError))
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              <div className="panel-head">
+                <div>
+                  <h3>{addonForm.id ? 'ویرایش افزودنی' : 'افزودنی جدید'}</h3>
+                  <p>افزودنی‌ها مثل شات اضافه، شربت و ... به آیتم‌های اصلی منو اضافه می‌شوند.</p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() =>
+                    setAddonForm({
+                      ...emptyAddonForm,
+                      displayOrder: addonItems.length,
+                    })
+                  }
+                >
+                  پاک کردن فرم
+                </button>
               </div>
+              <div className="field-grid">
+                <label>
+                  <span>نام فارسی</span>
+                  <input
+                    value={addonForm.persianName}
+                    onChange={(event) =>
+                      setAddonForm((currentForm) => ({
+                        ...currentForm,
+                        persianName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>نام انگلیسی</span>
+                  <input
+                    className="ltr-input"
+                    value={addonForm.englishName}
+                    onChange={(event) =>
+                      setAddonForm((currentForm) => ({
+                        ...currentForm,
+                        englishName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <label>
+                <span>توضیحات</span>
+                <textarea
+                  rows="3"
+                  value={addonForm.description}
+                  onChange={(event) =>
+                    setAddonForm((currentForm) => ({
+                      ...currentForm,
+                      description: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <div className="field-grid">
+                <label>
+                  <span>قیمت</span>
+                  <input
+                    className="ltr-input"
+                    type="number"
+                    min="0"
+                    value={addonForm.price}
+                    onChange={(event) =>
+                      setAddonForm((currentForm) => ({
+                        ...currentForm,
+                        price: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>ترتیب نمایش</span>
+                  <input
+                    className="ltr-input"
+                    type="number"
+                    min="0"
+                    value={addonForm.displayOrder}
+                    onChange={(event) =>
+                      setAddonForm((currentForm) => ({
+                        ...currentForm,
+                        displayOrder: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <label>
+                <span>برچسب‌ها (با کاما جدا کنید)</span>
+                <input
+                  value={addonForm.tags}
+                  onChange={(event) =>
+                    setAddonForm((currentForm) => ({
+                      ...currentForm,
+                      tags: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={addonForm.isActive}
+                  onChange={(event) =>
+                    setAddonForm((currentForm) => ({
+                      ...currentForm,
+                      isActive: event.target.checked,
+                    }))
+                  }
+                />
+                <span>افزودنی فعال باشد</span>
+              </label>
+              <button type="submit" disabled={saving}>
+                {saving ? 'در حال ذخیره...' : 'ذخیره افزودنی'}
+              </button>
+            </form>
+
+            <section className="panel list-panel">
+              <div className="panel-head">
+                <div>
+                  <h3>افزودنی‌های موجود</h3>
+                  <p>{toPersianNumber(addonItems.length)} رکورد</p>
+                </div>
+              </div>
+              <DataTable
+                data={addonItems}
+                columns={addonColumns}
+                searchPlaceholder="جستجو در افزودنی‌ها..."
+              />
+            </section>
+          </section>
+        ) : null}
+
+        {activeTab === 'modifiers' ? (
+          <section className="two-column-layout">
+            <form
+              className="panel form-panel"
+              onSubmit={async (event) => {
+                event.preventDefault()
+                setSaving(true)
+                setError('')
+                setMessage('')
+
+                try {
+                  const path = modifierForm.id
+                    ? `/admin/modifiers/${modifierForm.id}`
+                    : '/admin/modifiers'
+
+                  await apiRequest(path, {
+                    method: modifierForm.id ? 'PUT' : 'POST',
+                    token: session.token,
+                    body: {
+                      persianName: modifierForm.persianName,
+                      englishName: modifierForm.englishName,
+                      displayOrder: Number(modifierForm.displayOrder),
+                      isActive: modifierForm.isActive,
+                    },
+                  })
+
+                  setModifierForm({ ...emptyModifierForm, displayOrder: modifiers.length })
+                  setMessage('گزینه تغییر سفارش با موفقیت ذخیره شد.')
+                  const nextModifiers = await apiRequest('/admin/modifiers', { token: session.token })
+                  setModifiers(nextModifiers)
+                } catch (requestError) {
+                  setError(getReadableError(requestError))
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              <div className="panel-head">
+                <div>
+                  <h3>{modifierForm.id ? 'ویرایش تغییر سفارش' : 'تغییر سفارش جدید'}</h3>
+                  <p>این گزینه‌ها برای مشتری در منوی دیجیتال قابل انتخاب هستند.</p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setModifierForm({ ...emptyModifierForm, displayOrder: modifiers.length })}
+                >
+                  پاک کردن فرم
+                </button>
+              </div>
+              <div className="field-grid">
+                <label>
+                  <span>عنوان فارسی</span>
+                  <input
+                    value={modifierForm.persianName}
+                    onChange={(event) =>
+                      setModifierForm((currentForm) => ({
+                        ...currentForm,
+                        persianName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>عنوان انگلیسی</span>
+                  <input
+                    className="ltr-input"
+                    value={modifierForm.englishName}
+                    onChange={(event) =>
+                      setModifierForm((currentForm) => ({
+                        ...currentForm,
+                        englishName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <label>
+                <span>ترتیب نمایش</span>
+                <input
+                  className="ltr-input"
+                  type="number"
+                  min="0"
+                  value={modifierForm.displayOrder}
+                  onChange={(event) =>
+                    setModifierForm((currentForm) => ({
+                      ...currentForm,
+                      displayOrder: Number(event.target.value),
+                    }))
+                  }
+                />
+              </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={modifierForm.isActive}
+                  onChange={(event) =>
+                    setModifierForm((currentForm) => ({
+                      ...currentForm,
+                      isActive: event.target.checked,
+                    }))
+                  }
+                />
+                <span>برای مشتری نمایش داده شود</span>
+              </label>
+              <button type="submit" disabled={saving}>
+                {saving ? 'در حال ذخیره...' : 'ذخیره تغییر سفارش'}
+              </button>
+            </form>
+
+            <section className="panel list-panel">
+              <div className="panel-head">
+                <div>
+                  <h3>گزینه‌های تغییر سفارش</h3>
+                  <p>{toPersianNumber(modifiers.length)} رکورد</p>
+                </div>
+              </div>
+              <DataTable
+                data={modifiers}
+                columns={modifierColumns}
+                searchPlaceholder="جستجو در تغییرات سفارش..."
+              />
+            </section>
+          </section>
+        ) : null}
+
+        {activeTab === 'ingredients' ? (
+          <section className="two-column-layout">
+            <form
+              className="panel form-panel"
+              onSubmit={async (event) => {
+                event.preventDefault()
+                setSaving(true)
+                setError('')
+                setMessage('')
+
+                try {
+                  const path = ingredientForm.id
+                    ? `/admin/ingredients/${ingredientForm.id}`
+                    : '/admin/ingredients'
+
+                  await apiRequest(path, {
+                    method: ingredientForm.id ? 'PUT' : 'POST',
+                    token: session.token,
+                    body: {
+                      persianName: ingredientForm.persianName,
+                      englishName: ingredientForm.englishName,
+                      unit: ingredientForm.unit,
+                      description: ingredientForm.description,
+                      displayOrder: Number(ingredientForm.displayOrder),
+                      isActive: ingredientForm.isActive,
+                      inventoryLocation: ingredientForm.inventoryLocation,
+                    },
+                  })
+
+                  setIngredientForm({ ...emptyIngredientForm, displayOrder: ingredients.length })
+                  setMessage('ماده اولیه با موفقیت ذخیره شد.')
+                  const nextIngredients = await apiRequest('/admin/ingredients', { token: session.token })
+                  setIngredients(nextIngredients)
+                } catch (requestError) {
+                  setError(getReadableError(requestError))
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              <div className="panel-head">
+                <div>
+                  <h3>{ingredientForm.id ? 'ویرایش ماده اولیه' : 'ماده اولیه جدید'}</h3>
+                  <p>مواد اولیه در دستور پخت آیتم‌های منو استفاده می‌شوند.</p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setIngredientForm({ ...emptyIngredientForm, displayOrder: ingredients.length })}
+                >
+                  پاک کردن فرم
+                </button>
+              </div>
+              <div className="field-grid">
+                <label>
+                  <span>نام فارسی</span>
+                  <input
+                    required
+                    value={ingredientForm.persianName}
+                    onChange={(event) =>
+                      setIngredientForm((currentForm) => ({ ...currentForm, persianName: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>نام انگلیسی</span>
+                  <input
+                    className="ltr-input"
+                    required
+                    value={ingredientForm.englishName}
+                    onChange={(event) =>
+                      setIngredientForm((currentForm) => ({ ...currentForm, englishName: event.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="field-grid">
+                <label>
+                  <span>واحد اندازه‌گیری</span>
+                  <select
+                    className="ltr-input"
+                    value={ingredientForm.unit}
+                    onChange={(event) =>
+                      setIngredientForm((currentForm) => ({ ...currentForm, unit: event.target.value }))
+                    }
+                  >
+                    {UNIT_OPTIONS.map((unit) => (
+                      <option key={unit} value={unit}>{unit}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>محل نگهداری</span>
+                  <select
+                    value={ingredientForm.inventoryLocation}
+                    onChange={(event) =>
+                      setIngredientForm((currentForm) => ({ ...currentForm, inventoryLocation: event.target.value }))
+                    }
+                  >
+                    {LOCATION_OPTIONS.map((loc) => (
+                      <option key={loc.value} value={loc.value}>{loc.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label>
+                <span>توضیح (اختیاری)</span>
+                <input
+                  value={ingredientForm.description}
+                  onChange={(event) =>
+                    setIngredientForm((currentForm) => ({ ...currentForm, description: event.target.value }))
+                  }
+                />
+              </label>
+              <label>
+                <span>ترتیب نمایش</span>
+                <input
+                  className="ltr-input"
+                  type="number"
+                  min="0"
+                  value={ingredientForm.displayOrder}
+                  onChange={(event) =>
+                    setIngredientForm((currentForm) => ({ ...currentForm, displayOrder: Number(event.target.value) }))
+                  }
+                />
+              </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={ingredientForm.isActive}
+                  onChange={(event) =>
+                    setIngredientForm((currentForm) => ({ ...currentForm, isActive: event.target.checked }))
+                  }
+                />
+                <span>فعال (قابل استفاده در دستور پخت)</span>
+              </label>
+              <button type="submit" disabled={saving}>
+                {saving ? 'در حال ذخیره...' : 'ذخیره ماده اولیه'}
+              </button>
+            </form>
+
+            <section className="panel list-panel">
+              <div className="panel-head">
+                <div>
+                  <h3>مواد اولیه</h3>
+                  <p>{toPersianNumber(ingredients.length)} رکورد</p>
+                </div>
+              </div>
+              <DataTable
+                data={ingredients}
+                columns={ingredientColumns}
+                searchPlaceholder="جستجو در مواد اولیه..."
+              />
+            </section>
+          </section>
+        ) : null}
+
+        {activeTab === 'recipes' ? (
+          <section className="panel-stack">
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>انتخاب آیتم منو</h3>
+                  <p>آیتمی را انتخاب کنید تا دستور پخت آن را مشاهده یا ویرایش کنید.</p>
+                </div>
+              </div>
+              <label>
+                <span>آیتم منو</span>
+                <select
+                  value={recipeState.selectedMenuItemId}
+                  onChange={async (event) => {
+                    const menuItemId = event.target.value
+                    setRecipeState((current) => ({
+                      ...current,
+                      selectedMenuItemId: menuItemId,
+                      lines: [],
+                      lineForm: emptyRecipeLineForm,
+                    }))
+
+                    if (!menuItemId) {
+                      return
+                    }
+
+                    try {
+                      const lines = await apiRequest(`/admin/recipes/${menuItemId}`, { token: session.token })
+                      setRecipeState((current) => ({ ...current, lines }))
+                    } catch (requestError) {
+                      setError(getReadableError(requestError))
+                    }
+                  }}
+                >
+                  <option value="">-- انتخاب آیتم منو --</option>
+                  {menuItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.persianName} — {item.englishName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+
+            {recipeState.selectedMenuItemId ? (
+              <section className="two-column-layout">
+                <form
+                  className="panel form-panel"
+                  onSubmit={async (event) => {
+                    event.preventDefault()
+                    if (!recipeState.lineForm.ingredientId || !recipeState.lineForm.quantity) {
+                      return
+                    }
+
+                    setSaving(true)
+                    setError('')
+                    setMessage('')
+
+                    try {
+                      await apiRequest(`/admin/recipes/${recipeState.selectedMenuItemId}`, {
+                        method: 'POST',
+                        token: session.token,
+                        body: {
+                          menuItemId: recipeState.selectedMenuItemId,
+                          ingredientId: recipeState.lineForm.ingredientId,
+                          quantity: Number(recipeState.lineForm.quantity),
+                        },
+                      })
+
+                      setRecipeState((current) => ({
+                        ...current,
+                        lineForm: emptyRecipeLineForm,
+                      }))
+                      setMessage('خط دستور پخت ذخیره شد.')
+
+                      const lines = await apiRequest(`/admin/recipes/${recipeState.selectedMenuItemId}`, {
+                        token: session.token,
+                      })
+                      setRecipeState((current) => ({ ...current, lines }))
+                    } catch (requestError) {
+                      setError(getReadableError(requestError))
+                    } finally {
+                      setSaving(false)
+                    }
+                  }}
+                >
+                  <div className="panel-head">
+                    <div>
+                      <h3>افزودن / ویرایش ماده</h3>
+                      <p>اگر این ماده قبلاً در دستور پخت بوده، مقدار آن به‌روزرسانی می‌شود.</p>
+                    </div>
+                  </div>
+                  <label>
+                    <span>ماده اولیه</span>
+                    <select
+                      required
+                      value={recipeState.lineForm.ingredientId}
+                      onChange={(event) =>
+                        setRecipeState((current) => ({
+                          ...current,
+                          lineForm: { ...current.lineForm, ingredientId: event.target.value },
+                        }))
+                      }
+                    >
+                      <option value="">-- انتخاب ماده اولیه --</option>
+                      {ingredients
+                        .filter((ingredient) => ingredient.isActive)
+                        .map((ingredient) => (
+                          <option key={ingredient.id} value={ingredient.id}>
+                            {ingredient.persianName} ({ingredient.unit})
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>مقدار</span>
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      required
+                      value={recipeState.lineForm.quantity}
+                      onChange={(event) =>
+                        setRecipeState((current) => ({
+                          ...current,
+                          lineForm: { ...current.lineForm, quantity: event.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                  <button type="submit" disabled={saving}>
+                    {saving ? 'در حال ذخیره...' : 'ذخیره در دستور پخت'}
+                  </button>
+                </form>
+
+                <section className="panel list-panel">
+                  <div className="panel-head">
+                    <div>
+                      <h3>دستور پخت</h3>
+                      <p>
+                        {recipeState.lines.length === 0
+                          ? 'هنوز هیچ ماده‌ای ثبت نشده.'
+                          : `${toPersianNumber(recipeState.lines.length)} ماده`}
+                      </p>
+                    </div>
+                  </div>
+                  <DataTable
+                    data={recipeState.lines}
+                    columns={recipeColumns}
+                    searchPlaceholder="جستجو در دستور پخت..."
+                    emptyMessage="هنوز هیچ ماده‌ای ثبت نشده."
+                  />
+                </section>
+              </section>
+            ) : null}
+          </section>
+        ) : null}
+
+        {activeTab === 'inventory' ? (
+          <section className="panel-stack">
+            {inventoryStatus ? (
+              <>
+                <div className="inventory-summary">
+                  <div className="stat-card">
+                    <span className="stat-value">{toPersianNumber(inventoryStatus.totalIngredients)}</span>
+                    <span className="stat-label">مواد اولیه</span>
+                  </div>
+                  {inventoryStatus.lowStockCount > 0 ? (
+                    <div className="stat-card stat-card--danger">
+                      <span className="stat-value">{toPersianNumber(inventoryStatus.lowStockCount)}</span>
+                      <span className="stat-label">کم موجودی</span>
+                    </div>
+                  ) : (
+                    <div className="stat-card stat-card--ok">
+                      <span className="stat-value">موجودی سالم</span>
+                      <span className="stat-label">همه مواد در سطح مناسب</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={async () => {
+                      const data = await apiRequest('/admin/inventory', { token: session.token })
+                      setInventoryStatus(data)
+                    }}
+                  >
+                    بروزرسانی
+                  </button>
+                </div>
+
+                {inventoryStatus.groups.map((group) => (
+                  <section key={group.location} className="panel">
+                    <div className="panel-head">
+                      <div>
+                        <h3>{group.locationLabel}</h3>
+                        <p>{toPersianNumber(group.items.length)} ماده اولیه</p>
+                      </div>
+                    </div>
+                    <DataTable
+                      data={group.items}
+                      columns={inventoryColumns}
+                      searchPlaceholder={`جستجو در ${group.locationLabel}...`}
+                    />
+                  </section>
+                ))}
+              </>
+            ) : (
+              <section className="panel"><p>در حال بارگذاری...</p></section>
+            )}
+
+            {inventoryAction.mode === 'restock' ? (
+              <div className="modal-backdrop" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>
+                <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                  <h3>شارژ موجودی</h3>
+                  <form
+                    onSubmit={async (event) => {
+                      event.preventDefault()
+                      setSaving(true)
+                      setError('')
+                      try {
+                        await apiRequest(`/admin/inventory/${inventoryAction.ingredientId}/restock`, {
+                          method: 'POST',
+                          token: session.token,
+                          body: { ingredientId: inventoryAction.ingredientId, quantity: Number(restockForm.quantity), note: restockForm.note },
+                        })
+                        setMessage('موجودی شارژ شد.')
+                        setInventoryAction({ ingredientId: null, mode: null })
+                        const data = await apiRequest('/admin/inventory', { token: session.token })
+                        setInventoryStatus(data)
+                      } catch (requestError) {
+                        setError(getReadableError(requestError))
+                      } finally {
+                        setSaving(false)
+                      }
+                    }}
+                  >
+                    <label>
+                      <span>مقدار اضافه شده</span>
+                      <input className="ltr-input" type="number" min="0.001" step="0.001" required value={restockForm.quantity}
+                        onChange={(e) => setRestockForm((f) => ({ ...f, quantity: e.target.value }))} />
+                    </label>
+                    <label>
+                      <span>توضیح (اختیاری)</span>
+                      <input value={restockForm.note} onChange={(e) => setRestockForm((f) => ({ ...f, note: e.target.value }))} />
+                    </label>
+                    <div className="modal-actions">
+                      <button type="submit" disabled={saving}>{saving ? 'در حال ذخیره...' : 'ذخیره'}</button>
+                      <button type="button" className="ghost-button" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>لغو</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            ) : null}
+
+            {inventoryAction.mode === 'adjust' ? (
+              <div className="modal-backdrop" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>
+                <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                  <h3>تصحیح موجودی</h3>
+                  <p>مقدار مثبت = افزایش، مقدار منفی = کاهش</p>
+                  <form
+                    onSubmit={async (event) => {
+                      event.preventDefault()
+                      setSaving(true)
+                      setError('')
+                      try {
+                        await apiRequest(`/admin/inventory/${inventoryAction.ingredientId}/adjust`, {
+                          method: 'POST',
+                          token: session.token,
+                          body: { ingredientId: inventoryAction.ingredientId, delta: Number(adjustForm.delta), note: adjustForm.note },
+                        })
+                        setMessage('موجودی تصحیح شد.')
+                        setInventoryAction({ ingredientId: null, mode: null })
+                        const data = await apiRequest('/admin/inventory', { token: session.token })
+                        setInventoryStatus(data)
+                      } catch (requestError) {
+                        setError(getReadableError(requestError))
+                      } finally {
+                        setSaving(false)
+                      }
+                    }}
+                  >
+                    <label>
+                      <span>مقدار تغییر</span>
+                      <input className="ltr-input" type="number" step="0.001" required value={adjustForm.delta}
+                        onChange={(e) => setAdjustForm((f) => ({ ...f, delta: e.target.value }))} />
+                    </label>
+                    <label>
+                      <span>دلیل تصحیح</span>
+                      <input required value={adjustForm.note} onChange={(e) => setAdjustForm((f) => ({ ...f, note: e.target.value }))} />
+                    </label>
+                    <div className="modal-actions">
+                      <button type="submit" disabled={saving}>{saving ? 'در حال ذخیره...' : 'ذخیره'}</button>
+                      <button type="button" className="ghost-button" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>لغو</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            ) : null}
+
+            {inventoryAction.mode === 'alert' ? (
+              <div className="modal-backdrop" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>
+                <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                  <h3>تنظیم حد هشدار موجودی</h3>
+                  <form
+                    onSubmit={async (event) => {
+                      event.preventDefault()
+                      setSaving(true)
+                      setError('')
+                      try {
+                        await apiRequest(`/admin/inventory/${inventoryAction.ingredientId}/alert-threshold`, {
+                          method: 'POST',
+                          token: session.token,
+                          body: { ingredientId: inventoryAction.ingredientId, minAlertQuantity: Number(alertForm.minAlertQuantity) },
+                        })
+                        setMessage('حد هشدار ذخیره شد.')
+                        setInventoryAction({ ingredientId: null, mode: null })
+                        const data = await apiRequest('/admin/inventory', { token: session.token })
+                        setInventoryStatus(data)
+                      } catch (requestError) {
+                        setError(getReadableError(requestError))
+                      } finally {
+                        setSaving(false)
+                      }
+                    }}
+                  >
+                    <label>
+                      <span>حداقل موجودی قابل قبول</span>
+                      <input className="ltr-input" type="number" min="0" step="0.001" required value={alertForm.minAlertQuantity}
+                        onChange={(e) => setAlertForm((f) => ({ ...f, minAlertQuantity: e.target.value }))} />
+                    </label>
+                    <div className="modal-actions">
+                      <button type="submit" disabled={saving}>{saving ? 'در حال ذخیره...' : 'ذخیره'}</button>
+                      <button type="button" className="ghost-button" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>لغو</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            ) : null}
+
+            {inventoryAction.mode === 'history' ? (
+              <div className="modal-backdrop" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>
+                <div className="modal-card modal-card--wide" onClick={(e) => e.stopPropagation()}>
+                  <div className="panel-head">
+                    <h3>تاریخچه موجودی</h3>
+                    <button type="button" className="ghost-button" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>بستن</button>
+                  </div>
+                  <DataTable
+                    data={stockHistory}
+                    columns={stockHistoryColumns}
+                    enableSearch={false}
+                    enablePagination={stockHistory.length > 10}
+                    pageSize={10}
+                    compact
+                    emptyMessage="تاریخچه‌ای ثبت نشده."
+                  />
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        {activeTab === 'record-sale' ? (
+          <section className="panel-stack">
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>ثبت فروش</h3>
+                  <p>پس از ثبت، موجودی مواد اولیه مطابق دستور پخت کسر می‌شود.</p>
+                </div>
+                {saleResult ? (
+                  <button type="button" className="ghost-button" onClick={() => setSaleResult(null)}>فروش جدید</button>
+                ) : null}
+              </div>
+
+              {!saleResult ? (
+                <form
+                  onSubmit={async (event) => {
+                    event.preventDefault()
+                    setSaving(true)
+                    setError('')
+                    setMessage('')
+                    try {
+                      const result = await apiRequest('/admin/sales/record', {
+                        method: 'POST',
+                        token: session.token,
+                        body: {
+                          menuItemId: saleForm.menuItemId,
+                          quantitySold: Number(saleForm.quantitySold),
+                        },
+                      })
+                      setSaleResult(result)
+                      setMessage('فروش ثبت شد و موجودی بروزرسانی شد.')
+                      const data = await apiRequest('/admin/inventory', { token: session.token })
+                      setInventoryStatus(data)
+                    } catch (requestError) {
+                      setError(getReadableError(requestError))
+                    } finally {
+                      setSaving(false)
+                    }
+                  }}
+                >
+                  <div className="field-grid">
+                    <label>
+                      <span>آیتم منو</span>
+                      <select
+                        required
+                        value={saleForm.menuItemId}
+                        onChange={(event) => setSaleForm((f) => ({ ...f, menuItemId: event.target.value }))}
+                      >
+                        <option value="">-- انتخاب آیتم --</option>
+                        {menuItems.map((item) => (
+                          <option key={item.id} value={item.id}>{item.persianName} — {item.englishName}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>تعداد فروخته شده</span>
+                      <input
+                        className="ltr-input"
+                        type="number"
+                        min="1"
+                        required
+                        value={saleForm.quantitySold}
+                        onChange={(event) => setSaleForm((f) => ({ ...f, quantitySold: event.target.value }))}
+                      />
+                    </label>
+                  </div>
+
+                  {salePreviewLoading ? (
+                    <p className="sale-preview-note">در حال بارگذاری پیش‌نمایش دستور پخت...</p>
+                  ) : saleForm.menuItemId && salePreview.length === 0 ? (
+                    <p className="sale-preview-note sale-preview-note--warning">
+                      برای این آیتم دستور پختی ثبت نشده. ابتدا در تب «دستور پخت» مواد را تعریف کنید.
+                    </p>
+                  ) : salePreview.length > 0 ? (
+                    <div className="sale-preview">
+                      <h4>پیش‌نمایش کسر از موجودی</h4>
+                      <DataTable
+                        data={salePreview}
+                        columns={salePreviewColumns}
+                        enableSearch={false}
+                        enablePagination={false}
+                        compact
+                      />
+                    </div>
+                  ) : null}
+
+                  <button type="submit" disabled={saving || salePreview.length === 0}>
+                    {saving ? 'در حال ثبت...' : 'تأیید و ثبت فروش'}
+                  </button>
+                </form>
+              ) : (
+                <div className="sale-result">
+                  <h4>نتیجه ثبت فروش: {saleResult.menuItemName} × {toPersianNumber(saleResult.quantitySold)}</h4>
+                  <DataTable
+                    data={saleResult.deductions}
+                    columns={saleResultColumns}
+                    enableSearch={false}
+                    enablePagination={false}
+                    compact
+                  />
+                </div>
+              )}
             </section>
           </section>
         ) : null}

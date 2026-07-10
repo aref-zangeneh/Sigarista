@@ -35,6 +35,8 @@ public class ApplicationDbContextSeeder
         await SeedMenuAsync(cancellationToken);
         await SeedSalonAsync(cancellationToken);
         await SeedAdminAsync(cancellationToken);
+        await SeedIngredientsAsync(cancellationToken);
+        await SeedInventoryStocksAsync(cancellationToken);
     }
 
     private async Task SeedSiteSettingsAsync(CancellationToken cancellationToken)
@@ -98,6 +100,8 @@ public class ApplicationDbContextSeeder
     {
         if (await _dbContext.Categories.AnyAsync(cancellationToken) || await _dbContext.MenuItems.AnyAsync(cancellationToken))
         {
+            await SeedAddonItemsAsync(cancellationToken);
+            await SeedMenuModifiersAsync(cancellationToken);
             return;
         }
 
@@ -173,6 +177,81 @@ public class ApplicationDbContextSeeder
             CreateMenuItem("cold-drinks", "کلد برو پرتقال", "Orange Cold Brew", "کلد برو روشن با عصاره پرتقال؛ سبک، میوه‌ای و مناسب دوستداران طعم خاص.", 149000, ["Cold Brew", "Citrus", "Specialty"], "باریستا چویس", false, "linear-gradient(135deg, #7b4426, #e3a155)", "CB", 3),
             CreateMenuItem("breakfast", "ساندویچ کروسان بوقلمون", "Turkey Croissant Sandwich", "کروسان کره‌ای با بوقلمون دودی، پنیر و سس خردل ملایم.", 235000, ["Savory", "Croissant", "Popular"], string.Empty, false, "linear-gradient(135deg, #916239, #d6aa75)", "CT", 3)
         );
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await SeedAddonItemsAsync(cancellationToken);
+        await SeedMenuModifiersAsync(cancellationToken);
+    }
+
+    private async Task SeedAddonItemsAsync(CancellationToken cancellationToken)
+    {
+        if (await _dbContext.AddonItems.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        _dbContext.AddonItems.AddRange(
+            new AddonItem("شات اضافه اسپرسو", "Extra Espresso Shot", "یک شات اضافه برای نوشیدنی‌های قهوه‌ای.", 35000, ["Coffee", "Extra"], 1),
+            new AddonItem("شیر بادام", "Almond Milk", "جایگزین شیر معمولی در نوشیدنی.", 30000, ["Milk", "Vegan"], 2),
+            new AddonItem("شربت وانیل", "Vanilla Syrup", "افزودن شربت وانیل به نوشیدنی.", 25000, ["Syrup", "Sweet"], 3)
+        );
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SeedMenuModifiersAsync(CancellationToken cancellationToken)
+    {
+        if (await _dbContext.MenuModifiers.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        _dbContext.MenuModifiers.AddRange(
+            new MenuModifier("بدون شکر", "No Sugar", 1),
+            new MenuModifier("کم شکر", "Less Sugar", 2),
+            new MenuModifier("بدون یخ", "No Ice", 3),
+            new MenuModifier("Extra Hot", "Extra Hot", 4)
+        );
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SeedIngredientsAsync(CancellationToken cancellationToken)
+    {
+        if (await _dbContext.Ingredients.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        _dbContext.Ingredients.AddRange(
+            new Ingredient("شیر", "Milk", "ml", "شیر تازه پاستوریزه", 1, inventoryLocation: "refrigerator"),
+            new Ingredient("اسپرسو", "Espresso", "ml", "شات اسپرسو دوبل", 2, inventoryLocation: "bar"),
+            new Ingredient("شکر", "Sugar", "gr", "شکر سفید معمولی", 3, inventoryLocation: "dry"),
+            new Ingredient("خامه", "Cream", "ml", "خامه پرچرب قنادی", 4, inventoryLocation: "refrigerator"),
+            new Ingredient("آب", "Water", "ml", "آب فیلتر شده", 5, inventoryLocation: "kitchen"),
+            new Ingredient("شربت وانیل", "Vanilla Syrup", "ml", "شربت وانیل خالص", 6, inventoryLocation: "bar"),
+            new Ingredient("شکلات تلخ", "Dark Chocolate", "gr", "پودر کاکائو یا شکلات ذوب شده", 7, inventoryLocation: "dry"),
+            new Ingredient("پودر قهوه", "Coffee Grounds", "gr", "قهوه آسیاب شده اسپرسو", 8, inventoryLocation: "bar")
+        );
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SeedInventoryStocksAsync(CancellationToken cancellationToken)
+    {
+        // Create an InventoryStock row for every ingredient that doesn't have one yet.
+        var ingredientsWithoutStock = await _dbContext.Ingredients
+            .Where(i => !_dbContext.InventoryStocks.Any(s => s.IngredientId == i.Id))
+            .ToListAsync(cancellationToken);
+
+        if (ingredientsWithoutStock.Count == 0)
+        {
+            return;
+        }
+
+        _dbContext.InventoryStocks.AddRange(
+            ingredientsWithoutStock.Select(ingredient => new InventoryStock(ingredient.Id, minAlertQuantity: 0)));
 
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

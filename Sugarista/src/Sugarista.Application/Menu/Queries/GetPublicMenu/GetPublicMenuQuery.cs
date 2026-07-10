@@ -4,7 +4,11 @@ namespace Sugarista.Application.Menu.Queries.GetPublicMenu;
 
 public record GetPublicMenuQuery : IRequest<PublicMenuDto>;
 
-public record PublicMenuDto(IReadOnlyCollection<PublicMenuCategoryDto> Categories, IReadOnlyCollection<PublicMenuItemDto> Items);
+public record PublicMenuDto(
+    IReadOnlyCollection<PublicMenuCategoryDto> Categories,
+    IReadOnlyCollection<PublicMenuItemDto> Items,
+    IReadOnlyCollection<PublicAddonItemDto> Addons,
+    IReadOnlyCollection<PublicMenuModifierDto> Modifiers);
 
 public record PublicMenuCategoryDto(Guid Id, string Slug, string Label, int DisplayOrder);
 
@@ -40,6 +44,23 @@ public record PublicMenuItemVariantDto(
     int? Price,
     int? SpecialOfferPrice,
     string? Volume);
+
+public record PublicAddonItemDto(
+    Guid Id,
+    string Name,
+    string PersianName,
+    string EnglishName,
+    string Description,
+    int Price,
+    IReadOnlyCollection<string> Tags,
+    int DisplayOrder);
+
+public record PublicMenuModifierDto(
+    Guid Id,
+    string Name,
+    string PersianName,
+    string EnglishName,
+    int DisplayOrder);
 
 public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, PublicMenuDto>
 {
@@ -140,6 +161,46 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 item.DisplayOrder))
             .ToList();
 
-        return new PublicMenuDto(categories, items);
+        List<PublicAddonItemDto> addons;
+
+        try
+        {
+            addons = await _dbContext.AddonItems
+                .AsNoTracking()
+                .Where(addon => addon.IsActive)
+                .OrderBy(addon => addon.DisplayOrder)
+                .ThenBy(addon => addon.Name)
+                .Select(addon => new PublicAddonItemDto(
+                    addon.Id,
+                    addon.Name,
+                    addon.PersianName,
+                    addon.EnglishName,
+                    addon.Description,
+                    addon.Price,
+                    addon.Tags,
+                    addon.DisplayOrder))
+                .ToListAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            // If the AddonItems table or data is not available in production yet,
+            // fall back to an empty add-ons collection so /api/menu still works.
+            addons = [];
+        }
+
+        var modifiers = await _dbContext.MenuModifiers
+            .AsNoTracking()
+            .Where(modifier => modifier.IsActive)
+            .OrderBy(modifier => modifier.DisplayOrder)
+            .ThenBy(modifier => modifier.Name)
+            .Select(modifier => new PublicMenuModifierDto(
+                modifier.Id,
+                modifier.Name,
+                modifier.PersianName,
+                modifier.EnglishName,
+                modifier.DisplayOrder))
+            .ToListAsync(cancellationToken);
+
+        return new PublicMenuDto(categories, items, addons, modifiers);
     }
 }

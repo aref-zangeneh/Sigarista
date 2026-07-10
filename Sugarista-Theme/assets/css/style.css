@@ -531,6 +531,58 @@ a {
   gap: 0.85rem;
 }
 
+.modifier-section {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, rgba(229, 170, 47, 0.13), rgba(170, 49, 113, 0.08));
+  border: 1px solid var(--line);
+}
+
+.modifier-head {
+  margin-bottom: 0.75rem;
+}
+
+.modifier-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.modifier-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.62rem 0.85rem;
+  border: 1px solid rgba(12, 52, 79, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--primary);
+  font: inherit;
+  font-weight: 800;
+}
+
+.modifier-chip small {
+  color: var(--muted);
+  direction: ltr;
+  font-size: 0.74rem;
+}
+
+.modifier-chip-active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--primary), var(--accent-rose));
+}
+
+.modifier-chip-active small {
+  color: rgba(254, 253, 241, 0.78);
+}
+
+.modifier-note {
+  margin: 0.75rem 0 0;
+  color: var(--primary);
+}
+
 .menu-item {
   display: flex;
   gap: 0.95rem;
@@ -547,6 +599,63 @@ a {
   width: 6px;
   flex-shrink: 0;
   border-radius: 999px;
+}
+
+.addons-section {
+  margin-top: 2rem;
+}
+
+.addons-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.addons-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.addon-item {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.addon-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.addon-title {
+  margin: 0;
+}
+
+.addon-english {
+  margin: 0.1rem 0 0.3rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  direction: ltr;
+}
+
+.addon-description {
+  color: var(--muted);
+}
+
+.addon-price {
+  white-space: nowrap;
+}
+
+.addon-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .menu-item-image {

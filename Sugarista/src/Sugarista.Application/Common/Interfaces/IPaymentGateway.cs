@@ -13,13 +13,13 @@ public interface IPaymentGateway
 {
     Task<PaymentRequestResult> RequestPaymentAsync(
         Guid orderId,
-        int amount,
+        decimal amount,
         string callbackUrl,
         string description,
         CancellationToken cancellationToken = default);
 
     Task<PaymentVerifyResult> VerifyPaymentAsync(
         string authority,
-        int amount,
+        decimal amount,
         CancellationToken cancellationToken = default);
 }

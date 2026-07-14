@@ -24,6 +24,9 @@ public class AddonItemConfiguration : IEntityTypeConfiguration<AddonItem>
             .HasMaxLength(500)
             .IsRequired();
 
+        builder.Property(item => item.Price)
+            .HasColumnType("numeric(18,2)");
+
         builder.Property(item => item.Tags)
             .HasColumnType("text[]");
     }

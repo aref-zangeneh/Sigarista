@@ -17,8 +17,10 @@ public class OrderLine : BaseEntity
         string? sizeKey,
         string? sizeLabel,
         int quantity,
-        int unitPrice,
-        IReadOnlyCollection<string> modifierLabels)
+        decimal unitPrice,
+        IReadOnlyCollection<string> modifierLabels,
+        string? payerKey = null,
+        string? payerLabel = null)
     {
         if (orderId == Guid.Empty)
         {
@@ -55,6 +57,8 @@ public class OrderLine : BaseEntity
         UnitPrice = unitPrice;
         LineTotal = unitPrice * quantity;
         ModifierLabels = NormalizeList(modifierLabels);
+        AssignPayer(payerKey, payerLabel);
+        InventoryDeductedQuantity = 0;
     }
 
     public Guid OrderId { get; private set; }
@@ -75,11 +79,62 @@ public class OrderLine : BaseEntity
 
     public int Quantity { get; private set; }
 
-    public int UnitPrice { get; private set; }
+    public decimal UnitPrice { get; private set; }
 
-    public int LineTotal { get; private set; }
+    public decimal LineTotal { get; private set; }
 
     public string[] ModifierLabels { get; private set; } = [];
+
+    public string? PayerKey { get; private set; }
+
+    public string? PayerLabel { get; private set; }
+
+    public int InventoryDeductedQuantity { get; private set; }
+
+    public void AssignPayer(string? payerKey, string? payerLabel)
+    {
+        PayerKey = string.IsNullOrWhiteSpace(payerKey) ? null : payerKey.Trim().ToLowerInvariant();
+        PayerLabel = string.IsNullOrWhiteSpace(payerLabel)
+            ? PayerKey
+            : payerLabel.Trim();
+    }
+
+    public void UpdateQuantity(int quantity)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("Order line quantity must be greater than zero.");
+        }
+
+        Quantity = quantity;
+        LineTotal = UnitPrice * quantity;
+    }
+
+    public void UpdateUnitPrice(decimal unitPrice)
+    {
+        if (unitPrice < 0)
+        {
+            throw new DomainException("Order line unit price must be greater than or equal to zero.");
+        }
+
+        UnitPrice = unitPrice;
+        LineTotal = unitPrice * Quantity;
+    }
+
+    public void MarkInventoryDeducted(int quantity)
+    {
+        if (quantity < 0 || quantity > Quantity)
+        {
+            throw new DomainException("Invalid inventory deducted quantity.");
+        }
+
+        InventoryDeductedQuantity = quantity;
+    }
+
+    public void ResetInventoryDeduction()
+    {
+        InventoryDeductedQuantity = 0;
+    }
 
     private static string[] NormalizeList(IReadOnlyCollection<string> values)
     {

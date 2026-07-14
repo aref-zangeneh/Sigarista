@@ -30,9 +30,25 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(30)
             .IsRequired();
 
+        builder.Property(o => o.TotalAmount)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(o => o.AmountPaid)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(o => o.SplitBillMode)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .IsRequired();
+
         builder.Property(o => o.PaymentAuthority)
             .HasMaxLength(100)
             .IsRequired();
+
+        builder.Property(o => o.IsSplitBill)
+            .IsRequired();
+
+        builder.HasIndex(o => o.IsSplitBill);
 
         builder.HasIndex(o => o.PaymentAuthority);
 

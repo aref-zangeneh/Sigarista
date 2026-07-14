@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DataTable } from './components/DataTable'
+import { DataTable, formatMoney } from './components/DataTable'
+import { PaginatedAdminTable } from './components/PaginatedAdminTable'
 import {
   buildAddonColumns,
   buildCategoryColumns,
@@ -399,11 +400,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('overview')
   const [session, setSession] = useState(loadStoredSession)
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'ChangeMe123!' })
-  const [categories, setCategories] = useState([])
-  const [menuItems, setMenuItems] = useState([])
-  const [addonItems, setAddonItems] = useState([])
-  const [modifiers, setModifiers] = useState([])
-  const [ingredients, setIngredients] = useState([])
+  const [categoryOptions, setCategoryOptions] = useState([])
+  const [menuItemOptions, setMenuItemOptions] = useState([])
+  const [tableReloadToken, setTableReloadToken] = useState(0)
   const [recipeState, setRecipeState] = useState(emptyRecipeState)
   const [ingredientForm, setIngredientForm] = useState(emptyIngredientForm)
   const [inventoryStatus, setInventoryStatus] = useState(null)
@@ -416,8 +415,8 @@ function App() {
   const [salePreview, setSalePreview] = useState([])
   const [salePreviewLoading, setSalePreviewLoading] = useState(false)
   const [saleResult, setSaleResult] = useState(null)
-  const [orders, setOrders] = useState([])
   const [selectedOrder, setSelectedOrder] = useState(null)
+  const [orderEditForm, setOrderEditForm] = useState(null)
   const [salonStatus, setSalonStatus] = useState(emptySalonStatus)
   const [siteSettings, setSiteSettings] = useState(emptySettings)
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
@@ -433,9 +432,9 @@ function App() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  const featuredCount = useMemo(
-    () => menuItems.filter((item) => item.featured && item.isActive).length,
-    [menuItems],
+  const activeMenuItemCount = useMemo(
+    () => menuItemOptions.filter((item) => item.isActive).length,
+    [menuItemOptions],
   )
   const activeSalonTables = salonStatus.tables.filter((table) => table.isActive)
 
@@ -528,6 +527,145 @@ function App() {
     )
   }
 
+  function bumpTableReload() {
+    setTableReloadToken((current) => current + 1)
+  }
+
+  async function openOrderEditor(orderRow) {
+    if (!session?.token) {
+      return
+    }
+
+    try {
+      const order = await apiRequest(`/admin/orders/${orderRow.id}`, { token: session.token })
+      setSelectedOrder(order)
+      setOrderEditForm({
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        note: order.note ?? '',
+        lines: order.lines.map((line) => ({
+          id: line.id,
+          menuItemId: line.menuItemId,
+          persianName: line.persianName,
+          englishName: line.englishName,
+          sizeKey: line.sizeKey,
+          sizeLabel: line.sizeLabel,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          lineTotal: line.lineTotal,
+          payerKey: line.payerKey,
+          payerLabel: line.payerLabel,
+          inventoryDeductedQuantity: line.inventoryDeductedQuantity,
+          modifierLabels: line.modifierLabels ?? [],
+          remove: false,
+        })),
+      })
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+  }
+
+  function closeOrderEditor() {
+    setSelectedOrder(null)
+    setOrderEditForm(null)
+  }
+
+  function updateOrderLineQuantity(lineId, quantity) {
+    setOrderEditForm((current) => ({
+      ...current,
+      lines: current.lines.map((line) =>
+        line.id === lineId
+          ? {
+              ...line,
+              quantity: Math.max(1, Number(quantity) || 1),
+              lineTotal: line.unitPrice * Math.max(1, Number(quantity) || 1),
+            }
+          : line,
+      ),
+    }))
+  }
+
+  function toggleOrderLineRemoval(lineId) {
+    setOrderEditForm((current) => ({
+      ...current,
+      lines: current.lines.map((line) =>
+        line.id === lineId ? { ...line, remove: !line.remove } : line,
+      ),
+    }))
+  }
+
+  async function handleSaveOrder(event) {
+    event.preventDefault()
+    if (!session?.token || !selectedOrder || !orderEditForm) {
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const updated = await apiRequest(`/admin/orders/${selectedOrder.id}`, {
+        method: 'PUT',
+        token: session.token,
+        body: {
+          customerName: orderEditForm.customerName,
+          customerPhone: orderEditForm.customerPhone,
+          note: orderEditForm.note,
+          lines: orderEditForm.lines.map((line) => ({
+            id: line.id,
+            menuItemId: line.menuItemId,
+            sizeKey: line.sizeKey,
+            quantity: line.quantity,
+            modifierIds: [],
+            payerKey: line.payerKey,
+            payerLabel: line.payerLabel,
+            remove: line.remove,
+          })),
+        },
+      })
+
+      setMessage('سفارش با موفقیت بروزرسانی شد.')
+      closeOrderEditor()
+      bumpTableReload()
+      await loadAdminData()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleCancelOrder() {
+    if (!session?.token || !selectedOrder) {
+      return
+    }
+
+    if (!window.confirm('آیا از لغو این سفارش و بازگردانی موجودی اطمینان دارید؟')) {
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const updated = await apiRequest(`/admin/orders/${selectedOrder.id}/cancel`, {
+        method: 'POST',
+        token: session.token,
+      })
+
+      setMessage('سفارش لغو شد و موجودی بازگردانده شد.')
+      closeOrderEditor()
+      bumpTableReload()
+      await loadAdminData()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function loadAdminData(token = session?.token) {
     if (!token) {
       return
@@ -537,15 +675,11 @@ function App() {
     setError('')
 
     const requests = [
-      { key: 'categories', promise: apiRequest('/admin/categories', { token }) },
-      { key: 'menuItems', promise: apiRequest('/admin/menu-items', { token }) },
-      { key: 'addonItems', promise: apiRequest('/admin/addons', { token }) },
-      { key: 'modifiers', promise: apiRequest('/admin/modifiers', { token }) },
-      { key: 'ingredients', promise: apiRequest('/admin/ingredients', { token }) },
+      { key: 'categoryOptions', promise: apiRequest('/admin/categories/options', { token }) },
+      { key: 'menuItemOptions', promise: apiRequest('/admin/menu-items/options', { token }) },
       { key: 'inventoryStatus', promise: apiRequest('/admin/inventory', { token }) },
       { key: 'siteSettings', promise: apiRequest('/admin/site-settings', { token }) },
       { key: 'salonStatus', promise: apiRequest('/admin/salon/status', { token }) },
-      { key: 'orders', promise: apiRequest('/admin/orders', { token }) },
     ]
 
     try {
@@ -566,39 +700,24 @@ function App() {
         }
       })
 
-      if (data.categories) {
-        setCategories(data.categories)
+      if (data.categoryOptions) {
+        setCategoryOptions(data.categoryOptions)
         setCategoryForm((currentForm) =>
-          currentForm.id ? currentForm : { ...emptyCategoryForm, displayOrder: data.categories.length },
+          currentForm.id ? currentForm : { ...emptyCategoryForm, displayOrder: data.categoryOptions.length },
         )
       }
 
-      if (data.menuItems) {
-        setMenuItems(data.menuItems)
+      if (data.menuItemOptions) {
+        setMenuItemOptions(data.menuItemOptions)
         setMenuItemForm((currentForm) =>
           currentForm.id
             ? currentForm
             : {
                 ...emptyMenuItemForm,
-                categoryId: data.categories?.[0]?.id ?? '',
-                displayOrder: data.menuItems.length,
+                categoryId: data.categoryOptions?.[0]?.id ?? '',
+                displayOrder: data.menuItemOptions.length,
               },
         )
-      }
-
-      if (data.addonItems) {
-        setAddonItems(data.addonItems)
-      }
-
-      if (data.modifiers) {
-        setModifiers(data.modifiers)
-        setModifierForm((currentForm) =>
-          currentForm.id ? currentForm : { ...emptyModifierForm, displayOrder: data.modifiers.length },
-        )
-      }
-
-      if (data.ingredients) {
-        setIngredients(data.ingredients)
       }
 
       if (data.inventoryStatus) {
@@ -616,10 +735,6 @@ function App() {
             ? currentForm
             : { ...emptySalonTableForm, displayOrder: data.salonStatus.tables.length },
         )
-      }
-
-      if (data.orders) {
-        setOrders(data.orders)
       }
 
       if (failures.length > 0) {
@@ -659,11 +774,8 @@ function App() {
 
   function handleLogout() {
     setSession(null)
-    setCategories([])
-    setMenuItems([])
-    setAddonItems([])
-    setModifiers([])
-    setIngredients([])
+    setCategoryOptions([])
+    setMenuItemOptions([])
     setRecipeState(emptyRecipeState)
     setIngredientForm(emptyIngredientForm)
     setInventoryStatus(null)
@@ -819,8 +931,9 @@ function App() {
         },
       })
 
-      setCategoryForm({ ...emptyCategoryForm, displayOrder: categories.length })
+      setCategoryForm({ ...emptyCategoryForm, displayOrder: categoryOptions.length })
       setMessage('دسته‌بندی با موفقیت ذخیره شد.')
+      bumpTableReload()
       await loadAdminData()
       setActiveTab('categories')
     } catch (requestError) {
@@ -850,6 +963,7 @@ function App() {
       }
 
       setMessage('دسته‌بندی حذف شد.')
+      bumpTableReload()
       await loadAdminData()
     } catch (requestError) {
       setError(getReadableError(requestError))
@@ -907,10 +1021,11 @@ function App() {
 
       setMenuItemForm({
         ...emptyMenuItemForm,
-        categoryId: categories[0]?.id ?? '',
-        displayOrder: menuItems.length,
+        categoryId: categoryOptions[0]?.id ?? '',
+        displayOrder: menuItemOptions.length,
       })
       setMessage('آیتم منو با موفقیت ذخیره شد.')
+      bumpTableReload()
       await loadAdminData()
       setActiveTab('menu-items')
     } catch (requestError) {
@@ -938,12 +1053,13 @@ function App() {
       if (menuItemForm.id === itemId) {
         setMenuItemForm({
           ...emptyMenuItemForm,
-          categoryId: categories[0]?.id ?? '',
-          displayOrder: Math.max(menuItems.length - 1, 0),
+          categoryId: categoryOptions[0]?.id ?? '',
+          displayOrder: Math.max(menuItemOptions.length - 1, 0),
         })
       }
 
       setMessage('آیتم منو حذف شد.')
+      bumpTableReload()
       await loadAdminData()
     } catch (requestError) {
       setError(getReadableError(requestError))
@@ -1062,15 +1178,15 @@ function App() {
   function resetCategoryForm() {
     setCategoryForm({
       ...emptyCategoryForm,
-      displayOrder: categories.length,
+      displayOrder: categoryOptions.length,
     })
   }
 
   function resetMenuItemForm() {
     setMenuItemForm({
       ...emptyMenuItemForm,
-      categoryId: categories[0]?.id ?? '',
-      displayOrder: menuItems.length,
+      categoryId: categoryOptions[0]?.id ?? '',
+      displayOrder: menuItemOptions.length,
     })
   }
 
@@ -1083,22 +1199,21 @@ function App() {
 
   const categoryColumns = useMemo(
     () => buildCategoryColumns({ toPersianNumber, editCategory, handleDeleteCategory }),
-    [categories],
+    [categoryOptions.length, tableReloadToken],
   )
 
   const menuItemColumns = useMemo(
     () => buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, handleDeleteMenuItem }),
-    [menuItems, categories],
+    [categoryOptions.length, tableReloadToken],
   )
 
   const addonColumns = useMemo(
     () =>
       buildAddonColumns({
-        toPersianNumber,
         joinTags,
         setAddonForm,
         emptyAddonForm,
-        setAddonItems,
+        bumpTableReload,
         addonForm,
         session,
         apiRequest,
@@ -1107,7 +1222,7 @@ function App() {
         setMessage,
         getReadableError,
       }),
-    [addonItems, addonForm, session],
+    [addonForm, session, tableReloadToken],
   )
 
   const modifierColumns = useMemo(
@@ -1116,7 +1231,7 @@ function App() {
         toPersianNumber,
         setModifierForm,
         emptyModifierForm,
-        setModifiers,
+        bumpTableReload,
         modifierForm,
         session,
         apiRequest,
@@ -1125,7 +1240,7 @@ function App() {
         setMessage,
         getReadableError,
       }),
-    [modifiers, modifierForm, session],
+    [modifierForm, session, tableReloadToken],
   )
 
   const ingredientColumns = useMemo(
@@ -1133,7 +1248,7 @@ function App() {
       buildIngredientColumns({
         setIngredientForm,
         emptyIngredientForm,
-        setIngredients,
+        bumpTableReload,
         ingredientForm,
         session,
         apiRequest,
@@ -1143,7 +1258,7 @@ function App() {
         getReadableError,
         LOCATION_OPTIONS,
       }),
-    [ingredients, ingredientForm, session],
+    [ingredientForm, session, tableReloadToken],
   )
 
   const recipeColumns = useMemo(
@@ -1194,8 +1309,8 @@ function App() {
   )
 
   const orderColumns = useMemo(
-    () => buildOrderColumns({ toPersianNumber, formatDateTime, setSelectedOrder }),
-    [orders],
+    () => buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEditor }),
+    [tableReloadToken],
   )
 
   if (!session?.token) {
@@ -1297,15 +1412,15 @@ function App() {
             <section className="stat-grid">
               <article className="stat-card">
                 <span>تعداد دسته‌بندی‌ها</span>
-                <strong>{toPersianNumber(categories.length)}</strong>
+                <strong>{toPersianNumber(categoryOptions.length)}</strong>
               </article>
               <article className="stat-card">
                 <span>آیتم‌های فعال منو</span>
-                <strong>{toPersianNumber(menuItems.filter((item) => item.isActive).length)}</strong>
+                <strong>{toPersianNumber(activeMenuItemCount)}</strong>
               </article>
               <article className="stat-card">
-                <span>آیتم‌های ویژه</span>
-                <strong>{toPersianNumber(featuredCount)}</strong>
+                <span>کل آیتم‌های منو</span>
+                <strong>{toPersianNumber(menuItemOptions.length)}</strong>
               </article>
               <article className="stat-card">
                 <span>میزهای اشغال</span>
@@ -1691,12 +1806,15 @@ function App() {
               <div className="panel-head">
                 <div>
                   <h3>دسته‌بندی‌های موجود</h3>
-                  <p>{toPersianNumber(categories.length)} رکورد</p>
+                  <p>بارگذاری صفحه‌بندی شده از سرور</p>
                 </div>
               </div>
-              <DataTable
-                data={categories}
+              <PaginatedAdminTable
+                apiPath="/admin/categories"
+                token={session.token}
                 columns={categoryColumns}
+                enabled={activeTab === 'categories'}
+                reloadToken={tableReloadToken}
                 searchPlaceholder="جستجو در دسته‌بندی‌ها..."
               />
             </section>
@@ -1727,7 +1845,7 @@ function App() {
                   }
                 >
                   <option value="">یک دسته‌بندی انتخاب کنید</option>
-                  {categories.map((category) => (
+                  {categoryOptions.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
@@ -2061,7 +2179,7 @@ function App() {
                   </label>
                 </div>
               </div>
-              <button type="submit" disabled={saving || !categories.length}>
+              <button type="submit" disabled={saving || !categoryOptions.length}>
                 {saving ? 'در حال ذخیره...' : 'ذخیره آیتم منو'}
               </button>
             </form>
@@ -2070,14 +2188,16 @@ function App() {
               <div className="panel-head">
                 <div>
                   <h3>آیتم‌های موجود منو</h3>
-                  <p>{toPersianNumber(menuItems.length)} رکورد</p>
+                  <p>بارگذاری صفحه‌بندی شده از سرور</p>
                 </div>
               </div>
-              <DataTable
-                data={menuItems}
+              <PaginatedAdminTable
+                apiPath="/admin/menu-items"
+                token={session.token}
                 columns={menuItemColumns}
+                enabled={activeTab === 'menu-items'}
+                reloadToken={tableReloadToken}
                 searchPlaceholder="جستجو در آیتم‌های منو..."
-                pageSize={8}
               />
             </section>
           </section>
@@ -2110,10 +2230,9 @@ function App() {
                     },
                   })
 
-                  setAddonForm({ ...emptyAddonForm, displayOrder: addonItems.length })
+                  setAddonForm({ ...emptyAddonForm, displayOrder: 0 })
                   setMessage('افزودنی با موفقیت ذخیره شد.')
-                  const nextAddonItems = await apiRequest('/admin/addons', { token: session.token })
-                  setAddonItems(nextAddonItems)
+                  bumpTableReload()
                 } catch (requestError) {
                   setError(getReadableError(requestError))
                 } finally {
@@ -2132,7 +2251,7 @@ function App() {
                   onClick={() =>
                     setAddonForm({
                       ...emptyAddonForm,
-                      displayOrder: addonItems.length,
+                      displayOrder: 0,
                     })
                   }
                 >
@@ -2245,12 +2364,15 @@ function App() {
               <div className="panel-head">
                 <div>
                   <h3>افزودنی‌های موجود</h3>
-                  <p>{toPersianNumber(addonItems.length)} رکورد</p>
+                  <p>بارگذاری صفحه‌بندی شده از سرور</p>
                 </div>
               </div>
-              <DataTable
-                data={addonItems}
+              <PaginatedAdminTable
+                apiPath="/admin/addons"
+                token={session.token}
                 columns={addonColumns}
+                enabled={activeTab === 'addons'}
+                reloadToken={tableReloadToken}
                 searchPlaceholder="جستجو در افزودنی‌ها..."
               />
             </section>
@@ -2283,10 +2405,9 @@ function App() {
                     },
                   })
 
-                  setModifierForm({ ...emptyModifierForm, displayOrder: modifiers.length })
+                  setModifierForm({ ...emptyModifierForm, displayOrder: 0 })
                   setMessage('گزینه تغییر سفارش با موفقیت ذخیره شد.')
-                  const nextModifiers = await apiRequest('/admin/modifiers', { token: session.token })
-                  setModifiers(nextModifiers)
+                  bumpTableReload()
                 } catch (requestError) {
                   setError(getReadableError(requestError))
                 } finally {
@@ -2302,7 +2423,7 @@ function App() {
                 <button
                   type="button"
                   className="ghost-button"
-                  onClick={() => setModifierForm({ ...emptyModifierForm, displayOrder: modifiers.length })}
+                  onClick={() => setModifierForm({ ...emptyModifierForm, displayOrder: 0 })}
                 >
                   پاک کردن فرم
                 </button>
@@ -2371,12 +2492,15 @@ function App() {
               <div className="panel-head">
                 <div>
                   <h3>گزینه‌های تغییر سفارش</h3>
-                  <p>{toPersianNumber(modifiers.length)} رکورد</p>
+                  <p>بارگذاری صفحه‌بندی شده از سرور</p>
                 </div>
               </div>
-              <DataTable
-                data={modifiers}
+              <PaginatedAdminTable
+                apiPath="/admin/modifiers"
+                token={session.token}
                 columns={modifierColumns}
+                enabled={activeTab === 'modifiers'}
+                reloadToken={tableReloadToken}
                 searchPlaceholder="جستجو در تغییرات سفارش..."
               />
             </section>
@@ -2412,10 +2536,9 @@ function App() {
                     },
                   })
 
-                  setIngredientForm({ ...emptyIngredientForm, displayOrder: ingredients.length })
+                  setIngredientForm({ ...emptyIngredientForm, displayOrder: 0 })
                   setMessage('ماده اولیه با موفقیت ذخیره شد.')
-                  const nextIngredients = await apiRequest('/admin/ingredients', { token: session.token })
-                  setIngredients(nextIngredients)
+                  bumpTableReload()
                 } catch (requestError) {
                   setError(getReadableError(requestError))
                 } finally {
@@ -2431,7 +2554,7 @@ function App() {
                 <button
                   type="button"
                   className="ghost-button"
-                  onClick={() => setIngredientForm({ ...emptyIngredientForm, displayOrder: ingredients.length })}
+                  onClick={() => setIngredientForm({ ...emptyIngredientForm, displayOrder: 0 })}
                 >
                   پاک کردن فرم
                 </button>
@@ -2528,12 +2651,15 @@ function App() {
               <div className="panel-head">
                 <div>
                   <h3>مواد اولیه</h3>
-                  <p>{toPersianNumber(ingredients.length)} رکورد</p>
+                  <p>بارگذاری صفحه‌بندی شده از سرور</p>
                 </div>
               </div>
-              <DataTable
-                data={ingredients}
+              <PaginatedAdminTable
+                apiPath="/admin/ingredients"
+                token={session.token}
                 columns={ingredientColumns}
+                enabled={activeTab === 'ingredients'}
+                reloadToken={tableReloadToken}
                 searchPlaceholder="جستجو در مواد اولیه..."
               />
             </section>
@@ -2575,7 +2701,7 @@ function App() {
                   }}
                 >
                   <option value="">-- انتخاب آیتم منو --</option>
-                  {menuItems.map((item) => (
+                  {menuItemOptions.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.persianName} — {item.englishName}
                     </option>
@@ -2951,7 +3077,7 @@ function App() {
                         onChange={(event) => setSaleForm((f) => ({ ...f, menuItemId: event.target.value }))}
                       >
                         <option value="">-- انتخاب آیتم --</option>
-                        {menuItems.map((item) => (
+                        {menuItemOptions.map((item) => (
                           <option key={item.id} value={item.id}>{item.persianName} — {item.englishName}</option>
                         ))}
                       </select>
@@ -3016,73 +3142,170 @@ function App() {
                   <h3>سفارش‌های آنلاین</h3>
                   <p>لیست سفارش‌های ثبت‌شده از منوی دیجیتال با وضعیت پرداخت.</p>
                 </div>
-                <button type="button" className="ghost-button" onClick={() => loadAdminData()}>
+                <button type="button" className="ghost-button" onClick={() => bumpTableReload()}>
                   بروزرسانی
                 </button>
               </div>
-              <DataTable
-                data={orders}
+              <PaginatedAdminTable
+                apiPath="/admin/orders"
+                token={session.token}
                 columns={orderColumns}
+                enabled={activeTab === 'orders'}
+                reloadToken={tableReloadToken}
                 searchPlaceholder="جستجو بر اساس کد پیگیری، نام یا شماره تماس..."
               />
             </section>
           </section>
         ) : null}
 
-        {selectedOrder ? (
-          <div className="modal-backdrop" onClick={() => setSelectedOrder(null)}>
-            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-              <div className="panel-head">
-                <div>
-                  <h3>جزئیات سفارش {selectedOrder.trackingCode}</h3>
-                  <p>
-                    {selectedOrder.customerName} · {selectedOrder.customerPhone}
-                  </p>
+        {selectedOrder && orderEditForm ? (
+          <div className="modal-backdrop" onClick={closeOrderEditor}>
+            <div className="modal-card modal-card--wide" onClick={(event) => event.stopPropagation()}>
+              <form onSubmit={handleSaveOrder}>
+                <div className="panel-head">
+                  <div>
+                    <h3>مدیریت سفارش {selectedOrder.trackingCode}</h3>
+                    <p>
+                      {selectedOrder.isSplitBill ? 'تسویه جداگانه · ' : ''}
+                      {selectedOrder.status}
+                    </p>
+                  </div>
+                  <button type="button" className="ghost-button" onClick={closeOrderEditor}>
+                    بستن
+                  </button>
                 </div>
-                <button type="button" className="ghost-button" onClick={() => setSelectedOrder(null)}>
-                  بستن
-                </button>
-              </div>
-              <div className="order-detail-meta">
-                <span>وضعیت: {selectedOrder.status}</span>
-                <span>مبلغ: {toPersianNumber(selectedOrder.totalAmount)} تومان</span>
-                <span>تاریخ: {formatDateTime(selectedOrder.createdAt)}</span>
-              </div>
-              <DataTable
-                data={selectedOrder.lines}
-                columns={[
-                  {
-                    id: 'name',
-                    header: 'آیتم',
-                    accessorFn: (row) => `${row.persianName} ${row.englishName}`,
-                    cell: ({ row }) => (
-                      <>
-                        <strong>{row.original.persianName}</strong>
-                        <div className="table-subtext ltr-text">{row.original.englishName}</div>
-                        {row.original.sizeLabel ? (
-                          <div className="table-subtext">{row.original.sizeLabel}</div>
+
+                <div className="order-detail-meta">
+                  <span>وضعیت: {selectedOrder.status}</span>
+                  <span>مبلغ کل: {formatMoney(selectedOrder.totalAmount)} تومان</span>
+                  <span>پرداخت شده: {formatMoney(selectedOrder.amountPaid ?? 0)} تومان</span>
+                  <span>تاریخ: {formatDateTime(selectedOrder.createdAt)}</span>
+                </div>
+
+                <div className="settings-grid">
+                  <label>
+                    <span>نام مشتری</span>
+                    <input
+                      value={orderEditForm.customerName}
+                      onChange={(event) =>
+                        setOrderEditForm((current) => ({ ...current, customerName: event.target.value }))
+                      }
+                      disabled={selectedOrder.status === 'Cancelled'}
+                    />
+                  </label>
+                  <label>
+                    <span>شماره تماس</span>
+                    <input
+                      className="ltr-input"
+                      value={orderEditForm.customerPhone}
+                      onChange={(event) =>
+                        setOrderEditForm((current) => ({ ...current, customerPhone: event.target.value }))
+                      }
+                      disabled={selectedOrder.status === 'Cancelled'}
+                    />
+                  </label>
+                  <label className="full-width">
+                    <span>توضیحات</span>
+                    <textarea
+                      rows="3"
+                      value={orderEditForm.note}
+                      onChange={(event) =>
+                        setOrderEditForm((current) => ({ ...current, note: event.target.value }))
+                      }
+                      disabled={selectedOrder.status === 'Cancelled'}
+                    />
+                  </label>
+                </div>
+
+                <div className="panel-head">
+                  <div>
+                    <h4>اقلام سفارش</h4>
+                    <p>تغییر تعداد یا حذف آیتم، موجودی را متناسب با وضعیت پرداخت تنظیم می‌کند.</p>
+                  </div>
+                </div>
+
+                <div className="order-lines-editor">
+                  {orderEditForm.lines.map((line) => (
+                    <div key={line.id} className={`order-line-editor ${line.remove ? 'order-line-editor--removed' : ''}`}>
+                      <div>
+                        <strong>{line.persianName}</strong>
+                        <div className="table-subtext ltr-text">{line.englishName}</div>
+                        {line.sizeLabel ? <div className="table-subtext">{line.sizeLabel}</div> : null}
+                        {line.payerLabel ? <div className="table-subtext">مهمان: {line.payerLabel}</div> : null}
+                        {line.inventoryDeductedQuantity > 0 ? (
+                          <div className="table-subtext">
+                            موجودی کسر شده: {toPersianNumber(line.inventoryDeductedQuantity)} عدد
+                          </div>
                         ) : null}
-                        {row.original.modifierLabels?.length ? (
-                          <div className="table-subtext">{row.original.modifierLabels.join('، ')}</div>
-                        ) : null}
-                      </>
-                    ),
-                  },
-                  {
-                    accessorKey: 'quantity',
-                    header: 'تعداد',
-                    cell: ({ getValue }) => toPersianNumber(getValue()),
-                  },
-                  {
-                    accessorKey: 'lineTotal',
-                    header: 'جمع',
-                    cell: ({ getValue }) => `${toPersianNumber(getValue())} تومان`,
-                  },
-                ]}
-                enableSearch={false}
-                enablePagination={false}
-                compact
-              />
+                      </div>
+                      <label>
+                        <span>تعداد</span>
+                        <input
+                          type="number"
+                          min="1"
+                          className="ltr-input"
+                          value={line.quantity}
+                          disabled={selectedOrder.status === 'Cancelled' || line.remove}
+                          onChange={(event) => updateOrderLineQuantity(line.id, event.target.value)}
+                        />
+                      </label>
+                      <strong>{toPersianNumber(line.lineTotal)} تومان</strong>
+                      <label className="order-line-remove">
+                        <input
+                          type="checkbox"
+                          checked={line.remove}
+                          disabled={selectedOrder.status === 'Cancelled'}
+                          onChange={() => toggleOrderLineRemoval(line.id)}
+                        />
+                        <span>حذف</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedOrder.payments?.length ? (
+                  <>
+                    <div className="panel-head">
+                      <div>
+                        <h4>پرداخت‌های جداگانه</h4>
+                      </div>
+                    </div>
+                    <DataTable
+                      data={selectedOrder.payments}
+                      columns={[
+                        { accessorKey: 'payerLabel', header: 'مهمان' },
+                        {
+                          accessorKey: 'amount',
+                          header: 'مبلغ',
+                          cell: ({ getValue }) => `${toPersianNumber(getValue())} تومان`,
+                        },
+                        { accessorKey: 'status', header: 'وضعیت' },
+                        {
+                          accessorKey: 'paidAt',
+                          header: 'زمان پرداخت',
+                          cell: ({ getValue }) => (getValue() ? formatDateTime(getValue()) : '—'),
+                        },
+                      ]}
+                      enableSearch={false}
+                      enablePagination={false}
+                      compact
+                    />
+                  </>
+                ) : null}
+
+                <div className="order-editor-actions">
+                  {selectedOrder.status !== 'Cancelled' ? (
+                    <>
+                      <button type="submit" disabled={saving}>
+                        {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
+                      </button>
+                      <button type="button" className="ghost-button link-danger" disabled={saving} onClick={handleCancelOrder}>
+                        لغو سفارش و بازگردانی موجودی
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </form>
             </div>
           </div>
         ) : null}

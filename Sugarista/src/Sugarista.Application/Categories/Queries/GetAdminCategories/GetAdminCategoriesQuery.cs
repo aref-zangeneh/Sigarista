@@ -1,12 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Common.Extensions;
+using Sugarista.Application.Common.Models;
 
 namespace Sugarista.Application.Categories.Queries.GetAdminCategories;
 
-public record GetAdminCategoriesQuery : IRequest<IReadOnlyCollection<AdminCategoryDto>>;
+public record GetAdminCategoriesQuery(int Page = 1, int PageSize = 25, string? Search = null)
+    : IRequest<PaginatedList<AdminCategoryDto>>;
 
 public record AdminCategoryDto(Guid Id, string Slug, string Name, int DisplayOrder, bool IsActive, int ItemCount);
 
-public class GetAdminCategoriesQueryHandler : IRequestHandler<GetAdminCategoriesQuery, IReadOnlyCollection<AdminCategoryDto>>
+public class GetAdminCategoriesQueryHandler : IRequestHandler<GetAdminCategoriesQuery, PaginatedList<AdminCategoryDto>>
 {
     private readonly IApplicationDbContext _dbContext;
 
@@ -15,10 +18,21 @@ public class GetAdminCategoriesQueryHandler : IRequestHandler<GetAdminCategories
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyCollection<AdminCategoryDto>> Handle(GetAdminCategoriesQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedList<AdminCategoryDto>> Handle(GetAdminCategoriesQuery request, CancellationToken cancellationToken)
     {
-        return await _dbContext.Categories
-            .AsNoTracking()
+        var pagination = new PaginationQuery(request.Page, request.PageSize, request.Search);
+
+        var query = _dbContext.Categories.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(pagination.Search))
+        {
+            var search = pagination.Search.Trim().ToLowerInvariant();
+            query = query.Where(category =>
+                category.Name.ToLower().Contains(search) ||
+                category.Slug.ToLower().Contains(search));
+        }
+
+        return await query
             .OrderBy(category => category.DisplayOrder)
             .ThenBy(category => category.Name)
             .Select(category => new AdminCategoryDto(
@@ -28,6 +42,6 @@ public class GetAdminCategoriesQueryHandler : IRequestHandler<GetAdminCategories
                 category.DisplayOrder,
                 category.IsActive,
                 category.MenuItems.Count))
-            .ToListAsync(cancellationToken);
+            .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Common.Extensions;
+using Sugarista.Application.Common.Models;
 
 namespace Sugarista.Application.Addons.Queries.GetAdminAddonItems;
 
-public record GetAdminAddonItemsQuery : IRequest<IReadOnlyCollection<AdminAddonItemDto>>;
+public record GetAdminAddonItemsQuery(int Page = 1, int PageSize = 25, string? Search = null)
+    : IRequest<PaginatedList<AdminAddonItemDto>>;
 
 public record AdminAddonItemDto(
     Guid Id,
@@ -10,12 +13,12 @@ public record AdminAddonItemDto(
     string PersianName,
     string EnglishName,
     string Description,
-    int Price,
+    decimal Price,
     IReadOnlyCollection<string> Tags,
     int DisplayOrder,
     bool IsActive);
 
-public class GetAdminAddonItemsQueryHandler : IRequestHandler<GetAdminAddonItemsQuery, IReadOnlyCollection<AdminAddonItemDto>>
+public class GetAdminAddonItemsQueryHandler : IRequestHandler<GetAdminAddonItemsQuery, PaginatedList<AdminAddonItemDto>>
 {
     private readonly IApplicationDbContext _dbContext;
 
@@ -24,10 +27,22 @@ public class GetAdminAddonItemsQueryHandler : IRequestHandler<GetAdminAddonItems
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyCollection<AdminAddonItemDto>> Handle(GetAdminAddonItemsQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedList<AdminAddonItemDto>> Handle(GetAdminAddonItemsQuery request, CancellationToken cancellationToken)
     {
-        return await _dbContext.AddonItems
-            .AsNoTracking()
+        var pagination = new PaginationQuery(request.Page, request.PageSize, request.Search);
+
+        var query = _dbContext.AddonItems.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(pagination.Search))
+        {
+            var search = pagination.Search.Trim().ToLowerInvariant();
+            query = query.Where(addon =>
+                addon.Name.ToLower().Contains(search) ||
+                addon.PersianName.ToLower().Contains(search) ||
+                addon.EnglishName.ToLower().Contains(search));
+        }
+
+        return await query
             .OrderBy(addon => addon.DisplayOrder)
             .ThenBy(addon => addon.Name)
             .Select(addon => new AdminAddonItemDto(
@@ -40,7 +55,6 @@ public class GetAdminAddonItemsQueryHandler : IRequestHandler<GetAdminAddonItems
                 addon.Tags,
                 addon.DisplayOrder,
                 addon.IsActive))
-            .ToListAsync(cancellationToken);
+            .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }
-

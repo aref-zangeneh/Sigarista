@@ -7,7 +7,7 @@ public record UpsertAddonItemCommand(
     string PersianName,
     string EnglishName,
     string Description,
-    int Price,
+    decimal Price,
     IReadOnlyCollection<string> Tags,
     int DisplayOrder,
     bool IsActive) : IRequest<Guid>;

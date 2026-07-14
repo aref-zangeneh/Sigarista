@@ -7,6 +7,7 @@ public enum StockMovementType
     Restock,
     ManualAdjustment,
     SaleDeduction,
+    SaleReversal,
 }
 
 public class StockMovement : BaseEntity
@@ -28,6 +29,10 @@ public class StockMovement : BaseEntity
 
     public string? SourceMenuItemName { get; private set; }
 
+    public Guid? OrderId { get; private set; }
+
+    public Guid? OrderLineId { get; private set; }
+
     public DateTimeOffset OccurredAt { get; private set; }
 
     internal static StockMovement Create(
@@ -35,7 +40,9 @@ public class StockMovement : BaseEntity
         decimal quantity,
         StockMovementType movementType,
         string? note,
-        string? sourceMenuItemName)
+        string? sourceMenuItemName,
+        Guid? orderId = null,
+        Guid? orderLineId = null)
     {
         return new StockMovement
         {
@@ -44,6 +51,8 @@ public class StockMovement : BaseEntity
             MovementType = movementType,
             Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
             SourceMenuItemName = string.IsNullOrWhiteSpace(sourceMenuItemName) ? null : sourceMenuItemName.Trim(),
+            OrderId = orderId,
+            OrderLineId = orderLineId,
             OccurredAt = DateTimeOffset.UtcNow,
         };
     }

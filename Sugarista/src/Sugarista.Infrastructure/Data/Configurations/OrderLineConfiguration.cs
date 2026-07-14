@@ -25,6 +25,18 @@ public class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
         builder.Property(l => l.ModifierLabels)
             .HasColumnType("text[]");
 
+        builder.Property(l => l.PayerKey)
+            .HasMaxLength(50);
+
+        builder.Property(l => l.PayerLabel)
+            .HasMaxLength(100);
+
+        builder.Property(l => l.UnitPrice)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(l => l.LineTotal)
+            .HasColumnType("numeric(18,2)");
+
         builder.HasOne(l => l.Order)
             .WithMany(o => o.Lines)
             .HasForeignKey(l => l.OrderId)

@@ -33,6 +33,30 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
         builder.Property(item => item.Badge)
             .HasMaxLength(100);
 
+        builder.Property(item => item.Price)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(item => item.SpecialOfferPrice)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(item => item.SmallPrice)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(item => item.SmallSpecialOfferPrice)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(item => item.MediumPrice)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(item => item.MediumSpecialOfferPrice)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(item => item.LargePrice)
+            .HasColumnType("numeric(18,2)");
+
+        builder.Property(item => item.LargeSpecialOfferPrice)
+            .HasColumnType("numeric(18,2)");
+
         builder.Property(item => item.TaxPercent)
             .HasPrecision(5, 2);
 

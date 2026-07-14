@@ -444,7 +444,7 @@
       </div>
     </footer>
 
-    <div class="cart-bar" x-show="cartCount > 0 && !mockPayment && !orderSuccess" x-cloak>
+    <div class="cart-bar" x-show="cartCount > 0 && !mockPayment && !splitMockPayment && !splitOrder && !orderSuccess" x-cloak>
       <div class="container cart-bar-inner">
         <div class="cart-bar-summary">
           <span class="cart-bar-count" x-text="toPersianNumber(cartCount)"></span>
@@ -489,6 +489,17 @@
                   <span x-show="line.sizeLabel" x-text="line.sizeLabel"></span>
                   <span x-show="line.modifierLabels.length" x-text="line.modifierLabels.join('، ')"></span>
                 </div>
+                <div class="cart-line-meta" x-show="checkoutForm.isSplitBill && checkoutForm.splitBillMode === 'ByItem'">
+                  <label class="small text-secondary">مهمان:</label>
+                  <select
+                    class="form-select form-select-sm guest-select"
+                    @change="assignCartPayer(line.cartKey, Number($event.target.value))"
+                  >
+                    <template x-for="guestNumber in guestOptions" :key="`guest-${line.cartKey}-${guestNumber}`">
+                      <option :value="guestNumber" :selected="line.payerKey === guestKey(guestNumber)" x-text="guestLabel(guestNumber)"></option>
+                    </template>
+                  </select>
+                </div>
                 <strong class="cart-line-price" x-text="formatPrice(line.unitPrice * line.quantity)"></strong>
               </div>
               <div class="cart-line-actions">
@@ -507,8 +518,97 @@
 
         <div class="cart-drawer-body" x-show="cartView === 'checkout'">
           <div class="alert alert-danger border-0" x-show="checkoutError" x-text="checkoutError"></div>
+          <div class="mb-3 split-toggle-card">
+            <label class="form-check-label d-flex align-items-center gap-2">
+              <input type="checkbox" class="form-check-input mt-0" x-model="checkoutForm.isSplitBill" @change="handleSplitBillToggle()">
+              <span>تسویه جداگانه (هر نفر سهم خود را جدا پرداخت کند)</span>
+            </label>
+          </div>
+          <div class="mb-3" x-show="checkoutForm.isSplitBill">
+            <label class="form-label">تعداد مهمان</label>
+            <select class="form-select" x-model.number="checkoutForm.guestCount" @change="handleSplitGuestCountChange()">
+              <template x-for="count in [2,3,4,5,6,7,8]" :key="`guest-count-${count}`">
+                <option :value="count" x-text="toPersianNumber(count)"></option>
+              </template>
+            </select>
+          </div>
+          <div class="mb-3" x-show="checkoutForm.isSplitBill">
+            <label class="form-label">روش تقسیم حساب</label>
+            <select class="form-select" x-model="checkoutForm.splitBillMode" @change="handleSplitBillModeChange()">
+              <option value="ByItem">تخصیص آیتم‌ها به هر مهمان</option>
+              <option value="ByPercentage">تقسیم درصدی (مثلاً ۳۰٪ و ۷۰٪)</option>
+              <option value="ByCustomAmount">مبلغ دلخواه (مثلاً ۱ میلیون و ۳ میلیون)</option>
+            </select>
+          </div>
+          <template x-if="checkoutForm.isSplitBill && checkoutForm.splitBillMode === 'ByItem'">
+            <div class="mb-3 split-assignment-list">
+              <label class="form-label">تخصیص آیتم‌ها به مهمان‌ها</label>
+              <template x-for="line in cart" :key="`assign-${line.cartKey}`">
+                <div class="split-assignment-row">
+                  <div>
+                    <strong x-text="line.persianName"></strong>
+                    <small class="d-block text-secondary" x-text="formatPrice(line.unitPrice * line.quantity)"></small>
+                  </div>
+                  <select
+                    class="form-select form-select-sm guest-select"
+                    @change="assignCartPayer(line.cartKey, Number($event.target.value))"
+                  >
+                    <template x-for="guestNumber in guestOptions" :key="`checkout-guest-${line.cartKey}-${guestNumber}`">
+                      <option :value="guestNumber" :selected="line.payerKey === guestKey(guestNumber)" x-text="guestLabel(guestNumber)"></option>
+                    </template>
+                  </select>
+                </div>
+              </template>
+            </div>
+          </template>
+          <template x-if="checkoutForm.isSplitBill && checkoutForm.splitBillMode === 'ByPercentage'">
+            <div class="mb-3 split-assignment-list">
+              <label class="form-label">درصد سهم هر مهمان (مجموع باید ۱۰۰٪ باشد)</label>
+              <template x-for="(share, index) in checkoutForm.splitShares" :key="`pct-${share.payerKey}`">
+                <div class="split-assignment-row">
+                  <strong x-text="share.payerLabel"></strong>
+                  <div class="input-group input-group-sm guest-select">
+                    <input
+                      type="number"
+                      class="form-control ltr-text"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      x-model.number="checkoutForm.splitShares[index].sharePercentage"
+                    >
+                    <span class="input-group-text">٪</span>
+                  </div>
+                </div>
+              </template>
+              <small class="d-block mt-2" :class="splitPercentageTotal === 100 ? 'text-success' : 'text-danger'">
+                مجموع: <span x-text="toPersianNumber(splitPercentageTotal)"></span>٪
+              </small>
+            </div>
+          </template>
+          <template x-if="checkoutForm.isSplitBill && checkoutForm.splitBillMode === 'ByCustomAmount'">
+            <div class="mb-3 split-assignment-list">
+              <label class="form-label">مبلغ پرداختی هر مهمان (مجموع باید برابر مبلغ کل باشد)</label>
+              <template x-for="(share, index) in checkoutForm.splitShares" :key="`amt-${share.payerKey}`">
+                <div class="split-assignment-row">
+                  <strong x-text="share.payerLabel"></strong>
+                  <input
+                    type="number"
+                    class="form-control form-control-sm ltr-text guest-select"
+                    min="0"
+                    step="1000"
+                    x-model.number="checkoutForm.splitShares[index].shareAmount"
+                    placeholder="مبلغ به تومان"
+                  >
+                </div>
+              </template>
+              <small class="d-block mt-2" :class="Math.abs(splitAmountRemaining) < 0.01 ? 'text-success' : 'text-danger'">
+                جمع سهم‌ها: <span x-text="formatPrice(splitAmountTotal)"></span>
+                · باقی‌مانده: <span x-text="formatPrice(splitAmountRemaining)"></span>
+              </small>
+            </div>
+          </template>
           <div class="mb-3">
-            <label class="form-label">نام و نام خانوادگی</label>
+            <label class="form-label">نام و نام خانوادگی (مسئول سفارش)</label>
             <input type="text" class="form-control" x-model="checkoutForm.customerName" required>
           </div>
           <div class="mb-3">
@@ -545,10 +645,10 @@
               <button
                 type="button"
                 class="btn btn-dark rounded-pill px-4"
-                :disabled="checkoutLoading || !checkoutForm.customerName || !checkoutForm.customerPhone"
+                :disabled="checkoutLoading || !canSubmitCheckout"
                 @click="submitCheckout()"
               >
-                <span x-show="!checkoutLoading">پرداخت</span>
+                <span x-show="!checkoutLoading" x-text="checkoutForm.isSplitBill ? 'ثبت و تقسیم حساب' : 'پرداخت'"></span>
                 <span x-show="checkoutLoading">در حال ثبت...</span>
               </button>
             </div>
@@ -625,12 +725,15 @@
       </div>
     </div>
 
-    <div class="payment-overlay" x-show="mockPayment" x-cloak>
+    <div class="payment-overlay" x-show="mockPayment || splitMockPayment" x-cloak>
       <div class="payment-card">
         <span class="payment-badge">درگاه پرداخت (آزمایشی)</span>
         <h2 class="h4 mb-2">تأیید پرداخت</h2>
-        <p class="text-secondary mb-4">
+        <p class="text-secondary mb-4" x-show="!splitMockPayment">
           این یک درگاه آزمایشی است. پس از تأیید، سفارش شما ثبت و برای تحویل در پیشخوان آماده می‌شود.
+        </p>
+        <p class="text-secondary mb-4" x-show="splitMockPayment">
+          پرداخت سهم شما از سفارش مشترک. پس از تأیید، وضعیت پرداخت شما ثبت می‌شود.
         </p>
         <div class="alert alert-danger border-0" x-show="checkoutError" x-text="checkoutError"></div>
         <div class="payment-actions">
@@ -647,6 +750,46 @@
             <span x-show="paymentLoading">در حال پردازش...</span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <div class="split-overlay" x-show="splitOrder && !splitMockPayment && !orderSuccess" x-cloak>
+      <div class="split-card">
+        <span class="payment-badge">تسویه جداگانه</span>
+        <h2 class="h4 mb-1">سفارش <span x-text="splitOrder?.trackingCode"></span></h2>
+        <p class="text-secondary mb-3">
+          هر مهمان سهم خود را جداگانه پرداخت می‌کند. پس از پرداخت همه، سفارش برای تحویل آماده می‌شود.
+        </p>
+        <div class="split-progress mb-4">
+          <span>پرداخت شده</span>
+          <strong x-text="formatPrice(splitOrder?.amountPaid || 0)"></strong>
+          <span>از</span>
+          <strong x-text="formatPrice(splitOrder?.totalAmount || 0)"></strong>
+        </div>
+        <div class="alert alert-danger border-0" x-show="checkoutError" x-text="checkoutError"></div>
+        <div class="split-payer-list">
+          <template x-for="payer in splitOrder?.payers || []" :key="payer.payerKey">
+            <article class="split-payer-card" :class="{ 'split-payer-card--paid': payer.isPaid }">
+              <div>
+                <strong x-text="payer.payerLabel"></strong>
+                <div class="small text-secondary" x-text="formatPrice(payer.amount)"></div>
+              </div>
+              <span class="split-paid-badge" x-show="payer.isPaid">پرداخت شد</span>
+              <button
+                type="button"
+                class="btn btn-dark btn-sm rounded-pill"
+                x-show="!payer.isPaid"
+                :disabled="checkoutLoading"
+                @click="initiateSplitPayment(payer.payerKey)"
+              >
+                پرداخت سهم
+              </button>
+            </article>
+          </template>
+        </div>
+        <button type="button" class="btn btn-outline-dark rounded-pill mt-4" @click="window.location.href='/'">
+          بازگشت به منو
+        </button>
       </div>
     </div>
 

@@ -73,7 +73,7 @@ public class InventoryStock : BaseAuditableEntity
         return StockMovement.Create(IngredientId, delta, StockMovementType.ManualAdjustment, note, sourceMenuItemName: null);
     }
 
-    public StockMovement Deduct(decimal quantity, string menuItemName)
+    public StockMovement Deduct(decimal quantity, string menuItemName, Guid? orderId = null, Guid? orderLineId = null)
     {
         if (quantity <= 0)
         {
@@ -83,6 +83,33 @@ public class InventoryStock : BaseAuditableEntity
         CurrentQuantity -= quantity;
         LastUpdatedAt = DateTimeOffset.UtcNow;
 
-        return StockMovement.Create(IngredientId, -quantity, StockMovementType.SaleDeduction, note: null, sourceMenuItemName: menuItemName);
+        return StockMovement.Create(
+            IngredientId,
+            -quantity,
+            StockMovementType.SaleDeduction,
+            note: null,
+            sourceMenuItemName: menuItemName,
+            orderId,
+            orderLineId);
+    }
+
+    public StockMovement Restore(decimal quantity, string menuItemName, string? note = null, Guid? orderId = null, Guid? orderLineId = null)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("Restore quantity must be greater than zero.");
+        }
+
+        CurrentQuantity += quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            quantity,
+            StockMovementType.SaleReversal,
+            note,
+            menuItemName,
+            orderId,
+            orderLineId);
     }
 }

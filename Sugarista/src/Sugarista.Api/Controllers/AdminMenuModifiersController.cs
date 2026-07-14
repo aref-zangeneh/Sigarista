@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Sugarista.Application.Modifiers.Commands.DeleteMenuModifier;
 using Sugarista.Application.Modifiers.Commands.UpsertMenuModifier;
 using Sugarista.Application.Modifiers.Queries.GetAdminMenuModifiers;
+using Sugarista.Application.Common.Models;
 using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
@@ -12,9 +13,13 @@ namespace Sugarista.Api.Controllers;
 public class AdminMenuModifiersController : ApiControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyCollection<AdminMenuModifierDto>>> Get(CancellationToken cancellationToken)
+    public async Task<ActionResult<PaginatedList<AdminMenuModifierDto>>> Get(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        return Ok(await Mediator.Send(new GetAdminMenuModifiersQuery(), cancellationToken));
+        return Ok(await Mediator.Send(new GetAdminMenuModifiersQuery(page, pageSize, search), cancellationToken));
     }
 
     [HttpPost]
@@ -36,4 +41,3 @@ public class AdminMenuModifiersController : ApiControllerBase
         return NoContent();
     }
 }
-

@@ -11,7 +11,7 @@ internal static class OrderPricing
         string? SizeKey,
         string? SizeLabel,
         int Quantity,
-        int UnitPrice,
+        decimal UnitPrice,
         IReadOnlyCollection<string> ModifierLabels);
 
     internal static ResolvedLine ResolveLine(
@@ -43,7 +43,7 @@ internal static class OrderPricing
             modifierLabels);
     }
 
-    private static (string? SizeKey, string? SizeLabel, int UnitPrice) ResolveUnitPrice(MenuItem menuItem, string? sizeKey)
+    private static (string? SizeKey, string? SizeLabel, decimal UnitPrice) ResolveUnitPrice(MenuItem menuItem, string? sizeKey)
     {
         var normalizedKey = string.IsNullOrWhiteSpace(sizeKey)
             ? null
@@ -88,11 +88,11 @@ internal static class OrderPricing
         return (null, null, fallbackPrice);
     }
 
-    private static (string? SizeKey, string? SizeLabel, int UnitPrice) ResolveVariant(
+    private static (string? SizeKey, string? SizeLabel, decimal UnitPrice) ResolveVariant(
         string key,
         string label,
-        int? price,
-        int? specialOfferPrice,
+        decimal? price,
+        decimal? specialOfferPrice,
         MenuItem menuItem)
     {
         if (!price.HasValue)

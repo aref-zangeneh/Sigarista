@@ -18,21 +18,21 @@ public class MenuItem : BaseAuditableEntity
         string description,
         string? imageUrl,
         IEnumerable<string> galleryImageUrls,
-        int? specialOfferPrice,
+        decimal? specialOfferPrice,
         decimal taxPercent,
         bool isOrderable,
         int? preparingDurationMinutes,
         int? calories,
         IEnumerable<string> allergens,
         string? volume,
-        int? smallPrice,
-        int? smallSpecialOfferPrice,
+        decimal? smallPrice,
+        decimal? smallSpecialOfferPrice,
         string? smallVolume,
-        int? mediumPrice,
-        int? mediumSpecialOfferPrice,
+        decimal? mediumPrice,
+        decimal? mediumSpecialOfferPrice,
         string? mediumVolume,
-        int? largePrice,
-        int? largeSpecialOfferPrice,
+        decimal? largePrice,
+        decimal? largeSpecialOfferPrice,
         string? largeVolume,
         IEnumerable<string> tags,
         string? badge,
@@ -86,13 +86,13 @@ public class MenuItem : BaseAuditableEntity
 
     public string Description { get; private set; } = string.Empty;
 
-    public int Price { get; private set; }
+    public decimal Price { get; private set; }
 
     public string? ImageUrl { get; private set; }
 
     public string[] GalleryImageUrls { get; private set; } = [];
 
-    public int? SpecialOfferPrice { get; private set; }
+    public decimal? SpecialOfferPrice { get; private set; }
 
     public decimal TaxPercent { get; private set; }
 
@@ -106,21 +106,21 @@ public class MenuItem : BaseAuditableEntity
 
     public string? Volume { get; private set; }
 
-    public int? SmallPrice { get; private set; }
+    public decimal? SmallPrice { get; private set; }
 
-    public int? SmallSpecialOfferPrice { get; private set; }
+    public decimal? SmallSpecialOfferPrice { get; private set; }
 
     public string? SmallVolume { get; private set; }
 
-    public int? MediumPrice { get; private set; }
+    public decimal? MediumPrice { get; private set; }
 
-    public int? MediumSpecialOfferPrice { get; private set; }
+    public decimal? MediumSpecialOfferPrice { get; private set; }
 
     public string? MediumVolume { get; private set; }
 
-    public int? LargePrice { get; private set; }
+    public decimal? LargePrice { get; private set; }
 
-    public int? LargeSpecialOfferPrice { get; private set; }
+    public decimal? LargeSpecialOfferPrice { get; private set; }
 
     public string? LargeVolume { get; private set; }
 
@@ -147,21 +147,21 @@ public class MenuItem : BaseAuditableEntity
         string description,
         string? imageUrl,
         IEnumerable<string> galleryImageUrls,
-        int? specialOfferPrice,
+        decimal? specialOfferPrice,
         decimal taxPercent,
         bool isOrderable,
         int? preparingDurationMinutes,
         int? calories,
         IEnumerable<string> allergens,
         string? volume,
-        int? smallPrice,
-        int? smallSpecialOfferPrice,
+        decimal? smallPrice,
+        decimal? smallSpecialOfferPrice,
         string? smallVolume,
-        int? mediumPrice,
-        int? mediumSpecialOfferPrice,
+        decimal? mediumPrice,
+        decimal? mediumSpecialOfferPrice,
         string? mediumVolume,
-        int? largePrice,
-        int? largeSpecialOfferPrice,
+        decimal? largePrice,
+        decimal? largeSpecialOfferPrice,
         string? largeVolume,
         IEnumerable<string> tags,
         string? badge,
@@ -247,7 +247,7 @@ public class MenuItem : BaseAuditableEntity
         IsActive = isActive;
     }
 
-    private static void ValidateOptionalMoney(int? value, string fieldName)
+    private static void ValidateOptionalMoney(decimal? value, string fieldName)
     {
         if (value < 0)
         {

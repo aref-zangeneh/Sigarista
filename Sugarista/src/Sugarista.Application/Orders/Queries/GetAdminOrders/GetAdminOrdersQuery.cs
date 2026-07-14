@@ -1,31 +1,27 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Common.Extensions;
+using Sugarista.Application.Common.Models;
 
 namespace Sugarista.Application.Orders.Queries.GetAdminOrders;
 
-public record GetAdminOrdersQuery : IRequest<IReadOnlyCollection<AdminOrderListItemDto>>;
+public record GetAdminOrdersQuery(int Page = 1, int PageSize = 25, string? Search = null)
+    : IRequest<PaginatedList<AdminOrderListItemDto>>;
 
 public record AdminOrderListItemDto(
     Guid Id,
     string TrackingCode,
     string CustomerName,
     string CustomerPhone,
-    int TotalAmount,
+    decimal TotalAmount,
+    decimal AmountPaid,
+    bool IsSplitBill,
+    int? GuestCount,
     string Status,
     DateTimeOffset CreatedAt,
-    int LineCount,
-    IReadOnlyCollection<AdminOrderLineDto> Lines);
+    DateTimeOffset? PaidAt,
+    int LineCount);
 
-public record AdminOrderLineDto(
-    Guid Id,
-    string PersianName,
-    string EnglishName,
-    string? SizeLabel,
-    int Quantity,
-    int UnitPrice,
-    int LineTotal,
-    IReadOnlyCollection<string> ModifierLabels);
-
-public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, IReadOnlyCollection<AdminOrderListItemDto>>
+public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, PaginatedList<AdminOrderListItemDto>>
 {
     private readonly IApplicationDbContext _dbContext;
 
@@ -34,35 +30,36 @@ public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, I
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyCollection<AdminOrderListItemDto>> Handle(GetAdminOrdersQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedList<AdminOrderListItemDto>> Handle(GetAdminOrdersQuery request, CancellationToken cancellationToken)
     {
-        var orders = await _dbContext.Orders
-            .AsNoTracking()
-            .Include(o => o.Lines)
-            .OrderByDescending(o => o.CreatedAt)
-            .ToListAsync(cancellationToken);
+        var pagination = new PaginationQuery(request.Page, request.PageSize, request.Search);
 
-        return orders
+        var query = _dbContext.Orders.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(pagination.Search))
+        {
+            var search = pagination.Search.Trim().ToLowerInvariant();
+            query = query.Where(order =>
+                order.TrackingCode.ToLower().Contains(search) ||
+                order.CustomerName.ToLower().Contains(search) ||
+                order.CustomerPhone.ToLower().Contains(search));
+        }
+
+        return await query
+            .OrderByDescending(o => o.CreatedAt)
             .Select(order => new AdminOrderListItemDto(
                 order.Id,
                 order.TrackingCode,
                 order.CustomerName,
                 order.CustomerPhone,
                 order.TotalAmount,
+                order.AmountPaid,
+                order.IsSplitBill,
+                order.GuestCount,
                 order.Status.ToString(),
                 order.CreatedAt,
-                order.Lines.Count,
-                order.Lines
-                    .Select(line => new AdminOrderLineDto(
-                        line.Id,
-                        line.PersianName,
-                        line.EnglishName,
-                        line.SizeLabel,
-                        line.Quantity,
-                        line.UnitPrice,
-                        line.LineTotal,
-                        line.ModifierLabels))
-                    .ToArray()))
-            .ToArray();
+                order.PaidAt,
+                order.Lines.Count))
+            .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

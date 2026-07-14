@@ -66,8 +66,8 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<int>("Price")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric(18,2)");
 
                     b.PrimitiveCollection<string[]>("Tags")
                         .IsRequired()
@@ -331,11 +331,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<bool>("IsOrderable")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("LargePrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("LargePrice")
+                        .HasColumnType("numeric(18,2)");
 
-                    b.Property<int?>("LargeSpecialOfferPrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("LargeSpecialOfferPrice")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("LargeVolume")
                         .HasMaxLength(100)
@@ -347,11 +347,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
 
-                    b.Property<int?>("MediumPrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("MediumPrice")
+                        .HasColumnType("numeric(18,2)");
 
-                    b.Property<int?>("MediumSpecialOfferPrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("MediumSpecialOfferPrice")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("MediumVolume")
                         .HasMaxLength(100)
@@ -370,26 +370,26 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<int?>("PreparingDurationMinutes")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Price")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("ShortLabel")
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
-                    b.Property<int?>("SmallPrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("SmallPrice")
+                        .HasColumnType("numeric(18,2)");
 
-                    b.Property<int?>("SmallSpecialOfferPrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("SmallSpecialOfferPrice")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("SmallVolume")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<int?>("SpecialOfferPrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("SpecialOfferPrice")
+                        .HasColumnType("numeric(18,2)");
 
                     b.PrimitiveCollection<string[]>("Tags")
                         .IsRequired()
@@ -460,6 +460,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<decimal>("AmountPaid")
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -475,6 +478,12 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<int?>("GuestCount")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsSplitBill")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -494,13 +503,18 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("SplitBillMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
-                    b.Property<int>("TotalAmount")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("TrackingCode")
                         .IsRequired()
@@ -510,6 +524,8 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IsSplitBill");
 
                     b.HasIndex("PaymentAuthority");
 
@@ -530,8 +546,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<int>("LineTotal")
+                    b.Property<int>("InventoryDeductedQuantity")
                         .HasColumnType("integer");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<Guid>("MenuItemId")
                         .HasColumnType("uuid");
@@ -542,6 +561,14 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PayerKey")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PayerLabel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PersianName")
                         .IsRequired()
@@ -559,8 +586,8 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<int>("UnitPrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("numeric(18,2)");
 
                     b.HasKey("Id");
 
@@ -569,6 +596,89 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.HasIndex("OrderId");
 
                     b.ToTable("OrderLines");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.OrderPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PayerKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PayerLabel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PaymentAuthority")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentAuthority");
+
+                    b.HasIndex("OrderId", "PayerKey");
+
+                    b.ToTable("OrderPayments");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.OrderSplitShare", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PayerKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PayerLabel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal?>("ShareAmount")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("SharePercentage")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId", "PayerKey");
+
+                    b.ToTable("OrderSplitShares");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.RecipeItem", b =>
@@ -907,6 +1017,12 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("OrderLineId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric(12,3)");
 
@@ -915,6 +1031,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("OrderLineId");
 
                     b.HasIndex("IngredientId", "OccurredAt");
 
@@ -1003,6 +1123,28 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.OrderPayment", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Order", "Order")
+                        .WithMany("Payments")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.OrderSplitShare", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Order", "Order")
+                        .WithMany("SplitShares")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.RecipeItem", b =>
                 {
                     b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
@@ -1070,6 +1212,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
             modelBuilder.Entity("Sugarista.Domain.Entities.Order", b =>
                 {
                     b.Navigation("Lines");
+
+                    b.Navigation("Payments");
+
+                    b.Navigation("SplitShares");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.SalonTable", b =>

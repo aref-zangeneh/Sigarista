@@ -1,3 +1,5 @@
+import { formatMoney } from './DataTable'
+
 function stockStatusBadge(item) {
   if (item.currentQuantity < 0) {
     return <span className="stock-badge stock-badge--negative">منفی</span>
@@ -72,9 +74,9 @@ export function buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, 
       accessorFn: (row) => row.price,
       cell: ({ row }) => (
         <>
-          {toPersianNumber(row.original.price)}
+          {formatMoney(row.original.price)}
           {row.original.specialOfferPrice ? (
-            <div className="table-subtext">پیشنهاد: {toPersianNumber(row.original.specialOfferPrice)}</div>
+            <div className="table-subtext">پیشنهاد: {formatMoney(row.original.specialOfferPrice)}</div>
           ) : null}
         </>
       ),
@@ -114,7 +116,7 @@ export function buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, 
   ]
 }
 
-export function buildAddonColumns({ toPersianNumber, joinTags, setAddonForm, emptyAddonForm, setAddonItems, addonForm, session, apiRequest, setSaving, setError, setMessage, getReadableError }) {
+export function buildAddonColumns({ joinTags, setAddonForm, emptyAddonForm, bumpTableReload, addonForm, session, apiRequest, setSaving, setError, setMessage, getReadableError }) {
   return [
     {
       id: 'name',
@@ -130,7 +132,7 @@ export function buildAddonColumns({ toPersianNumber, joinTags, setAddonForm, emp
     {
       accessorKey: 'price',
       header: 'قیمت',
-      cell: ({ getValue }) => toPersianNumber(getValue()),
+      cell: ({ getValue }) => formatMoney(getValue()),
     },
     {
       accessorKey: 'tags',
@@ -179,8 +181,8 @@ export function buildAddonColumns({ toPersianNumber, joinTags, setAddonForm, emp
                 setMessage('')
                 try {
                   await apiRequest(`/admin/addons/${addon.id}`, { method: 'DELETE', token: session.token })
-                  setAddonItems((current) => current.filter((x) => x.id !== addon.id))
                   if (addonForm.id === addon.id) setAddonForm(emptyAddonForm)
+                  bumpTableReload()
                   setMessage('افزودنی حذف شد.')
                 } catch (requestError) {
                   setError(getReadableError(requestError))
@@ -198,7 +200,7 @@ export function buildAddonColumns({ toPersianNumber, joinTags, setAddonForm, emp
   ]
 }
 
-export function buildModifierColumns({ toPersianNumber, setModifierForm, emptyModifierForm, setModifiers, modifierForm, session, apiRequest, setSaving, setError, setMessage, getReadableError }) {
+export function buildModifierColumns({ toPersianNumber, setModifierForm, emptyModifierForm, bumpTableReload, modifierForm, session, apiRequest, setSaving, setError, setMessage, getReadableError }) {
   return [
     {
       id: 'name',
@@ -254,8 +256,8 @@ export function buildModifierColumns({ toPersianNumber, setModifierForm, emptyMo
                 setMessage('')
                 try {
                   await apiRequest(`/admin/modifiers/${modifier.id}`, { method: 'DELETE', token: session.token })
-                  setModifiers((current) => current.filter((x) => x.id !== modifier.id))
                   if (modifierForm.id === modifier.id) setModifierForm(emptyModifierForm)
+                  bumpTableReload()
                   setMessage('گزینه تغییر سفارش حذف شد.')
                 } catch (requestError) {
                   setError(getReadableError(requestError))
@@ -273,7 +275,7 @@ export function buildModifierColumns({ toPersianNumber, setModifierForm, emptyMo
   ]
 }
 
-export function buildIngredientColumns({ setIngredientForm, emptyIngredientForm, setIngredients, ingredientForm, session, apiRequest, setSaving, setError, setMessage, getReadableError, LOCATION_OPTIONS }) {
+export function buildIngredientColumns({ setIngredientForm, emptyIngredientForm, bumpTableReload, ingredientForm, session, apiRequest, setSaving, setError, setMessage, getReadableError, LOCATION_OPTIONS }) {
   return [
     {
       id: 'name',
@@ -334,8 +336,8 @@ export function buildIngredientColumns({ setIngredientForm, emptyIngredientForm,
                 setMessage('')
                 try {
                   await apiRequest(`/admin/ingredients/${ingredient.id}`, { method: 'DELETE', token: session.token })
-                  setIngredients((current) => current.filter((x) => x.id !== ingredient.id))
                   if (ingredientForm.id === ingredient.id) setIngredientForm(emptyIngredientForm)
+                  bumpTableReload()
                   setMessage('ماده اولیه حذف شد.')
                 } catch (requestError) {
                   setError(getReadableError(requestError))
@@ -650,21 +652,31 @@ export function buildSaleResultColumns({ toPersianNumber }) {
 
 function orderStatusBadge(status) {
   if (status === 'Paid') return <span className="stock-badge stock-badge--ok">پرداخت شده</span>
+  if (status === 'PartiallyPaid') return <span className="stock-badge stock-badge--low">پرداخت جزئی</span>
   if (status === 'PendingPayment') return <span className="stock-badge stock-badge--low">در انتظار پرداخت</span>
   if (status === 'Failed') return <span className="stock-badge stock-badge--negative">ناموفق</span>
   if (status === 'Cancelled') return <span className="stock-badge">لغو شده</span>
   return <span className="stock-badge">{status}</span>
 }
 
-export function buildOrderColumns({ toPersianNumber, formatDateTime, setSelectedOrder }) {
+export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEditor }) {
   return [
     { accessorKey: 'trackingCode', header: 'کد پیگیری', meta: { className: 'ltr-text' } },
     { accessorKey: 'customerName', header: 'مشتری' },
     { accessorKey: 'customerPhone', header: 'تماس', meta: { className: 'ltr-text' } },
     {
-      accessorKey: 'totalAmount',
+      id: 'amount',
       header: 'مبلغ',
-      cell: ({ getValue }) => `${toPersianNumber(getValue())} تومان`,
+      accessorFn: (row) => row.totalAmount,
+      cell: ({ row }) => (
+        <>
+          {formatMoney(row.original.totalAmount)} تومان
+          {row.original.isSplitBill ? <div className="table-subtext">تسویه جداگانه</div> : null}
+          {row.original.amountPaid > 0 && row.original.amountPaid < row.original.totalAmount ? (
+            <div className="table-subtext">پرداخت شده: {formatMoney(row.original.amountPaid)}</div>
+          ) : null}
+        </>
+      ),
     },
     {
       accessorKey: 'status',
@@ -686,8 +698,8 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, setSelected
       header: 'عملیات',
       enableSorting: false,
       cell: ({ row }) => (
-        <button type="button" className="link-button" onClick={() => setSelectedOrder(row.original)}>
-          جزئیات
+        <button type="button" className="link-button" onClick={() => openOrderEditor(row.original)}>
+          مدیریت
         </button>
       ),
     },

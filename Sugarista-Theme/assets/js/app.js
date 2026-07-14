@@ -17,12 +17,19 @@ document.addEventListener("alpine:init", () => {
     checkoutForm: {
       customerName: "",
       customerPhone: "",
-      note: ""
+      note: "",
+      isSplitBill: false,
+      splitBillMode: "ByItem",
+      guestCount: 2,
+      splitShares: []
     },
     checkoutLoading: false,
     checkoutError: "",
     addToCartModal: null,
     mockPayment: null,
+    splitOrder: null,
+    splitMockPayment: null,
+    splitLoading: false,
     orderSuccess: null,
     paymentLoading: false,
     settings: {
@@ -107,6 +114,7 @@ document.addEventListener("alpine:init", () => {
         this.modifiers = menuData.modifiers || [];
         this.settings = { ...this.settings, ...settingsData };
         this.applyPageMetadata();
+        await this.loadSplitOrderFromRoute();
       } catch (error) {
         this.error = error.message || "دریافت اطلاعات با خطا مواجه شد.";
       } finally {
@@ -122,14 +130,185 @@ document.addEventListener("alpine:init", () => {
         return;
       }
 
-      const payOrderId = params.get("pay");
+      const splitOrderId = params.get("split");
+      const splitPaymentId = params.get("payment");
       const authority = params.get("authority");
+      if (splitOrderId && splitPaymentId && authority) {
+        this.splitMockPayment = {
+          orderId: splitOrderId,
+          paymentId: splitPaymentId,
+          authority
+        };
+        return;
+      }
+
+      const payOrderId = params.get("pay");
       if (payOrderId && authority) {
         this.mockPayment = {
           orderId: payOrderId,
           authority
         };
       }
+    },
+    async loadSplitOrderFromRoute() {
+      const params = new URLSearchParams(window.location.search);
+      const splitOrderId = params.get("split");
+      if (!splitOrderId || this.splitMockPayment) {
+        return;
+      }
+
+      await this.refreshSplitOrder(splitOrderId);
+    },
+    async refreshSplitOrder(orderId) {
+      this.splitLoading = true;
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/orders/${orderId}/split-status`);
+        if (!response.ok) {
+          throw new Error("سفارش یافت نشد.");
+        }
+
+        this.splitOrder = await response.json();
+        if (this.splitOrder.status === "Paid") {
+          this.orderSuccess = { trackingCode: this.splitOrder.trackingCode };
+        }
+      } catch (error) {
+        this.checkoutError = error.message || "بارگذاری وضعیت تسویه جداگانه با خطا مواجه شد.";
+      } finally {
+        this.splitLoading = false;
+      }
+    },
+    get guestOptions() {
+      const count = Number(this.checkoutForm.guestCount) || 2;
+      return Array.from({ length: count }, (_, index) => index + 1);
+    },
+    get cartTotal() {
+      return this.cart.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
+    },
+    get splitPercentageTotal() {
+      return this.checkoutForm.splitShares.reduce(
+        (total, share) => total + Number(share.sharePercentage || 0),
+        0
+      );
+    },
+    get splitAmountTotal() {
+      return this.checkoutForm.splitShares.reduce(
+        (total, share) => total + Number(share.shareAmount || 0),
+        0
+      );
+    },
+    get splitAmountRemaining() {
+      return this.cartTotal - this.splitAmountTotal;
+    },
+    get canSubmitCheckout() {
+      if (!this.checkoutForm.customerName.trim() || !this.checkoutForm.customerPhone.trim()) {
+        return false;
+      }
+
+      if (!this.checkoutForm.isSplitBill) {
+        return true;
+      }
+
+      if (this.checkoutForm.splitBillMode === "ByPercentage") {
+        return this.splitPercentageTotal === 100;
+      }
+
+      if (this.checkoutForm.splitBillMode === "ByCustomAmount") {
+        return Math.abs(this.splitAmountRemaining) < 0.01 && this.splitAmountTotal > 0;
+      }
+
+      return true;
+    },
+    guestKey(guestNumber) {
+      return `guest-${guestNumber}`;
+    },
+    guestLabel(guestNumber) {
+      return `مهمان ${this.toPersianNumber(guestNumber)}`;
+    },
+    assignCartPayer(cartKey, guestNumber) {
+      const line = this.cart.find((entry) => entry.cartKey === cartKey);
+      if (!line) {
+        return;
+      }
+
+      line.payerKey = this.guestKey(guestNumber);
+      line.payerLabel = this.guestLabel(guestNumber);
+      this.saveCart();
+    },
+    ensureCartPayerAssignments() {
+      this.cart.forEach((line, index) => {
+        if (!line.payerKey) {
+          const guestNumber = (index % this.guestOptions.length) + 1;
+          line.payerKey = this.guestKey(guestNumber);
+          line.payerLabel = this.guestLabel(guestNumber);
+        }
+      });
+      this.saveCart();
+    },
+    initSplitShares() {
+      const count = Number(this.checkoutForm.guestCount) || 2;
+      const mode = this.checkoutForm.splitBillMode;
+      const basePercent = Math.floor(100 / count);
+      const remainder = 100 - basePercent * count;
+      const shares = [];
+
+      for (let guestNumber = 1; guestNumber <= count; guestNumber += 1) {
+        const payerKey = this.guestKey(guestNumber);
+        const payerLabel = this.guestLabel(guestNumber);
+
+        if (mode === "ByPercentage") {
+          shares.push({
+            payerKey,
+            payerLabel,
+            sharePercentage: guestNumber === count ? basePercent + remainder : basePercent,
+            shareAmount: 0
+          });
+        } else if (mode === "ByCustomAmount") {
+          shares.push({
+            payerKey,
+            payerLabel,
+            sharePercentage: 0,
+            shareAmount: 0
+          });
+        } else {
+          shares.push({
+            payerKey,
+            payerLabel,
+            sharePercentage: 0,
+            shareAmount: 0
+          });
+        }
+      }
+
+      this.checkoutForm.splitShares = shares;
+    },
+    handleSplitBillToggle() {
+      if (this.checkoutForm.isSplitBill) {
+        this.initSplitShares();
+        if (this.checkoutForm.splitBillMode === "ByItem") {
+          this.ensureCartPayerAssignments();
+        }
+        return;
+      }
+
+      this.checkoutForm.splitShares = [];
+    },
+    handleSplitGuestCountChange() {
+      this.initSplitShares();
+      if (this.checkoutForm.splitBillMode === "ByItem") {
+        this.ensureCartPayerAssignments();
+      }
+    },
+    handleSplitBillModeChange() {
+      this.initSplitShares();
+      if (this.checkoutForm.splitBillMode === "ByItem") {
+        this.ensureCartPayerAssignments();
+      }
+    },
+    cartTotalForGuest(guestNumber) {
+      const payerKey = this.guestKey(guestNumber);
+      return this.cart
+        .filter((line) => line.payerKey === payerKey)
+        .reduce((total, line) => total + line.unitPrice * line.quantity, 0);
     },
     applyPageMetadata() {
       document.title = this.settings.browserTitle;
@@ -152,9 +331,6 @@ document.addEventListener("alpine:init", () => {
     },
     get cartCount() {
       return this.cart.reduce((total, line) => total + line.quantity, 0);
-    },
-    get cartTotal() {
-      return this.cart.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
     },
     get featuredItems() {
       return this.items.filter((item) => item.featured);
@@ -216,6 +392,13 @@ document.addEventListener("alpine:init", () => {
       this.cartView = view;
       this.cartDrawerOpen = true;
       this.checkoutError = "";
+      if (view === "checkout" && this.checkoutForm.isSplitBill) {
+        if (this.checkoutForm.splitBillMode === "ByItem") {
+          this.ensureCartPayerAssignments();
+        } else if (!this.checkoutForm.splitShares.length) {
+          this.initSplitShares();
+        }
+      }
     },
     closeCartDrawer() {
       this.cartDrawerOpen = false;
@@ -326,7 +509,9 @@ document.addEventListener("alpine:init", () => {
           unitPrice,
           quantity,
           modifierIds: [...selectedModifierIds],
-          modifierLabels
+          modifierLabels,
+          payerKey: null,
+          payerLabel: null
         });
       }
 
@@ -365,6 +550,27 @@ document.addEventListener("alpine:init", () => {
       this.checkoutError = "";
 
       try {
+        if (this.checkoutForm.isSplitBill && this.checkoutForm.splitBillMode === "ByItem") {
+          this.ensureCartPayerAssignments();
+        }
+
+        const splitShares =
+          this.checkoutForm.isSplitBill &&
+          this.checkoutForm.splitBillMode !== "ByItem"
+            ? this.checkoutForm.splitShares.map((share) => ({
+                payerKey: share.payerKey,
+                payerLabel: share.payerLabel,
+                sharePercentage:
+                  this.checkoutForm.splitBillMode === "ByPercentage"
+                    ? Number(share.sharePercentage)
+                    : null,
+                shareAmount:
+                  this.checkoutForm.splitBillMode === "ByCustomAmount"
+                    ? Number(share.shareAmount)
+                    : null
+              }))
+            : null;
+
         const response = await fetch(`${this.apiBaseUrl}/orders/checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -372,11 +578,23 @@ document.addEventListener("alpine:init", () => {
             customerName: this.checkoutForm.customerName.trim(),
             customerPhone: this.checkoutForm.customerPhone.trim(),
             note: this.checkoutForm.note.trim() || null,
+            isSplitBill: this.checkoutForm.isSplitBill,
+            splitBillMode: this.checkoutForm.isSplitBill ? this.checkoutForm.splitBillMode : null,
+            guestCount: this.checkoutForm.isSplitBill ? Number(this.checkoutForm.guestCount) : null,
+            splitShares,
             items: this.cart.map((line) => ({
               menuItemId: line.menuItemId,
               sizeKey: line.sizeKey,
               quantity: line.quantity,
-              modifierIds: line.modifierIds || []
+              modifierIds: line.modifierIds || [],
+              payerKey:
+                this.checkoutForm.isSplitBill && this.checkoutForm.splitBillMode === "ByItem"
+                  ? line.payerKey
+                  : null,
+              payerLabel:
+                this.checkoutForm.isSplitBill && this.checkoutForm.splitBillMode === "ByItem"
+                  ? line.payerLabel
+                  : null
             }))
           })
         });
@@ -397,6 +615,11 @@ document.addEventListener("alpine:init", () => {
       }
     },
     async confirmMockPayment() {
+      if (this.splitMockPayment) {
+        await this.confirmSplitMockPayment();
+        return;
+      }
+
       if (!this.mockPayment) {
         return;
       }
@@ -427,7 +650,78 @@ document.addEventListener("alpine:init", () => {
       }
     },
     cancelMockPayment() {
+      if (this.splitMockPayment) {
+        window.location.href = `/?split=${this.splitMockPayment.orderId}`;
+        return;
+      }
+
       window.location.href = "/";
+    },
+    async initiateSplitPayment(payerKey) {
+      if (!this.splitOrder) {
+        return;
+      }
+
+      this.checkoutError = "";
+      this.checkoutLoading = true;
+
+      try {
+        const response = await fetch(
+          `${this.apiBaseUrl}/orders/${this.splitOrder.id}/split-payment`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ payerKey })
+          }
+        );
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.detail || payload.title || "شروع پرداخت با خطا مواجه شد.");
+        }
+
+        const result = await response.json();
+        window.location.href = result.redirectUrl;
+      } catch (error) {
+        this.checkoutError = error.message || "شروع پرداخت با خطا مواجه شد.";
+      } finally {
+        this.checkoutLoading = false;
+      }
+    },
+    async confirmSplitMockPayment() {
+      if (!this.splitMockPayment) {
+        return;
+      }
+
+      this.paymentLoading = true;
+
+      try {
+        const response = await fetch(
+          `${this.apiBaseUrl}/orders/${this.splitMockPayment.orderId}/split-payment/${this.splitMockPayment.paymentId}/confirm-mock`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ authority: this.splitMockPayment.authority })
+          }
+        );
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.detail || payload.title || "تأیید پرداخت با خطا مواجه شد.");
+        }
+
+        const result = await response.json();
+        if (result.isFullyPaid) {
+          window.location.href = `/?order=success&code=${encodeURIComponent(result.trackingCode)}`;
+          return;
+        }
+
+        window.location.href = `/?split=${this.splitMockPayment.orderId}`;
+      } catch (error) {
+        this.checkoutError = error.message || "تأیید پرداخت با خطا مواجه شد.";
+      } finally {
+        this.paymentLoading = false;
+      }
     },
     dismissOrderSuccess() {
       this.orderSuccess = null;
@@ -442,7 +736,10 @@ document.addEventListener("alpine:init", () => {
         .trim();
     },
     formatPrice(value) {
-      return `${new Intl.NumberFormat("fa-IR").format(value || 0)} تومان`;
+      return `${new Intl.NumberFormat("fa-IR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      }).format(Number(value) || 0)} تومان`;
     },
     displayPrice(item) {
       return item.specialOfferPrice || item.price;

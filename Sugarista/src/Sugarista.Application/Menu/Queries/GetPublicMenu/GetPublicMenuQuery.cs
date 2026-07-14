@@ -20,10 +20,10 @@ public record PublicMenuItemDto(
     string Category,
     string CategoryLabel,
     string Description,
-    int Price,
+    decimal Price,
     string? ImageUrl,
     IReadOnlyCollection<string> GalleryImageUrls,
-    int? SpecialOfferPrice,
+    decimal? SpecialOfferPrice,
     decimal TaxPercent,
     bool IsOrderable,
     int? PreparingDurationMinutes,
@@ -41,8 +41,8 @@ public record PublicMenuItemDto(
 public record PublicMenuItemVariantDto(
     string Key,
     string Label,
-    int? Price,
-    int? SpecialOfferPrice,
+    decimal? Price,
+    decimal? SpecialOfferPrice,
     string? Volume);
 
 public record PublicAddonItemDto(
@@ -51,7 +51,7 @@ public record PublicAddonItemDto(
     string PersianName,
     string EnglishName,
     string Description,
-    int Price,
+    decimal Price,
     IReadOnlyCollection<string> Tags,
     int DisplayOrder);
 

@@ -33,6 +33,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();
 
+    public DbSet<OrderPayment> OrderPayments => Set<OrderPayment>();
+
+    public DbSet<OrderSplitShare> OrderSplitShares => Set<OrderSplitShare>();
+
     public DbSet<SalonTable> SalonTables => Set<SalonTable>();
 
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();

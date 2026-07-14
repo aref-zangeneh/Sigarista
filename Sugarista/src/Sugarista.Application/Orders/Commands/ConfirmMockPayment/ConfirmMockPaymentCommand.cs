@@ -11,7 +11,7 @@ public record ConfirmMockPaymentResultDto(
     Guid OrderId,
     string TrackingCode,
     string Status,
-    int TotalAmount,
+    decimal TotalAmount,
     DateTimeOffset? PaidAt);
 
 public class ConfirmMockPaymentCommandValidator : AbstractValidator<ConfirmMockPaymentCommand>
@@ -42,6 +42,11 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
             .Include(o => o.Lines)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken)
             ?? throw new KeyNotFoundException("Order was not found.");
+
+        if (order.IsSplitBill)
+        {
+            throw new InvalidOperationException("Use split payment confirmation for split bill orders.");
+        }
 
         if (!string.Equals(order.PaymentAuthority, request.Authority, StringComparison.OrdinalIgnoreCase))
         {
@@ -78,6 +83,7 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
         order.MarkPaid();
         await OrderInventoryService.DeductInventoryForOrderLinesAsync(
             _dbContext,
+            order,
             order.Lines.ToList(),
             cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);

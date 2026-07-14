@@ -1095,6 +1095,88 @@ a {
   letter-spacing: 0.08em;
 }
 
+.split-assignment-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.split-assignment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.split-toggle-card {
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  background: var(--bg-soft);
+}
+
+.guest-select {
+  max-width: 160px;
+  margin-top: 0.35rem;
+}
+
+.split-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(8, 37, 54, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.split-card {
+  width: min(100%, 560px);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--surface-strong);
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.split-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  background: var(--bg-soft);
+}
+
+.split-payer-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.split-payer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.split-payer-card--paid {
+  background: rgba(12, 52, 79, 0.05);
+}
+
+.split-paid-badge {
+  font-size: 0.85rem;
+  color: var(--primary);
+  font-weight: 700;
+}
+
 .ltr-text {
   direction: ltr;
   text-align: left;

@@ -24,6 +24,10 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.OrderLine> OrderLines { get; }
 
+    DbSet<Sugarista.Domain.Entities.OrderPayment> OrderPayments { get; }
+
+    DbSet<Sugarista.Domain.Entities.OrderSplitShare> OrderSplitShares { get; }
+
     DbSet<Sugarista.Domain.Entities.SalonTable> SalonTables { get; }
 
     DbSet<Sugarista.Domain.Entities.SiteSettings> SiteSettings { get; }

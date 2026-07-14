@@ -9,7 +9,7 @@ public record OrderStatusDto(
     string TrackingCode,
     string CustomerName,
     string Status,
-    int TotalAmount,
+    decimal TotalAmount,
     DateTimeOffset CreatedAt,
     DateTimeOffset? PaidAt,
     IReadOnlyCollection<OrderStatusLineDto> Lines);
@@ -19,7 +19,7 @@ public record OrderStatusLineDto(
     string EnglishName,
     string? SizeLabel,
     int Quantity,
-    int LineTotal,
+    decimal LineTotal,
     IReadOnlyCollection<string> ModifierLabels);
 
 public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrackingCodeQuery, OrderStatusDto?>

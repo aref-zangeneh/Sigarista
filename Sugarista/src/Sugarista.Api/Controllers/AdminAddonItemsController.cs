@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Sugarista.Application.Addons.Commands.DeleteAddonItem;
 using Sugarista.Application.Addons.Commands.UpsertAddonItem;
 using Sugarista.Application.Addons.Queries.GetAdminAddonItems;
+using Sugarista.Application.Common.Models;
 using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
@@ -12,9 +13,13 @@ namespace Sugarista.Api.Controllers;
 public class AdminAddonItemsController : ApiControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyCollection<AdminAddonItemDto>>> Get(CancellationToken cancellationToken)
+    public async Task<ActionResult<PaginatedList<AdminAddonItemDto>>> Get(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        return Ok(await Mediator.Send(new GetAdminAddonItemsQuery(), cancellationToken));
+        return Ok(await Mediator.Send(new GetAdminAddonItemsQuery(page, pageSize, search), cancellationToken));
     }
 
     [HttpPost]
@@ -37,4 +42,3 @@ public class AdminAddonItemsController : ApiControllerBase
         return NoContent();
     }
 }
-

@@ -303,6 +303,47 @@ button[type='submit'] {
   font-size: 0.92rem;
 }
 
+.order-lines-editor {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.order-line-editor {
+  display: grid;
+  grid-template-columns: 1.5fr 120px 120px auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(12, 52, 79, 0.12);
+  border-radius: 14px;
+}
+
+.order-line-editor--removed {
+  opacity: 0.55;
+  background: rgba(170, 49, 113, 0.06);
+}
+
+.order-line-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.order-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 1rem;
+}
+
+@media (max-width: 767px) {
+  .order-line-editor {
+    grid-template-columns: 1fr;
+  }
+}
+
 .modal-card {
   width: min(640px, 100%);
   max-height: calc(100vh - 48px);

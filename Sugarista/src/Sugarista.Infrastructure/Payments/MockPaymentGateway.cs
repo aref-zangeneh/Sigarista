@@ -15,21 +15,42 @@ public class MockPaymentGateway : IPaymentGateway
 
     public Task<PaymentRequestResult> RequestPaymentAsync(
         Guid orderId,
-        int amount,
+        decimal amount,
         string callbackUrl,
         string description,
         CancellationToken cancellationToken = default)
     {
         var authority = Guid.NewGuid().ToString("N");
-        var baseUrl = _options.PublicBaseUrl.TrimEnd('/');
-        var redirectUrl = $"{baseUrl}/?pay={orderId}&authority={authority}";
+        var redirectUrl = BuildRedirectUrl(orderId, authority, callbackUrl);
 
         return Task.FromResult(new PaymentRequestResult(authority, redirectUrl));
     }
 
+    private string BuildRedirectUrl(Guid orderId, string authority, string callbackUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(callbackUrl))
+        {
+            if (callbackUrl.Contains("authority=", StringComparison.OrdinalIgnoreCase))
+            {
+                return System.Text.RegularExpressions.Regex.Replace(
+                    callbackUrl,
+                    "authority=[^&]*",
+                    $"authority={authority}",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
+
+            return callbackUrl.Contains('?')
+                ? $"{callbackUrl}&authority={authority}"
+                : $"{callbackUrl}?authority={authority}";
+        }
+
+        var baseUrl = _options.PublicBaseUrl.TrimEnd('/');
+        return $"{baseUrl}/?pay={orderId}&authority={authority}";
+    }
+
     public Task<PaymentVerifyResult> VerifyPaymentAsync(
         string authority,
-        int amount,
+        decimal amount,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(authority))

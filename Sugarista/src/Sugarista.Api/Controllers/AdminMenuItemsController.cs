@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Sugarista.Application.MenuItems.Commands.DeleteMenuItem;
 using Sugarista.Application.MenuItems.Commands.UpsertMenuItem;
 using Sugarista.Application.MenuItems.Queries.GetAdminMenuItems;
+using Sugarista.Application.MenuItems.Queries.GetAdminMenuItemOptions;
+using Sugarista.Application.Common.Models;
 using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
@@ -12,9 +14,19 @@ namespace Sugarista.Api.Controllers;
 public class AdminMenuItemsController : ApiControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyCollection<AdminMenuItemDto>>> Get(CancellationToken cancellationToken)
+    public async Task<ActionResult<PaginatedList<AdminMenuItemDto>>> Get(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        return Ok(await Mediator.Send(new GetAdminMenuItemsQuery(), cancellationToken));
+        return Ok(await Mediator.Send(new GetAdminMenuItemsQuery(page, pageSize, search), cancellationToken));
+    }
+
+    [HttpGet("options")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminMenuItemOptionDto>>> GetOptions(CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetAdminMenuItemOptionsQuery(), cancellationToken));
     }
 
     [HttpPost]

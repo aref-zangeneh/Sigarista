@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Common.Extensions;
+using Sugarista.Application.Common.Models;
 
 namespace Sugarista.Application.MenuItems.Queries.GetAdminMenuItems;
 
-public record GetAdminMenuItemsQuery : IRequest<IReadOnlyCollection<AdminMenuItemDto>>;
+public record GetAdminMenuItemsQuery(int Page = 1, int PageSize = 25, string? Search = null)
+    : IRequest<PaginatedList<AdminMenuItemDto>>;
 
 public record AdminMenuItemDto(
     Guid Id,
@@ -13,24 +16,24 @@ public record AdminMenuItemDto(
     string PersianName,
     string EnglishName,
     string Description,
-    int Price,
+    decimal Price,
     string? ImageUrl,
     IReadOnlyCollection<string> GalleryImageUrls,
-    int? SpecialOfferPrice,
+    decimal? SpecialOfferPrice,
     decimal TaxPercent,
     bool IsOrderable,
     int? PreparingDurationMinutes,
     int? Calories,
     IReadOnlyCollection<string> Allergens,
     string? Volume,
-    int? SmallPrice,
-    int? SmallSpecialOfferPrice,
+    decimal? SmallPrice,
+    decimal? SmallSpecialOfferPrice,
     string? SmallVolume,
-    int? MediumPrice,
-    int? MediumSpecialOfferPrice,
+    decimal? MediumPrice,
+    decimal? MediumSpecialOfferPrice,
     string? MediumVolume,
-    int? LargePrice,
-    int? LargeSpecialOfferPrice,
+    decimal? LargePrice,
+    decimal? LargeSpecialOfferPrice,
     string? LargeVolume,
     IReadOnlyCollection<string> Tags,
     string? Badge,
@@ -40,7 +43,7 @@ public record AdminMenuItemDto(
     int DisplayOrder,
     bool IsActive);
 
-public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQuery, IReadOnlyCollection<AdminMenuItemDto>>
+public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQuery, PaginatedList<AdminMenuItemDto>>
 {
     private readonly IApplicationDbContext _dbContext;
 
@@ -49,10 +52,22 @@ public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQu
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyCollection<AdminMenuItemDto>> Handle(GetAdminMenuItemsQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedList<AdminMenuItemDto>> Handle(GetAdminMenuItemsQuery request, CancellationToken cancellationToken)
     {
-        return await _dbContext.MenuItems
-            .AsNoTracking()
+        var pagination = new PaginationQuery(request.Page, request.PageSize, request.Search);
+
+        var query = _dbContext.MenuItems.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(pagination.Search))
+        {
+            var search = pagination.Search.Trim().ToLowerInvariant();
+            query = query.Where(item =>
+                item.Name.ToLower().Contains(search) ||
+                item.PersianName.ToLower().Contains(search) ||
+                item.EnglishName.ToLower().Contains(search));
+        }
+
+        return await query
             .OrderBy(item => item.Category.DisplayOrder)
             .ThenBy(item => item.DisplayOrder)
             .ThenBy(item => item.Name)
@@ -91,6 +106,6 @@ public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQu
                 item.ShortLabel,
                 item.DisplayOrder,
                 item.IsActive))
-            .ToListAsync(cancellationToken);
+            .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

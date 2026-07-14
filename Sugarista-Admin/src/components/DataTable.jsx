@@ -2,9 +2,6 @@ import { useMemo, useState } from 'react'
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import './DataTable.css'
@@ -17,31 +14,129 @@ export function DataTable({
   data,
   columns,
   searchPlaceholder = 'جستجو در جدول...',
-  pageSize = 10,
+  pageSize = 25,
+  pageSizeOptions = [7, 25, 50, 100],
   emptyMessage = 'موردی یافت نشد.',
   enableSearch = true,
   enablePagination = true,
   compact = false,
+  manualPagination = false,
+  totalCount = 0,
+  pageIndex = 0,
+  onPageChange,
+  onPageSizeChange,
+  onSearchChange,
+  searchValue = '',
+  loading = false,
 }) {
-  const [globalFilter, setGlobalFilter] = useState('')
+  const [localSearch, setLocalSearch] = useState('')
+
+  const isServerMode = manualPagination
+  const effectiveSearch = isServerMode ? searchValue : localSearch
+  const effectivePageIndex = isServerMode ? pageIndex : undefined
+  const effectivePageSize = isServerMode ? pageSize : undefined
+  const pageCount = isServerMode
+    ? Math.max(1, Math.ceil(totalCount / Math.max(pageSize, 1)))
+    : undefined
 
   const table = useReactTable({
     data,
     columns,
-    state: { globalFilter },
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize },
-    },
+    manualPagination: isServerMode,
+    pageCount,
+    state: isServerMode
+      ? {
+          pagination: {
+            pageIndex: effectivePageIndex,
+            pageSize: effectivePageSize,
+          },
+        }
+      : undefined,
+    onPaginationChange: isServerMode
+      ? (updater) => {
+          const current = { pageIndex: effectivePageIndex, pageSize: effectivePageSize }
+          const next = typeof updater === 'function' ? updater(current) : updater
+          if (next.pageIndex !== current.pageIndex) {
+            onPageChange?.(next.pageIndex + 1)
+          }
+          if (next.pageSize !== current.pageSize) {
+            onPageSizeChange?.(next.pageSize)
+            onPageChange?.(1)
+          }
+        }
+      : undefined,
   })
 
-  const filteredCount = table.getFilteredRowModel().rows.length
-  const pageCount = table.getPageCount()
-  const pageIndex = table.getState().pagination.pageIndex
+  const rowCount = isServerMode ? totalCount : data.length
+
+  const paginationControls = enablePagination ? (
+    <div className="data-table-pagination">
+      <div className="data-table-page-size">
+        <label>
+          <span>نمایش</span>
+          <select
+            value={pageSize}
+            onChange={(event) => {
+              const nextSize = Number(event.target.value)
+              if (isServerMode) {
+                onPageSizeChange?.(nextSize)
+                onPageChange?.(1)
+                return
+              }
+
+              table.setPageSize(nextSize)
+            }}
+          >
+            {pageSizeOptions.map((option) => (
+              <option key={option} value={option}>
+                {toPersianNumber(option)}
+              </option>
+            ))}
+          </select>
+          <span>ردیف</span>
+        </label>
+      </div>
+      <button
+        type="button"
+        className="data-table-page-btn"
+        onClick={() => {
+          if (isServerMode) {
+            onPageChange?.(effectivePageIndex ?? 0)
+            return
+          }
+
+          table.previousPage()
+        }}
+        disabled={isServerMode ? (effectivePageIndex ?? 0) <= 0 : !table.getCanPreviousPage()}
+      >
+        قبلی
+      </button>
+      <span className="data-table-page-info">
+        صفحه {toPersianNumber((isServerMode ? effectivePageIndex : table.getState().pagination.pageIndex) + 1)} از{' '}
+        {toPersianNumber(isServerMode ? pageCount : Math.max(table.getPageCount(), 1))}
+      </span>
+      <button
+        type="button"
+        className="data-table-page-btn"
+        onClick={() => {
+          if (isServerMode) {
+            onPageChange?.((effectivePageIndex ?? 0) + 2)
+            return
+          }
+
+          table.nextPage()
+        }}
+        disabled={
+          isServerMode
+            ? (effectivePageIndex ?? 0) + 1 >= (pageCount ?? 1)
+            : !table.getCanNextPage()
+        }
+      >
+        بعدی
+      </button>
+    </div>
+  ) : null
 
   return (
     <div className={`data-table ${compact ? 'data-table--compact' : ''}`}>
@@ -50,12 +145,20 @@ export function DataTable({
           <input
             className="data-table-search"
             type="search"
-            value={globalFilter}
-            onChange={(event) => setGlobalFilter(event.target.value)}
+            value={effectiveSearch}
+            onChange={(event) => {
+              const value = event.target.value
+              if (isServerMode) {
+                onSearchChange?.(value)
+                return
+              }
+
+              setLocalSearch(value)
+            }}
             placeholder={searchPlaceholder}
           />
           <span className="data-table-count">
-            {toPersianNumber(filteredCount)} ردیف
+            {loading ? 'در حال بارگذاری...' : `${toPersianNumber(rowCount)} ردیف`}
           </span>
         </div>
       ) : null}
@@ -96,17 +199,14 @@ export function DataTable({
             {table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td className="data-table-empty" colSpan={columns.length}>
-                  {emptyMessage}
+                  {loading ? 'در حال بارگذاری...' : emptyMessage}
                 </td>
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
                 <tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className={cell.column.columnDef.meta?.className}
-                    >
+                    <td key={cell.id} className={cell.column.columnDef.meta?.className}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -117,33 +217,18 @@ export function DataTable({
         </table>
       </div>
 
-      {enablePagination && filteredCount > pageSize ? (
-        <div className="data-table-pagination">
-          <button
-            type="button"
-            className="data-table-page-btn"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            قبلی
-          </button>
-          <span className="data-table-page-info">
-            صفحه {toPersianNumber(pageIndex + 1)} از {toPersianNumber(Math.max(pageCount, 1))}
-          </span>
-          <button
-            type="button"
-            className="data-table-page-btn"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            بعدی
-          </button>
-        </div>
-      ) : null}
+      {paginationControls}
     </div>
   )
 }
 
 export function useDataTableColumns(factory, deps) {
   return useMemo(factory, deps)
+}
+
+export function formatMoney(value) {
+  return new Intl.NumberFormat('fa-IR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0))
 }

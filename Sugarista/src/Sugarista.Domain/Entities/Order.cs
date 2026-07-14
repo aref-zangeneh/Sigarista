@@ -14,14 +14,20 @@ public class Order : BaseAuditableEntity
         string customerName,
         string customerPhone,
         string? note,
-        int totalAmount,
-        string paymentAuthority)
+        decimal totalAmount,
+        string paymentAuthority,
+        SplitBillMode splitBillMode = SplitBillMode.Single,
+        int? guestCount = null)
     {
         UpdateCustomer(customerName, customerPhone, note);
         SetTrackingCode(trackingCode);
         SetTotalAmount(totalAmount);
         SetPaymentAuthority(paymentAuthority);
+        SplitBillMode = splitBillMode;
+        IsSplitBill = splitBillMode != SplitBillMode.Single;
+        GuestCount = IsSplitBill ? guestCount : null;
         Status = OrderStatus.PendingPayment;
+        AmountPaid = 0;
     }
 
     public string TrackingCode { get; private set; } = string.Empty;
@@ -34,7 +40,15 @@ public class Order : BaseAuditableEntity
 
     public OrderStatus Status { get; private set; } = OrderStatus.PendingPayment;
 
-    public int TotalAmount { get; private set; }
+    public decimal TotalAmount { get; private set; }
+
+    public decimal AmountPaid { get; private set; }
+
+    public bool IsSplitBill { get; private set; }
+
+    public SplitBillMode SplitBillMode { get; private set; } = SplitBillMode.Single;
+
+    public int? GuestCount { get; private set; }
 
     public string PaymentAuthority { get; private set; } = string.Empty;
 
@@ -42,63 +56,17 @@ public class Order : BaseAuditableEntity
 
     public ICollection<OrderLine> Lines { get; private set; } = [];
 
-    public void AddLine(OrderLine line)
-    {
-        Lines.Add(line);
-    }
+    public ICollection<OrderPayment> Payments { get; private set; } = [];
 
-    public void MarkPaid()
-    {
-        if (Status != OrderStatus.PendingPayment)
-        {
-            throw new DomainException("Only pending orders can be marked as paid.");
-        }
+    public ICollection<OrderSplitShare> SplitShares { get; private set; } = [];
 
-        Status = OrderStatus.Paid;
-        PaidAt = DateTimeOffset.UtcNow;
-    }
+    public void AddLine(OrderLine line) => Lines.Add(line);
 
-    public void MarkFailed()
-    {
-        if (Status == OrderStatus.Paid)
-        {
-            throw new DomainException("Paid orders cannot be marked as failed.");
-        }
+    public void AddPayment(OrderPayment payment) => Payments.Add(payment);
 
-        Status = OrderStatus.Failed;
-    }
+    public void AddSplitShare(OrderSplitShare share) => SplitShares.Add(share);
 
-    public void MarkCancelled()
-    {
-        if (Status == OrderStatus.Paid)
-        {
-            throw new DomainException("Paid orders cannot be cancelled.");
-        }
-
-        Status = OrderStatus.Cancelled;
-    }
-
-    public void UpdatePaymentAuthority(string paymentAuthority)
-    {
-        if (Status != OrderStatus.PendingPayment)
-        {
-            throw new DomainException("Payment authority can only be updated for pending orders.");
-        }
-
-        SetPaymentAuthority(paymentAuthority);
-    }
-
-    private void SetTrackingCode(string trackingCode)
-    {
-        if (string.IsNullOrWhiteSpace(trackingCode))
-        {
-            throw new DomainException("Order tracking code is required.");
-        }
-
-        TrackingCode = trackingCode.Trim();
-    }
-
-    private void UpdateCustomer(string customerName, string customerPhone, string? note)
+    public void UpdateCustomer(string customerName, string customerPhone, string? note)
     {
         if (string.IsNullOrWhiteSpace(customerName))
         {
@@ -115,7 +83,135 @@ public class Order : BaseAuditableEntity
         Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
     }
 
-    private void SetTotalAmount(int totalAmount)
+    public void RecalculateTotal()
+    {
+        if (Lines.Count == 0)
+        {
+            throw new DomainException("Order must contain at least one line.");
+        }
+
+        TotalAmount = Lines.Sum(line => line.LineTotal);
+    }
+
+    public void MarkPaid()
+    {
+        if (Status is not (OrderStatus.PendingPayment or OrderStatus.PartiallyPaid))
+        {
+            throw new DomainException("Only pending or partially paid orders can be marked as paid.");
+        }
+
+        Status = OrderStatus.Paid;
+        AmountPaid = TotalAmount;
+        PaidAt = DateTimeOffset.UtcNow;
+    }
+
+    public void RecordPartialPayment(decimal amount)
+    {
+        if (amount <= 0)
+        {
+            throw new DomainException("Payment amount must be greater than zero.");
+        }
+
+        if (Status is OrderStatus.Cancelled or OrderStatus.Failed or OrderStatus.Paid)
+        {
+            throw new DomainException($"Cannot record payment while order is {Status}.");
+        }
+
+        AmountPaid += amount;
+
+        if (AmountPaid >= TotalAmount)
+        {
+            MarkPaid();
+            return;
+        }
+
+        Status = OrderStatus.PartiallyPaid;
+    }
+
+    public void MarkFailed()
+    {
+        if (Status == OrderStatus.Paid)
+        {
+            throw new DomainException("Paid orders cannot be marked as failed.");
+        }
+
+        if (AmountPaid > 0)
+        {
+            throw new DomainException("Partially paid orders cannot be marked as failed.");
+        }
+
+        Status = OrderStatus.Failed;
+    }
+
+    public void MarkCancelled()
+    {
+        if (Status == OrderStatus.Paid)
+        {
+            throw new DomainException("Paid orders cannot be cancelled without restoring inventory.");
+        }
+
+        Status = OrderStatus.Cancelled;
+    }
+
+    public void AdminCancel() => Status = OrderStatus.Cancelled;
+
+    public void UpdatePaymentAuthority(string paymentAuthority)
+    {
+        if (IsSplitBill)
+        {
+            throw new DomainException("Split bill orders use per-payer payment authorities.");
+        }
+
+        if (Status != OrderStatus.PendingPayment)
+        {
+            throw new DomainException("Payment authority can only be updated for pending orders.");
+        }
+
+        SetPaymentAuthority(paymentAuthority);
+    }
+
+    public bool CanBeModifiedByAdmin()
+    {
+        return Status is OrderStatus.PendingPayment or OrderStatus.PartiallyPaid or OrderStatus.Paid;
+    }
+
+    public void ReconcilePaymentStatus()
+    {
+        if (Status == OrderStatus.Cancelled || Status == OrderStatus.Failed)
+        {
+            return;
+        }
+
+        if (AmountPaid >= TotalAmount)
+        {
+            Status = OrderStatus.Paid;
+            PaidAt ??= DateTimeOffset.UtcNow;
+            AmountPaid = TotalAmount;
+            return;
+        }
+
+        if (AmountPaid > 0)
+        {
+            Status = OrderStatus.PartiallyPaid;
+            PaidAt = null;
+            return;
+        }
+
+        Status = OrderStatus.PendingPayment;
+        PaidAt = null;
+    }
+
+    private void SetTrackingCode(string trackingCode)
+    {
+        if (string.IsNullOrWhiteSpace(trackingCode))
+        {
+            throw new DomainException("Order tracking code is required.");
+        }
+
+        TrackingCode = trackingCode.Trim();
+    }
+
+    private void SetTotalAmount(decimal totalAmount)
     {
         if (totalAmount <= 0)
         {

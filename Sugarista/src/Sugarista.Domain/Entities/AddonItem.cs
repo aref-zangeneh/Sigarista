@@ -13,7 +13,7 @@ public class AddonItem : BaseAuditableEntity
         string persianName,
         string englishName,
         string description,
-        int price,
+        decimal price,
         IEnumerable<string> tags,
         int displayOrder,
         bool isActive = true)
@@ -29,7 +29,7 @@ public class AddonItem : BaseAuditableEntity
 
     public string Description { get; private set; } = string.Empty;
 
-    public int Price { get; private set; }
+    public decimal Price { get; private set; }
 
     public string[] Tags { get; private set; } = [];
 
@@ -41,7 +41,7 @@ public class AddonItem : BaseAuditableEntity
         string persianName,
         string englishName,
         string description,
-        int price,
+        decimal price,
         IEnumerable<string> tags,
         int displayOrder,
         bool isActive)

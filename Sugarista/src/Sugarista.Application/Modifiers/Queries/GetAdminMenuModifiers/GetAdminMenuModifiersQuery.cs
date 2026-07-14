@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Common.Extensions;
+using Sugarista.Application.Common.Models;
 
 namespace Sugarista.Application.Modifiers.Queries.GetAdminMenuModifiers;
 
-public record GetAdminMenuModifiersQuery : IRequest<IReadOnlyCollection<AdminMenuModifierDto>>;
+public record GetAdminMenuModifiersQuery(int Page = 1, int PageSize = 25, string? Search = null)
+    : IRequest<PaginatedList<AdminMenuModifierDto>>;
 
 public record AdminMenuModifierDto(
     Guid Id,
@@ -12,7 +15,7 @@ public record AdminMenuModifierDto(
     int DisplayOrder,
     bool IsActive);
 
-public class GetAdminMenuModifiersQueryHandler : IRequestHandler<GetAdminMenuModifiersQuery, IReadOnlyCollection<AdminMenuModifierDto>>
+public class GetAdminMenuModifiersQueryHandler : IRequestHandler<GetAdminMenuModifiersQuery, PaginatedList<AdminMenuModifierDto>>
 {
     private readonly IApplicationDbContext _dbContext;
 
@@ -21,10 +24,22 @@ public class GetAdminMenuModifiersQueryHandler : IRequestHandler<GetAdminMenuMod
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyCollection<AdminMenuModifierDto>> Handle(GetAdminMenuModifiersQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedList<AdminMenuModifierDto>> Handle(GetAdminMenuModifiersQuery request, CancellationToken cancellationToken)
     {
-        return await _dbContext.MenuModifiers
-            .AsNoTracking()
+        var pagination = new PaginationQuery(request.Page, request.PageSize, request.Search);
+
+        var query = _dbContext.MenuModifiers.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(pagination.Search))
+        {
+            var search = pagination.Search.Trim().ToLowerInvariant();
+            query = query.Where(modifier =>
+                modifier.Name.ToLower().Contains(search) ||
+                modifier.PersianName.ToLower().Contains(search) ||
+                modifier.EnglishName.ToLower().Contains(search));
+        }
+
+        return await query
             .OrderBy(modifier => modifier.DisplayOrder)
             .ThenBy(modifier => modifier.Name)
             .Select(modifier => new AdminMenuModifierDto(
@@ -34,7 +49,6 @@ public class GetAdminMenuModifiersQueryHandler : IRequestHandler<GetAdminMenuMod
                 modifier.EnglishName,
                 modifier.DisplayOrder,
                 modifier.IsActive))
-            .ToListAsync(cancellationToken);
+            .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }
-

@@ -23,6 +23,9 @@ public class StockMovementConfiguration : IEntityTypeConfiguration<StockMovement
         builder.Property(m => m.SourceMenuItemName)
             .HasMaxLength(200);
 
+        builder.HasIndex(m => m.OrderId);
+        builder.HasIndex(m => m.OrderLineId);
+
         builder.HasOne(m => m.Stock)
             .WithMany(s => s.Movements)
             .HasForeignKey(m => m.IngredientId)

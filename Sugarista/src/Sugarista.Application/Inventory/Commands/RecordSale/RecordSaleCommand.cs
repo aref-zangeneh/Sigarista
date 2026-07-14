@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Inventory.Services;
 
 namespace Sugarista.Application.Inventory.Commands.RecordSale;
 
@@ -74,6 +75,7 @@ public class RecordSaleCommandHandler : IRequestHandler<RecordSaleCommand, Recor
             var totalDeduction = line.Quantity * request.QuantitySold;
             var stockBefore = stock.CurrentQuantity;
             var movement = stock.Deduct(totalDeduction, menuItem.PersianName);
+            await InventoryLotAllocator.DeductAsync(_dbContext, line.IngredientId, totalDeduction, cancellationToken);
             newMovements.Add(movement);
 
             deductions.Add(new RecordSaleDeductionDto(

@@ -20,9 +20,10 @@ public class Ingredient : BaseAuditableEntity
         string description,
         int displayOrder,
         bool isActive = true,
-        string inventoryLocation = "main")
+        string inventoryLocation = "main",
+        decimal unitCost = 0)
     {
-        Update(persianName, englishName, unit, description, displayOrder, isActive, inventoryLocation);
+        Update(persianName, englishName, unit, description, displayOrder, isActive, inventoryLocation, unitCost);
     }
 
     public string Name { get; private set; } = string.Empty;
@@ -41,6 +42,8 @@ public class Ingredient : BaseAuditableEntity
 
     public string InventoryLocation { get; private set; } = "main";
 
+    public decimal UnitCost { get; private set; }
+
     public ICollection<RecipeItem> RecipeItems { get; private set; } = [];
 
     public InventoryStock? Stock { get; private set; }
@@ -52,7 +55,8 @@ public class Ingredient : BaseAuditableEntity
         string description,
         int displayOrder,
         bool isActive,
-        string inventoryLocation = "main")
+        string inventoryLocation = "main",
+        decimal unitCost = 0)
     {
         if (string.IsNullOrWhiteSpace(persianName))
         {
@@ -82,5 +86,6 @@ public class Ingredient : BaseAuditableEntity
         DisplayOrder = displayOrder;
         IsActive = isActive;
         InventoryLocation = inventoryLocation.Trim().ToLowerInvariant();
+        UnitCost = unitCost < 0 ? 0 : unitCost;
     }
 }

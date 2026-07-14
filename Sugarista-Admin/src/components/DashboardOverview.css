@@ -1,0 +1,256 @@
+.dashboard {
+  display: grid;
+  gap: 20px;
+}
+
+.dashboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-head h3 {
+  margin: 0;
+}
+
+.dashboard-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.dashboard-section h4 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  color: var(--heading);
+}
+
+.dashboard-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dashboard-stat-grid--compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-stat {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #fffef9);
+  box-shadow: 0 8px 24px rgba(12, 52, 79, 0.05);
+}
+
+.dashboard-stat span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.dashboard-stat strong {
+  font-size: 1.15rem;
+  color: var(--heading);
+}
+
+.dashboard-stat small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.dashboard-stat--sales {
+  border-color: rgba(170, 49, 113, 0.22);
+}
+
+.dashboard-stat--cash {
+  border-color: rgba(34, 139, 87, 0.22);
+}
+
+.dashboard-stat--debt {
+  border-color: rgba(220, 120, 40, 0.22);
+}
+
+.dashboard-stat--credit {
+  border-color: rgba(70, 110, 190, 0.22);
+}
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-panel .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-panel .panel-head h4 {
+  margin: 0;
+}
+
+.dashboard-table-scroll {
+  overflow: auto;
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: 10px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.dashboard-table th {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.dashboard-positive {
+  color: #1f7a4d;
+}
+
+.dashboard-negative {
+  color: #b42318;
+}
+
+.dashboard-note,
+.dashboard-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.dashboard-peak-list,
+.dashboard-rank-list,
+.dashboard-stock-list,
+.dashboard-warehouse-list,
+.dashboard-finance-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-peak-list li,
+.dashboard-rank-list li,
+.dashboard-stock-list li,
+.dashboard-warehouse-list li,
+.dashboard-finance-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(12, 52, 79, 0.02);
+}
+
+.dashboard-rank {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(170, 49, 113, 0.1);
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dashboard-rank-meta {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.dashboard-rank-meta small,
+.dashboard-peak-list small,
+.dashboard-stock-list small,
+.dashboard-warehouse-list small,
+.dashboard-finance-list small {
+  color: var(--muted);
+}
+
+.dashboard-stock-qty {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.dashboard-alerts {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+.dashboard-alert p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.dashboard-alert--critical {
+  background: rgba(180, 35, 24, 0.08);
+  border-color: rgba(180, 35, 24, 0.18);
+}
+
+.dashboard-alert--warning {
+  background: rgba(220, 120, 40, 0.08);
+  border-color: rgba(220, 120, 40, 0.18);
+}
+
+.dashboard-alert--info {
+  background: rgba(70, 110, 190, 0.08);
+  border-color: rgba(70, 110, 190, 0.18);
+}
+
+.dashboard-alert--success {
+  background: rgba(34, 139, 87, 0.08);
+  border-color: rgba(34, 139, 87, 0.18);
+}
+
+@media (max-width: 1100px) {
+  .dashboard-stat-grid,
+  .dashboard-stat-grid--compact,
+  .dashboard-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-stat-grid,
+  .dashboard-stat-grid--compact,
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

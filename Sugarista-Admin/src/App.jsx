@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, formatMoney } from './components/DataTable'
 import { PaginatedAdminTable } from './components/PaginatedAdminTable'
+import { DashboardOverview } from './components/DashboardOverview'
+import { InventoryPurchasesPanel } from './components/InventoryPurchasesPanel'
 import {
   buildAddonColumns,
   buildCategoryColumns,
@@ -29,6 +31,7 @@ const tabOptions = [
   { id: 'ingredients', label: 'مواد اولیه' },
   { id: 'recipes', label: 'دستور پخت' },
   { id: 'inventory', label: 'انبار موجودی' },
+  { id: 'inventory-purchases', label: 'خرید مواد اولیه' },
   { id: 'record-sale', label: 'ثبت فروش' },
   { id: 'orders', label: 'سفارش‌ها' },
   { id: 'site-settings', label: 'تنظیمات سایت' },
@@ -118,6 +121,7 @@ const emptyIngredientForm = {
   displayOrder: 0,
   isActive: true,
   inventoryLocation: 'main',
+  unitCost: '',
 }
 
 const emptyRecipeLineForm = {
@@ -275,9 +279,28 @@ const settingsSections = [
 function loadStoredSession() {
   try {
     const rawValue = window.localStorage.getItem(SESSION_STORAGE_KEY)
-    return rawValue ? JSON.parse(rawValue) : null
+    return rawValue ? normalizeSession(JSON.parse(rawValue)) : null
   } catch {
     return null
+  }
+}
+
+function normalizeSession(raw) {
+  if (!raw) {
+    return null
+  }
+
+  const token = raw.token ?? raw.Token
+  if (!token) {
+    return null
+  }
+
+  return {
+    token,
+    userId: raw.userId ?? raw.UserId,
+    username: raw.username ?? raw.Username,
+    displayName: raw.displayName ?? raw.DisplayName,
+    role: raw.role ?? raw.Role,
   }
 }
 
@@ -402,7 +425,12 @@ function App() {
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'ChangeMe123!' })
   const [categoryOptions, setCategoryOptions] = useState([])
   const [menuItemOptions, setMenuItemOptions] = useState([])
+  const [ingredientOptions, setIngredientOptions] = useState([])
+  const [purchaseExpiringOnly, setPurchaseExpiringOnly] = useState(false)
   const [tableReloadToken, setTableReloadToken] = useState(0)
+  const [dashboard, setDashboard] = useState(null)
+  const [dashboardLoading, setDashboardLoading] = useState(false)
+  const [dashboardError, setDashboardError] = useState('')
   const [recipeState, setRecipeState] = useState(emptyRecipeState)
   const [ingredientForm, setIngredientForm] = useState(emptyIngredientForm)
   const [inventoryStatus, setInventoryStatus] = useState(null)
@@ -432,10 +460,6 @@ function App() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  const activeMenuItemCount = useMemo(
-    () => menuItemOptions.filter((item) => item.isActive).length,
-    [menuItemOptions],
-  )
   const activeSalonTables = salonStatus.tables.filter((table) => table.isActive)
 
   useEffect(() => {
@@ -453,6 +477,12 @@ function App() {
 
     window.localStorage.removeItem(SESSION_STORAGE_KEY)
   }, [session])
+
+  useEffect(() => {
+    if (session?.token && activeTab === 'overview') {
+      loadDashboard(session.token)
+    }
+  }, [session, activeTab, tableReloadToken])
 
   useEffect(() => {
     if (!session?.token || activeTab !== 'salon') {
@@ -529,6 +559,31 @@ function App() {
 
   function bumpTableReload() {
     setTableReloadToken((current) => current + 1)
+  }
+
+  function navigateToTab(tabId, options) {
+    setActiveTab(tabId)
+    if (tabId === 'inventory-purchases' && options?.expiringOnly) {
+      setPurchaseExpiringOnly(true)
+    }
+  }
+
+  async function loadDashboard(token = session?.token) {
+    if (!token) {
+      return
+    }
+
+    setDashboardLoading(true)
+    setDashboardError('')
+    try {
+      const data = await apiRequest('/admin/analytics/dashboard', { token })
+      setDashboard(data)
+    } catch (requestError) {
+      setDashboard(null)
+      setDashboardError(getReadableError(requestError))
+    } finally {
+      setDashboardLoading(false)
+    }
   }
 
   async function openOrderEditor(orderRow) {
@@ -677,6 +732,7 @@ function App() {
     const requests = [
       { key: 'categoryOptions', promise: apiRequest('/admin/categories/options', { token }) },
       { key: 'menuItemOptions', promise: apiRequest('/admin/menu-items/options', { token }) },
+      { key: 'ingredientOptions', promise: apiRequest('/admin/ingredients/options', { token }) },
       { key: 'inventoryStatus', promise: apiRequest('/admin/inventory', { token }) },
       { key: 'siteSettings', promise: apiRequest('/admin/site-settings', { token }) },
       { key: 'salonStatus', promise: apiRequest('/admin/salon/status', { token }) },
@@ -720,6 +776,10 @@ function App() {
         )
       }
 
+      if (data.ingredientOptions) {
+        setIngredientOptions(data.ingredientOptions)
+      }
+
       if (data.inventoryStatus) {
         setInventoryStatus(data.inventoryStatus)
       }
@@ -758,10 +818,16 @@ function App() {
     setMessage('')
 
     try {
-      const nextSession = await apiRequest('/auth/login', {
-        method: 'POST',
-        body: loginForm,
-      })
+      const nextSession = normalizeSession(
+        await apiRequest('/auth/login', {
+          method: 'POST',
+          body: loginForm,
+        }),
+      )
+
+      if (!nextSession) {
+        throw new Error('پاسخ ورود نامعتبر بود.')
+      }
 
       setSession(nextSession)
       setMessage('ورود با موفقیت انجام شد.')
@@ -1408,62 +1474,13 @@ function App() {
         {loading ? <p className="feedback">در حال بارگذاری جدیدترین اطلاعات...</p> : null}
 
         {activeTab === 'overview' ? (
-          <section className="panel-stack">
-            <section className="stat-grid">
-              <article className="stat-card">
-                <span>تعداد دسته‌بندی‌ها</span>
-                <strong>{toPersianNumber(categoryOptions.length)}</strong>
-              </article>
-              <article className="stat-card">
-                <span>آیتم‌های فعال منو</span>
-                <strong>{toPersianNumber(activeMenuItemCount)}</strong>
-              </article>
-              <article className="stat-card">
-                <span>کل آیتم‌های منو</span>
-                <strong>{toPersianNumber(menuItemOptions.length)}</strong>
-              </article>
-              <article className="stat-card">
-                <span>میزهای اشغال</span>
-                <strong>{toPersianNumber(salonStatus.occupiedTables)}</strong>
-              </article>
-            </section>
-
-            <section className="panel">
-              <h3>اقدام‌های سریع</h3>
-              <div className="quick-actions">
-                <button type="button" onClick={() => setActiveTab('categories')}>
-                  افزودن دسته‌بندی
-                </button>
-                <button type="button" onClick={() => setActiveTab('menu-items')}>
-                  افزودن آیتم منو
-                </button>
-                <button type="button" onClick={() => setActiveTab('salon')}>
-                  مدیریت وضعیت سالن
-                </button>
-                <button type="button" onClick={() => setActiveTab('site-settings')}>
-                  ویرایش متن‌های عمومی
-                </button>
-              </div>
-            </section>
-
-            <section className="panel">
-              <h3>خلاصه محتوای زنده</h3>
-              <div className="snapshot-grid">
-                <div>
-                  <span className="field-label">نام کافه</span>
-                  <strong>{siteSettings.cafeName}</strong>
-                </div>
-                <div>
-                  <span className="field-label">عنوان هیرو</span>
-                  <strong>{siteSettings.heroTitle}</strong>
-                </div>
-                <div>
-                  <span className="field-label">شماره تماس</span>
-                  <strong className="ltr-text">{siteSettings.contactPhone}</strong>
-                </div>
-              </div>
-            </section>
-          </section>
+          <DashboardOverview
+            dashboard={dashboard}
+            loading={dashboardLoading}
+            error={dashboardError}
+            onNavigate={navigateToTab}
+            onRefresh={() => loadDashboard()}
+          />
         ) : null}
 
         {activeTab === 'salon' ? (
@@ -2533,6 +2550,7 @@ function App() {
                       displayOrder: Number(ingredientForm.displayOrder),
                       isActive: ingredientForm.isActive,
                       inventoryLocation: ingredientForm.inventoryLocation,
+                      unitCost: optionalNumber(ingredientForm.unitCost) ?? 0,
                     },
                   })
 
@@ -2617,6 +2635,19 @@ function App() {
                   value={ingredientForm.description}
                   onChange={(event) =>
                     setIngredientForm((currentForm) => ({ ...currentForm, description: event.target.value }))
+                  }
+                />
+              </label>
+              <label>
+                <span>بهای واحد (تومان — برای محاسبه سود)</span>
+                <input
+                  className="ltr-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={ingredientForm.unitCost}
+                  onChange={(event) =>
+                    setIngredientForm((currentForm) => ({ ...currentForm, unitCost: event.target.value }))
                   }
                 />
               </label>
@@ -3026,6 +3057,24 @@ function App() {
               </div>
             ) : null}
           </section>
+        ) : null}
+
+        {activeTab === 'inventory-purchases' ? (
+          <InventoryPurchasesPanel
+            session={session}
+            ingredientOptions={ingredientOptions}
+            unitOptions={UNIT_OPTIONS}
+            apiRequest={apiRequest}
+            getReadableError={getReadableError}
+            tableReloadToken={tableReloadToken}
+            bumpTableReload={bumpTableReload}
+            setMessage={setMessage}
+            setError={setError}
+            saving={saving}
+            setSaving={setSaving}
+            showExpiringOnly={purchaseExpiringOnly}
+            onShowExpiringOnlyChange={setPurchaseExpiringOnly}
+          />
         ) : null}
 
         {activeTab === 'record-sale' ? (

@@ -15,7 +15,8 @@ public record AdminIngredientDto(
     string Description,
     int DisplayOrder,
     bool IsActive,
-    string InventoryLocation);
+    string InventoryLocation,
+    decimal UnitCost);
 
 public class GetAdminIngredientsQueryHandler : IRequestHandler<GetAdminIngredientsQuery, PaginatedList<AdminIngredientDto>>
 {
@@ -51,7 +52,8 @@ public class GetAdminIngredientsQueryHandler : IRequestHandler<GetAdminIngredien
                 i.Description,
                 i.DisplayOrder,
                 i.IsActive,
-                i.InventoryLocation))
+                i.InventoryLocation,
+                i.UnitCost))
             .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

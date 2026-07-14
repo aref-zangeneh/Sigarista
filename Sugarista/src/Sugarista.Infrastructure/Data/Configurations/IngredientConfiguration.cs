@@ -32,6 +32,10 @@ public class IngredientConfiguration : IEntityTypeConfiguration<Ingredient>
             .IsRequired()
             .HasDefaultValue("main");
 
+        builder.Property(i => i.UnitCost)
+            .HasColumnType("numeric(18,2)")
+            .HasDefaultValue(0m);
+
         builder.HasIndex(i => i.DisplayOrder);
     }
 }

@@ -29,6 +29,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
+    public DbSet<InventoryPurchase> InventoryPurchases => Set<InventoryPurchase>();
+
     public DbSet<Order> Orders => Set<Order>();
 
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();

@@ -30,6 +30,7 @@ public class ApplicationDbContextSeeder
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         await _dbContext.Database.MigrateAsync(cancellationToken);
+        await EnsureSchemaCompatibilityAsync(cancellationToken);
 
         await SeedSiteSettingsAsync(cancellationToken);
         await SeedMenuAsync(cancellationToken);
@@ -37,6 +38,15 @@ public class ApplicationDbContextSeeder
         await SeedAdminAsync(cancellationToken);
         await SeedIngredientsAsync(cancellationToken);
         await SeedInventoryStocksAsync(cancellationToken);
+    }
+
+    private async Task EnsureSchemaCompatibilityAsync(CancellationToken cancellationToken)
+    {
+        await _dbContext.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE "Ingredients" ADD COLUMN IF NOT EXISTS "UnitCost" numeric(18,2) NOT NULL DEFAULT 0;
+            """,
+            cancellationToken);
     }
 
     private async Task SeedSiteSettingsAsync(CancellationToken cancellationToken)

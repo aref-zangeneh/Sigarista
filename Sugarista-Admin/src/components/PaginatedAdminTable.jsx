@@ -14,7 +14,8 @@ async function fetchPaginated(path, { page, pageSize, search, token }) {
     params.set('search', search)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}?${params.toString()}`, {
+  const separator = path.includes('?') ? '&' : '?'
+  const response = await fetch(`${API_BASE_URL}${path}${separator}${params.toString()}`, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -63,13 +64,16 @@ export function PaginatedAdminTable({
     pageSize,
     search,
     loading,
+    error,
     setPage,
     setPageSize,
     setSearch,
   } = usePaginatedResource(fetchPage, { enabled: enabled && Boolean(token) })
 
   return (
-    <DataTable
+    <div className="paginated-admin-table">
+      {error ? <p className="feedback feedback-error">{error}</p> : null}
+      <DataTable
       manualPagination
       data={data}
       columns={columns}
@@ -84,5 +88,6 @@ export function PaginatedAdminTable({
       searchPlaceholder={searchPlaceholder}
       emptyMessage={emptyMessage}
     />
+    </div>
   )
 }

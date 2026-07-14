@@ -225,11 +225,97 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<decimal>("UnitCost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.HasKey("Id");
 
                     b.HasIndex("DisplayOrder");
 
                     b.ToTable("Ingredients");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.InventoryPurchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("DocumentImageUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateOnly>("ExpirationDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("IncidentalCost")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("PackageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("PackageSize")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.Property<decimal?>("PurchaseUnitPrice")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("RemainingQuantity")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.Property<decimal>("ShippingFee")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<Guid?>("StockMovementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TaxAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpirationDate");
+
+                    b.HasIndex("ReceivedAt");
+
+                    b.HasIndex("StockMovementId");
+
+                    b.HasIndex("IngredientId", "ExpirationDate");
+
+                    b.ToTable("InventoryPurchases");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.InventoryStock", b =>
@@ -1080,6 +1166,24 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.HasIndex("TableId", "EndedAt");
 
                     b.ToTable("TableSessions");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.InventoryPurchase", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sugarista.Domain.Entities.StockMovement", "StockMovement")
+                        .WithMany()
+                        .HasForeignKey("StockMovementId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Ingredient");
+
+                    b.Navigation("StockMovement");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.InventoryStock", b =>

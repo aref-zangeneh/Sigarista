@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Inventory.Services;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Orders.Services;
@@ -118,6 +119,7 @@ internal static class OrderInventoryService
 
             var totalDeduction = recipeLine.Quantity * quantity;
             var movement = stock.Deduct(totalDeduction, line.PersianName, orderId, line.Id);
+            await InventoryLotAllocator.DeductAsync(dbContext, recipeLine.IngredientId, totalDeduction, cancellationToken);
             newMovements.Add(movement);
         }
 
@@ -167,6 +169,7 @@ internal static class OrderInventoryService
                 note: $"Order restore {orderId}",
                 orderId,
                 line.Id);
+            await InventoryLotAllocator.RestoreAsync(dbContext, recipeLine.IngredientId, totalRestore, cancellationToken);
             newMovements.Add(movement);
         }
 

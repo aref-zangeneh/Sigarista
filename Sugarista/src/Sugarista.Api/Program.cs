@@ -1,9 +1,11 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Sugarista.Api.Middleware;
 using Sugarista.Application;
 using Sugarista.Infrastructure;
+using Sugarista.Application.Common.Options;
 using Sugarista.Infrastructure.Auth;
 using Sugarista.Infrastructure.Data;
 
@@ -13,7 +15,11 @@ var configuration = builder.Configuration;
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AppCors", policy =>
@@ -68,6 +74,20 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AppCors");
+
+var fileStorageOptions = app.Configuration.GetSection(FileStorageOptions.SectionName).Get<FileStorageOptions>()
+    ?? new FileStorageOptions();
+var uploadsRoot = Path.IsPathRooted(fileStorageOptions.UploadRootPath)
+    ? fileStorageOptions.UploadRootPath
+    : Path.Combine(app.Environment.ContentRootPath, fileStorageOptions.UploadRootPath);
+Directory.CreateDirectory(Path.Combine(uploadsRoot, "inventory-documents"));
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsRoot),
+    RequestPath = "/api/files",
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

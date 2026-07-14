@@ -37,6 +37,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - api-uploads:/app/uploads
 
   admin-ui:
     build:
@@ -72,3 +74,4 @@ services:
 
 volumes:
   postgres-data:
+  api-uploads:

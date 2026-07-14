@@ -11,7 +11,8 @@ public record UpsertIngredientCommand(
     string Description,
     int DisplayOrder,
     bool IsActive,
-    string InventoryLocation = "main") : IRequest<Guid>;
+    string InventoryLocation = "main",
+    decimal UnitCost = 0) : IRequest<Guid>;
 
 public class UpsertIngredientCommandValidator : AbstractValidator<UpsertIngredientCommand>
 {
@@ -26,6 +27,7 @@ public class UpsertIngredientCommandValidator : AbstractValidator<UpsertIngredie
             .WithMessage($"Inventory location must be one of: {string.Join(", ", Ingredient.ValidLocations)}.");
         RuleFor(c => c.Description).MaximumLength(500);
         RuleFor(c => c.DisplayOrder).GreaterThanOrEqualTo(0);
+        RuleFor(c => c.UnitCost).GreaterThanOrEqualTo(0);
     }
 }
 
@@ -53,7 +55,8 @@ public class UpsertIngredientCommandHandler : IRequestHandler<UpsertIngredientCo
                 request.Description,
                 request.DisplayOrder,
                 request.IsActive,
-                request.InventoryLocation);
+                request.InventoryLocation,
+                request.UnitCost);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             return existing.Id;
@@ -66,7 +69,8 @@ public class UpsertIngredientCommandHandler : IRequestHandler<UpsertIngredientCo
             request.Description,
             request.DisplayOrder,
             request.IsActive,
-            request.InventoryLocation);
+            request.InventoryLocation,
+            request.UnitCost);
 
         _dbContext.Ingredients.Add(ingredient);
 

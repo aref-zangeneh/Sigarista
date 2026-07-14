@@ -29,7 +29,9 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
         services.Configure<PaymentOptions>(configuration.GetSection(PaymentOptions.SectionName));
+        services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");

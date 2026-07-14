@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Sugarista.Application.Ingredients.Commands.DeleteIngredient;
 using Sugarista.Application.Ingredients.Commands.UpsertIngredient;
 using Sugarista.Application.Ingredients.Queries.GetAdminIngredients;
+using Sugarista.Application.Ingredients.Queries.GetAdminIngredientOptions;
 using Sugarista.Application.Common.Models;
 using Sugarista.Domain.Constants;
 
@@ -20,6 +21,12 @@ public class AdminIngredientsController : ApiControllerBase
         CancellationToken cancellationToken = default)
     {
         return Ok(await Mediator.Send(new GetAdminIngredientsQuery(page, pageSize, search), cancellationToken));
+    }
+
+    [HttpGet("options")]
+    public async Task<ActionResult<IReadOnlyCollection<AdminIngredientOptionDto>>> GetOptions(CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetAdminIngredientOptionsQuery(), cancellationToken));
     }
 
     [HttpPost]

@@ -321,6 +321,7 @@ export function buildIngredientColumns({ setIngredientForm, emptyIngredientForm,
                   displayOrder: ingredient.displayOrder,
                   isActive: ingredient.isActive,
                   inventoryLocation: ingredient.inventoryLocation ?? 'main',
+                  unitCost: ingredient.unitCost ?? '',
                 })
               }
             >
@@ -702,6 +703,74 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEd
           مدیریت
         </button>
       ),
+    },
+  ]
+}
+
+export function buildInventoryPurchaseColumns({ toPersianNumber, formatMoney, expirationBadge }) {
+  return [
+    {
+      id: 'ingredient',
+      header: 'ماده اولیه',
+      accessorFn: (row) => `${row.ingredientPersianName} ${row.ingredientEnglishName}`,
+      cell: ({ row }) => (
+        <>
+          <strong>{row.original.ingredientPersianName}</strong>
+          <div className="table-subtext ltr-text">{row.original.ingredientEnglishName}</div>
+        </>
+      ),
+    },
+    {
+      id: 'quantity',
+      header: 'مقدار',
+      cell: ({ row }) => (
+        <>
+          {row.original.packageCount ? (
+            <div>{toPersianNumber(row.original.packageCount)} × {toPersianNumber(row.original.packageSize)} {row.original.unit}</div>
+          ) : null}
+          <strong>{toPersianNumber(row.original.quantity)} {row.original.unit}</strong>
+          <div className="table-subtext">باقی‌مانده: {toPersianNumber(row.original.remainingQuantity)}</div>
+        </>
+      ),
+    },
+    {
+      accessorKey: 'expirationDate',
+      header: 'انقضا',
+      cell: ({ row }) => (
+        <>
+          <span className="ltr-text">{row.original.expirationDate}</span>
+          <div>{expirationBadge(row.original.expirationStatus)}</div>
+        </>
+      ),
+    },
+    {
+      id: 'costs',
+      header: 'هزینه کل',
+      cell: ({ row }) => (
+        <>
+          <strong>{formatMoney(row.original.totalCost)}</strong>
+          {row.original.purchaseUnitPrice ? (
+            <div className="table-subtext">واحد: {formatMoney(row.original.purchaseUnitPrice)}</div>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      accessorKey: 'description',
+      header: 'توضیحات',
+      cell: ({ getValue }) => getValue() || '—',
+    },
+    {
+      id: 'document',
+      header: 'سند',
+      cell: ({ row }) =>
+        row.original.documentImageUrl ? (
+          <a className="purchase-doc-link ltr-text" href={row.original.documentImageUrl} target="_blank" rel="noreferrer">
+            مشاهده
+          </a>
+        ) : (
+          '—'
+        ),
     },
   ]
 }

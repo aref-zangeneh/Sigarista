@@ -24,6 +24,9 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
             .HasMaxLength(1000)
             .IsRequired();
 
+        builder.Property(item => item.RecipeDescription)
+            .HasMaxLength(4000);
+
         builder.Property(item => item.ImageUrl)
             .HasMaxLength(1000);
 

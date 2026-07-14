@@ -9,9 +9,9 @@ public class RecipeItem : BaseAuditableEntity
     {
     }
 
-    public RecipeItem(Guid menuItemId, Guid ingredientId, decimal quantity)
+    public RecipeItem(Guid menuItemId, Guid ingredientId, decimal quantity, string? preparationNote = null)
     {
-        Update(menuItemId, ingredientId, quantity);
+        Update(menuItemId, ingredientId, quantity, preparationNote);
     }
 
     public Guid MenuItemId { get; private set; }
@@ -24,7 +24,9 @@ public class RecipeItem : BaseAuditableEntity
 
     public decimal Quantity { get; private set; }
 
-    public void Update(Guid menuItemId, Guid ingredientId, decimal quantity)
+    public string? PreparationNote { get; private set; }
+
+    public void Update(Guid menuItemId, Guid ingredientId, decimal quantity, string? preparationNote = null)
     {
         if (menuItemId == Guid.Empty)
         {
@@ -44,5 +46,6 @@ public class RecipeItem : BaseAuditableEntity
         MenuItemId = menuItemId;
         IngredientId = ingredientId;
         Quantity = quantity;
+        PreparationNote = string.IsNullOrWhiteSpace(preparationNote) ? null : preparationNote.Trim();
     }
 }

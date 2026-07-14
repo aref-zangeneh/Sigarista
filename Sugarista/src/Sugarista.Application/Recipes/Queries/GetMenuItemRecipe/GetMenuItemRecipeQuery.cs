@@ -2,7 +2,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Sugarista.Application.Recipes.Queries.GetMenuItemRecipe;
 
-public record GetMenuItemRecipeQuery(Guid MenuItemId) : IRequest<IReadOnlyCollection<RecipeItemDto>>;
+public record GetMenuItemRecipeQuery(Guid MenuItemId) : IRequest<MenuItemRecipeDto>;
+
+public record MenuItemRecipeDto(
+    Guid MenuItemId,
+    string MenuItemPersianName,
+    string MenuItemEnglishName,
+    string? Description,
+    IReadOnlyCollection<RecipeItemDto> Lines);
 
 public record RecipeItemDto(
     Guid Id,
@@ -10,9 +17,10 @@ public record RecipeItemDto(
     string IngredientPersianName,
     string IngredientEnglishName,
     string Unit,
-    decimal Quantity);
+    decimal Quantity,
+    string? PreparationNote);
 
-public class GetMenuItemRecipeQueryHandler : IRequestHandler<GetMenuItemRecipeQuery, IReadOnlyCollection<RecipeItemDto>>
+public class GetMenuItemRecipeQueryHandler : IRequestHandler<GetMenuItemRecipeQuery, MenuItemRecipeDto>
 {
     private readonly IApplicationDbContext _dbContext;
 
@@ -21,26 +29,32 @@ public class GetMenuItemRecipeQueryHandler : IRequestHandler<GetMenuItemRecipeQu
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyCollection<RecipeItemDto>> Handle(GetMenuItemRecipeQuery request, CancellationToken cancellationToken)
+    public async Task<MenuItemRecipeDto> Handle(GetMenuItemRecipeQuery request, CancellationToken cancellationToken)
     {
-        var menuItemExists = await _dbContext.MenuItems
-            .AnyAsync(m => m.Id == request.MenuItemId, cancellationToken);
+        var menuItem = await _dbContext.MenuItems
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == request.MenuItemId, cancellationToken)
+            ?? throw new KeyNotFoundException("Menu item was not found.");
 
-        if (!menuItemExists)
-        {
-            throw new KeyNotFoundException("Menu item was not found.");
-        }
-
-        return await _dbContext.RecipeItems
+        var lines = await _dbContext.RecipeItems
             .AsNoTracking()
             .Where(r => r.MenuItemId == request.MenuItemId)
+            .OrderBy(r => r.Ingredient.PersianName)
             .Select(r => new RecipeItemDto(
                 r.Id,
                 r.IngredientId,
                 r.Ingredient.PersianName,
                 r.Ingredient.EnglishName,
                 r.Ingredient.Unit,
-                r.Quantity))
+                r.Quantity,
+                r.PreparationNote))
             .ToListAsync(cancellationToken);
+
+        return new MenuItemRecipeDto(
+            menuItem.Id,
+            menuItem.PersianName,
+            menuItem.EnglishName,
+            menuItem.RecipeDescription,
+            lines);
     }
 }

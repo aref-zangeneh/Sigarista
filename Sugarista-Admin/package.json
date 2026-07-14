@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@majidh1/jalalidatepicker": "^1.0.0",
     "@tanstack/react-table": "^8.21.3",
     "react": "^19.2.7",
+    "react-date-object": "^2.1.9",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {

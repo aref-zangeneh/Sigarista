@@ -138,7 +138,14 @@ public class MenuItem : BaseAuditableEntity
 
     public bool IsActive { get; private set; } = true;
 
+    public string? RecipeDescription { get; private set; }
+
     public ICollection<RecipeItem> RecipeItems { get; private set; } = [];
+
+    public void UpdateRecipeDescription(string? recipeDescription)
+    {
+        RecipeDescription = string.IsNullOrWhiteSpace(recipeDescription) ? null : recipeDescription.Trim();
+    }
 
     public void Update(
         Guid categoryId,

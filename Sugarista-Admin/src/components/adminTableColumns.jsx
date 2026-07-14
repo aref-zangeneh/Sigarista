@@ -707,7 +707,12 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEd
   ]
 }
 
-export function buildInventoryPurchaseColumns({ toPersianNumber, formatMoney, expirationBadge }) {
+export function buildInventoryPurchaseColumns({
+  toPersianNumber,
+  formatMoney,
+  expirationBadge,
+  formatShamsiDate = (value) => value ?? '—',
+}) {
   return [
     {
       id: 'ingredient',
@@ -738,7 +743,7 @@ export function buildInventoryPurchaseColumns({ toPersianNumber, formatMoney, ex
       header: 'انقضا',
       cell: ({ row }) => (
         <>
-          <span className="ltr-text">{row.original.expirationDate}</span>
+          <span className="ltr-text">{formatShamsiDate(row.original.expirationDate)}</span>
           <div>{expirationBadge(row.original.expirationStatus)}</div>
         </>
       ),
@@ -771,6 +776,74 @@ export function buildInventoryPurchaseColumns({ toPersianNumber, formatMoney, ex
         ) : (
           '—'
         ),
+    },
+  ]
+}
+
+export function buildProductionPreviewColumns({ toPersianNumber, quantityProduced }) {
+  return [
+    {
+      id: 'name',
+      header: 'ماده اولیه',
+      accessorFn: (row) => `${row.ingredientPersianName} ${row.ingredientEnglishName}`,
+      cell: ({ row }) => (
+        <>
+          <strong>{row.original.ingredientPersianName}</strong>
+          <div className="table-subtext ltr-text">{row.original.ingredientEnglishName}</div>
+        </>
+      ),
+    },
+    {
+      id: 'perItem',
+      header: 'مقدار هر واحد',
+      cell: ({ row }) => (
+        <span className="ltr-text">
+          {row.original.perItemQuantity} {row.original.unit}
+        </span>
+      ),
+      meta: { className: 'ltr-text' },
+    },
+    {
+      id: 'total',
+      header: `مجموع کسر (${toPersianNumber(quantityProduced || 1)} عدد)`,
+      cell: ({ row }) => (
+        <span className="ltr-text">
+          {row.original.totalQuantity ?? row.original.amountDeducted} {row.original.unit}
+        </span>
+      ),
+      meta: { className: 'ltr-text' },
+    },
+  ]
+}
+
+export function buildProductionBatchColumns({ toPersianNumber }) {
+  return [
+    {
+      id: 'menuItem',
+      header: 'محصول',
+      accessorFn: (row) => `${row.menuItemPersianName} ${row.menuItemEnglishName}`,
+      cell: ({ row }) => (
+        <>
+          <strong>{row.original.menuItemPersianName}</strong>
+          <div className="table-subtext ltr-text">{row.original.menuItemEnglishName}</div>
+        </>
+      ),
+    },
+    {
+      accessorKey: 'quantityProduced',
+      header: 'تعداد تولید',
+      cell: ({ getValue }) => toPersianNumber(getValue()),
+    },
+    {
+      accessorKey: 'note',
+      header: 'یادداشت',
+      cell: ({ getValue }) => getValue() || '—',
+    },
+    {
+      accessorKey: 'producedAt',
+      header: 'زمان تولید',
+      cell: ({ getValue }) =>
+        new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(getValue())),
     },
   ]
 }

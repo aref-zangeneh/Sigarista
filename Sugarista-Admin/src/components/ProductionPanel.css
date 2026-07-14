@@ -1,0 +1,55 @@
+.production-panel .production-stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.production-stock-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.production-stock-card--low {
+  border-color: rgba(220, 120, 40, 0.35);
+  background: rgba(220, 120, 40, 0.05);
+}
+
+.production-stock-qty {
+  margin: 6px 0 0;
+  font-size: 1.35rem;
+  color: var(--heading);
+}
+
+.production-empty-note,
+.production-preview-note,
+.production-current-stock {
+  margin: 0;
+  color: var(--muted);
+}
+
+.production-preview-note--warning {
+  color: #b54708;
+}
+
+.production-preview,
+.production-result {
+  display: grid;
+  gap: 10px;
+}
+
+.production-result-stock {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(34, 139, 87, 0.08);
+  color: var(--heading);
+}
+
+.production-result h5 {
+  margin: 0;
+  color: var(--heading);
+}

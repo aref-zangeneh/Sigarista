@@ -12,6 +12,9 @@ public class RecipeItemConfiguration : IEntityTypeConfiguration<RecipeItem>
             .HasColumnType("numeric(10,3)")
             .IsRequired();
 
+        builder.Property(r => r.PreparationNote)
+            .HasMaxLength(1000);
+
         builder.HasOne(r => r.MenuItem)
             .WithMany(m => m.RecipeItems)
             .HasForeignKey(r => r.MenuItemId)

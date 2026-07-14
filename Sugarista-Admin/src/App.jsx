@@ -3,6 +3,8 @@ import { DataTable, formatMoney } from './components/DataTable'
 import { PaginatedAdminTable } from './components/PaginatedAdminTable'
 import { DashboardOverview } from './components/DashboardOverview'
 import { InventoryPurchasesPanel } from './components/InventoryPurchasesPanel'
+import { ProductionPanel } from './components/ProductionPanel'
+import { ProductWikiPanel } from './components/ProductWikiPanel'
 import {
   buildAddonColumns,
   buildCategoryColumns,
@@ -30,8 +32,10 @@ const tabOptions = [
   { id: 'modifiers', label: 'تغییرات سفارش' },
   { id: 'ingredients', label: 'مواد اولیه' },
   { id: 'recipes', label: 'دستور پخت' },
+  { id: 'product-wiki', label: 'ویکی محصولات' },
   { id: 'inventory', label: 'انبار موجودی' },
   { id: 'inventory-purchases', label: 'خرید مواد اولیه' },
+  { id: 'production', label: 'تولید' },
   { id: 'record-sale', label: 'ثبت فروش' },
   { id: 'orders', label: 'سفارش‌ها' },
   { id: 'site-settings', label: 'تنظیمات سایت' },
@@ -131,6 +135,7 @@ const emptyRecipeLineForm = {
 
 const emptyRecipeState = {
   selectedMenuItemId: '',
+  description: '',
   lines: [],
   lineForm: emptyRecipeLineForm,
 }
@@ -401,10 +406,8 @@ async function apiRequest(path, { method = 'GET', body, token } = {}) {
 
     try {
       const payload = await response.json()
-      message =
-        payload.detail ||
-        payload.title ||
-        (payload.errors ? Object.values(payload.errors).flat().join('، ') : message)
+      const fieldErrors = payload.errors ? Object.values(payload.errors).flat().join('، ') : ''
+      message = fieldErrors || payload.detail || payload.title || message
     } catch {
       // Ignore invalid JSON payloads and keep the fallback message.
     }
@@ -417,6 +420,17 @@ async function apiRequest(path, { method = 'GET', body, token } = {}) {
   }
 
   return response.json()
+}
+
+function normalizeRecipeResponse(payload) {
+  if (Array.isArray(payload)) {
+    return { description: '', lines: payload }
+  }
+
+  return {
+    description: payload?.description ?? '',
+    lines: payload?.lines ?? [],
+  }
 }
 
 function App() {
@@ -507,9 +521,11 @@ function App() {
     async function loadSalePreview() {
       setSalePreviewLoading(true)
       try {
-        const recipeLines = await apiRequest(`/admin/recipes/${saleForm.menuItemId}`, {
-          token: session.token,
-        })
+        const recipe = normalizeRecipeResponse(
+          await apiRequest(`/admin/recipes/${saleForm.menuItemId}`, {
+            token: session.token,
+          }),
+        )
 
         if (cancelled) {
           return
@@ -517,7 +533,7 @@ function App() {
 
         const soldCount = Number(saleForm.quantitySold) || 1
         setSalePreview(
-          recipeLines.map((line) => ({
+          recipe.lines.map((line) => ({
             ingredientPersianName: line.ingredientPersianName,
             ingredientEnglishName: line.ingredientEnglishName,
             unit: line.unit,
@@ -2715,6 +2731,7 @@ function App() {
                     setRecipeState((current) => ({
                       ...current,
                       selectedMenuItemId: menuItemId,
+                      description: '',
                       lines: [],
                       lineForm: emptyRecipeLineForm,
                     }))
@@ -2724,8 +2741,14 @@ function App() {
                     }
 
                     try {
-                      const lines = await apiRequest(`/admin/recipes/${menuItemId}`, { token: session.token })
-                      setRecipeState((current) => ({ ...current, lines }))
+                      const recipe = normalizeRecipeResponse(
+                        await apiRequest(`/admin/recipes/${menuItemId}`, { token: session.token }),
+                      )
+                      setRecipeState((current) => ({
+                        ...current,
+                        description: recipe.description,
+                        lines: recipe.lines,
+                      }))
                     } catch (requestError) {
                       setError(getReadableError(requestError))
                     }
@@ -2742,6 +2765,50 @@ function App() {
             </section>
 
             {recipeState.selectedMenuItemId ? (
+              <>
+                <section className="panel form-panel">
+                  <div className="panel-head">
+                    <div>
+                      <h3>توضیحات دستور پخت</h3>
+                      <p>شرح کامل آماده‌سازی محصول — مثلاً: «لاته با ۴۵ میلی‌لیتر اسپرسو و ۱۵۰ میلی‌لیتر شیر...»</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={async () => {
+                        setSaving(true)
+                        setError('')
+                        setMessage('')
+                        try {
+                          await apiRequest(`/admin/recipes/${recipeState.selectedMenuItemId}/description`, {
+                            method: 'PUT',
+                            token: session.token,
+                            body: { description: recipeState.description.trim() || null },
+                          })
+                          setMessage('توضیحات دستور پخت ذخیره شد.')
+                        } catch (requestError) {
+                          setError(getReadableError(requestError))
+                        } finally {
+                          setSaving(false)
+                        }
+                      }}
+                    >
+                      {saving ? 'در حال ذخیره...' : 'ذخیره توضیحات'}
+                    </button>
+                  </div>
+                  <label>
+                    <span>شرح دستور پخت</span>
+                    <textarea
+                      rows="5"
+                      value={recipeState.description}
+                      onChange={(event) =>
+                        setRecipeState((current) => ({ ...current, description: event.target.value }))
+                      }
+                      placeholder="مثال: Ice Latte — 45ml espresso + 150ml milk + ice..."
+                    />
+                  </label>
+                </section>
+
               <section className="two-column-layout">
                 <form
                   className="panel form-panel"
@@ -2772,10 +2839,12 @@ function App() {
                       }))
                       setMessage('خط دستور پخت ذخیره شد.')
 
-                      const lines = await apiRequest(`/admin/recipes/${recipeState.selectedMenuItemId}`, {
-                        token: session.token,
-                      })
-                      setRecipeState((current) => ({ ...current, lines }))
+                      const recipe = normalizeRecipeResponse(
+                        await apiRequest(`/admin/recipes/${recipeState.selectedMenuItemId}`, {
+                          token: session.token,
+                        }),
+                      )
+                      setRecipeState((current) => ({ ...current, lines: recipe.lines }))
                     } catch (requestError) {
                       setError(getReadableError(requestError))
                     } finally {
@@ -2802,7 +2871,7 @@ function App() {
                       }
                     >
                       <option value="">-- انتخاب ماده اولیه --</option>
-                      {ingredients
+                      {(ingredientOptions ?? [])
                         .filter((ingredient) => ingredient.isActive)
                         .map((ingredient) => (
                           <option key={ingredient.id} value={ingredient.id}>
@@ -2836,7 +2905,7 @@ function App() {
                 <section className="panel list-panel">
                   <div className="panel-head">
                     <div>
-                      <h3>دستور پخت</h3>
+                      <h3>مواد اولیه دستور پخت</h3>
                       <p>
                         {recipeState.lines.length === 0
                           ? 'هنوز هیچ ماده‌ای ثبت نشده.'
@@ -2844,6 +2913,12 @@ function App() {
                       </p>
                     </div>
                   </div>
+                  {recipeState.description ? (
+                    <div className="recipe-description-preview">
+                      <strong>توضیحات:</strong>
+                      <p>{recipeState.description}</p>
+                    </div>
+                  ) : null}
                   <DataTable
                     data={recipeState.lines}
                     columns={recipeColumns}
@@ -2852,8 +2927,23 @@ function App() {
                   />
                 </section>
               </section>
+              </>
             ) : null}
           </section>
+        ) : null}
+
+        {activeTab === 'product-wiki' ? (
+          <ProductWikiPanel
+            session={session}
+            menuItemOptions={menuItemOptions}
+            ingredientOptions={ingredientOptions}
+            apiRequest={apiRequest}
+            getReadableError={getReadableError}
+            setMessage={setMessage}
+            setError={setError}
+            saving={saving}
+            setSaving={setSaving}
+          />
         ) : null}
 
         {activeTab === 'inventory' ? (
@@ -3077,13 +3167,28 @@ function App() {
           />
         ) : null}
 
+        {activeTab === 'production' ? (
+          <ProductionPanel
+            session={session}
+            menuItemOptions={menuItemOptions}
+            apiRequest={apiRequest}
+            getReadableError={getReadableError}
+            tableReloadToken={tableReloadToken}
+            bumpTableReload={bumpTableReload}
+            setMessage={setMessage}
+            setError={setError}
+            saving={saving}
+            setSaving={setSaving}
+          />
+        ) : null}
+
         {activeTab === 'record-sale' ? (
           <section className="panel-stack">
             <section className="panel">
               <div className="panel-head">
                 <div>
                   <h3>ثبت فروش</h3>
-                  <p>پس از ثبت، موجودی مواد اولیه مطابق دستور پخت کسر می‌شود.</p>
+                  <p>اگر محصول از قبل تولید شده باشد، از موجودی یخچال کسر می‌شود؛ در غیر این صورت مواد اولیه مطابق دستور پخت کسر می‌شود.</p>
                 </div>
                 {saleResult ? (
                   <button type="button" className="ghost-button" onClick={() => setSaleResult(null)}>فروش جدید</button>
@@ -3170,13 +3275,20 @@ function App() {
               ) : (
                 <div className="sale-result">
                   <h4>نتیجه ثبت فروش: {saleResult.menuItemName} × {toPersianNumber(saleResult.quantitySold)}</h4>
-                  <DataTable
-                    data={saleResult.deductions}
-                    columns={saleResultColumns}
-                    enableSearch={false}
-                    enablePagination={false}
-                    compact
-                  />
+                  {saleResult.deductedFromProducedStock ? (
+                    <p className="sale-preview-note">
+                      از موجودی تولید (یخچال) کسر شد. موجودی باقی‌مانده:{' '}
+                      <strong>{toPersianNumber(saleResult.producedStockAfter ?? 0)}</strong> عدد
+                    </p>
+                  ) : (
+                    <DataTable
+                      data={saleResult.deductions}
+                      columns={saleResultColumns}
+                      enableSearch={false}
+                      enablePagination={false}
+                      compact
+                    />
+                  )}
                 </div>
               )}
             </section>

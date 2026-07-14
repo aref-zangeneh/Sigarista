@@ -1,0 +1,51 @@
+.shamsi-date-field {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.shamsi-date-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.shamsi-date-input:focus {
+  outline: 2px solid rgba(170, 49, 113, 0.25);
+  border-color: rgba(170, 49, 113, 0.45);
+}
+
+.jdp-container {
+  direction: rtl;
+  font-family: inherit;
+  z-index: 4000 !important;
+}
+
+.jdp-overlay {
+  z-index: 3999 !important;
+}
+
+.jdp-day.selected span {
+  background: #aa3171 !important;
+}
+
+.jdp-day:not(.disabled-day):hover span {
+  background: rgba(170, 49, 113, 0.18) !important;
+}
+
+.jdp-btn-today,
+.jdp-btn-empty,
+.jdp-btn-close {
+  font-family: inherit;
+}
+
+.jdp-year select,
+.jdp-month select {
+  font-family: inherit;
+}

@@ -8,6 +8,7 @@ public enum StockMovementType
     ManualAdjustment,
     SaleDeduction,
     SaleReversal,
+    ProductionDeduction,
 }
 
 public class StockMovement : BaseEntity
@@ -33,6 +34,8 @@ public class StockMovement : BaseEntity
 
     public Guid? OrderLineId { get; private set; }
 
+    public Guid? ProductionBatchId { get; private set; }
+
     public DateTimeOffset OccurredAt { get; private set; }
 
     internal static StockMovement Create(
@@ -42,7 +45,8 @@ public class StockMovement : BaseEntity
         string? note,
         string? sourceMenuItemName,
         Guid? orderId = null,
-        Guid? orderLineId = null)
+        Guid? orderLineId = null,
+        Guid? productionBatchId = null)
     {
         return new StockMovement
         {
@@ -53,6 +57,7 @@ public class StockMovement : BaseEntity
             SourceMenuItemName = string.IsNullOrWhiteSpace(sourceMenuItemName) ? null : sourceMenuItemName.Trim(),
             OrderId = orderId,
             OrderLineId = orderLineId,
+            ProductionBatchId = productionBatchId,
             OccurredAt = DateTimeOffset.UtcNow,
         };
     }

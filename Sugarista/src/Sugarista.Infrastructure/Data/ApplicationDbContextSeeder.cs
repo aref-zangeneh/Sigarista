@@ -45,6 +45,67 @@ public class ApplicationDbContextSeeder
         await _dbContext.Database.ExecuteSqlRawAsync(
             """
             ALTER TABLE "Ingredients" ADD COLUMN IF NOT EXISTS "UnitCost" numeric(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "RecipeDescription" character varying(4000);
+            ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
+            CREATE TABLE IF NOT EXISTS "ProductWikiGuides" (
+                "Id" uuid NOT NULL,
+                "MenuItemId" uuid NOT NULL,
+                "Overview" character varying(4000),
+                "QualityStandards" character varying(4000),
+                "EquipmentNotes" character varying(2000),
+                "ServingNotes" character varying(2000),
+                "IsPublished" boolean NOT NULL DEFAULT FALSE,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_ProductWikiGuides" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ProductWikiGuides_MenuItemId" ON "ProductWikiGuides" ("MenuItemId");
+            CREATE TABLE IF NOT EXISTS "ProductWikiSteps" (
+                "Id" uuid NOT NULL,
+                "MenuItemId" uuid NOT NULL,
+                "StepOrder" integer NOT NULL,
+                "Title" character varying(200) NOT NULL,
+                "Instructions" character varying(4000) NOT NULL,
+                "DurationMinutes" integer,
+                "IsQualityCheckpoint" boolean NOT NULL DEFAULT FALSE,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_ProductWikiSteps" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ProductWikiSteps_MenuItemId_StepOrder" ON "ProductWikiSteps" ("MenuItemId", "StepOrder");
+            ALTER TABLE "StockMovements" ADD COLUMN IF NOT EXISTS "ProductionBatchId" uuid;
+            CREATE TABLE IF NOT EXISTS "MenuItemStocks" (
+                "Id" uuid NOT NULL,
+                "MenuItemId" uuid NOT NULL,
+                "CurrentQuantity" numeric(12,3) NOT NULL DEFAULT 0,
+                "MinAlertQuantity" numeric(12,3) NOT NULL DEFAULT 0,
+                "LastUpdatedAt" timestamp with time zone NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_MenuItemStocks" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_MenuItemStocks_MenuItemId" ON "MenuItemStocks" ("MenuItemId");
+            CREATE TABLE IF NOT EXISTS "ProductionBatches" (
+                "Id" uuid NOT NULL,
+                "MenuItemId" uuid NOT NULL,
+                "QuantityProduced" numeric(12,3) NOT NULL,
+                "Note" character varying(1000),
+                "ProducedAt" timestamp with time zone NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_ProductionBatches" PRIMARY KEY ("Id")
+            );
+            CREATE INDEX IF NOT EXISTS "IX_ProductionBatches_MenuItemId" ON "ProductionBatches" ("MenuItemId");
+            CREATE INDEX IF NOT EXISTS "IX_ProductionBatches_ProducedAt" ON "ProductionBatches" ("ProducedAt");
+            CREATE INDEX IF NOT EXISTS "IX_StockMovements_ProductionBatchId" ON "StockMovements" ("ProductionBatchId");
             """,
             cancellationToken);
     }

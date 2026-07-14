@@ -1,0 +1,92 @@
+.product-wiki .wiki-selector-panel {
+  margin-bottom: 0;
+}
+
+.product-wiki .wiki-section {
+  display: grid;
+  gap: 14px;
+}
+
+.product-wiki .wiki-section-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.product-wiki .wiki-step-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  background: rgba(170, 49, 113, 0.03);
+}
+
+.product-wiki .wiki-step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.product-wiki .wiki-step-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(170, 49, 113, 0.12);
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.product-wiki .wiki-step-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.product-wiki .wiki-recipe-row {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.product-wiki .wiki-recipe-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.product-wiki .wiki-qc-badge {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(220, 120, 40, 0.12);
+  color: #b54708;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.product-wiki .wiki-preview {
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  background: #fff;
+}
+
+.product-wiki .wiki-preview-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+}
+
+.product-wiki .wiki-empty-hint {
+  margin: 0;
+  color: var(--muted);
+}

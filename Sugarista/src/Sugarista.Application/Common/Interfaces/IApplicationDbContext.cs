@@ -22,6 +22,14 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.InventoryPurchase> InventoryPurchases { get; }
 
+    DbSet<Sugarista.Domain.Entities.MenuItemStock> MenuItemStocks { get; }
+
+    DbSet<Sugarista.Domain.Entities.ProductionBatch> ProductionBatches { get; }
+
+    DbSet<Sugarista.Domain.Entities.ProductWikiGuide> ProductWikiGuides { get; }
+
+    DbSet<Sugarista.Domain.Entities.ProductWikiStep> ProductWikiSteps { get; }
+
     DbSet<Sugarista.Domain.Entities.Order> Orders { get; }
 
     DbSet<Sugarista.Domain.Entities.OrderLine> OrderLines { get; }

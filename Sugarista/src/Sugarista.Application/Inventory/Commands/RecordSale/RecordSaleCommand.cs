@@ -17,6 +17,8 @@ public record RecordSaleDeductionDto(
 public record RecordSaleResultDto(
     string MenuItemName,
     int QuantitySold,
+    bool DeductedFromProducedStock,
+    decimal? ProducedStockAfter,
     IReadOnlyCollection<RecordSaleDeductionDto> Deductions);
 
 public class RecordSaleCommandValidator : AbstractValidator<RecordSaleCommand>
@@ -44,51 +46,54 @@ public class RecordSaleCommandHandler : IRequestHandler<RecordSaleCommand, Recor
             .FirstOrDefaultAsync(m => m.Id == request.MenuItemId, cancellationToken)
             ?? throw new KeyNotFoundException("Menu item was not found.");
 
-        var recipeLines = await _dbContext.RecipeItems
-            .AsNoTracking()
-            .Where(r => r.MenuItemId == request.MenuItemId)
-            .Include(r => r.Ingredient)
-            .ToListAsync(cancellationToken);
+        var hasRecipe = await _dbContext.RecipeItems
+            .AnyAsync(r => r.MenuItemId == request.MenuItemId, cancellationToken);
 
-        if (recipeLines.Count == 0)
+        if (!hasRecipe)
         {
-            throw new InvalidOperationException($"No recipe is defined for '{menuItem.PersianName}'. Add a recipe before recording sales.");
+            throw new InvalidOperationException(
+                $"No recipe is defined for '{menuItem.PersianName}'. Add a recipe before recording sales.");
         }
 
-        var ingredientIds = recipeLines.Select(r => r.IngredientId).ToList();
+        var soldFromStock = await MenuItemStockService.TryDeductFinishedStockAsync(
+            _dbContext,
+            request.MenuItemId,
+            request.QuantitySold,
+            cancellationToken);
 
-        var stocks = await _dbContext.InventoryStocks
-            .Where(s => ingredientIds.Contains(s.IngredientId))
-            .ToListAsync(cancellationToken);
-
-        var deductions = new List<RecordSaleDeductionDto>();
-        var newMovements = new List<Domain.Entities.StockMovement>();
-
-        foreach (var line in recipeLines)
+        if (soldFromStock)
         {
-            var stock = stocks.FirstOrDefault(s => s.IngredientId == line.IngredientId);
-            if (stock is null)
-            {
-                continue;
-            }
+            var stock = await MenuItemStockService.GetStockAsync(_dbContext, request.MenuItemId, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
 
-            var totalDeduction = line.Quantity * request.QuantitySold;
-            var stockBefore = stock.CurrentQuantity;
-            var movement = stock.Deduct(totalDeduction, menuItem.PersianName);
-            await InventoryLotAllocator.DeductAsync(_dbContext, line.IngredientId, totalDeduction, cancellationToken);
-            newMovements.Add(movement);
-
-            deductions.Add(new RecordSaleDeductionDto(
-                line.Ingredient.PersianName,
-                line.Ingredient.Unit,
-                totalDeduction,
-                stock.CurrentQuantity,
-                stockBefore < totalDeduction));
+            return new RecordSaleResultDto(
+                menuItem.PersianName,
+                request.QuantitySold,
+                true,
+                stock?.CurrentQuantity,
+                []);
         }
 
-        _dbContext.StockMovements.AddRange(newMovements);
+        var deductions = await RecipeInventoryService.DeductIngredientsForMenuItemAsync(
+            _dbContext,
+            request.MenuItemId,
+            menuItem.PersianName,
+            request.QuantitySold,
+            Domain.Entities.StockMovementType.SaleDeduction,
+            cancellationToken: cancellationToken);
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return new RecordSaleResultDto(menuItem.PersianName, request.QuantitySold, deductions);
+        return new RecordSaleResultDto(
+            menuItem.PersianName,
+            request.QuantitySold,
+            false,
+            null,
+            deductions.Select(d => new RecordSaleDeductionDto(
+                d.IngredientPersianName,
+                d.Unit,
+                d.AmountDeducted,
+                d.StockAfter,
+                d.WentNegative)).ToList());
     }
 }

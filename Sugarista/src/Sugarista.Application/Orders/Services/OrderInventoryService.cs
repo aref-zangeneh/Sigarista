@@ -91,42 +91,24 @@ internal static class OrderInventoryService
         int quantity,
         CancellationToken cancellationToken)
     {
-        var recipeLines = await dbContext.RecipeItems
-            .AsNoTracking()
-            .Where(r => r.MenuItemId == line.MenuItemId)
-            .Include(r => r.Ingredient)
-            .ToListAsync(cancellationToken);
-
-        if (recipeLines.Count == 0)
+        if (await MenuItemStockService.TryDeductFinishedStockAsync(
+                dbContext,
+                line.MenuItemId,
+                quantity,
+                cancellationToken))
         {
             return;
         }
 
-        var ingredientIds = recipeLines.Select(r => r.IngredientId).ToList();
-        var stocks = await dbContext.InventoryStocks
-            .Where(s => ingredientIds.Contains(s.IngredientId))
-            .ToListAsync(cancellationToken);
-
-        var newMovements = new List<StockMovement>();
-
-        foreach (var recipeLine in recipeLines)
-        {
-            var stock = stocks.FirstOrDefault(s => s.IngredientId == recipeLine.IngredientId);
-            if (stock is null)
-            {
-                continue;
-            }
-
-            var totalDeduction = recipeLine.Quantity * quantity;
-            var movement = stock.Deduct(totalDeduction, line.PersianName, orderId, line.Id);
-            await InventoryLotAllocator.DeductAsync(dbContext, recipeLine.IngredientId, totalDeduction, cancellationToken);
-            newMovements.Add(movement);
-        }
-
-        if (newMovements.Count > 0)
-        {
-            dbContext.StockMovements.AddRange(newMovements);
-        }
+        await RecipeInventoryService.DeductIngredientsForMenuItemAsync(
+            dbContext,
+            line.MenuItemId,
+            line.PersianName,
+            quantity,
+            StockMovementType.SaleDeduction,
+            orderId: orderId,
+            orderLineId: line.Id,
+            cancellationToken: cancellationToken);
     }
 
     private static async Task RestoreLineQuantityAsync(
@@ -136,46 +118,23 @@ internal static class OrderInventoryService
         int quantity,
         CancellationToken cancellationToken)
     {
-        var recipeLines = await dbContext.RecipeItems
-            .AsNoTracking()
-            .Where(r => r.MenuItemId == line.MenuItemId)
-            .Include(r => r.Ingredient)
-            .ToListAsync(cancellationToken);
-
-        if (recipeLines.Count == 0)
+        if (await MenuItemStockService.TryRestoreFinishedStockAsync(
+                dbContext,
+                line.MenuItemId,
+                quantity,
+                cancellationToken))
         {
             return;
         }
 
-        var ingredientIds = recipeLines.Select(r => r.IngredientId).ToList();
-        var stocks = await dbContext.InventoryStocks
-            .Where(s => ingredientIds.Contains(s.IngredientId))
-            .ToListAsync(cancellationToken);
-
-        var newMovements = new List<StockMovement>();
-
-        foreach (var recipeLine in recipeLines)
-        {
-            var stock = stocks.FirstOrDefault(s => s.IngredientId == recipeLine.IngredientId);
-            if (stock is null)
-            {
-                continue;
-            }
-
-            var totalRestore = recipeLine.Quantity * quantity;
-            var movement = stock.Restore(
-                totalRestore,
-                line.PersianName,
-                note: $"Order restore {orderId}",
-                orderId,
-                line.Id);
-            await InventoryLotAllocator.RestoreAsync(dbContext, recipeLine.IngredientId, totalRestore, cancellationToken);
-            newMovements.Add(movement);
-        }
-
-        if (newMovements.Count > 0)
-        {
-            dbContext.StockMovements.AddRange(newMovements);
-        }
+        await RecipeInventoryService.RestoreIngredientsForMenuItemAsync(
+            dbContext,
+            line.MenuItemId,
+            line.PersianName,
+            quantity,
+            note: $"Order restore {orderId}",
+            orderId: orderId,
+            orderLineId: line.Id,
+            cancellationToken: cancellationToken);
     }
 }

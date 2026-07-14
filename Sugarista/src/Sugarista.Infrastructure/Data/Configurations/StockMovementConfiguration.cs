@@ -25,6 +25,7 @@ public class StockMovementConfiguration : IEntityTypeConfiguration<StockMovement
 
         builder.HasIndex(m => m.OrderId);
         builder.HasIndex(m => m.OrderLineId);
+        builder.HasIndex(m => m.ProductionBatchId);
 
         builder.HasOne(m => m.Stock)
             .WithMany(s => s.Movements)

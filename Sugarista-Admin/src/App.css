@@ -54,6 +54,19 @@
   gap: 16px;
 }
 
+.recipe-description-preview {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(170, 49, 113, 0.05);
+  border: 1px solid var(--border);
+}
+
+.recipe-description-preview p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
 .login-form {
   margin-top: 24px;
 }

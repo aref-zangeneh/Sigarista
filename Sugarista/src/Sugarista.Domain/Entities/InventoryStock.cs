@@ -93,6 +93,25 @@ public class InventoryStock : BaseAuditableEntity
             orderLineId);
     }
 
+    public StockMovement DeductForProduction(decimal quantity, string menuItemName, Guid productionBatchId)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("Deduction quantity must be greater than zero.");
+        }
+
+        CurrentQuantity -= quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            -quantity,
+            StockMovementType.ProductionDeduction,
+            note: "تولید محصول",
+            sourceMenuItemName: menuItemName,
+            productionBatchId: productionBatchId);
+    }
+
     public StockMovement Restore(decimal quantity, string menuItemName, string? note = null, Guid? orderId = null, Guid? orderLineId = null)
     {
         if (quantity <= 0)

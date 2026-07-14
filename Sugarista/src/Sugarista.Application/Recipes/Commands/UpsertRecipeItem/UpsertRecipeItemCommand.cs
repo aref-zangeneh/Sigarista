@@ -6,7 +6,8 @@ namespace Sugarista.Application.Recipes.Commands.UpsertRecipeItem;
 public record UpsertRecipeItemCommand(
     Guid MenuItemId,
     Guid IngredientId,
-    decimal Quantity) : IRequest<Guid>;
+    decimal Quantity,
+    string? PreparationNote = null) : IRequest<Guid>;
 
 public class UpsertRecipeItemCommandValidator : AbstractValidator<UpsertRecipeItemCommand>
 {
@@ -15,6 +16,7 @@ public class UpsertRecipeItemCommandValidator : AbstractValidator<UpsertRecipeIt
         RuleFor(c => c.MenuItemId).NotEmpty();
         RuleFor(c => c.IngredientId).NotEmpty();
         RuleFor(c => c.Quantity).GreaterThan(0);
+        RuleFor(c => c.PreparationNote).MaximumLength(1000).When(c => c.PreparationNote is not null);
     }
 }
 
@@ -51,12 +53,16 @@ public class UpsertRecipeItemCommandHandler : IRequestHandler<UpsertRecipeItemCo
 
         if (existing is not null)
         {
-            existing.Update(request.MenuItemId, request.IngredientId, request.Quantity);
+            existing.Update(request.MenuItemId, request.IngredientId, request.Quantity, request.PreparationNote);
             await _dbContext.SaveChangesAsync(cancellationToken);
             return existing.Id;
         }
 
-        var recipeItem = new RecipeItem(request.MenuItemId, request.IngredientId, request.Quantity);
+        var recipeItem = new RecipeItem(
+            request.MenuItemId,
+            request.IngredientId,
+            request.Quantity,
+            request.PreparationNote);
         _dbContext.RecipeItems.Add(recipeItem);
         await _dbContext.SaveChangesAsync(cancellationToken);
 

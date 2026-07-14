@@ -31,6 +31,14 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<InventoryPurchase> InventoryPurchases => Set<InventoryPurchase>();
 
+    public DbSet<MenuItemStock> MenuItemStocks => Set<MenuItemStock>();
+
+    public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
+
+    public DbSet<ProductWikiGuide> ProductWikiGuides => Set<ProductWikiGuide>();
+
+    public DbSet<ProductWikiStep> ProductWikiSteps => Set<ProductWikiStep>();
+
     public DbSet<Order> Orders => Set<Order>();
 
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();

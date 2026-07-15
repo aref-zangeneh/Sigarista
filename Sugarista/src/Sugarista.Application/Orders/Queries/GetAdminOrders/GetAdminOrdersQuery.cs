@@ -17,8 +17,12 @@ public record AdminOrderListItemDto(
     bool IsSplitBill,
     int? GuestCount,
     string Status,
+    string FulfillmentStatus,
     DateTimeOffset CreatedAt,
     DateTimeOffset? PaidAt,
+    DateTimeOffset? FulfillmentUpdatedAt,
+    DateTimeOffset? ReadyAt,
+    DateTimeOffset? ReadySmsSentAt,
     int LineCount);
 
 public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, PaginatedList<AdminOrderListItemDto>>
@@ -57,8 +61,12 @@ public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, P
                 order.IsSplitBill,
                 order.GuestCount,
                 order.Status.ToString(),
+                order.FulfillmentStatus.ToString(),
                 order.CreatedAt,
                 order.PaidAt,
+                order.FulfillmentUpdatedAt,
+                order.ReadyAt,
+                order.ReadySmsSentAt,
                 order.Lines.Count))
             .ToPaginatedListAsync(pagination, cancellationToken);
     }

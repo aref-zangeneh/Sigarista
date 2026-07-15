@@ -660,7 +660,18 @@ function orderStatusBadge(status) {
   return <span className="stock-badge">{status}</span>
 }
 
-export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEditor }) {
+function fulfillmentStatusBadge(status) {
+  if (!status || status === 'None' || status === '') {
+    return <span className="fulfillment-badge fulfillment-badge--registered">سفارش ثبت شده</span>
+  }
+  if (status === 'Registered') return <span className="fulfillment-badge fulfillment-badge--registered">سفارش ثبت شده</span>
+  if (status === 'Preparing') return <span className="fulfillment-badge fulfillment-badge--preparing">در حال آماده‌سازی</span>
+  if (status === 'Ready') return <span className="fulfillment-badge fulfillment-badge--ready">سفارش آماده</span>
+  if (status === 'Completed') return <span className="fulfillment-badge fulfillment-badge--completed">تحویل داده شد</span>
+  return <span className="fulfillment-badge">{status}</span>
+}
+
+export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEditor, updateOrderFulfillment, saving }) {
   return [
     { accessorKey: 'trackingCode', header: 'کد پیگیری', meta: { className: 'ltr-text' } },
     { accessorKey: 'customerName', header: 'مشتری' },
@@ -681,8 +692,13 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEd
     },
     {
       accessorKey: 'status',
-      header: 'وضعیت',
+      header: 'پرداخت',
       cell: ({ getValue }) => orderStatusBadge(getValue()),
+    },
+    {
+      accessorKey: 'fulfillmentStatus',
+      header: 'آماده‌سازی',
+      cell: ({ getValue }) => fulfillmentStatusBadge(getValue()),
     },
     {
       accessorKey: 'createdAt',
@@ -699,9 +715,48 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEd
       header: 'عملیات',
       enableSorting: false,
       cell: ({ row }) => (
-        <button type="button" className="link-button" onClick={() => openOrderEditor(row.original)}>
-          مدیریت
-        </button>
+        <div className="order-fulfillment-actions">
+          {row.original.status === 'Paid' &&
+          (row.original.fulfillmentStatus === 'Registered' ||
+            row.original.fulfillmentStatus === 'None' ||
+            !row.original.fulfillmentStatus) ? (
+            <button
+              type="button"
+              className="link-button"
+              disabled={saving}
+              onClick={() => updateOrderFulfillment?.(row.original.id, 'Preparing')}
+            >
+              شروع آماده‌سازی
+            </button>
+          ) : null}
+          {row.original.status === 'Paid' &&
+          (row.original.fulfillmentStatus === 'Registered' ||
+            row.original.fulfillmentStatus === 'None' ||
+            !row.original.fulfillmentStatus ||
+            row.original.fulfillmentStatus === 'Preparing') ? (
+            <button
+              type="button"
+              className="link-button"
+              disabled={saving}
+              onClick={() => updateOrderFulfillment?.(row.original.id, 'Ready')}
+            >
+              آماده شد
+            </button>
+          ) : null}
+          {row.original.status === 'Paid' && row.original.fulfillmentStatus === 'Ready' ? (
+            <button
+              type="button"
+              className="link-button"
+              disabled={saving}
+              onClick={() => updateOrderFulfillment?.(row.original.id, 'Completed')}
+            >
+              تحویل دادم
+            </button>
+          ) : null}
+          <button type="button" className="link-button" onClick={() => openOrderEditor(row.original)}>
+            مدیریت
+          </button>
+        </div>
       ),
     },
   ]

@@ -54,6 +54,14 @@ public class Order : BaseAuditableEntity
 
     public DateTimeOffset? PaidAt { get; private set; }
 
+    public FulfillmentStatus FulfillmentStatus { get; private set; } = FulfillmentStatus.None;
+
+    public DateTimeOffset? FulfillmentUpdatedAt { get; private set; }
+
+    public DateTimeOffset? ReadyAt { get; private set; }
+
+    public DateTimeOffset? ReadySmsSentAt { get; private set; }
+
     public ICollection<OrderLine> Lines { get; private set; } = [];
 
     public ICollection<OrderPayment> Payments { get; private set; } = [];
@@ -103,6 +111,53 @@ public class Order : BaseAuditableEntity
         Status = OrderStatus.Paid;
         AmountPaid = TotalAmount;
         PaidAt = DateTimeOffset.UtcNow;
+        RegisterForFulfillment();
+    }
+
+    public void RegisterForFulfillment()
+    {
+        if (Status != OrderStatus.Paid)
+        {
+            return;
+        }
+
+        if (FulfillmentStatus == FulfillmentStatus.None)
+        {
+            FulfillmentStatus = FulfillmentStatus.Registered;
+            FulfillmentUpdatedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    public void UpdateFulfillment(FulfillmentStatus status)
+    {
+        if (Status != OrderStatus.Paid)
+        {
+            throw new DomainException("Only paid orders can be updated in the kitchen queue.");
+        }
+
+        if (FulfillmentStatus == FulfillmentStatus.None)
+        {
+            FulfillmentStatus = FulfillmentStatus.Registered;
+            FulfillmentUpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        if (FulfillmentStatus == FulfillmentStatus.Completed && status != FulfillmentStatus.Completed)
+        {
+            throw new DomainException("Completed orders cannot move back in the kitchen queue.");
+        }
+
+        FulfillmentStatus = status;
+        FulfillmentUpdatedAt = DateTimeOffset.UtcNow;
+
+        if (status == FulfillmentStatus.Ready)
+        {
+            ReadyAt ??= DateTimeOffset.UtcNow;
+        }
+    }
+
+    public void MarkReadySmsSent()
+    {
+        ReadySmsSentAt = DateTimeOffset.UtcNow;
     }
 
     public void RecordPartialPayment(decimal amount)
@@ -187,6 +242,7 @@ public class Order : BaseAuditableEntity
             Status = OrderStatus.Paid;
             PaidAt ??= DateTimeOffset.UtcNow;
             AmountPaid = TotalAmount;
+            RegisterForFulfillment();
             return;
         }
 

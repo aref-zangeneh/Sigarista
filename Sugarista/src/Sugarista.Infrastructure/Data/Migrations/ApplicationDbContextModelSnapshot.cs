@@ -607,6 +607,14 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<string>("FulfillmentStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset?>("FulfillmentUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int?>("GuestCount")
                         .HasColumnType("integer");
 
@@ -631,6 +639,12 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<DateTimeOffset?>("ReadyAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ReadySmsSentAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("SplitBillMode")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -652,6 +666,8 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("FulfillmentStatus");
 
                     b.HasIndex("IsSplitBill");
 

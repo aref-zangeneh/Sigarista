@@ -3,9 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using Sugarista.Application.Common.Models;
 using Sugarista.Application.Orders.Commands.CancelAdminOrder;
 using Sugarista.Application.Orders.Commands.UpdateAdminOrder;
+using Sugarista.Application.Orders.Commands.UpdateOrderFulfillment;
+using Sugarista.Application.Orders.Queries.GetAdminOrderAlerts;
 using Sugarista.Application.Orders.Queries.GetAdminOrderById;
 using Sugarista.Application.Orders.Queries.GetAdminOrders;
 using Sugarista.Domain.Constants;
+using Sugarista.Domain.Entities;
 
 namespace Sugarista.Api.Controllers;
 
@@ -13,6 +16,14 @@ namespace Sugarista.Api.Controllers;
 [Route("api/admin/orders")]
 public class AdminOrdersController : ApiControllerBase
 {
+    [HttpGet("alerts")]
+    public async Task<ActionResult<AdminOrderAlertsDto>> GetAlerts(
+        [FromQuery] DateTimeOffset? since = null,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(new GetAdminOrderAlertsQuery(since), cancellationToken));
+    }
+
     [HttpGet]
     public async Task<ActionResult<PaginatedList<AdminOrderListItemDto>>> GetAll(
         [FromQuery] int page = 1,
@@ -56,7 +67,20 @@ public class AdminOrdersController : ApiControllerBase
     {
         return Ok(await Mediator.Send(new CancelAdminOrderCommand(id), cancellationToken));
     }
+
+    [HttpPatch("{id:guid}/fulfillment")]
+    public async Task<ActionResult<AdminOrderDetailDto>> UpdateFulfillment(
+        Guid id,
+        [FromBody] UpdateOrderFulfillmentRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(
+            new UpdateOrderFulfillmentCommand(id, request.FulfillmentStatus),
+            cancellationToken));
+    }
 }
+
+public record UpdateOrderFulfillmentRequest(FulfillmentStatus FulfillmentStatus);
 
 public record UpdateAdminOrderRequest(
     string? CustomerName,

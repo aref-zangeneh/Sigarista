@@ -9,9 +9,12 @@ public record OrderStatusDto(
     string TrackingCode,
     string CustomerName,
     string Status,
+    string FulfillmentStatus,
+    string FulfillmentStatusLabel,
     decimal TotalAmount,
     DateTimeOffset CreatedAt,
     DateTimeOffset? PaidAt,
+    DateTimeOffset? ReadyAt,
     IReadOnlyCollection<OrderStatusLineDto> Lines);
 
 public record OrderStatusLineDto(
@@ -49,14 +52,19 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
             return null;
         }
 
+        var fulfillmentStatus = order.FulfillmentStatus.ToString();
+
         return new OrderStatusDto(
             order.Id,
             order.TrackingCode,
             order.CustomerName,
             order.Status.ToString(),
+            fulfillmentStatus,
+            FulfillmentStatusLabels.ToPersian(fulfillmentStatus, order.Status.ToString()),
             order.TotalAmount,
             order.CreatedAt,
             order.PaidAt,
+            order.ReadyAt,
             order.Lines
                 .Select(line => new OrderStatusLineDto(
                     line.PersianName,
@@ -66,5 +74,31 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
                     line.LineTotal,
                     line.ModifierLabels))
                 .ToArray());
+    }
+}
+
+public static class FulfillmentStatusLabels
+{
+    public static string ToPersian(string fulfillmentStatus, string paymentStatus)
+    {
+        if (paymentStatus is not ("Paid" or "PartiallyPaid"))
+        {
+            return paymentStatus switch
+            {
+                "PendingPayment" => "در انتظار پرداخت",
+                "Failed" => "پرداخت ناموفق",
+                "Cancelled" => "لغو شده",
+                _ => paymentStatus,
+            };
+        }
+
+        return fulfillmentStatus switch
+        {
+            "Registered" => "سفارش ثبت شده",
+            "Preparing" => "در حال آماده‌سازی",
+            "Ready" => "سفارش آماده — می‌توانید تحویل بگیرید",
+            "Completed" => "تحویل داده شد",
+            _ => "در حال پردازش",
+        };
     }
 }

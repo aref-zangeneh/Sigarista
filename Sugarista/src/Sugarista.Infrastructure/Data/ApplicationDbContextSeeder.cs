@@ -106,6 +106,12 @@ public class ApplicationDbContextSeeder
             CREATE INDEX IF NOT EXISTS "IX_ProductionBatches_MenuItemId" ON "ProductionBatches" ("MenuItemId");
             CREATE INDEX IF NOT EXISTS "IX_ProductionBatches_ProducedAt" ON "ProductionBatches" ("ProducedAt");
             CREATE INDEX IF NOT EXISTS "IX_StockMovements_ProductionBatchId" ON "StockMovements" ("ProductionBatchId");
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "FulfillmentStatus" character varying(30) NOT NULL DEFAULT 'None';
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "FulfillmentUpdatedAt" timestamp with time zone;
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "ReadyAt" timestamp with time zone;
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "ReadySmsSentAt" timestamp with time zone;
+            UPDATE "Orders" SET "FulfillmentStatus" = 'Registered' WHERE "Status" = 'Paid' AND ("FulfillmentStatus" = 'None' OR "FulfillmentStatus" = '');
+            CREATE INDEX IF NOT EXISTS "IX_Orders_FulfillmentStatus" ON "Orders" ("FulfillmentStatus");
             """,
             cancellationToken);
     }

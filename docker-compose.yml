@@ -34,6 +34,10 @@ services:
       Cors__AllowedOrigins__1: ${APP_ADMIN_ORIGIN:-http://localhost}
       Payment__Provider: ${Payment__Provider:-Mock}
       Payment__PublicBaseUrl: ${Payment__PublicBaseUrl:-http://localhost}
+      Sms__Provider: ${Sms__Provider:-Logging}
+      Sms__CafeName: ${Sms__CafeName:-شوگاریستا}
+      Sms__ApiKey: ${Sms__ApiKey:-}
+      Sms__Sender: ${Sms__Sender:-}
     depends_on:
       postgres:
         condition: service_healthy

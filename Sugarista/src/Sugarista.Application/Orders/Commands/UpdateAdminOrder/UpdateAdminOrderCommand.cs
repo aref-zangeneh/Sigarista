@@ -29,12 +29,16 @@ public record AdminOrderDetailDto(
     string CustomerPhone,
     string? Note,
     string Status,
+    string FulfillmentStatus,
     decimal TotalAmount,
     decimal AmountPaid,
     bool IsSplitBill,
     int? GuestCount,
     DateTimeOffset CreatedAt,
     DateTimeOffset? PaidAt,
+    DateTimeOffset? FulfillmentUpdatedAt,
+    DateTimeOffset? ReadyAt,
+    DateTimeOffset? ReadySmsSentAt,
     IReadOnlyCollection<AdminOrderLineDto> Lines,
     IReadOnlyCollection<AdminOrderPaymentDto> Payments);
 
@@ -251,12 +255,16 @@ internal static class AdminOrderMapper
             order.CustomerPhone,
             order.Note,
             order.Status.ToString(),
+            order.FulfillmentStatus.ToString(),
             order.TotalAmount,
             order.AmountPaid,
             order.IsSplitBill,
             order.GuestCount,
             order.CreatedAt,
             order.PaidAt,
+            order.FulfillmentUpdatedAt,
+            order.ReadyAt,
+            order.ReadySmsSentAt,
             order.Lines
                 .Select(line => new AdminOrderLineDto(
                     line.Id,

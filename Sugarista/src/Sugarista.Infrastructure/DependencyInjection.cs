@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Common.Options;
+using Sugarista.Infrastructure.Notifications;
 using Sugarista.Infrastructure.Auth;
 using Sugarista.Infrastructure.Data;
 using Sugarista.Infrastructure.Data.Interceptors;
-using Sugarista.Application.Common.Options;
 using Sugarista.Infrastructure.Payments;
 using Sugarista.Infrastructure.Settings;
 using Sugarista.Infrastructure.Services;
@@ -30,8 +32,22 @@ public static class DependencyInjection
         services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
         services.Configure<PaymentOptions>(configuration.GetSection(PaymentOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
+        services.Configure<SmsOptions>(configuration.GetSection(SmsOptions.SectionName));
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.AddHttpClient<KavenegarSmsService>();
+        services.AddScoped<LoggingSmsService>();
+        services.AddScoped<ISmsService>(provider =>
+        {
+            var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
+            if (string.Equals(smsOptions.Provider, "Kavenegar", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(smsOptions.ApiKey))
+            {
+                return provider.GetRequiredService<KavenegarSmsService>();
+            }
+
+            return provider.GetRequiredService<LoggingSmsService>();
+        });
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");

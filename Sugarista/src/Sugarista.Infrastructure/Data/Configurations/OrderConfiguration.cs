@@ -30,6 +30,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(30)
             .IsRequired();
 
+        builder.Property(o => o.FulfillmentStatus)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .IsRequired();
+
         builder.Property(o => o.TotalAmount)
             .HasColumnType("numeric(18,2)");
 
@@ -53,5 +58,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.PaymentAuthority);
 
         builder.HasIndex(o => o.CreatedAt);
+
+        builder.HasIndex(o => o.FulfillmentStatus);
     }
 }

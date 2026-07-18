@@ -24,13 +24,6 @@ export function AdminLayout() {
   return (
     <div className="admin-shell">
       <aside className="sidebar">
-        <div>
-          <p className="eyebrow">پنل مدیریت شوگاریستا</p>
-          <h1>کنترل محتوا</h1>
-          <p className="sidebar-copy">
-            از اینجا می‌توانید منوی QR، آیتم‌های ویژه و تمام متن‌های عمومی سایت را مدیریت کنید.
-          </p>
-        </div>
 
         <nav className="tab-list" aria-label="ناوبری مدیریت">
           {adminRoutes.map((route) => (
@@ -61,7 +54,7 @@ export function AdminLayout() {
       <main className="content">
         <header className="topbar">
           <div>
-            <p className="eyebrow">آدرس API متصل</p>
+            <p className="eyebrow">آدرس API</p>
             <h2 className="ltr-text">{API_BASE_URL}</h2>
           </div>
           <button type="button" className="ghost-button" onClick={() => loadAdminData()}>

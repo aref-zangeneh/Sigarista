@@ -383,6 +383,19 @@ document.addEventListener("alpine:init", () => {
     },
     setCategory(categoryId) {
       this.selectedCategory = categoryId;
+
+      window.requestAnimationFrame(() => {
+        const targetId = categoryId === "all" ? "menu" : `group-${categoryId}`;
+        const target = document.getElementById(targetId);
+        if (!target) {
+          return;
+        }
+
+        const stickyNav = document.querySelector(".menu-sticky-shell");
+        const stickyOffset = stickyNav ? stickyNav.offsetHeight + 12 : 72;
+        const top = target.getBoundingClientRect().top + window.scrollY - stickyOffset;
+        window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+      });
     },
     resetFilters() {
       this.search = "";
@@ -740,6 +753,12 @@ document.addEventListener("alpine:init", () => {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2
       }).format(Number(value) || 0)} تومان`;
+    },
+    formatPriceCompact(value) {
+      return new Intl.NumberFormat("fa-IR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(Number(value) || 0);
     },
     displayPrice(item) {
       return item.specialOfferPrice || item.price;

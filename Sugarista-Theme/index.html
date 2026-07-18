@@ -21,327 +21,185 @@
 </head>
 <body x-data="cafeMenu()" x-init="init()">
   <div class="page-shell">
-    <header class="hero-section">
-      <div class="container py-4 py-lg-5">
-        <nav class="top-nav mb-4">
-          <div>
-            <span class="eyebrow" x-text="settings.eyebrow"></span>
-            <h1 class="brand-title mb-1" x-text="settings.brandTitle"></h1>
-            <p class="brand-subtitle mb-0" x-text="settings.brandSubtitle"></p>
+    <header class="menu-page-header">
+      <div class="container">
+        <div class="menu-page-header-inner">
+          <div class="menu-page-brand">
+            <p class="menu-page-eyebrow" x-text="settings.eyebrow"></p>
+            <h1 class="menu-page-title" x-text="settings.brandTitle"></h1>
+            <p class="menu-page-subtitle" x-text="settings.brandSubtitle"></p>
+            <p class="menu-page-hours" x-show="settings.heroHours">
+              <i class="bi bi-clock"></i>
+              <span x-text="settings.heroHours"></span>
+            </p>
           </div>
-          <a :href="callHref()" class="btn btn-light rounded-pill px-3 top-call-btn">
-            <i class="bi bi-telephone me-1"></i>
-            <span x-text="settings.footerCallLabel"></span>
-          </a>
-        </nav>
+          <div class="menu-page-actions">
+            <a
+              :href="instagramHref()"
+              target="_blank"
+              rel="noreferrer"
+              class="menu-page-icon-btn"
+              aria-label="اینستاگرام"
+            >
+              <i class="bi bi-instagram"></i>
+            </a>
+            <a :href="callHref()" class="menu-page-icon-btn menu-page-icon-btn--primary" aria-label="تماس">
+              <i class="bi bi-telephone"></i>
+            </a>
+          </div>
+        </div>
 
-        <div class="alert alert-light border-0 shadow-sm rounded-4 mb-4" x-show="loading">
+        <div class="alert alert-light border-0 rounded-3 mb-0 mt-3" x-show="loading">
           در حال بارگذاری منو...
         </div>
-        <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4" x-show="error" x-text="error"></div>
-
-        <div class="hero-grid">
-          <div class="hero-copy">
-            <span class="hero-badge">
-              <i class="bi bi-qr-code-scan"></i>
-              <span x-text="settings.heroBadgeText"></span>
-            </span>
-            <h2 class="hero-title" x-text="settings.heroTitle"></h2>
-            <p class="hero-text" x-text="settings.heroDescription"></p>
-
-            <div class="hero-actions">
-              <a href="#menu" class="btn btn-light btn-lg rounded-pill px-4">
-                <i class="bi bi-cup-hot me-1"></i>
-                <span x-text="settings.heroPrimaryButtonLabel"></span>
-              </a>
-              <a href="#popular" class="btn btn-outline-light btn-lg rounded-pill px-4">
-                <i class="bi bi-stars me-1"></i>
-                <span x-text="settings.heroSecondaryButtonLabel"></span>
-              </a>
-            </div>
-
-            <div class="hero-stats">
-              <div class="stat-chip">
-                <strong x-text="items.length"></strong>
-                <span>آیتم</span>
-              </div>
-              <div class="stat-chip">
-                <strong x-text="categories.length"></strong>
-                <span>دسته</span>
-              </div>
-              <div class="stat-chip">
-                <strong x-text="settings.heroHours"></strong>
-                <span>ساعت کاری</span>
-              </div>
-            </div>
-          </div>
-
-          <aside class="hero-panel">
-            <div class="hero-panel-head">
-              <div>
-                <span class="mini-label" x-text="settings.howToOrderLabel"></span>
-                <h3 class="h5 mb-0" x-text="settings.howToOrderTitle"></h3>
-              </div>
-              <span class="status-pill" x-text="settings.howToOrderStatus"></span>
-            </div>
-
-            <div class="step-list">
-              <div class="step-item">
-                <span class="step-number">1</span>
-                <div>
-                  <strong x-text="settings.stepOneTitle"></strong>
-                  <p class="mb-0" x-text="settings.stepOneDescription"></p>
-                </div>
-              </div>
-              <div class="step-item">
-                <span class="step-number">2</span>
-                <div>
-                  <strong x-text="settings.stepTwoTitle"></strong>
-                  <p class="mb-0" x-text="settings.stepTwoDescription"></p>
-                </div>
-              </div>
-              <div class="step-item">
-                <span class="step-number">3</span>
-                <div>
-                  <strong x-text="settings.stepThreeTitle"></strong>
-                  <p class="mb-0" x-text="settings.stepThreeDescription"></p>
-                </div>
-              </div>
-            </div>
-          </aside>
-        </div>
+        <div class="alert alert-danger border-0 rounded-3 mb-0 mt-3" x-show="error" x-text="error"></div>
       </div>
     </header>
 
     <main>
-      <section class="quick-strip">
-        <div class="container">
-          <div class="quick-strip-card">
-            <div class="quick-strip-head">
-              <div>
-                <span class="section-kicker" x-text="settings.quickAccessLabel"></span>
-                <h2 class="quick-title mb-1" x-text="settings.quickAccessTitle"></h2>
-                <p class="quick-text mb-0" x-text="settings.quickAccessDescription"></p>
-              </div>
-              <button
-                type="button"
-                class="btn btn-link reset-link p-0"
-                x-show="hasFilters"
-                @click="resetFilters()"
-              >
-                پاک کردن فیلترها
-              </button>
-            </div>
-
-            <div class="category-rail">
-              <button
-                type="button"
-                class="category-pill"
-                :class="{ active: selectedCategory === 'all' }"
-                @click="setCategory('all')"
-              >
-                همه
-              </button>
-              <template x-for="category in categories" :key="category.id">
+      <section id="menu" class="menu-section">
+        <div class="menu-sticky-shell">
+          <div class="container">
+            <div class="menu-sticky-nav">
+              <div class="category-tabs" role="tablist" aria-label="دسته‌بندی منو">
                 <button
                   type="button"
-                  class="category-pill"
-                  :class="{ active: selectedCategory === category.id }"
-                  @click="setCategory(category.id)"
+                  role="tab"
+                  class="category-tab"
+                  :class="{ active: selectedCategory === 'all' }"
+                  :aria-selected="selectedCategory === 'all'"
+                  @click="setCategory('all')"
                 >
-                  <span x-text="category.label"></span>
-                  <small x-text="countForCategory(category.id)"></small>
+                  همه
                 </button>
-              </template>
-            </div>
-          </div>
-        </div>
-      </section>
+                <template x-for="category in categories" :key="category.id">
+                  <button
+                    type="button"
+                    role="tab"
+                    class="category-tab"
+                    :class="{ active: selectedCategory === category.id }"
+                    :aria-selected="selectedCategory === category.id"
+                    @click="setCategory(category.id)"
+                  >
+                    <span x-text="category.label"></span>
+                  </button>
+                </template>
+              </div>
 
-      <section id="popular" class="popular-section">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <span class="section-kicker" x-text="settings.popularLabel"></span>
-              <h2 class="section-title mb-2" x-text="settings.popularTitle"></h2>
-              <p class="section-text mb-0" x-text="settings.popularDescription"></p>
-            </div>
-          </div>
-
-          <div class="popular-scroller">
-            <template x-for="item in featuredItems" :key="`popular-${item.id}`">
-              <article class="popular-card">
-                <div class="popular-top">
-                  <template x-if="item.imageUrl">
-                    <img class="popular-image" :src="item.imageUrl" :alt="item.name">
-                  </template>
-                  <template x-if="!item.imageUrl">
-                    <div class="popular-avatar" :style="`background:${item.accent}`" x-text="item.short"></div>
-                  </template>
-                  <div class="flex-grow-1 min-w-0">
-                    <div class="d-flex align-items-start justify-content-between gap-2">
-                      <div>
-                        <span class="item-category" x-text="item.categoryLabel"></span>
-                        <h3 class="h6 mt-2 mb-1" x-text="item.name"></h3>
-                        <small class="english-name" x-text="item.englishName"></small>
-                      </div>
-                      <span class="price-pill" x-text="formatPrice(displayPrice(item))"></span>
-                    </div>
-                    <p class="popular-text mb-0" x-text="item.description"></p>
-                  </div>
+              <div class="menu-search-row">
+                <div class="search-box">
+                  <i class="bi bi-search"></i>
+                  <input
+                    type="search"
+                    class="form-control"
+                    :placeholder="settings.searchPlaceholder"
+                    x-model.debounce.200ms="search"
+                    aria-label="جستجو در منو"
+                  >
                 </div>
-              </article>
-            </template>
-          </div>
-        </div>
-      </section>
-
-      <section id="menu" class="menu-section pb-5">
-        <div class="container">
-          <div class="menu-toolbar">
-            <div class="toolbar-main">
-              <div>
-                <span class="section-kicker" x-text="settings.menuLabel"></span>
-                <h2 class="section-title mb-2" x-text="settings.menuTitle"></h2>
-                <p class="section-text mb-0">
-                  <span x-show="selectedCategory === 'all'">همه آیتم‌ها نمایش داده می‌شوند.</span>
-                  <span x-show="selectedCategory !== 'all'">
-                    در حال مشاهده دسته
-                    <strong x-text="activeCategoryLabel"></strong>
-                  </span>
-                </p>
-              </div>
-              <div class="toolbar-meta">
-                <span class="result-pill">
-                  <strong x-text="filteredItems.length"></strong>
-                  <span>آیتم</span>
-                </span>
-              </div>
-            </div>
-
-            <div class="search-box">
-              <i class="bi bi-search"></i>
-              <input
-                type="search"
-                class="form-control"
-                :placeholder="settings.searchPlaceholder"
-                x-model.debounce.200ms="search"
-              >
-            </div>
-
-            <div class="toolbar-hint">
-              <i class="bi bi-info-circle"></i>
-              <span x-text="settings.menuToolbarHint"></span>
-            </div>
-          </div>
-
-          <section class="modifier-section d-none" x-show="false">
-            <div class="modifier-head">
-              <div>
-                <h3 class="group-title">تغییرات سفارش</h3>
-                <p class="group-subtitle mb-0">در صورت نیاز، گزینه‌های موردنظر برای سفارش خود را انتخاب کنید.</p>
-              </div>
-            </div>
-            <div class="modifier-list">
-              <template x-for="modifier in modifiers" :key="modifier.id">
                 <button
                   type="button"
-                  :class="isModifierSelected(modifier.id) ? 'modifier-chip modifier-chip-active' : 'modifier-chip'"
-                  @click="toggleModifier(modifier.id)"
+                  class="btn btn-outline-secondary btn-sm rounded-pill reset-filters-btn"
+                  x-show="hasFilters"
+                  @click="resetFilters()"
                 >
-                  <span x-text="modifier.persianName"></span>
-                  <small x-text="modifier.englishName"></small>
+                  پاک کردن
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="container menu-content">
+          <section id="popular" class="featured-strip" x-show="featuredItems.length && selectedCategory === 'all' && !search">
+            <div class="featured-strip-head">
+              <h2 class="featured-strip-title" x-text="settings.popularTitle"></h2>
+              <p class="featured-strip-copy mb-0" x-text="settings.popularDescription"></p>
+            </div>
+            <div class="featured-scroller">
+              <template x-for="item in featuredItems" :key="`featured-${item.id}`">
+                <button
+                  type="button"
+                  class="featured-chip"
+                  @click="openAddToCartModal(item)"
+                  x-show="item.isOrderable"
+                >
+                  <span class="featured-chip-name" x-text="item.name"></span>
+                  <span class="featured-chip-price" x-text="formatPriceCompact(displayPrice(item))"></span>
                 </button>
               </template>
             </div>
-            <p class="modifier-note" x-show="selectedModifiers.length">
-              انتخاب شما:
-              <strong x-text="selectedModifierLabels()"></strong>
-            </p>
           </section>
 
           <div class="group-stack" x-show="filteredGroups.length">
             <template x-for="group in filteredGroups" :key="group.id">
               <section class="menu-group" :id="`group-${group.id}`">
-                <div class="group-head">
-                  <div>
-                    <h3 class="group-title" x-text="group.label"></h3>
-                    <p class="group-subtitle mb-0">
-                      <span x-text="group.items.length"></span>
-                      آیتم در این دسته
-                    </p>
-                  </div>
+                <div class="menu-group-head">
+                  <h2 class="menu-group-title" x-text="group.label"></h2>
+                  <span class="menu-group-count" x-text="`${toPersianNumber(group.items.length)} آیتم`"></span>
                 </div>
 
-                <div class="menu-list">
+                <div class="product-list">
                   <template x-for="item in group.items" :key="item.id">
-                    <article class="menu-item">
-                      <div class="menu-item-accent" :style="`background:${item.accent}`"></div>
-                      <template x-if="item.imageUrl">
-                        <img class="menu-item-image" :src="item.imageUrl" :alt="item.name">
-                      </template>
-                      <div class="menu-item-body">
-                        <div class="menu-item-head">
-                          <div class="min-w-0">
-                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                              <h4 class="menu-item-title mb-0" x-text="item.name"></h4>
-                              <span
-                                class="badge rounded-pill text-bg-warning badge-soft"
-                                x-show="item.badge"
-                                x-text="item.badge"
-                              ></span>
-                            </div>
-                            <p class="english-name mb-1" x-text="item.englishName"></p>
-                            <p class="menu-description mb-2" x-text="item.description"></p>
-                            <div class="meta-list" x-show="itemMeta(item).length">
-                              <template x-for="meta in itemMeta(item)" :key="`${item.id}-${meta}`">
-                                <span x-text="meta"></span>
-                              </template>
-                            </div>
+                    <article class="product-card">
+                      <div class="product-card-layout">
+                        <template x-if="item.imageUrl">
+                          <img class="product-thumb" :src="item.imageUrl" :alt="item.name" loading="lazy">
+                        </template>
+                        <template x-if="!item.imageUrl">
+                          <div class="product-thumb product-thumb-fallback" :style="`background:${item.accent}`">
+                            <span x-text="item.short"></span>
                           </div>
-                          <div class="price-stack">
-                            <strong class="menu-price" x-text="formatPrice(displayPrice(item))"></strong>
-                            <span
-                              class="old-price"
-                              x-show="hasOffer(item)"
-                              x-text="formatPrice(item.price)"
-                            ></span>
+                        </template>
+
+                        <div class="product-body">
+                          <div class="product-head">
+                            <div class="product-names">
+                              <h3 class="product-title" x-text="item.name"></h3>
+                              <p class="product-title-en" x-text="item.englishName"></p>
+                            </div>
+                            <span class="product-badge" x-show="item.badge" x-text="item.badge"></span>
                           </div>
-                        </div>
 
-                        <div class="variant-list" x-show="item.variants && item.variants.length">
-                          <template x-for="variant in item.variants" :key="`${item.id}-${variant.key}`">
-                            <span>
-                              <strong x-text="variant.label"></strong>
-                              <span x-text="formatPrice(variant.specialOfferPrice || variant.price)"></span>
-                              <small x-show="variant.volume" x-text="variant.volume"></small>
-                            </span>
-                          </template>
-                        </div>
+                          <div class="price-matrix" x-show="item.variants && item.variants.length">
+                            <template x-for="variant in item.variants" :key="`${item.id}-${variant.key}`">
+                              <div class="price-matrix-row">
+                                <span class="price-matrix-size" x-text="variant.label"></span>
+                                <span class="price-matrix-value" x-text="formatPriceCompact(variant.specialOfferPrice || variant.price)"></span>
+                              </div>
+                            </template>
+                          </div>
 
-                        <div class="menu-item-foot">
-                          <div class="tag-list">
-                            <template x-for="tag in item.tags" :key="`${item.id}-${tag}`">
-                              <span class="tag-chip" x-text="tag"></span>
+                          <div class="price-single" x-show="!item.variants || !item.variants.length">
+                            <span class="price-single-value" x-text="formatPriceCompact(displayPrice(item))"></span>
+                            <span class="price-single-old" x-show="hasOffer(item)" x-text="formatPriceCompact(item.price)"></span>
+                          </div>
+
+                          <p class="product-contents" x-show="item.description">
+                            <span class="product-contents-label">محتویات:</span>
+                            <span x-text="item.description"></span>
+                          </p>
+
+                          <div class="product-meta" x-show="itemMeta(item).length || (item.allergens && item.allergens.length)">
+                            <template x-for="meta in itemMeta(item)" :key="`${item.id}-meta-${meta}`">
+                              <span class="meta-chip" x-text="meta"></span>
                             </template>
                             <template x-for="allergen in item.allergens || []" :key="`${item.id}-allergen-${allergen}`">
-                              <span class="tag-chip tag-chip-alert" x-text="allergen"></span>
+                              <span class="meta-chip meta-chip-alert" x-text="allergen"></span>
                             </template>
                           </div>
-                          <div class="menu-item-actions">
-                            <span
-                              :class="item.isOrderable ? 'order-note' : 'order-note order-note-disabled'"
-                              x-text="item.isOrderable ? 'قابل سفارش' : 'فعلا غیرقابل سفارش'"
-                            ></span>
+
+                          <div class="product-foot">
                             <button
                               type="button"
-                              class="btn btn-sm btn-dark rounded-pill add-to-cart-btn"
+                              class="product-add-btn"
                               x-show="item.isOrderable"
                               @click="openAddToCartModal(item)"
                             >
                               <i class="bi bi-bag-plus"></i>
-                              افزودن به سبد
+                              <span>افزودن به سبد</span>
                             </button>
+                            <span class="product-unavailable" x-show="!item.isOrderable">فعلاً موجود نیست</span>
                           </div>
                         </div>
                       </div>
@@ -352,28 +210,27 @@
             </template>
           </div>
 
-          <section class="addons-section" x-show="addons.length">
-            <div class="addons-head">
-              <div>
-                <h3 class="group-title">افزودنی‌ها و اضافات</h3>
-                <p class="group-subtitle mb-0">گزینه‌های اضافه مثل شات اسپرسو، انواع شیر و شربت‌ها.</p>
-              </div>
+          <section class="addons-section" x-show="addons.length && selectedCategory === 'all' && !search">
+            <div class="menu-group-head">
+              <h2 class="menu-group-title">افزودنی‌ها</h2>
+              <span class="menu-group-count">اضافات منو</span>
             </div>
-            <div class="addons-list">
+            <div class="product-list">
               <template x-for="addon in addons" :key="addon.id">
-                <article class="addon-item">
-                  <div class="addon-main">
-                    <div>
-                      <h4 class="addon-title" x-text="addon.persianName"></h4>
-                      <p class="addon-english" x-text="addon.englishName"></p>
-                      <p class="addon-description mb-0" x-text="addon.description"></p>
+                <article class="product-card product-card--compact">
+                  <div class="product-card-layout product-card-layout--no-media">
+                    <div class="product-body">
+                      <div class="product-head">
+                        <div class="product-names">
+                          <h3 class="product-title" x-text="addon.persianName"></h3>
+                          <p class="product-title-en" x-text="addon.englishName"></p>
+                        </div>
+                      </div>
+                      <p class="product-contents" x-show="addon.description" x-text="addon.description"></p>
+                      <div class="price-single">
+                        <span class="price-single-value" x-text="formatPriceCompact(addon.price)"></span>
+                      </div>
                     </div>
-                    <strong class="addon-price" x-text="formatPrice(addon.price)"></strong>
-                  </div>
-                  <div class="addon-tags" x-show="addon.tags.length">
-                    <template x-for="tag in addon.tags" :key="`${addon.id}-tag-${tag}`">
-                      <span class="tag-chip" x-text="tag"></span>
-                    </template>
                   </div>
                 </article>
               </template>
@@ -382,10 +239,10 @@
 
           <div class="empty-state text-center py-5" x-show="!filteredGroups.length">
             <div class="empty-icon mx-auto mb-3">
-              <i class="bi bi-search-heart"></i>
+              <i class="bi bi-search"></i>
             </div>
-            <h3 class="h4 mb-2">موردی پیدا نشد</h3>
-            <p class="text-secondary mb-4">جستجوی دیگری امتحان کنید یا فیلتر فعلی را پاک کنید.</p>
+            <h3 class="h5 mb-2">موردی پیدا نشد</h3>
+            <p class="text-secondary mb-4">عبارت دیگری جستجو کنید یا فیلتر را پاک کنید.</p>
             <button type="button" class="btn btn-dark rounded-pill px-4" @click="resetFilters()">
               نمایش همه آیتم‌ها
             </button>
@@ -398,9 +255,8 @@
           <div class="visit-card">
             <div class="visit-layout">
               <div>
-                <span class="section-kicker" x-text="settings.visitLabel"></span>
-                <h2 class="section-title mb-3" x-text="settings.visitTitle"></h2>
-                <p class="section-text mb-4" x-text="settings.visitDescription"></p>
+                <h2 class="visit-title mb-2" x-text="settings.visitTitle"></h2>
+                <p class="visit-copy mb-4" x-text="settings.visitDescription"></p>
                 <div class="visit-actions">
                   <a :href="callHref()" class="btn btn-dark rounded-pill px-4">
                     <i class="bi bi-telephone me-1"></i>
@@ -808,18 +664,14 @@
     </div>
 
     <div class="mobile-order-bar d-lg-none">
-      <button type="button" class="mobile-order-link" @click="openCartDrawer('cart')" x-show="cartCount > 0">
-        <i class="bi bi-basket"></i>
-        <span x-text="toPersianNumber(cartCount)"></span>
-      </button>
       <a href="#menu" class="mobile-order-link">
         <i class="bi bi-grid"></i>
         <span>منو</span>
       </a>
-      <a href="#popular" class="mobile-order-link">
-        <i class="bi bi-stars"></i>
-        <span>پرفروش</span>
-      </a>
+      <button type="button" class="mobile-order-link" :class="{ 'mobile-order-link--active': cartCount > 0 }" @click="openCartDrawer('cart')">
+        <i class="bi bi-basket"></i>
+        <span x-text="cartCount > 0 ? toPersianNumber(cartCount) : 'سبد'"></span>
+      </button>
       <a :href="callHref()" class="mobile-order-link mobile-order-link--primary">
         <i class="bi bi-telephone"></i>
         <span x-text="settings.footerCallLabel"></span>

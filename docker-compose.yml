@@ -19,6 +19,12 @@ services:
       context: ./Sugarista
       dockerfile: src/Sugarista.Api/Dockerfile
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
@@ -47,12 +53,30 @@ services:
   admin-ui:
     build:
       context: ./Sugarista-Admin
+      target: dev
     restart: unless-stopped
+    volumes:
+      - ./Sugarista-Admin:/app
+      - admin_ui_node_modules:/app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
 
   public-ui:
     build:
       context: ./Sugarista-Theme
     restart: unless-stopped
+    volumes:
+      - ./Sugarista-Theme/index.html:/usr/share/nginx/html/index.html:ro
+      - ./Sugarista-Theme/assets:/usr/share/nginx/html/assets:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   db-admin:
     image: adminer:5
@@ -67,10 +91,14 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
-      - api
-      - admin-ui
-      - public-ui
-      - db-admin
+      api:
+        condition: service_healthy
+      admin-ui:
+        condition: service_healthy
+      public-ui:
+        condition: service_healthy
+      db-admin:
+        condition: service_started
     ports:
       - "80:80"
     volumes:
@@ -79,3 +107,4 @@ services:
 volumes:
   postgres-data:
   api-uploads:
+  admin_ui_node_modules:

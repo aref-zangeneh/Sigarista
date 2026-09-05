@@ -18,8 +18,9 @@ import {
   playOrderAlertSound,
   unlockOrderAlertSound,
 } from '../utils/orderAlertSound'
-import { isKnownAdminPath, pathForTab, tabForPath } from '../adminRoutes'
+import { isKnownAdminPath, pathForTab, tabForPath, adminRoutes } from '../adminRoutes'
 import { apiRequest, getReadableError, normalizeRecipeResponse } from '../utils/adminApi'
+import { getDefaultRoutePath, hasPermission, PERMISSIONS } from '../utils/adminPermissions'
 import { formatDateTime, formatDuration, toPersianNumber } from '../utils/adminFormatters'
 import { joinList, joinTags, optionalNumber, splitList, splitTags } from '../utils/adminFormHelpers'
 import { loadStoredSession, normalizeSession, SESSION_STORAGE_KEY } from '../utils/session'
@@ -134,14 +135,16 @@ export function AdminProvider({ children }) {
 
     const normalizedPath = location.pathname.replace(/\/+$/, '') || '/'
     if (normalizedPath === '/' || normalizedPath === '') {
-      navigate('/dashboard', { replace: true })
+      const defaultPath = getDefaultRoutePath(session, adminRoutes) ?? 'dashboard'
+      navigate(`/${defaultPath}`, { replace: true })
       return
     }
 
     if (!isKnownAdminPath(location.pathname)) {
-      navigate('/dashboard', { replace: true })
+      const defaultPath = getDefaultRoutePath(session, adminRoutes) ?? 'dashboard'
+      navigate(`/${defaultPath}`, { replace: true })
     }
-  }, [session?.token, location.pathname, navigate])
+  }, [session?.token, session?.permissions, session?.isSuperAdmin, location.pathname, navigate])
 
   useEffect(() => {
     if (session?.token) {
@@ -172,7 +175,7 @@ export function AdminProvider({ children }) {
   }, [activeTab, session])
 
   useEffect(() => {
-    if (!session?.token) {
+    if (!session?.token || !hasPermission(session, PERMISSIONS.orders.view)) {
       return undefined
     }
 
@@ -647,7 +650,8 @@ export function AdminProvider({ children }) {
 
       setSession(nextSession)
       setMessage('ورود با موفقیت انجام شد.')
-      navigate('/dashboard', { replace: true })
+      const defaultPath = getDefaultRoutePath(nextSession, adminRoutes) ?? 'dashboard'
+      navigate(`/${defaultPath}`, { replace: true })
       notifiedKitchenOrderIdsRef.current = null
       lastOrderAlertPollRef.current = null
       setDismissedOrderAlertIds(new Set())

@@ -31,6 +31,9 @@ public class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
         builder.Property(l => l.PayerLabel)
             .HasMaxLength(100);
 
+        builder.Property(l => l.BaristaNote)
+            .HasMaxLength(500);
+
         builder.Property(l => l.UnitPrice)
             .HasColumnType("numeric(18,2)");
 

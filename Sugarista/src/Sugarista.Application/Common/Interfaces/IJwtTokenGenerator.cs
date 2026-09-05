@@ -4,5 +4,5 @@ namespace Sugarista.Application.Common.Interfaces;
 
 public interface IJwtTokenGenerator
 {
-    string GenerateToken(AdminUser user);
+    string GenerateToken(AdminUser user, IReadOnlyCollection<string> permissions);
 }

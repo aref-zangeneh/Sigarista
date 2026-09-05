@@ -62,6 +62,24 @@ public class Order : BaseAuditableEntity
 
     public DateTimeOffset? ReadySmsSentAt { get; private set; }
 
+    public OrderChannel Channel { get; private set; } = OrderChannel.Online;
+
+    public PosServiceType? ServiceType { get; private set; }
+
+    public PosPaymentMethod? PaymentMethod { get; private set; }
+
+    public Guid? SalonTableId { get; private set; }
+
+    public SalonTable? SalonTable { get; private set; }
+
+    public Guid? TableSessionId { get; private set; }
+
+    public TableSession? TableSession { get; private set; }
+
+    public Guid? ServedByAdminUserId { get; private set; }
+
+    public DateTimeOffset? HeldAt { get; private set; }
+
     public ICollection<OrderLine> Lines { get; private set; } = [];
 
     public ICollection<OrderPayment> Payments { get; private set; } = [];
@@ -227,7 +245,107 @@ public class Order : BaseAuditableEntity
 
     public bool CanBeModifiedByAdmin()
     {
-        return Status is OrderStatus.PendingPayment or OrderStatus.PartiallyPaid or OrderStatus.Paid;
+        return Status is OrderStatus.Held or OrderStatus.PendingPayment or OrderStatus.PartiallyPaid or OrderStatus.Paid;
+    }
+
+    public void ConfigurePos(
+        OrderChannel channel,
+        PosServiceType? serviceType,
+        Guid? salonTableId,
+        Guid? tableSessionId,
+        Guid? servedByAdminUserId)
+    {
+        Channel = channel;
+        ServiceType = serviceType;
+        SalonTableId = salonTableId;
+        TableSessionId = tableSessionId;
+        ServedByAdminUserId = servedByAdminUserId;
+    }
+
+    public void ConfigureSplitBill(SplitBillMode splitBillMode, int? guestCount)
+    {
+        SplitBillMode = splitBillMode;
+        IsSplitBill = splitBillMode != SplitBillMode.Single;
+        GuestCount = IsSplitBill ? guestCount : null;
+    }
+
+    public void Hold()
+    {
+        if (Status is OrderStatus.Paid or OrderStatus.Cancelled or OrderStatus.Failed)
+        {
+            throw new DomainException("This order cannot be held.");
+        }
+
+        Status = OrderStatus.Held;
+        HeldAt = DateTimeOffset.UtcNow;
+    }
+
+    public void ResumeFromHold()
+    {
+        if (Status != OrderStatus.Held)
+        {
+            throw new DomainException("Only held orders can be resumed.");
+        }
+
+        Status = OrderStatus.PendingPayment;
+        HeldAt = null;
+    }
+
+    public void PayAtPos(PosPaymentMethod paymentMethod)
+    {
+        PaymentMethod = paymentMethod;
+
+        if (Status == OrderStatus.Held)
+        {
+            Status = OrderStatus.PendingPayment;
+            HeldAt = null;
+        }
+
+        MarkPaid();
+    }
+
+    public void UpdateCustomerForPos(string? customerName, string? customerPhone, string? note)
+    {
+        CustomerName = string.IsNullOrWhiteSpace(customerName) ? "مهمان" : customerName.Trim();
+        CustomerPhone = string.IsNullOrWhiteSpace(customerPhone) ? "POS" : customerPhone.Trim();
+        Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+    }
+
+    public static Order CreatePosDraft(
+        string trackingCode,
+        string? customerName,
+        string? customerPhone,
+        string? note,
+        decimal totalAmount,
+        PosServiceType serviceType,
+        Guid? salonTableId,
+        Guid? tableSessionId,
+        Guid? servedByAdminUserId,
+        SplitBillMode splitBillMode = SplitBillMode.Single,
+        int? guestCount = null)
+    {
+        var order = new Order
+        {
+            TrackingCode = trackingCode.Trim(),
+            CustomerName = string.IsNullOrWhiteSpace(customerName) ? "مهمان" : customerName.Trim(),
+            CustomerPhone = string.IsNullOrWhiteSpace(customerPhone) ? "POS" : customerPhone.Trim(),
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
+            TotalAmount = totalAmount,
+            PaymentAuthority = $"POS-{Guid.NewGuid():N}",
+            SplitBillMode = splitBillMode,
+            IsSplitBill = splitBillMode != SplitBillMode.Single,
+            GuestCount = splitBillMode != SplitBillMode.Single ? guestCount : null,
+            Status = OrderStatus.Held,
+            AmountPaid = 0,
+            Channel = OrderChannel.Pos,
+            ServiceType = serviceType,
+            SalonTableId = salonTableId,
+            TableSessionId = tableSessionId,
+            ServedByAdminUserId = servedByAdminUserId,
+            HeldAt = DateTimeOffset.UtcNow,
+        };
+
+        return order;
     }
 
     public void ReconcilePaymentStatus()

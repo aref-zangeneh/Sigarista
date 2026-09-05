@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sugarista.Api.Authorization;
 using Sugarista.Application.Inventory.Commands.AdjustStock;
 using Sugarista.Application.Inventory.Commands.RestockIngredient;
 using Sugarista.Application.Inventory.Commands.SetAlertThreshold;
@@ -9,17 +10,19 @@ using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
 
-[Authorize(Roles = RoleNames.Admin)]
+[Authorize]
 [Route("api/admin/inventory")]
 public class AdminInventoryController : ApiControllerBase
 {
     [HttpGet]
+    [RequirePermission(AdminPermissions.Inventory.View)]
     public async Task<ActionResult<InventoryStatusDto>> GetStatus(CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new GetInventoryStatusQuery(), cancellationToken));
     }
 
     [HttpGet("{ingredientId:guid}/history")]
+    [RequirePermission(AdminPermissions.Inventory.View)]
     public async Task<ActionResult<IReadOnlyCollection<StockMovementDto>>> GetHistory(
         Guid ingredientId,
         [FromQuery] int pageSize = 50,
@@ -29,6 +32,7 @@ public class AdminInventoryController : ApiControllerBase
     }
 
     [HttpPost("{ingredientId:guid}/restock")]
+    [RequirePermission(AdminPermissions.Inventory.Create)]
     public async Task<IActionResult> Restock(Guid ingredientId, [FromBody] RestockIngredientCommand command, CancellationToken cancellationToken)
     {
         await Mediator.Send(command with { IngredientId = ingredientId }, cancellationToken);
@@ -36,6 +40,7 @@ public class AdminInventoryController : ApiControllerBase
     }
 
     [HttpPost("{ingredientId:guid}/adjust")]
+    [RequirePermission(AdminPermissions.Inventory.Update)]
     public async Task<IActionResult> Adjust(Guid ingredientId, [FromBody] AdjustStockCommand command, CancellationToken cancellationToken)
     {
         await Mediator.Send(command with { IngredientId = ingredientId }, cancellationToken);
@@ -43,6 +48,7 @@ public class AdminInventoryController : ApiControllerBase
     }
 
     [HttpPost("{ingredientId:guid}/alert-threshold")]
+    [RequirePermission(AdminPermissions.Inventory.Update)]
     public async Task<IActionResult> SetAlertThreshold(Guid ingredientId, [FromBody] SetAlertThresholdCommand command, CancellationToken cancellationToken)
     {
         await Mediator.Send(command with { IngredientId = ingredientId }, cancellationToken);

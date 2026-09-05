@@ -19,6 +19,12 @@
   box-shadow: var(--shadow);
 }
 
+.session-role {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: #ffdca8;
+}
+
 .login-card {
   width: min(540px, 100%);
   padding: 32px;

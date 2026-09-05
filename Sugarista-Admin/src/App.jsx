@@ -3,7 +3,8 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { AdminProvider, useAdmin } from './context/AdminContext'
 import { AdminLayout } from './layout/AdminLayout'
 import { LoginPage } from './pages/LoginPage'
-import { adminRoutes, isKnownAdminPath } from './adminRoutes'
+import { adminRoutes, isKnownAdminPath, routeForPath } from './adminRoutes'
+import { canViewRoute, getDefaultRoutePath } from './utils/adminPermissions'
 import { DashboardPage } from './pages/DashboardPage'
 import { SalonStatePage } from './pages/SalonStatePage'
 import { CategoryPage } from './pages/CategoryPage'
@@ -17,8 +18,11 @@ import { InventoryPage } from './pages/InventoryPage'
 import { InventoryPurchasesPage } from './pages/InventoryPurchasesPage'
 import { ProductionPage } from './pages/ProductionPage'
 import { RecordSalePage } from './pages/RecordSalePage'
+import { PosPage } from './pages/PosPage'
+import { AccountingPage } from './pages/AccountingPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { SiteSettingsPage } from './pages/SiteSettingsPage'
+import { AdminUsersPage } from './pages/AdminUsersPage'
 import './App.css'
 
 const pageComponents = {
@@ -35,8 +39,42 @@ const pageComponents = {
   'inventory-purchases': InventoryPurchasesPage,
   production: ProductionPage,
   'record-sale': RecordSalePage,
+  pos: PosPage,
+  accounting: AccountingPage,
   orders: OrdersPage,
   'site-settings': SiteSettingsPage,
+  'admin-users': AdminUsersPage,
+}
+
+function ProtectedRoute({ route, children }) {
+  const { session } = useAdmin()
+
+  if (!canViewRoute(session, route.id)) {
+    const fallbackPath = getDefaultRoutePath(session, adminRoutes)
+    return <Navigate to={fallbackPath ? `/${fallbackPath}` : '/login'} replace />
+  }
+
+  return children
+}
+
+function NoAccessPage() {
+  const { handleLogout, session } = useAdmin()
+
+  return (
+    <main className="login-shell">
+      <section className="login-card">
+        <p className="eyebrow">دسترسی محدود</p>
+        <h1>مجوزی برای پنل تعریف نشده</h1>
+        <p className="login-copy">
+          حساب {session?.displayName} فعال است اما هیچ بخشی از پنل برای آن مجاز نشده است.
+          با مدیر ارشد تماس بگیرید.
+        </p>
+        <button type="button" onClick={handleLogout}>
+          خروج
+        </button>
+      </section>
+    </main>
+  )
 }
 
 function AdminRoutes() {
@@ -57,17 +95,31 @@ function AdminRoutes() {
 
     const normalizedPath = location.pathname.replace(/\/+$/, '') || '/'
     if (normalizedPath === '/' || normalizedPath === '') {
-      navigate('/dashboard', { replace: true })
+      const defaultPath = getDefaultRoutePath(session, adminRoutes) ?? 'dashboard'
+      navigate(`/${defaultPath}`, { replace: true })
       return
     }
 
     if (!isKnownAdminPath(location.pathname)) {
-      navigate('/dashboard', { replace: true })
+      const defaultPath = getDefaultRoutePath(session, adminRoutes) ?? 'dashboard'
+      navigate(`/${defaultPath}`, { replace: true })
+      return
     }
-  }, [session?.token, location.pathname, navigate])
+
+    const route = routeForPath(location.pathname)
+    if (!canViewRoute(session, route.id)) {
+      const defaultPath = getDefaultRoutePath(session, adminRoutes)
+      navigate(defaultPath ? `/${defaultPath}` : '/login', { replace: true })
+    }
+  }, [session, location.pathname, navigate])
 
   if (!session?.token) {
     return <LoginPage />
+  }
+
+  const defaultPath = getDefaultRoutePath(session, adminRoutes)
+  if (!defaultPath) {
+    return <NoAccessPage />
   }
 
   return (
@@ -75,10 +127,26 @@ function AdminRoutes() {
       <Route element={<AdminLayout />}>
         {adminRoutes.map((route) => {
           const Page = pageComponents[route.id]
-          return <Route key={route.id} path={route.path} element={<Page />} />
+          return (
+            <Route
+              key={route.id}
+              path={route.path}
+              element={
+                <ProtectedRoute route={route}>
+                  <Page />
+                </ProtectedRoute>
+              }
+            />
+          )
         })}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/"
+          element={<Navigate to={defaultPath ? `/${defaultPath}` : '/login'} replace />}
+        />
+        <Route
+          path="*"
+          element={<Navigate to={defaultPath ? `/${defaultPath}` : '/login'} replace />}
+        />
       </Route>
     </Routes>
   )

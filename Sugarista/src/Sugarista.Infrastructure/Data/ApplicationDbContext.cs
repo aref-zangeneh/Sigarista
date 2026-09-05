@@ -13,6 +13,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
 
+    public DbSet<AdminUserPermission> AdminUserPermissions => Set<AdminUserPermission>();
+
     public DbSet<Category> Categories => Set<Category>();
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
@@ -52,6 +54,20 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
 
     public DbSet<TableSession> TableSessions => Set<TableSession>();
+
+    public DbSet<Account> Accounts => Set<Account>();
+
+    public DbSet<Partner> Partners => Set<Partner>();
+
+    public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+
+    public DbSet<JournalLine> JournalLines => Set<JournalLine>();
+
+    public DbSet<PartnerCapitalTransaction> PartnerCapitalTransactions => Set<PartnerCapitalTransaction>();
+
+    public DbSet<ProfitDistribution> ProfitDistributions => Set<ProfitDistribution>();
+
+    public DbSet<ProfitDistributionLine> ProfitDistributionLines => Set<ProfitDistributionLine>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

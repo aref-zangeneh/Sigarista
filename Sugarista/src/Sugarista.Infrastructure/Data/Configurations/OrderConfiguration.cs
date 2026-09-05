@@ -50,6 +50,34 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(o => o.Channel)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        builder.Property(o => o.ServiceType)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.Property(o => o.PaymentMethod)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.HasOne(o => o.SalonTable)
+            .WithMany()
+            .HasForeignKey(o => o.SalonTableId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(o => o.TableSession)
+            .WithMany()
+            .HasForeignKey(o => o.TableSessionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(o => o.Channel);
+        builder.HasIndex(o => o.SalonTableId);
+        builder.HasIndex(o => o.TableSessionId);
+        builder.HasIndex(o => o.Status);
+
         builder.Property(o => o.IsSplitBill)
             .IsRequired();
 

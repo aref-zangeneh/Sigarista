@@ -26,5 +26,8 @@ public class AdminUserConfiguration : IEntityTypeConfiguration<AdminUser>
         builder.Property(user => user.Role)
             .HasMaxLength(50)
             .IsRequired();
+
+        builder.Property(user => user.IsSuperAdmin)
+            .HasDefaultValue(false);
     }
 }

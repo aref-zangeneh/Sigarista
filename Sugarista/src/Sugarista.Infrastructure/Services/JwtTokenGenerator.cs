@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Domain.Constants;
 using Sugarista.Domain.Entities;
 using Sugarista.Infrastructure.Auth;
 
@@ -18,15 +19,23 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         _jwtOptions = jwtOptions.Value;
     }
 
-    public string GenerateToken(AdminUser user)
+    public string GenerateToken(AdminUser user, IReadOnlyCollection<string> permissions)
     {
+        var effectivePermissions = user.IsSuperAdmin
+            ? AdminPermissions.AllKeys.ToList()
+            : permissions.Distinct(StringComparer.Ordinal).ToList();
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Username),
             new(ClaimTypes.Role, user.Role),
-            new("display_name", user.DisplayName)
+            new("display_name", user.DisplayName),
+            new(AdminPermissions.SuperAdminClaimType, user.IsSuperAdmin.ToString()),
         };
+
+        claims.AddRange(
+            effectivePermissions.Select(permission => new Claim(AdminPermissions.ClaimType, permission)));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SigningKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

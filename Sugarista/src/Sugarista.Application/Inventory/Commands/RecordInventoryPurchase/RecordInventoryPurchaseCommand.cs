@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Accounting.Services;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Inventory.Commands.RecordInventoryPurchase;
@@ -56,10 +57,14 @@ public class RecordInventoryPurchaseCommandValidator : AbstractValidator<RecordI
 public class RecordInventoryPurchaseCommandHandler : IRequestHandler<RecordInventoryPurchaseCommand, Guid>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly IAccountingService _accountingService;
 
-    public RecordInventoryPurchaseCommandHandler(IApplicationDbContext dbContext)
+    public RecordInventoryPurchaseCommandHandler(
+        IApplicationDbContext dbContext,
+        IAccountingService accountingService)
     {
         _dbContext = dbContext;
+        _accountingService = accountingService;
     }
 
     public async Task<Guid> Handle(RecordInventoryPurchaseCommand request, CancellationToken cancellationToken)
@@ -114,6 +119,9 @@ public class RecordInventoryPurchaseCommandHandler : IRequestHandler<RecordInven
                 request.PurchaseUnitPrice.Value);
         }
 
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _accountingService.PostInventoryPurchaseAsync(purchase, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return purchase.Id;

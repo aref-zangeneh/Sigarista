@@ -7,6 +7,10 @@ export function getReadableError(error) {
     return 'نشست شما منقضی شده یا دسترسی ندارید. دوباره وارد شوید.'
   }
 
+  if (message.includes('403') || message.toLowerCase().includes('forbidden')) {
+    return 'شما دسترسی لازم برای این عملیات را ندارید.'
+  }
+
   if (message === 'Invalid username or password.') {
     return 'نام کاربری یا رمز عبور نادرست است.'
   }

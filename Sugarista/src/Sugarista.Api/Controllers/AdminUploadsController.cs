@@ -1,15 +1,17 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sugarista.Api.Authorization;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
 
-[Authorize(Roles = RoleNames.Admin)]
+[Authorize]
 [Route("api/admin/uploads")]
 public class AdminUploadsController : ApiControllerBase
 {
     [HttpPost("inventory-documents")]
+    [RequirePermission(AdminPermissions.Uploads.Create)]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<ActionResult<UploadedFileDto>> UploadInventoryDocument(
         IFormFile file,

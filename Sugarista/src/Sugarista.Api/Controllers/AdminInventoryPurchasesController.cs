@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sugarista.Api.Authorization;
 using Sugarista.Application.Common.Models;
 using Sugarista.Application.Inventory.Commands.RecordInventoryPurchase;
 using Sugarista.Application.Inventory.Queries.GetInventoryPurchases;
@@ -7,11 +8,12 @@ using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
 
-[Authorize(Roles = RoleNames.Admin)]
+[Authorize]
 [Route("api/admin/inventory/purchases")]
 public class AdminInventoryPurchasesController : ApiControllerBase
 {
     [HttpGet]
+    [RequirePermission(AdminPermissions.InventoryPurchases.View)]
     public async Task<ActionResult<PaginatedList<InventoryPurchaseDto>>> Get(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -26,6 +28,7 @@ public class AdminInventoryPurchasesController : ApiControllerBase
     }
 
     [HttpPost]
+    [RequirePermission(AdminPermissions.InventoryPurchases.Create)]
     public async Task<ActionResult<Guid>> Create(
         [FromBody] RecordInventoryPurchaseCommand command,
         CancellationToken cancellationToken)

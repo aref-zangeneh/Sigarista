@@ -4,6 +4,8 @@ public interface IApplicationDbContext
 {
     DbSet<Sugarista.Domain.Entities.AdminUser> AdminUsers { get; }
 
+    DbSet<Sugarista.Domain.Entities.AdminUserPermission> AdminUserPermissions { get; }
+
     DbSet<Sugarista.Domain.Entities.Category> Categories { get; }
 
     DbSet<Sugarista.Domain.Entities.MenuItem> MenuItems { get; }
@@ -43,6 +45,20 @@ public interface IApplicationDbContext
     DbSet<Sugarista.Domain.Entities.SiteSettings> SiteSettings { get; }
 
     DbSet<Sugarista.Domain.Entities.TableSession> TableSessions { get; }
+
+    DbSet<Sugarista.Domain.Entities.Account> Accounts { get; }
+
+    DbSet<Sugarista.Domain.Entities.Partner> Partners { get; }
+
+    DbSet<Sugarista.Domain.Entities.JournalEntry> JournalEntries { get; }
+
+    DbSet<Sugarista.Domain.Entities.JournalLine> JournalLines { get; }
+
+    DbSet<Sugarista.Domain.Entities.PartnerCapitalTransaction> PartnerCapitalTransactions { get; }
+
+    DbSet<Sugarista.Domain.Entities.ProfitDistribution> ProfitDistributions { get; }
+
+    DbSet<Sugarista.Domain.Entities.ProfitDistributionLine> ProfitDistributionLines { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

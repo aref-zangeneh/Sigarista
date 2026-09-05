@@ -36,8 +36,10 @@ public class ApplicationDbContextSeeder
         await SeedMenuAsync(cancellationToken);
         await SeedSalonAsync(cancellationToken);
         await SeedAdminAsync(cancellationToken);
+        await EnsureBootstrapSuperAdminAsync(cancellationToken);
         await SeedIngredientsAsync(cancellationToken);
         await SeedInventoryStocksAsync(cancellationToken);
+        await SeedAccountingAccountsAsync(cancellationToken);
     }
 
     private async Task EnsureSchemaCompatibilityAsync(CancellationToken cancellationToken)
@@ -112,6 +114,122 @@ public class ApplicationDbContextSeeder
             ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "ReadySmsSentAt" timestamp with time zone;
             UPDATE "Orders" SET "FulfillmentStatus" = 'Registered' WHERE "Status" = 'Paid' AND ("FulfillmentStatus" = 'None' OR "FulfillmentStatus" = '');
             CREATE INDEX IF NOT EXISTS "IX_Orders_FulfillmentStatus" ON "Orders" ("FulfillmentStatus");
+            ALTER TABLE "AdminUsers" ADD COLUMN IF NOT EXISTS "IsSuperAdmin" boolean NOT NULL DEFAULT false;
+            UPDATE "AdminUsers" SET "IsSuperAdmin" = true WHERE "Username" = 'admin';
+            CREATE TABLE IF NOT EXISTS "AdminUserPermissions" (
+                "Id" uuid NOT NULL,
+                "AdminUserId" uuid NOT NULL,
+                "PermissionKey" character varying(100) NOT NULL,
+                CONSTRAINT "PK_AdminUserPermissions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_AdminUserPermissions_AdminUsers_AdminUserId" FOREIGN KEY ("AdminUserId") REFERENCES "AdminUsers" ("Id") ON DELETE CASCADE
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_AdminUserPermissions_AdminUserId_PermissionKey" ON "AdminUserPermissions" ("AdminUserId", "PermissionKey");
+            CREATE TABLE IF NOT EXISTS "Accounts" (
+                "Id" uuid NOT NULL,
+                "Code" character varying(20) NOT NULL,
+                "Name" character varying(200) NOT NULL,
+                "NamePersian" character varying(200) NOT NULL,
+                "Type" character varying(20) NOT NULL,
+                "IsSystem" boolean NOT NULL DEFAULT false,
+                "IsActive" boolean NOT NULL DEFAULT true,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_Accounts" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Accounts_Code" ON "Accounts" ("Code");
+            CREATE TABLE IF NOT EXISTS "Partners" (
+                "Id" uuid NOT NULL,
+                "Name" character varying(200) NOT NULL,
+                "OwnershipPercentage" numeric(8,4) NOT NULL,
+                "Email" character varying(200),
+                "Phone" character varying(50),
+                "Notes" character varying(1000),
+                "IsActive" boolean NOT NULL DEFAULT true,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_Partners" PRIMARY KEY ("Id")
+            );
+            CREATE TABLE IF NOT EXISTS "JournalEntries" (
+                "Id" uuid NOT NULL,
+                "ReferenceNumber" character varying(30) NOT NULL,
+                "EntryDate" date NOT NULL,
+                "SourceType" character varying(30) NOT NULL,
+                "SourceId" uuid,
+                "Description" character varying(1000) NOT NULL,
+                "IsPosted" boolean NOT NULL DEFAULT true,
+                "PostedAt" timestamp with time zone,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_JournalEntries" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_JournalEntries_ReferenceNumber" ON "JournalEntries" ("ReferenceNumber");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_JournalEntries_SourceType_SourceId" ON "JournalEntries" ("SourceType", "SourceId");
+            CREATE INDEX IF NOT EXISTS "IX_JournalEntries_EntryDate" ON "JournalEntries" ("EntryDate");
+            CREATE TABLE IF NOT EXISTS "JournalLines" (
+                "Id" uuid NOT NULL,
+                "JournalEntryId" uuid NOT NULL,
+                "AccountId" uuid NOT NULL,
+                "Debit" numeric(18,2) NOT NULL DEFAULT 0,
+                "Credit" numeric(18,2) NOT NULL DEFAULT 0,
+                "Description" character varying(500),
+                "PartnerId" uuid,
+                CONSTRAINT "PK_JournalLines" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_JournalLines_JournalEntries_JournalEntryId" FOREIGN KEY ("JournalEntryId") REFERENCES "JournalEntries" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_JournalLines_Accounts_AccountId" FOREIGN KEY ("AccountId") REFERENCES "Accounts" ("Id") ON DELETE RESTRICT,
+                CONSTRAINT "FK_JournalLines_Partners_PartnerId" FOREIGN KEY ("PartnerId") REFERENCES "Partners" ("Id") ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS "PartnerCapitalTransactions" (
+                "Id" uuid NOT NULL,
+                "PartnerId" uuid NOT NULL,
+                "Type" character varying(20) NOT NULL,
+                "Amount" numeric(18,2) NOT NULL,
+                "TransactionDate" date NOT NULL,
+                "Description" character varying(1000),
+                "JournalEntryId" uuid,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_PartnerCapitalTransactions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_PartnerCapitalTransactions_Partners_PartnerId" FOREIGN KEY ("PartnerId") REFERENCES "Partners" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_PartnerCapitalTransactions_JournalEntries_JournalEntryId" FOREIGN KEY ("JournalEntryId") REFERENCES "JournalEntries" ("Id") ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS "ProfitDistributions" (
+                "Id" uuid NOT NULL,
+                "PeriodStart" date NOT NULL,
+                "PeriodEnd" date NOT NULL,
+                "TotalNetProfit" numeric(18,2) NOT NULL,
+                "Status" character varying(20) NOT NULL,
+                "FinalizedAt" timestamp with time zone,
+                "JournalEntryId" uuid,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_ProfitDistributions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_ProfitDistributions_JournalEntries_JournalEntryId" FOREIGN KEY ("JournalEntryId") REFERENCES "JournalEntries" ("Id") ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS "ProfitDistributionLines" (
+                "Id" uuid NOT NULL,
+                "ProfitDistributionId" uuid NOT NULL,
+                "PartnerId" uuid NOT NULL,
+                "OwnershipPercentage" numeric(8,4) NOT NULL,
+                "AllocatedAmount" numeric(18,2) NOT NULL,
+                CONSTRAINT "PK_ProfitDistributionLines" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_ProfitDistributionLines_ProfitDistributions_ProfitDistributionId" FOREIGN KEY ("ProfitDistributionId") REFERENCES "ProfitDistributions" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_ProfitDistributionLines_Partners_PartnerId" FOREIGN KEY ("PartnerId") REFERENCES "Partners" ("Id") ON DELETE RESTRICT
+            );
+            INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+            SELECT '20260722120000_AddAccountingModule', '10.0.9'
+            WHERE NOT EXISTS (
+                SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260722120000_AddAccountingModule'
+            );
             """,
             cancellationToken);
     }
@@ -345,14 +463,39 @@ public class ApplicationDbContextSeeder
             adminOptions.Username,
             adminOptions.DisplayName,
             passwordHash: "placeholder",
-            role: RoleNames.Admin);
+            role: RoleNames.SuperAdmin);
 
+        adminUser.SetSuperAdmin(true);
         adminUser.SetPasswordHash(_adminPasswordService.HashPassword(adminUser, adminOptions.Password));
 
         _dbContext.AdminUsers.Add(adminUser);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Seeded default admin user {Username}.", adminUser.Username);
+    }
+
+    private async Task EnsureBootstrapSuperAdminAsync(CancellationToken cancellationToken)
+    {
+        var adminOptions = _adminOptions.Value;
+        var bootstrapAdmin = await _dbContext.AdminUsers
+            .FirstOrDefaultAsync(user => user.Username == adminOptions.Username.Trim().ToLowerInvariant(), cancellationToken);
+
+        if (bootstrapAdmin is null || bootstrapAdmin.IsSuperAdmin)
+        {
+            return;
+        }
+
+        bootstrapAdmin.SetSuperAdmin(true);
+        bootstrapAdmin.UpdateProfile(
+            bootstrapAdmin.Username,
+            bootstrapAdmin.DisplayName,
+            RoleNames.SuperAdmin,
+            bootstrapAdmin.IsActive,
+            isSuperAdmin: true);
+        bootstrapAdmin.ReplacePermissions([]);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Promoted bootstrap admin {Username} to super admin.", bootstrapAdmin.Username);
     }
 
     private async Task SeedSalonAsync(CancellationToken cancellationToken)
@@ -369,6 +512,25 @@ public class ApplicationDbContextSeeder
             new SalonTable("میز ۴", 4, 4),
             new SalonTable("میز ۵", 6, 5),
             new SalonTable("میز VIP", 8, 6));
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SeedAccountingAccountsAsync(CancellationToken cancellationToken)
+    {
+        var existingCodes = await _dbContext.Accounts
+            .Select(account => account.Code)
+            .ToListAsync(cancellationToken);
+
+        foreach (var seed in AccountingAccountCodes.SeedAccounts)
+        {
+            if (existingCodes.Contains(seed.Code))
+            {
+                continue;
+            }
+
+            _dbContext.Accounts.Add(new Account(seed.Code, seed.Name, seed.NamePersian, seed.Type, isSystem: true));
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

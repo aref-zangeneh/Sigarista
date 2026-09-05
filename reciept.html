@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>فیش تست پرینتر حرارتی</title>
+    <style>
+        /* تنظیمات کلی صفحه */
+        body {
+            font-family: 'Tahoma', 'Vazir', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        /* استایل فیش روی صفحه مانیتور */
+        .receipt {
+            width: 80mm; /* عرض دقیق کاغذ حرارتی */
+            background: #fff;
+            padding: 10px 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.15);
+            font-size: 12px;
+            color: #000;
+            box-sizing: border-box;
+        }
+
+        .text-center { text-align: center; }
+        .bold { font-weight: bold; }
+        
+        .header {
+            border-bottom: 1px dashed #000;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .header h2 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+        }
+
+        .info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+
+        /* جدول فاکتور */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+        }
+
+        th, td {
+            text-align: right;
+            padding: 4px 0;
+        }
+
+        th {
+            border-bottom: 1px solid #000;
+            font-size: 11px;
+        }
+
+        td.price, th.price {
+            text-align: left;
+        }
+
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+        }
+
+        .totals {
+            font-size: 11px;
+        }
+
+        .totals .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .grand-total {
+            font-size: 14px;
+            font-weight: bold;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            padding: 6px 0;
+            margin-top: 6px;
+        }
+
+        .footer {
+            margin-top: 12px;
+            font-size: 11px;
+        }
+
+        .btn-print {
+            margin-bottom: 15px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        /* تنظیمات اختصاصی برای پرینت */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .btn-print {
+                display: none; /* مخفی کردن دکمه هنگام پرینت */
+            }
+
+            .receipt {
+                width: 78mm; /* کمی کمتر از ۸۰ برای جلوگیری از اسکرول/پرینت صفحه اضافه */
+                box-shadow: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            @page {
+                size: 80mm auto; /* تنظیم سایز کاغذ */
+                margin: 0; /* حذف حاشیه‌های پیش‌فرض مرورگر */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="btn-print" onclick="window.print()">چاپ فیش تست</button>
+
+    <div class="receipt">
+        <!-- سربرگ -->
+        <div class="header text-center">
+            <h2>رستوران نمونه</h2>
+            <div>فاکتور سفارش غذا</div>
+        </div>
+
+        <!-- اطلاعات سفارش -->
+        <div class="info">
+            <span>شماره فاکتور: <b>#۱۰۲۴</b></span>
+            <span>میز: <b>۱۲</b></span>
+        </div>
+        <div class="info">
+            <span>تاریخ: ۱۴۰۵/۰۵/۰۱</span>
+            <span>ساعت: ۱۴:۳۰</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- اقلام سفارش -->
+        <table>
+            <thead>
+                <tr>
+                    <th>شرح</th>
+                    <th class="text-center">تعداد</th>
+                    <th class="price">قیمت (تومان)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>چلو کباب کوبیده ممتاز</td>
+                    <td class="text-center">۲</td>
+                    <td class="price">۴۸۰,۰۰۰</td>
+                </tr>
+                <tr>
+                    <td>جوجه کباب زعفرانی</td>
+                    <td class="text-center">۱</td>
+                    <td class="price">۲۳۰,۰۰۰</td>
+                </tr>
+                <tr>
+                    <td>نوشابه قوطی</td>
+                    <td class="text-center">۳</td>
+                    <td class="price">۴۵,۰۰۰</td>
+                </tr>
+                <tr>
+                    <td>ماست موسیر شرکتی</td>
+                    <td class="text-center">۲</td>
+                    <td class="price">۳۰,۰۰۰</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- جمع کل و توضیحات -->
+        <div class="totals">
+            <div class="row">
+                <span>جمع کل:</span>
+                <span>۷۸۵,۰۰۰</span>
+            </div>
+            <div class="row">
+                <span>حق سرویس و ارزش افزوده:</span>
+                <span>۰</span>
+            </div>
+            
+            <div class="row grand-total">
+                <span>مبلغ قابل پرداخت:</span>
+                <span>۷۸۵,۰۰۰</span>
+            </div>
+        </div>
+
+        <!-- پانویس -->
+        <div class="footer text-center">
+            <p class="bold">از خرید و حضور شما متشکریم!</p>
+            <p style="font-size: 9px; color: #555;">تست پرینتر حرارتی ۸ سانتی‌متری</p>
+        </div>
+    </div>
+
+</body>
+</html>

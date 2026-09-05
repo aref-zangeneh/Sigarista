@@ -19,6 +19,8 @@ coverage/
 TestResults/
 logs/
 *.log
+.pos-receipts/
+scripts/pos-print.env
 
 .idea/
 .vs/

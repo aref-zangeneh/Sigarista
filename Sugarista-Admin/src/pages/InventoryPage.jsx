@@ -38,7 +38,7 @@ export function InventoryPage() {
               {inventoryStatus.lowStockCount > 0 ? (
                 <div className="stat-card stat-card--danger">
                   <span className="stat-value">{toPersianNumber(inventoryStatus.lowStockCount)}</span>
-                  <span className="stat-label">کم موجودی</span>
+                  <span className="stat-label">موجودی کم</span>
                 </div>
               ) : (
                 <div className="stat-card stat-card--ok">

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Accounting.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
@@ -27,13 +28,16 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IPaymentGateway _paymentGateway;
+    private readonly IAccountingService _accountingService;
 
     public ConfirmMockPaymentCommandHandler(
         IApplicationDbContext dbContext,
-        IPaymentGateway paymentGateway)
+        IPaymentGateway paymentGateway,
+        IAccountingService accountingService)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
+        _accountingService = accountingService;
     }
 
     public async Task<ConfirmMockPaymentResultDto> Handle(ConfirmMockPaymentCommand request, CancellationToken cancellationToken)
@@ -86,6 +90,9 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
             order,
             order.Lines.ToList(),
             cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _accountingService.PostOrderPaymentAsync(order, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new ConfirmMockPaymentResultDto(

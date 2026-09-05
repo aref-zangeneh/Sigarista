@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sugarista.Api.Authorization;
 using Sugarista.Application.Common.Models;
 using Sugarista.Application.Orders.Commands.CancelAdminOrder;
 using Sugarista.Application.Orders.Commands.UpdateAdminOrder;
@@ -12,11 +13,12 @@ using Sugarista.Domain.Entities;
 
 namespace Sugarista.Api.Controllers;
 
-[Authorize(Roles = RoleNames.Admin)]
+[Authorize]
 [Route("api/admin/orders")]
 public class AdminOrdersController : ApiControllerBase
 {
     [HttpGet("alerts")]
+    [RequirePermission(AdminPermissions.Orders.View)]
     public async Task<ActionResult<AdminOrderAlertsDto>> GetAlerts(
         [FromQuery] DateTimeOffset? since = null,
         CancellationToken cancellationToken = default)
@@ -25,6 +27,7 @@ public class AdminOrdersController : ApiControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(AdminPermissions.Orders.View)]
     public async Task<ActionResult<PaginatedList<AdminOrderListItemDto>>> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -35,6 +38,7 @@ public class AdminOrdersController : ApiControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(AdminPermissions.Orders.View)]
     public async Task<ActionResult<AdminOrderDetailDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var order = await Mediator.Send(new GetAdminOrderByIdQuery(id), cancellationToken);
@@ -47,6 +51,7 @@ public class AdminOrdersController : ApiControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission(AdminPermissions.Orders.Update)]
     public async Task<ActionResult<AdminOrderDetailDto>> Update(
         Guid id,
         [FromBody] UpdateAdminOrderRequest request,
@@ -63,12 +68,14 @@ public class AdminOrdersController : ApiControllerBase
     }
 
     [HttpPost("{id:guid}/cancel")]
+    [RequirePermission(AdminPermissions.Orders.Delete)]
     public async Task<ActionResult<AdminOrderDetailDto>> Cancel(Guid id, CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new CancelAdminOrderCommand(id), cancellationToken));
     }
 
     [HttpPatch("{id:guid}/fulfillment")]
+    [RequirePermission(AdminPermissions.Orders.Update)]
     public async Task<ActionResult<AdminOrderDetailDto>> UpdateFulfillment(
         Guid id,
         [FromBody] UpdateOrderFulfillmentRequest request,

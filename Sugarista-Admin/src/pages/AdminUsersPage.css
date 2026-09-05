@@ -1,0 +1,116 @@
+.admin-users-page .admin-users-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-users-list-item {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.admin-users-list-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+
+.admin-users-list-item--active .admin-users-list-button {
+  border-color: rgba(255, 196, 120, 0.45);
+  background: rgba(255, 196, 120, 0.08);
+}
+
+.admin-users-list-button strong {
+  display: block;
+}
+
+.admin-users-list-button small {
+  display: block;
+  opacity: 0.75;
+}
+
+.admin-users-list-meta {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+}
+
+.admin-users-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 196, 120, 0.16);
+  color: #ffdca8;
+  font-size: 0.78rem;
+}
+
+.admin-users-badge--muted {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.admin-users-super-admin {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 196, 120, 0.08);
+}
+
+.admin-users-permissions {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-users-permission-groups {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-users-permission-group {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-users-permission-group header {
+  margin-bottom: 0.65rem;
+}
+
+.admin-users-permission-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.45rem 0.75rem;
+}
+
+.admin-users-password-panel {
+  margin-top: 0.5rem;
+}
+
+.admin-users-password-form {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 420px;
+}
+
+@media (max-width: 900px) {
+  .admin-users-list-button {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-users-list-meta {
+    justify-items: start;
+  }
+}

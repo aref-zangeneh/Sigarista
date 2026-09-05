@@ -10,12 +10,16 @@ export function normalizeSession(raw) {
     return null
   }
 
+  const permissions = raw.permissions ?? raw.Permissions ?? []
+
   return {
     token,
     userId: raw.userId ?? raw.UserId,
     username: raw.username ?? raw.Username,
     displayName: raw.displayName ?? raw.DisplayName,
     role: raw.role ?? raw.Role,
+    isSuperAdmin: Boolean(raw.isSuperAdmin ?? raw.IsSuperAdmin),
+    permissions: Array.isArray(permissions) ? permissions : [],
   }
 }
 

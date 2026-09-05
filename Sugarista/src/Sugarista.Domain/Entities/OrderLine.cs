@@ -20,7 +20,8 @@ public class OrderLine : BaseEntity
         decimal unitPrice,
         IReadOnlyCollection<string> modifierLabels,
         string? payerKey = null,
-        string? payerLabel = null)
+        string? payerLabel = null,
+        string? baristaNote = null)
     {
         if (orderId == Guid.Empty)
         {
@@ -58,6 +59,7 @@ public class OrderLine : BaseEntity
         LineTotal = unitPrice * quantity;
         ModifierLabels = NormalizeList(modifierLabels);
         AssignPayer(payerKey, payerLabel);
+        BaristaNote = string.IsNullOrWhiteSpace(baristaNote) ? null : baristaNote.Trim();
         InventoryDeductedQuantity = 0;
     }
 
@@ -90,6 +92,13 @@ public class OrderLine : BaseEntity
     public string? PayerLabel { get; private set; }
 
     public int InventoryDeductedQuantity { get; private set; }
+
+    public string? BaristaNote { get; private set; }
+
+    public void UpdateBaristaNote(string? baristaNote)
+    {
+        BaristaNote = string.IsNullOrWhiteSpace(baristaNote) ? null : baristaNote.Trim();
+    }
 
     public void AssignPayer(string? payerKey, string? payerLabel)
     {

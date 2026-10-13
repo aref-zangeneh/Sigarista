@@ -51,5 +51,7 @@ public class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSettings>
         builder.Property(settings => settings.FooterPopularLabel).HasMaxLength(100).IsRequired();
         builder.Property(settings => settings.FooterMenuLabel).HasMaxLength(100).IsRequired();
         builder.Property(settings => settings.FooterCallLabel).HasMaxLength(100).IsRequired();
+        builder.Property(settings => settings.IsOnlineSalesEnabled).IsRequired();
+        builder.Property(settings => settings.OnlineSalesNotice).HasMaxLength(500).IsRequired();
     }
 }

@@ -4,6 +4,7 @@ using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Common.Options;
 using Sugarista.Application.Orders;
 using Sugarista.Domain.Entities;
+using Sugarista.Domain.Exceptions;
 
 namespace Sugarista.Application.Orders.Commands.CreateOrderCheckout;
 
@@ -122,6 +123,15 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
 
     public async Task<CreateOrderCheckoutResultDto> Handle(CreateOrderCheckoutCommand request, CancellationToken cancellationToken)
     {
+        var siteSettings = await _dbContext.SiteSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (siteSettings is { IsOnlineSalesEnabled: false })
+        {
+            throw new DomainException("فروش آنلاین در حال حاضر غیرفعال است؛ لطفاً بعداً دوباره تلاش کنید.");
+        }
+
         var splitBillMode = ResolveSplitBillMode(request);
         var isSplitBill = splitBillMode != SplitBillMode.Single;
 

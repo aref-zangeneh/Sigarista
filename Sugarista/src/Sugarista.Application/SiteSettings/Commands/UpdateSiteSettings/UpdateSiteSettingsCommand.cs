@@ -47,6 +47,8 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     public string FooterPopularLabel { get; init; } = string.Empty;
     public string FooterMenuLabel { get; init; } = string.Empty;
     public string FooterCallLabel { get; init; } = string.Empty;
+    public bool IsOnlineSalesEnabled { get; init; } = true;
+    public string OnlineSalesNotice { get; init; } = string.Empty;
 }
 
 public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSettingsCommand>
@@ -124,6 +126,8 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.FooterPopularLabel = request.FooterPopularLabel.Trim();
         settings.FooterMenuLabel = request.FooterMenuLabel.Trim();
         settings.FooterCallLabel = request.FooterCallLabel.Trim();
+        settings.IsOnlineSalesEnabled = request.IsOnlineSalesEnabled;
+        settings.OnlineSalesNotice = request.OnlineSalesNotice.Trim();
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

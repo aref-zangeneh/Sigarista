@@ -56,6 +56,13 @@
       </div>
     </header>
 
+    <div class="sales-notice" x-show="salesClosed" x-cloak>
+      <div class="container sales-notice-inner">
+        <i class="bi bi-pause-circle"></i>
+        <p x-text="salesNoticeText"></p>
+      </div>
+    </div>
+
     <main>
       <section id="menu" class="menu-section">
         <div class="menu-sticky-shell">
@@ -111,7 +118,7 @@
         </div>
 
         <div class="container menu-content">
-          <section id="popular" class="featured-strip" x-show="featuredItems.length && selectedCategory === 'all' && !search">
+          <section id="popular" class="featured-strip" x-show="!salesClosed && featuredItems.length && selectedCategory === 'all' && !search">
             <div class="featured-strip-head">
               <h2 class="featured-strip-title" x-text="settings.popularTitle"></h2>
               <p class="featured-strip-copy mb-0" x-text="settings.popularDescription"></p>
@@ -122,7 +129,7 @@
                   type="button"
                   class="featured-chip"
                   @click="openAddToCartModal(item)"
-                  x-show="item.isOrderable"
+                  x-show="item.isOrderable && !salesClosed"
                 >
                   <span class="featured-chip-name" x-text="item.name"></span>
                   <span class="featured-chip-price" x-text="formatPriceCompact(displayPrice(item))"></span>
@@ -193,7 +200,7 @@
                             <button
                               type="button"
                               class="product-add-btn"
-                              x-show="item.isOrderable"
+                              x-show="item.isOrderable && !salesClosed"
                               @click="openAddToCartModal(item)"
                             >
                               <i class="bi bi-bag-plus"></i>
@@ -300,7 +307,7 @@
       </div>
     </footer>
 
-    <div class="cart-bar" x-show="cartCount > 0 && !mockPayment && !splitMockPayment && !splitOrder && !orderSuccess" x-cloak>
+    <div class="cart-bar" x-show="!salesClosed && cartCount > 0 && !mockPayment && !splitMockPayment && !splitOrder && !orderSuccess" x-cloak>
       <div class="container cart-bar-inner">
         <div class="cart-bar-summary">
           <span class="cart-bar-count" x-text="toPersianNumber(cartCount)"></span>
@@ -529,7 +536,7 @@
           <div class="mb-3" x-show="addToCartModal?.item?.variants?.length">
             <label class="form-label">اندازه</label>
             <div class="size-options">
-              <template x-for="variant in addToCartModal.item.variants" :key="variant.key">
+              <template x-for="variant in (addToCartModal?.item?.variants || [])" :key="variant.key">
                 <button
                   type="button"
                   class="size-option"
@@ -562,14 +569,14 @@
             <label class="form-label">تعداد</label>
             <div class="qty-control qty-control-lg">
               <button type="button" @click="addToCartModal.quantity = Math.max(1, addToCartModal.quantity - 1)">−</button>
-              <span x-text="toPersianNumber(addToCartModal.quantity)"></span>
+              <span x-text="toPersianNumber(addToCartModal?.quantity ?? 1)"></span>
               <button type="button" @click="addToCartModal.quantity += 1">+</button>
             </div>
           </div>
 
           <div class="add-cart-price">
             <span>قیمت</span>
-            <strong x-text="formatPrice(modalUnitPrice() * addToCartModal.quantity)"></strong>
+            <strong x-text="formatPrice(modalUnitPrice() * (addToCartModal?.quantity ?? 1))"></strong>
           </div>
         </div>
 
@@ -668,7 +675,7 @@
         <i class="bi bi-grid"></i>
         <span>منو</span>
       </a>
-      <button type="button" class="mobile-order-link" :class="{ 'mobile-order-link--active': cartCount > 0 }" @click="openCartDrawer('cart')">
+      <button type="button" class="mobile-order-link" x-show="!salesClosed" :class="{ 'mobile-order-link--active': cartCount > 0 }" @click="openCartDrawer('cart')">
         <i class="bi bi-basket"></i>
         <span x-text="cartCount > 0 ? toPersianNumber(cartCount) : 'سبد'"></span>
       </button>

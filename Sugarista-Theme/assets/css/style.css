@@ -1221,3 +1221,45 @@ a {
     max-width: 960px;
   }
 }
+
+/* ============================================================
+   Sales closed notice (online sales paused from admin)
+   ============================================================ */
+.sales-notice {
+  background: #fffbeb;
+  border-block: 1px solid #fde68a;
+  color: #92400e;
+  animation: sales-notice-in 0.3s ease;
+}
+
+@keyframes sales-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sales-notice-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  text-align: center;
+}
+
+.sales-notice-inner i {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.sales-notice-inner p {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.7;
+}

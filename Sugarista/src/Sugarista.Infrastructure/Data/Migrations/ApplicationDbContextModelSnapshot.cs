@@ -1233,6 +1233,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<bool>("IsOnlineSalesEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1255,6 +1258,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(300)");
 
                     b.Property<string>("MetaDescription")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("OnlineSalesNotice")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");

@@ -74,7 +74,9 @@ document.addEventListener("alpine:init", () => {
       footerText: "Sugarista Cafe Digital Menu Theme",
       footerPopularLabel: "پرفروش‌ها",
       footerMenuLabel: "منو",
-      footerCallLabel: "تماس"
+      footerCallLabel: "تماس",
+      isOnlineSalesEnabled: true,
+      onlineSalesNotice: ""
     },
     async init() {
       this.loadCart();
@@ -200,6 +202,9 @@ document.addEventListener("alpine:init", () => {
       return this.cartTotal - this.splitAmountTotal;
     },
     get canSubmitCheckout() {
+      if (this.salesClosed) {
+        return false;
+      }
       if (!this.checkoutForm.customerName.trim() || !this.checkoutForm.customerPhone.trim()) {
         return false;
       }
@@ -332,6 +337,13 @@ document.addEventListener("alpine:init", () => {
     get cartCount() {
       return this.cart.reduce((total, line) => total + line.quantity, 0);
     },
+    get salesClosed() {
+      return this.settings.isOnlineSalesEnabled === false;
+    },
+    get salesNoticeText() {
+      const notice = (this.settings.onlineSalesNotice || "").trim();
+      return notice || "فروش آنلاین موقتاً غیرفعال است؛ می‌توانید حضوری سفارش دهید.";
+    },
     get featuredItems() {
       return this.items.filter((item) => item.featured);
     },
@@ -402,6 +414,9 @@ document.addEventListener("alpine:init", () => {
       this.selectedCategory = "all";
     },
     openCartDrawer(view = "cart") {
+      if (this.salesClosed) {
+        return;
+      }
       this.cartView = view;
       this.cartDrawerOpen = true;
       this.checkoutError = "";
@@ -419,7 +434,7 @@ document.addEventListener("alpine:init", () => {
       this.checkoutError = "";
     },
     openAddToCartModal(item) {
-      if (!item.isOrderable) {
+      if (!item.isOrderable || this.salesClosed) {
         return;
       }
 
@@ -492,7 +507,7 @@ document.addEventListener("alpine:init", () => {
       return `${menuItemId}-${sizeKey || "default"}-${sortedModifiers}`;
     },
     confirmAddToCart() {
-      if (!this.addToCartModal) {
+      if (!this.addToCartModal || this.salesClosed) {
         return;
       }
 
@@ -556,6 +571,11 @@ document.addEventListener("alpine:init", () => {
     },
     async submitCheckout() {
       if (!this.cart.length) {
+        return;
+      }
+
+      if (this.salesClosed) {
+        this.checkoutError = this.salesNoticeText;
         return;
       }
 

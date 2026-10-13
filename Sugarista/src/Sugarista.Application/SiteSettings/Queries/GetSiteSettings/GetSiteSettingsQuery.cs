@@ -50,6 +50,8 @@ public record SiteSettingsDto
     public string FooterPopularLabel { get; init; } = string.Empty;
     public string FooterMenuLabel { get; init; } = string.Empty;
     public string FooterCallLabel { get; init; } = string.Empty;
+    public bool IsOnlineSalesEnabled { get; init; } = true;
+    public string OnlineSalesNotice { get; init; } = string.Empty;
 }
 
 public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery, SiteSettingsDto>
@@ -110,7 +112,9 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 FooterText = settings.FooterText,
                 FooterPopularLabel = settings.FooterPopularLabel,
                 FooterMenuLabel = settings.FooterMenuLabel,
-                FooterCallLabel = settings.FooterCallLabel
+                FooterCallLabel = settings.FooterCallLabel,
+                IsOnlineSalesEnabled = settings.IsOnlineSalesEnabled,
+                OnlineSalesNotice = settings.OnlineSalesNotice
             })
             .FirstOrDefaultAsync(cancellationToken);
 

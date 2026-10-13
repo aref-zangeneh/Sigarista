@@ -89,4 +89,8 @@ public class SiteSettings : BaseAuditableEntity
     public string FooterMenuLabel { get; set; } = string.Empty;
 
     public string FooterCallLabel { get; set; } = string.Empty;
+
+    public bool IsOnlineSalesEnabled { get; set; } = true;
+
+    public string OnlineSalesNotice { get; set; } = string.Empty;
 }

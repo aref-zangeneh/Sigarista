@@ -49,6 +49,8 @@ public class ApplicationDbContextSeeder
             ALTER TABLE "Ingredients" ADD COLUMN IF NOT EXISTS "UnitCost" numeric(18,2) NOT NULL DEFAULT 0;
             ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "RecipeDescription" character varying(4000);
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';
             CREATE TABLE IF NOT EXISTS "ProductWikiGuides" (
                 "Id" uuid NOT NULL,
                 "MenuItemId" uuid NOT NULL,
@@ -285,7 +287,9 @@ public class ApplicationDbContextSeeder
             FooterText = "Sugarista Cafe Digital Menu Theme",
             FooterPopularLabel = "پرفروش‌ها",
             FooterMenuLabel = "منو",
-            FooterCallLabel = "تماس"
+            FooterCallLabel = "تماس",
+            IsOnlineSalesEnabled = true,
+            OnlineSalesNotice = "فروش آنلاین موقتاً غیرفعال است؛ می‌توانید حضوری سفارش دهید."
         });
 
         await _dbContext.SaveChangesAsync(cancellationToken);

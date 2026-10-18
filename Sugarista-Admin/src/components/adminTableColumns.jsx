@@ -660,8 +660,10 @@ export function buildMenuItemPricingColumns({
   formatMoney,
   markupByItem,
   onMarkupChange,
-  onApply,
-  bulkPercent,
+  onApplyMarkup,
+  manualByItem,
+  onManualChange,
+  onApplyManual,
   formatShamsiDate,
 }) {
   function previewPrice(cost, factor, markupPercent) {
@@ -674,6 +676,10 @@ export function buildMenuItemPricingColumns({
   function markupFor(item) {
     if (item.id in markupByItem) return markupByItem[item.id]
     return item.markupPercent ?? ''
+  }
+
+  function manualFor(item) {
+    return item.id in manualByItem ? manualByItem[item.id] : ''
   }
 
   return [
@@ -730,7 +736,7 @@ export function buildMenuItemPricingColumns({
           type="number"
           min="0"
           step="1"
-          placeholder={row.original.markupPercent ?? (bulkPercent ?? '')}
+          placeholder={row.original.markupPercent ?? '۰'}
           value={markupFor(row.original)}
           onChange={(event) => onMarkupChange(row.original.id, event.target.value)}
         />
@@ -740,6 +746,7 @@ export function buildMenuItemPricingColumns({
       id: 'preview',
       header: 'قیمت نهایی (پیش‌نمایش)',
       cell: ({ row }) => {
+        const manualValue = manualFor(row.original)
         const markupPercent = markupFor(row.original)
         const previews = []
         const variants = [
@@ -749,7 +756,13 @@ export function buildMenuItemPricingColumns({
         ]
         for (const variant of variants) {
           if (variant.price == null) continue
-          const computed = previewPrice(row.original.costPerServing, variant.factor, markupPercent)
+          let computed
+          if (manualValue !== '' && manualValue != null) {
+            const manual = Number(manualValue)
+            computed = manual > 0 ? Math.ceil(manual * variant.factor / 1000) * 1000 : null
+          } else {
+            computed = previewPrice(row.original.costPerServing, variant.factor, markupPercent)
+          }
           previews.push(
             <div key={variant.label}>
               {variant.label}: <strong>{formattedMoney(computed, formatMoney)}</strong>
@@ -760,18 +773,43 @@ export function buildMenuItemPricingColumns({
       },
     },
     {
+      id: 'manual',
+      header: 'قیمت دستی (تومان)',
+      cell: ({ row }) => (
+        <input
+          className="ltr-input pricing-markup-input"
+          type="number"
+          min="0"
+          step="1000"
+          placeholder="مثلاً ۱۲۰۰۰۰"
+          value={manualFor(row.original)}
+          onChange={(event) => onManualChange(row.original.id, event.target.value)}
+        />
+      ),
+    },
+    {
       id: 'actions',
-      header: 'عملیات',
+      header: 'اعمال تک‌به‌تک',
       enableSorting: false,
       cell: ({ row }) => (
-        <button
-          type="button"
-          className="link-button"
-          disabled={!row.original.hasRecipe}
-          onClick={() => onApply({ id: row.original.id, markupPercent: markupFor(row.original) })}
-        >
-          اعمال
-        </button>
+        <div className="table-actions table-actions-vertical">
+          <button
+            type="button"
+            className="link-button"
+            disabled={!row.original.hasRecipe}
+            onClick={() => onApplyMarkup({ id: row.original.id, markupPercent: markupFor(row.original) })}
+          >
+            اعمال درصد سود
+          </button>
+          <button
+            type="button"
+            className="link-button"
+            disabled={!row.original.hasRecipe || manualFor(row.original) === ''}
+            onClick={() => onApplyManual({ id: row.original.id, manualPrice: manualFor(row.original) })}
+          >
+            اعمال قیمت دستی
+          </button>
+        </div>
       ),
     },
   ]

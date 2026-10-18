@@ -1864,3 +1864,10 @@ code {
 .pricing-markup-input {
   width: 86px;
 }
+
+
+.table-actions.table-actions-vertical {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}

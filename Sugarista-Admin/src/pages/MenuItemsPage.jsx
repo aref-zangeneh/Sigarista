@@ -27,6 +27,7 @@ export function MenuItemsPage() {
   const [pricingItems, setPricingItems] = useState([])
   const [pricingLoading, setPricingLoading] = useState(true)
   const [markupByItem, setMarkupByItem] = useState({})
+  const [manualByItem, setManualByItem] = useState({})
   const [bulkMarkup, setBulkMarkup] = useState('30')
 
   const loadPricing = useCallback(async () => {
@@ -50,13 +51,20 @@ export function MenuItemsPage() {
   }, [tableReloadToken])
 
   const applyPricing = useCallback(
-    async ({ itemIds, markupPercent }) => {
+    async ({ itemIds, markupPercent, manualPrice }) => {
       setSaving(true)
       setError('')
       setMessage('')
       try {
+        const hasManual = manualPrice !== '' && manualPrice != null && Number(manualPrice) > 0
         const computed = markupPercent === '' || markupPercent == null ? 0 : Number(markupPercent)
-        if (Number.isNaN(computed) || computed < 0) {
+
+        if (hasManual && (Number.isNaN(Number(manualPrice)) || Number(manualPrice) <= 0)) {
+          setError('قیمت دستی باید عددی بزرگ‌تر از صفر باشد.')
+          return
+        }
+
+        if (!hasManual && (Number.isNaN(computed) || computed < 0)) {
           setError('درصد سود باید عددی بزرگ‌تر یا مساوی صفر باشد.')
           return
         }
@@ -65,18 +73,22 @@ export function MenuItemsPage() {
           method: 'POST',
           token: session.token,
           body: {
-            markupPercent: computed,
+            markupPercent: hasManual ? null : computed,
             itemIds: itemIds ?? [],
+            manualPrice: hasManual ? Number(manualPrice) : null,
           },
         })
 
         const count = Array.isArray(updated) ? updated.length : 0
         setMessage(
           count > 0
-            ? `قیمت ${toPersianNumber(count)} آیتم بر اساس درصد سود ${toPersianNumber(computed)}٪ به‌روزرسانی شد.`
+            ? hasManual
+              ? `قیمت ${toPersianNumber(count)} آیتم که تک‌به‌تک روی ${toPersianNumber(Number(manualPrice))} تومان تنظیم شد.`
+              : `قیمت ${toPersianNumber(count)} آیتم بر اساس درصد سود ${toPersianNumber(computed)}٪ به‌روزرسانی شد.`
             : 'قلمی با فرمول قابل قیمت‌گذاری پیدا نشد. اول فرمول را در صفحه «دستور پخت» ثبت کنید.',
         )
         setMarkupByItem({})
+        setManualByItem({})
         await loadPricing()
       } catch (requestError) {
         setError(getReadableError(requestError))
@@ -91,6 +103,10 @@ export function MenuItemsPage() {
     setMarkupByItem((current) => ({ ...current, [itemId]: value }))
   }, [])
 
+  const handleManualChange = useCallback((itemId, value) => {
+    setManualByItem((current) => ({ ...current, [itemId]: value }))
+  }, [])
+
   const pricingColumns = useMemo(
     () =>
       buildMenuItemPricingColumns({
@@ -98,10 +114,12 @@ export function MenuItemsPage() {
         formatMoney,
         markupByItem,
         onMarkupChange: handleMarkupChange,
-        onApply: ({ id, markupPercent }) => applyPricing({ itemIds: [id], markupPercent }),
-        bulkMarkup,
+        onApplyMarkup: ({ id, markupPercent }) => applyPricing({ itemIds: [id], markupPercent }),
+        manualByItem,
+        onManualChange: handleManualChange,
+        onApplyManual: ({ id, manualPrice }) => applyPricing({ itemIds: [id], manualPrice }),
       }),
-    [markupByItem, handleMarkupChange, applyPricing, bulkMarkup, toPersianNumber],
+    [markupByItem, handleMarkupChange, manualByItem, handleManualChange, applyPricing, toPersianNumber],
   )
 
   return (

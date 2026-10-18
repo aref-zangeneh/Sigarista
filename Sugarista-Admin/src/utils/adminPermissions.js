@@ -1,6 +1,23 @@
 export const PERMISSIONS = {
+  'delivery-methods': {
+    view: 'admin.orders.view',
+    create: 'admin.orders.update',
+    update: 'admin.orders.update',
+    delete: 'admin.orders.delete',
+  },
+  suppliers: {
+    view: 'admin.ingredients.view',
+    create: 'admin.ingredients.create',
+    update: 'admin.ingredients.update',
+    delete: 'admin.ingredients.delete',
+  },
   dashboard: {
     view: 'admin.dashboard.view',
+    update: 'admin.dashboard.update',
+  },
+  'cost-dashboard': {
+    view: 'admin.dashboard.view',
+    update: 'admin.dashboard.update',
   },
   salon: {
     view: 'admin.salon.view',
@@ -88,8 +105,7 @@ export const PERMISSIONS = {
     update: 'admin.site-settings.update',
   },
   'admin-users': {
-    view: 'admin.users.view',
-    create: 'admin.users.create',
+    view: 'admin.users.view',    create: 'admin.users.create',
     update: 'admin.users.update',
     delete: 'admin.users.delete',
     managePermissions: 'admin.users.manage-permissions',

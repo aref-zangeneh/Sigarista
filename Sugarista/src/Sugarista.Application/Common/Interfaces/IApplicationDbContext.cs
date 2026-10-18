@@ -8,6 +8,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.Category> Categories { get; }
 
+    DbSet<Sugarista.Domain.Entities.CostControlBoard> CostControlBoards { get; }
+
     DbSet<Sugarista.Domain.Entities.MenuItem> MenuItems { get; }
 
     DbSet<Sugarista.Domain.Entities.AddonItem> AddonItems { get; }
@@ -15,6 +17,14 @@ public interface IApplicationDbContext
     DbSet<Sugarista.Domain.Entities.MenuModifier> MenuModifiers { get; }
 
     DbSet<Sugarista.Domain.Entities.Ingredient> Ingredients { get; }
+
+    DbSet<Sugarista.Domain.Entities.Supplier> Suppliers { get; }
+
+    DbSet<Sugarista.Domain.Entities.DeliveryMethod> DeliveryMethods { get; }
+
+    DbSet<Sugarista.Domain.Entities.DeliveryMethodPackaging> DeliveryMethodPackagings { get; }
+
+    DbSet<Sugarista.Domain.Entities.IngredientSupplier> IngredientSuppliers { get; }
 
     DbSet<Sugarista.Domain.Entities.RecipeItem> RecipeItems { get; }
 

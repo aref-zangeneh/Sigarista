@@ -6,12 +6,15 @@ import { LoginPage } from './pages/LoginPage'
 import { adminRoutes, isKnownAdminPath, routeForPath } from './adminRoutes'
 import { canViewRoute, getDefaultRoutePath } from './utils/adminPermissions'
 import { DashboardPage } from './pages/DashboardPage'
+import { CostDashboardPage } from './pages/CostDashboardPage'
 import { SalonStatePage } from './pages/SalonStatePage'
 import { CategoryPage } from './pages/CategoryPage'
 import { MenuItemsPage } from './pages/MenuItemsPage'
 import { AddonsPage } from './pages/AddonsPage'
 import { ModifiersPage } from './pages/ModifiersPage'
 import { IngredientsPage } from './pages/IngredientsPage'
+import { SuppliersPage } from './pages/SuppliersPage'
+import { DeliveryMethodsPage } from './pages/DeliveryMethodsPage'
 import { RecipesPage } from './pages/RecipesPage'
 import { ProductWikiPage } from './pages/ProductWikiPage'
 import { InventoryPage } from './pages/InventoryPage'
@@ -27,6 +30,7 @@ import './App.css'
 
 const pageComponents = {
   overview: DashboardPage,
+  'cost-dashboard': CostDashboardPage,
   salon: SalonStatePage,
   categories: CategoryPage,
   'menu-items': MenuItemsPage,
@@ -37,9 +41,11 @@ const pageComponents = {
   'product-wiki': ProductWikiPage,
   inventory: InventoryPage,
   'inventory-purchases': InventoryPurchasesPage,
+  suppliers: SuppliersPage,
   production: ProductionPage,
   'record-sale': RecordSalePage,
   pos: PosPage,
+  'delivery-methods': DeliveryMethodsPage,
   accounting: AccountingPage,
   orders: OrdersPage,
   'site-settings': SiteSettingsPage,

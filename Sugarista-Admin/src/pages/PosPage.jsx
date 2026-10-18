@@ -153,6 +153,8 @@ export function PosPage() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [orderNote, setOrderNote] = useState('')
   const [salonTableId, setSalonTableId] = useState(null)
+  const [deliveryMethodId, setDeliveryMethodId] = useState('')
+  const [deliveryOptions, setDeliveryOptions] = useState([])
   const [splitBill, setSplitBill] = useState(EMPTY_SPLIT)
 
   const canSubmit = canSubmitPosOrder(session, orderId)
@@ -173,6 +175,10 @@ export function PosPage() {
 
   useEffect(() => {
     loadBootstrap()
+
+    apiRequest('/admin/delivery-methods/options', { token: session.token })
+      .then((data) => setDeliveryOptions(Array.isArray(data) ? data : []))
+      .catch(() => setDeliveryOptions([]))
   }, [loadBootstrap])
 
   useEffect(() => {
@@ -244,6 +250,12 @@ export function PosPage() {
     [cart],
   )
 
+  const selectedDeliveryMethod = (deliveryOptions ?? []).find(
+    (option) => option.id === deliveryMethodId,
+  ) ?? null
+  const deliveryFee = selectedDeliveryMethod?.deliveryFee ?? 0
+  const grandTotal = cartTotal + deliveryFee
+
   const selectedTable = bootstrap?.tables?.find((table) => table.id === salonTableId) ?? null
 
   function resetCart() {
@@ -254,6 +266,7 @@ export function PosPage() {
     setCustomerPhone('')
     setOrderNote('')
     setSalonTableId(null)
+    setDeliveryMethodId('')
     setSplitBill(EMPTY_SPLIT)
   }
 
@@ -309,6 +322,7 @@ export function PosPage() {
       setCustomerPhone(order.customerPhone === 'POS' ? '' : order.customerPhone)
       setOrderNote(order.note ?? '')
       setServiceType(order.serviceType ?? 'TakeAway')
+      setDeliveryMethodId(order.deliveryMethodId ?? '')
       setSalonTableId(order.salonTableId ?? null)
       setCart(orderToCart(order, items))
       setSplitBill({
@@ -350,6 +364,7 @@ export function PosPage() {
       note: orderNote,
       serviceType,
       salonTableId,
+      deliveryMethodId: deliveryMethodId || null,
       cart,
       action,
       splitBill: splitBill.isSplitBill,
@@ -584,6 +599,21 @@ export function PosPage() {
               </button>
             </div>
 
+            {(deliveryOptions ?? []).length > 0 ? (
+              <select
+                className="pos-delivery-select"
+                value={deliveryMethodId}
+                onChange={(event) => setDeliveryMethodId(event.target.value)}
+              >
+                <option value="">روش تحویل: بدون ست (بدون هزینه)</option>
+                {deliveryOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.persianName}{Number(option.deliveryFee) > 0 ? ` (+${formatPrice(option.deliveryFee)} ت)` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
             <div className="pos-form-grid">
               <input
                 type="text"
@@ -744,9 +774,15 @@ export function PosPage() {
                 برای ثبت سفارش به مجوز «ثبت / نگه‌داشت» یا «ویرایش سفارش» در صندوق فروش نیاز دارید.
               </p>
             ) : null}
+            {deliveryFee > 0 ? (
+              <div className="pos-total-row pos-delivery-fee-row">
+                <span>هزینه تحویل{selectedDeliveryMethod ? ` (${selectedDeliveryMethod.persianName})` : ''}</span>
+                <span>{formatPrice(deliveryFee)} تومان</span>
+              </div>
+            ) : null}
             <div className="pos-total-row">
               <span>جمع کل</span>
-              <span>{formatPrice(cartTotal)} تومان</span>
+              <span>{formatPrice(grandTotal)} تومان</span>
             </div>
             <div className="pos-actions">
               <button

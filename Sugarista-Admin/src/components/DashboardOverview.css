@@ -41,7 +41,7 @@
   padding: 16px 18px;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff, #fffef9);
+  background: var(--cap-gradient);
   box-shadow: 0 8px 24px rgba(12, 52, 79, 0.05);
 }
 
@@ -121,11 +121,11 @@
 }
 
 .dashboard-positive {
-  color: #1f7a4d;
+  color: var(--ok);
 }
 
 .dashboard-negative {
-  color: #b42318;
+  color: var(--bad);
 }
 
 .dashboard-note,

@@ -84,6 +84,8 @@ export function InventoryPurchasesPanel({
   const [showExpiringOnlyInternal, setShowExpiringOnlyInternal] = useState(false)
   const showExpiringOnly = showExpiringOnlyProp ?? showExpiringOnlyInternal
   const setShowExpiringOnly = onShowExpiringOnlyChange ?? setShowExpiringOnlyInternal
+  const [allSuppliers, setAllSuppliers] = useState([])
+  const [ingredientSuppliers, setIngredientSuppliers] = useState([])
 
   const selectedIngredient = useMemo(
     () => (ingredientOptions ?? []).find((item) => item.id === purchaseForm.ingredientId) ?? null,
@@ -105,6 +107,43 @@ export function InventoryPurchasesPanel({
     return () => URL.revokeObjectURL(objectUrl)
   }, [documentFile])
 
+  useEffect(() => {
+    let cancelled = false
+    async function loadSuppliers() {
+      if (!session?.token) return
+      try {
+        const data = await apiRequest('/admin/suppliers', { token: session.token })
+        if (!cancelled) setAllSuppliers(Array.isArray(data) ? data : [])
+      } catch {
+        // supplier quick-select is optional; ignore failures
+      }
+    }
+    loadSuppliers()
+    return () => {
+      cancelled = true
+    }
+  }, [session?.token, apiRequest])
+
+  useEffect(() => {
+    let cancelled = false
+    setIngredientSuppliers([])
+    async function loadIngredientSuppliers() {
+      if (!session?.token || !purchaseForm.ingredientId) return
+      try {
+        const data = await apiRequest(`/admin/ingredients/${purchaseForm.ingredientId}/suppliers`, {
+          token: session.token,
+        })
+        if (!cancelled) setIngredientSuppliers(Array.isArray(data) ? data : [])
+      } catch {
+        if (!cancelled) setIngredientSuppliers([])
+      }
+    }
+    loadIngredientSuppliers()
+    return () => {
+      cancelled = true
+    }
+  }, [purchaseForm.ingredientId, session?.token, apiRequest])
+
   const purchaseColumns = useMemo(
     () =>
       buildInventoryPurchaseColumns({
@@ -121,6 +160,7 @@ export function InventoryPurchasesPanel({
     setPurchaseForm((current) => ({
       ...current,
       ingredientId,
+      supplierId: '',
       displayUnit: ingredient?.unit ?? '',
       useDefaultUnit: true,
     }))
@@ -130,6 +170,7 @@ export function InventoryPurchasesPanel({
     setPurchaseForm(emptyPurchaseForm)
     setDocumentFile(null)
     setDocumentPreviewUrl('')
+    setIngredientSuppliers([])
   }
 
   async function handleSubmit(event) {
@@ -162,6 +203,7 @@ export function InventoryPurchasesPanel({
           incidentalCost: Number(purchaseForm.incidentalCost) || 0,
           description: purchaseForm.description.trim() || null,
           documentImageUrl,
+          supplierId: purchaseForm.supplierId || null,
         },
       })
 
@@ -214,6 +256,44 @@ export function InventoryPurchasesPanel({
               ))}
             </select>
           </label>
+
+          {purchaseForm.ingredientId ? (
+            <label>
+              <span>تامین‌کننده (اختیاری)</span>
+              <select
+                value={purchaseForm.supplierId}
+                onChange={(event) => setPurchaseForm((current) => ({ ...current, supplierId: event.target.value }))}
+              >
+                <option value="">-- بدون تامین‌کننده --</option>
+                {ingredientSuppliers.length > 0 ? (
+                  <optgroup label="تامین‌کنندگان ثبت‌شده برای این ماده">
+                    {ingredientSuppliers.map((link) => (
+                      <option key={link.supplierId} value={link.supplierId}>
+                        {link.isPreferred ? '★ ' : ''}
+                        {link.supplierName}
+                        {link.isPreferred ? ' (اصلی)' : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {(() => {
+                  const linkedIds = new Set(ingredientSuppliers.map((link) => link.supplierId))
+                  const others = allSuppliers.filter((supplier) => !linkedIds.has(supplier.id))
+                  if (others.length === 0) return null
+                  return (
+                    <optgroup label="سایر تامین‌کنندگان فعال">
+                      {others.map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>{supplier.persianName}</option>
+                      ))}
+                    </optgroup>
+                  )
+                })()}
+              </select>
+              {ingredientSuppliers.length === 0 && allSuppliers.length === 0 ? (
+                <p className="purchase-unit-hint">هنوز تامین‌کننده‌ای ثبت نشده است.</p>
+              ) : null}
+            </label>
+          ) : null}
 
           {selectedIngredient ? (
             <div className="purchase-unit-panel">

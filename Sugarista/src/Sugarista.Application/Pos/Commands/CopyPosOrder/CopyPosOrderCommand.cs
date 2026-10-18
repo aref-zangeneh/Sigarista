@@ -22,6 +22,7 @@ public class CopyPosOrderCommandHandler : IRequestHandler<CopyPosOrderCommand, P
             .AsNoTracking()
             .Include(order => order.Lines)
             .Include(order => order.SplitShares)
+            .Include(order => order.DeliveryMethod)
             .FirstOrDefaultAsync(order => order.Id == request.SourceOrderId, cancellationToken)
             ?? throw new KeyNotFoundException("Order was not found.");
 
@@ -76,6 +77,8 @@ public class CopyPosOrderCommandHandler : IRequestHandler<CopyPosOrderCommand, P
                 share.ShareAmount,
                 share.SortOrder));
         }
+
+        copy.ApplyDeliveryMethod(source.DeliveryMethodId, source.DeliveryFee);
 
         _dbContext.Orders.Add(copy);
         await _dbContext.SaveChangesAsync(cancellationToken);

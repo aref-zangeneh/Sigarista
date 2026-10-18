@@ -21,7 +21,8 @@ public class InventoryPurchase : BaseAuditableEntity
         decimal taxAmount,
         decimal incidentalCost,
         string? description,
-        string? documentImageUrl)
+        string? documentImageUrl,
+        Guid? supplierId = null)
     {
         if (ingredientId == Guid.Empty)
         {
@@ -49,6 +50,7 @@ public class InventoryPurchase : BaseAuditableEntity
         }
 
         IngredientId = ingredientId;
+        SupplierId = supplierId == Guid.Empty ? null : supplierId;
         Quantity = quantity;
         PackageCount = packageCount;
         PackageSize = packageSize;
@@ -66,6 +68,10 @@ public class InventoryPurchase : BaseAuditableEntity
     public Guid IngredientId { get; private set; }
 
     public Ingredient Ingredient { get; private set; } = null!;
+
+    public Guid? SupplierId { get; private set; }
+
+    public Supplier? Supplier { get; private set; }
 
     public decimal Quantity { get; private set; }
 

@@ -93,6 +93,25 @@ public class InventoryStock : BaseAuditableEntity
             orderLineId);
     }
 
+    public StockMovement DeductForPackaging(decimal quantity, string deliveryMethodName, Guid? orderId = null)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("Deduction quantity must be greater than zero.");
+        }
+
+        CurrentQuantity -= quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            -quantity,
+            StockMovementType.PackagingConsumption,
+            note: $"بسته‌بندی روش تحویل {deliveryMethodName}",
+            sourceMenuItemName: deliveryMethodName,
+            orderId: orderId);
+    }
+
     public StockMovement DeductForProduction(decimal quantity, string menuItemName, Guid productionBatchId)
     {
         if (quantity <= 0)

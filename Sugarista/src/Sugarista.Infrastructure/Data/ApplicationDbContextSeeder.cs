@@ -47,10 +47,86 @@ public class ApplicationDbContextSeeder
         await _dbContext.Database.ExecuteSqlRawAsync(
             """
             ALTER TABLE "Ingredients" ADD COLUMN IF NOT EXISTS "UnitCost" numeric(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE "Ingredients" ADD COLUMN IF NOT EXISTS "Kind" character varying(20) NOT NULL DEFAULT 'ingredient';
+            ALTER TABLE "InventoryPurchases" ADD COLUMN IF NOT EXISTS "SupplierId" uuid;
+            CREATE TABLE IF NOT EXISTS "Suppliers" (
+                "Id" uuid NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                "ContactName" character varying(120),
+                "DisplayOrder" integer NOT NULL,
+                "IsActive" boolean NOT NULL,
+                "Notes" character varying(500),
+                "PersianName" character varying(200) NOT NULL,
+                "PhoneNumber" character varying(40),
+                CONSTRAINT "PK_Suppliers" PRIMARY KEY ("Id")
+            );
+            CREATE TABLE IF NOT EXISTS "IngredientSuppliers" (
+                "Id" uuid NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                "IngredientId" uuid NOT NULL,
+                "IsPreferred" boolean NOT NULL DEFAULT FALSE,
+                "SupplierId" uuid NOT NULL,
+                CONSTRAINT "PK_IngredientSuppliers" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_IngredientSuppliers_Ingredients_IngredientId" FOREIGN KEY ("IngredientId") REFERENCES "Ingredients" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_IngredientSuppliers_Suppliers_SupplierId" FOREIGN KEY ("SupplierId") REFERENCES "Suppliers" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_Suppliers_DisplayOrder" ON "Suppliers" ("DisplayOrder");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Suppliers_PersianName" ON "Suppliers" ("PersianName");
+            CREATE INDEX IF NOT EXISTS "IX_IngredientSuppliers_SupplierId" ON "IngredientSuppliers" ("SupplierId");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_IngredientSuppliers_IngredientId_SupplierId" ON "IngredientSuppliers" ("IngredientId", "SupplierId");
             ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "RecipeDescription" character varying(4000);
+            ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "MarkupPercent" numeric(5,2);
+            CREATE TABLE IF NOT EXISTS "DeliveryMethods" (
+                "Id" uuid NOT NULL,
+                "PersianName" character varying(150) NOT NULL,
+                "EnglishName" character varying(150) NOT NULL,
+                "Description" character varying(1000),
+                "DeliveryFee" numeric(18,2) NOT NULL,
+                "DisplayOrder" integer NOT NULL,
+                "IsActive" boolean NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_DeliveryMethods" PRIMARY KEY ("Id")
+            );
+            CREATE TABLE IF NOT EXISTS "DeliveryMethodPackagings" (
+                "Id" uuid NOT NULL,
+                "DeliveryMethodId" uuid NOT NULL,
+                "IngredientId" uuid NOT NULL,
+                "QuantityPerOrder" numeric(12,3) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_DeliveryMethodPackagings" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_DeliveryMethodPackagings_DeliveryMethods_DeliveryMethodId" FOREIGN KEY ("DeliveryMethodId") REFERENCES "DeliveryMethods" ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_DeliveryMethodPackagings_Ingredients_IngredientId" FOREIGN KEY ("IngredientId") REFERENCES "Ingredients" ("Id") ON DELETE RESTRICT
+            );
+            CREATE INDEX IF NOT EXISTS "IX_DeliveryMethodPackagings_IngredientId" ON "DeliveryMethodPackagings" ("IngredientId");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_DeliveryMethodPackagings_DeliveryMethodId_IngredientId" ON "DeliveryMethodPackagings" ("DeliveryMethodId", "IngredientId");
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "DeliveryMethodId" uuid;
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "DeliveryFee" numeric(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "PackagingDeducted" boolean NOT NULL DEFAULT FALSE;
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';
+            CREATE TABLE IF NOT EXISTS "CostControlBoards" (
+                "Id" uuid NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "Json" text NOT NULL,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                "Version" integer NOT NULL,
+                CONSTRAINT "PK_CostControlBoards" PRIMARY KEY ("Id")
+            );
             CREATE TABLE IF NOT EXISTS "ProductWikiGuides" (
                 "Id" uuid NOT NULL,
                 "MenuItemId" uuid NOT NULL,

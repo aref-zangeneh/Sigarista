@@ -25,17 +25,17 @@
 
 .purchase-badge--expired {
   background: rgba(180, 35, 24, 0.12);
-  color: #b42318;
+  color: var(--bad);
 }
 
 .purchase-badge--soon {
   background: rgba(220, 120, 40, 0.12);
-  color: #b54708;
+  color: var(--warn-ink);
 }
 
 .purchase-badge--ok {
   background: rgba(34, 139, 87, 0.12);
-  color: #1f7a4d;
+  color: var(--ok);
 }
 
 .purchase-doc-preview {

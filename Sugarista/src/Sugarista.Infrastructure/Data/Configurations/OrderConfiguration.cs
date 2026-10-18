@@ -38,6 +38,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.TotalAmount)
             .HasColumnType("numeric(18,2)");
 
+        builder.Property(o => o.DeliveryFee)
+            .HasColumnType("numeric(18,2)");
+
         builder.Property(o => o.AmountPaid)
             .HasColumnType("numeric(18,2)");
 
@@ -73,8 +76,14 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasForeignKey(o => o.TableSessionId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(o => o.DeliveryMethod)
+            .WithMany()
+            .HasForeignKey(o => o.DeliveryMethodId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(o => o.Channel);
         builder.HasIndex(o => o.SalonTableId);
+        builder.HasIndex(o => o.DeliveryMethodId);
         builder.HasIndex(o => o.TableSessionId);
         builder.HasIndex(o => o.Status);
 

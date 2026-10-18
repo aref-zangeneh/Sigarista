@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Accounting.Services;
+using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Commands.CreateOrderCheckout;
@@ -37,7 +38,8 @@ public record UpsertPosOrderCommand(
     string? SplitBillMode = null,
     int? GuestCount = null,
     IReadOnlyCollection<CheckoutSplitShareRequest>? SplitShares = null,
-    Guid? ServedByAdminUserId = null) : IRequest<UpsertPosOrderResultDto>;
+    Guid? ServedByAdminUserId = null,
+    Guid? DeliveryMethodId = null) : IRequest<UpsertPosOrderResultDto>;
 
 public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCommand>
 {
@@ -88,7 +90,23 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         var splitBillMode = ResolveSplitBillMode(request);
         var isSplitBill = splitBillMode != SplitBillMode.Single;
         var resolvedLines = await ResolveLinesAsync(request.Items, cancellationToken);
-        var totalAmount = resolvedLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
+        var itemsTotal = resolvedLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
+
+        Domain.Entities.DeliveryMethod? deliveryMethod = null;
+        if (request.DeliveryMethodId.HasValue)
+        {
+            deliveryMethod = await _dbContext.DeliveryMethods
+                .FirstOrDefaultAsync(method => method.Id == request.DeliveryMethodId.Value, cancellationToken)
+                ?? throw new KeyNotFoundException("Delivery method was not found.");
+
+            if (!deliveryMethod.IsActive)
+            {
+                throw new InvalidOperationException($"Delivery method '{deliveryMethod.PersianName}' is inactive.");
+            }
+        }
+
+        var deliveryFee = deliveryMethod?.DeliveryFee ?? 0m;
+        var totalAmount = itemsTotal + deliveryFee;
 
         ValidateSplitBill(request, splitBillMode, totalAmount);
 
@@ -154,6 +172,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             tableSessionId,
             request.ServedByAdminUserId);
 
+        order.ApplyDeliveryMethod(deliveryMethod?.Id, deliveryFee);
+
         switch (action)
         {
             case PosOrderAction.Hold:
@@ -166,6 +186,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     order,
                     order.Lines.ToList(),
                     cancellationToken);
+                await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
                 break;
             case PosOrderAction.PayCard:
                 order.PayAtPos(PosPaymentMethod.Card);
@@ -174,6 +195,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     order,
                     order.Lines.ToList(),
                     cancellationToken);
+                await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
                 break;
         }
 

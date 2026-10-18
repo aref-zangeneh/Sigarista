@@ -1,5 +1,14 @@
+import { useCallback, useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { DataTable } from '../components/DataTable'
+
+const CONSUMPTION_WINDOWS = [
+  { value: 7, label: '۷ روز اخیر' },
+  { value: 30, label: '۳۰ روز اخیر' },
+  { value: 90, label: '۹۰ روز اخیر' },
+]
+
+const emptyRunRateState = { items: [], loading: true, days: 30 }
 
 export function InventoryPage() {
   const {
@@ -21,10 +30,28 @@ export function InventoryPage() {
     setError,
     inventoryColumns,
     stockHistoryColumns,
+    consumptionColumns,
     apiRequest,
     getReadableError,
     toPersianNumber,
   } = useAdmin()
+
+  const [runRate, setRunRate] = useState(emptyRunRateState)
+
+  const loadConsumption = useCallback(async (days) => {
+    if (!session?.token) return
+    setRunRate((current) => ({ ...current, loading: true, days }))
+    try {
+      const items = await apiRequest(`/admin/inventory/consumption?days=${days}`, { token: session.token })
+      setRunRate({ items: Array.isArray(items) ? items : [], loading: false, days })
+    } catch {
+      setRunRate((current) => ({ ...current, loading: false }))
+    }
+  }, [session?.token, apiRequest])
+
+  useEffect(() => {
+    loadConsumption(30)
+  }, [loadConsumption])
 
   return (
       <section className="panel-stack">
@@ -58,6 +85,51 @@ export function InventoryPage() {
               </button>
             </div>
     
+            {consumptionColumns ? (
+              <section className="panel">
+                <div className="panel-head">
+                  <div>
+                    <h3>تحلیل مصرف و Run Rate</h3>
+                    <p>مصرف واقعی بر اساس گردش انبار؛ «پیشنهاد سفارش» برای پوشش بازه جایگزینی (بازه + یک هفته) محاسبه می‌شود.</p>
+                  </div>
+                  <div className="purchase-mode-toggle inventory-runrate-controls">
+                    <div className="purchase-mode-toggle">
+                      {CONSUMPTION_WINDOWS.map((window) => (
+                        <label key={window.value} className="checkbox-row">
+                          <input
+                            type="radio"
+                            name="consumptionWindow"
+                            checked={runRate.days === window.value}
+                            onChange={() => loadConsumption(window.value)}
+                          />
+                          <span>{window.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      disabled={runRate.loading}
+                      onClick={() => loadConsumption(runRate.days)}
+                    >
+                      {runRate.loading ? 'در حال محاسبه...' : 'محاسبه مجدد'}
+                    </button>
+                  </div>
+                </div>
+                {runRate.loading ? (
+                  <p className="feedback">در حال محاسبه نرخ مصرف...</p>
+                ) : runRate.items.length === 0 ? (
+                  <p className="feedback">قلمی برای تحلیل وجود ندارد.</p>
+                ) : (
+                  <DataTable
+                    data={runRate.items}
+                    columns={consumptionColumns}
+                    searchPlaceholder="جستجو در تحلیل مصرف..."
+                  />
+                )}
+              </section>
+            ) : null}
+
             {inventoryStatus.groups.map((group) => (
               <section key={group.location} className="panel">
                 <div className="panel-head">

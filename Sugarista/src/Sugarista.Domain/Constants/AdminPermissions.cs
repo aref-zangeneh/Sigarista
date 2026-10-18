@@ -8,6 +8,7 @@ public static class AdminPermissions
     public static class Dashboard
     {
         public const string View = "admin.dashboard.view";
+        public const string Update = "admin.dashboard.update";
     }
 
     public static class Salon
@@ -56,6 +57,14 @@ public static class AdminPermissions
         public const string Create = "admin.ingredients.create";
         public const string Update = "admin.ingredients.update";
         public const string Delete = "admin.ingredients.delete";
+    }
+
+    public static class Suppliers
+    {
+        public const string View = "admin.suppliers.view";
+        public const string Create = "admin.suppliers.create";
+        public const string Update = "admin.suppliers.update";
+        public const string Delete = "admin.suppliers.delete";
     }
 
     public static class Recipes
@@ -144,6 +153,7 @@ public static class AdminPermissions
     public static readonly IReadOnlyList<AdminPermissionDefinition> Catalog =
     [
         new(Dashboard.View, "dashboard", "view", "نمای کلی", "مشاهده داشبورد"),
+        new(Dashboard.Update, "dashboard", "update", "کاست کنترل", "ذخیره تنظیمات کاست کنترل و قیمت‌گذاری"),
         new(Salon.View, "salon", "view", "وضعیت سالن", "مشاهده"),
         new(Salon.Create, "salon", "create", "وضعیت سالن", "ایجاد میز"),
         new(Salon.Update, "salon", "update", "وضعیت سالن", "ویرایش / اشغال / آزادسازی"),
@@ -168,6 +178,10 @@ public static class AdminPermissions
         new(Ingredients.Create, "ingredients", "create", "مواد اولیه", "ایجاد"),
         new(Ingredients.Update, "ingredients", "update", "مواد اولیه", "ویرایش"),
         new(Ingredients.Delete, "ingredients", "delete", "مواد اولیه", "حذف"),
+        new(Suppliers.View, "suppliers", "view", "تامین‌کنندگان", "مشاهده"),
+        new(Suppliers.Create, "suppliers", "create", "تامین‌کنندگان", "ایجاد"),
+        new(Suppliers.Update, "suppliers", "update", "تامین‌کنندگان", "ویرایش"),
+        new(Suppliers.Delete, "suppliers", "delete", "تامین‌کنندگان", "حذف"),
         new(Recipes.View, "recipes", "view", "دستور پخت", "مشاهده"),
         new(Recipes.Create, "recipes", "create", "دستور پخت", "افزودن خط"),
         new(Recipes.Update, "recipes", "update", "دستور پخت", "ویرایش"),

@@ -19,6 +19,7 @@
   --brand-accent: var(--accent, #aa3171);
   --brand-accent-soft: rgba(170, 49, 113, 0.09);
   --brand-error: #d1435b;
+  --brand-grad: var(--brand-grad);
 
   --border-soft: #eef0f4;
   --muted-soft: #98a2b3;
@@ -71,7 +72,7 @@
   display: grid;
   place-items: center;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), #c53b84);
+  background: var(--brand-grad);
   color: #fff;
   font-size: 0.95rem;
   font-weight: 800;
@@ -135,7 +136,7 @@
 }
 
 .nav-link:hover {
-  background: rgba(12, 52, 79, 0.05);
+  background: var(--tint-strong);
   color: var(--heading);
 }
 
@@ -230,7 +231,7 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: rgba(229, 170, 47, 0.16);
-  color: #8a6100;
+  color: var(--warn-ink);
   font-size: 0.7rem;
   font-weight: 700;
 }
@@ -362,8 +363,8 @@
 }
 
 .topbar-icon-btn:hover {
-  background: rgba(12, 52, 79, 0.05);
-  border-color: rgba(12, 52, 79, 0.2);
+  background: var(--tint-strong);
+  border-color: var(--tint-border);
   color: var(--heading);
 }
 
@@ -569,7 +570,7 @@ button[type='submit'] {
 }
 
 button[type='submit'] {
-  background: linear-gradient(135deg, var(--accent), #c53b84);
+  background: var(--brand-grad);
   border-color: transparent;
   color: #fff;
   box-shadow: 0 1px 2px rgba(170, 49, 113, 0.3);
@@ -598,13 +599,13 @@ a.tab-button {
 }
 
 .tab-button-active {
-  background: linear-gradient(135deg, var(--accent), #c53b84);
+  background: var(--brand-grad);
   border-color: transparent;
   color: #fff;
 }
 
 .tab-button-active:hover {
-  background: linear-gradient(135deg, var(--accent), #c53b84);
+  background: var(--brand-grad);
   color: #fff;
 }
 
@@ -691,15 +692,15 @@ a.tab-button {
 }
 
 .settings-status.is-on {
-  color: #067647;
-  background: #ecfdf3;
-  border-color: #abefc6;
+  color: var(--ok);
+  background: var(--ok-solid);
+  border-color: var(--ok-solid-border);
 }
 
 .settings-status.is-off {
-  color: #b42318;
-  background: #fef3f2;
-  border-color: #fecdc9;
+  color: var(--bad);
+  background: var(--bad-solid);
+  border-color: var(--bad-solid-border);
 }
 
 /* ── Section nav chips ── */
@@ -790,13 +791,13 @@ a.tab-button {
 }
 
 .settings-pill.is-on {
-  color: #067647;
-  background: #ecfdf3;
+  color: var(--ok);
+  background: var(--ok-solid);
 }
 
 .settings-pill.is-off {
-  color: #b42318;
-  background: #fef3f2;
+  color: var(--bad);
+  background: var(--bad-solid);
 }
 
 /* ── Online sales section ── */
@@ -895,7 +896,7 @@ a.tab-button {
   width: 44px;
   height: 25px;
   border-radius: 999px;
-  background: #d0d5dd;
+  background: var(--track);
   position: relative;
   transition: background var(--transition-fast);
 }
@@ -987,7 +988,7 @@ a.tab-button {
   padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--glass);
   backdrop-filter: blur(8px);
   box-shadow: var(--shadow);
 }
@@ -1114,7 +1115,7 @@ select:disabled {
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: rgba(12, 52, 79, 0.02);
+  background: var(--tint);
 }
 
 .form-section h4 {
@@ -1190,7 +1191,7 @@ button[type='submit'] {
 .feedback-success {
   border-color: rgba(61, 153, 112, 0.4);
   background: rgba(61, 153, 112, 0.08);
-  color: #1f7a55;
+  color: var(--ok);
 }
 
 .feedback-error {
@@ -1242,7 +1243,7 @@ tbody tr:last-child td {
 }
 
 .status-badge.free {
-  color: #8a6100;
+  color: var(--warn-ink);
   background: rgba(229, 170, 47, 0.18);
 }
 
@@ -1261,21 +1262,21 @@ tbody tr:last-child td {
 
 .stock-badge--ok {
   background: rgba(61, 153, 112, 0.15);
-  color: #1f7a55;
+  color: var(--ok);
 }
 
 .stock-badge--low {
   background: rgba(230, 169, 47, 0.2);
-  color: #8a6100;
+  color: var(--warn-ink);
 }
 
 .stock-badge--negative {
   background: rgba(231, 76, 60, 0.15);
-  color: #c0392b;
+  color: var(--bad);
 }
 
-.text-green { color: #1f7a55; }
-.text-red   { color: #c0392b; }
+.text-green { color: var(--ok); }
+.text-red   { color: var(--bad); }
 
 /* ============================================================
    Salon (جدول‌ها / کارت‌های سالن)
@@ -1344,7 +1345,7 @@ tbody tr:last-child td {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(16, 24, 40, 0.45);
+  background: var(--veil);
   backdrop-filter: blur(4px);
 }
 
@@ -1503,7 +1504,7 @@ tbody tr:last-child td {
   padding: 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
-  background: rgba(12, 52, 79, 0.03);
+  background: var(--tint);
 }
 
 .sale-preview h4 {
@@ -1519,7 +1520,7 @@ tbody tr:last-child td {
 }
 
 .sale-preview-note--warning {
-  color: #8a6100;
+  color: var(--warn-ink);
 }
 
 .full-width {
@@ -1529,7 +1530,7 @@ tbody tr:last-child td {
 code {
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(12, 52, 79, 0.07);
+  background: var(--tint-strong);
   color: var(--accent-deep);
   font-size: 0.8rem;
 }
@@ -1559,7 +1560,7 @@ code {
 .loader-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--loader-veil);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -1632,7 +1633,7 @@ code {
     position: fixed;
     inset: 0;
     z-index: 110;
-    background: rgba(16, 24, 40, 0.45);
+    background: var(--veil);
     border: none;
     cursor: pointer;
   }
@@ -1699,4 +1700,167 @@ code {
   .topbar-title {
     font-size: 0.92rem;
   }
+}
+
+/* ============================================================
+   Cost dashboard (embedded full-height frame)
+   ============================================================ */
+.costdash-wrap {
+  position: relative;
+  height: calc(100dvh - var(--topbar-height) - 40px);
+  min-height: 480px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.costdash-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.costdash-frame--hidden {
+  visibility: hidden;
+}
+
+.costdash-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.costdash-loading .spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  animation: costdash-spin 0.9s linear infinite;
+}
+
+@keyframes costdash-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.costdash-notice {
+  padding: 24px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 720px) {
+  .costdash-wrap {
+    height: calc(100dvh - var(--topbar-height) - 32px);
+    min-height: 420px;
+    border-radius: 0;
+  }
+}
+
+
+/* ============================================================
+   Ingredient suppliers (materials page)
+   ============================================================ */
+.supplier-links-panel {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md, 12px);
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+  background: var(--tint, transparent);
+}
+
+.supplier-links-panel legend {
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0 6px;
+}
+
+.supplier-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 14px;
+}
+
+.preferred-supplier {
+  font-weight: 700;
+  color: var(--brand-warning, #b45309);
+}
+
+.purchase-mode-toggle {
+  display: grid;
+  gap: 8px;
+}
+
+.consumption-badge--ok {
+  color: var(--ok);
+  background: rgba(61, 153, 112, 0.15);
+}
+
+.consumption-badge--warn {
+  color: var(--warn-ink);
+  background: rgba(229, 170, 47, 0.18);
+}
+
+.consumption-badge--danger {
+  color: var(--bad);
+  background: rgba(231, 76, 60, 0.15);
+}
+
+
+/* ============================================================
+   Auto pricing panel (menu items)
+   ============================================================ */
+.pricing-bulk-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.pricing-bulk-controls label {
+  display: grid;
+  gap: 4px;
+}
+
+.pricing-bulk-controls span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.pricing-bulk-controls input {
+  width: 110px;
+}
+
+.primary-button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  transition: filter var(--transition-fast);
+}
+
+.primary-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.primary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pricing-markup-input {
+  width: 86px;
 }

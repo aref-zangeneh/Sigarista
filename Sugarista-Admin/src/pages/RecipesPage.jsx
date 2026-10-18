@@ -177,7 +177,7 @@ export function RecipesPage() {
                     }))
                   }
                 >
-                  <option value="">-- انتخاب ماده اولیه --</option>
+                  <option value="">-- انتخاب قلم مصرفی --</option>
                   {(ingredientOptions ?? [])
                     .filter((ingredient) => ingredient.isActive)
                     .map((ingredient) => (
@@ -212,7 +212,7 @@ export function RecipesPage() {
             <section className="panel list-panel">
               <div className="panel-head">
                 <div>
-                  <h3>مواد اولیه دستور پخت</h3>
+                  <h3>اقلام فرمولاسیون (مواد اولیه و بسته‌بندی)</h3>
                   <p>
                     {recipeState.lines.length === 0
                       ? 'هنوز هیچ ماده‌ای ثبت نشده.'

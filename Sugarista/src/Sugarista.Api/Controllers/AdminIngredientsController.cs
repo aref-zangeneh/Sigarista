@@ -5,6 +5,7 @@ using Sugarista.Application.Ingredients.Commands.DeleteIngredient;
 using Sugarista.Application.Ingredients.Commands.UpsertIngredient;
 using Sugarista.Application.Ingredients.Queries.GetAdminIngredients;
 using Sugarista.Application.Ingredients.Queries.GetAdminIngredientOptions;
+using Sugarista.Application.Ingredients.Queries.GetIngredientSuppliers;
 using Sugarista.Application.Common.Models;
 using Sugarista.Domain.Constants;
 
@@ -20,9 +21,10 @@ public class AdminIngredientsController : ApiControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
         [FromQuery] string? search = null,
+        [FromQuery] string? kind = null,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await Mediator.Send(new GetAdminIngredientsQuery(page, pageSize, search), cancellationToken));
+        return Ok(await Mediator.Send(new GetAdminIngredientsQuery(page, pageSize, search, kind), cancellationToken));
     }
 
     [HttpGet("options")]
@@ -31,9 +33,23 @@ public class AdminIngredientsController : ApiControllerBase
         AdminPermissions.Inventory.View,
         AdminPermissions.InventoryPurchases.View,
         AdminPermissions.Recipes.View)]
-    public async Task<ActionResult<IReadOnlyCollection<AdminIngredientOptionDto>>> GetOptions(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyCollection<AdminIngredientOptionDto>>> GetOptions(
+        [FromQuery] string? kind = null,
+        CancellationToken cancellationToken = default)
     {
-        return Ok(await Mediator.Send(new GetAdminIngredientOptionsQuery(), cancellationToken));
+        return Ok(await Mediator.Send(new GetAdminIngredientOptionsQuery(kind), cancellationToken));
+    }
+
+    [HttpGet("{id:guid}/suppliers")]
+    [RequireAnyPermission(
+        AdminPermissions.Ingredients.View,
+        AdminPermissions.Suppliers.View,
+        AdminPermissions.InventoryPurchases.View)]
+    public async Task<ActionResult<IReadOnlyCollection<IngredientSupplierDto>>> GetSuppliers(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetIngredientSuppliersQuery(id), cancellationToken));
     }
 
     [HttpPost]

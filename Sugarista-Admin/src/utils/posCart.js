@@ -38,6 +38,7 @@ export function buildUpsertPayload({
   note,
   serviceType,
   salonTableId,
+  deliveryMethodId,
   cart,
   action,
   splitBill,
@@ -52,6 +53,7 @@ export function buildUpsertPayload({
     note: note?.trim() || null,
     serviceType,
     salonTableId: serviceType === 'DineIn' ? salonTableId : null,
+    deliveryMethodId: deliveryMethodId ?? null,
     items: cart.map((line) => ({
       menuItemId: line.menuItemId,
       sizeKey: line.sizeKey,

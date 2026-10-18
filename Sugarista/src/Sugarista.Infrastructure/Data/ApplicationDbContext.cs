@@ -17,6 +17,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Category> Categories => Set<Category>();
 
+    public DbSet<CostControlBoard> CostControlBoards => Set<CostControlBoard>();
+
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
 
     public DbSet<AddonItem> AddonItems => Set<AddonItem>();
@@ -24,6 +26,14 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<MenuModifier> MenuModifiers => Set<MenuModifier>();
 
     public DbSet<Ingredient> Ingredients => Set<Ingredient>();
+
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+
+    public DbSet<IngredientSupplier> IngredientSuppliers => Set<IngredientSupplier>();
+
+    public DbSet<DeliveryMethod> DeliveryMethods => Set<DeliveryMethod>();
+
+    public DbSet<DeliveryMethodPackaging> DeliveryMethodPackagings => Set<DeliveryMethodPackaging>();
 
     public DbSet<RecipeItem> RecipeItems => Set<RecipeItem>();
 

@@ -63,6 +63,9 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
         builder.Property(item => item.TaxPercent)
             .HasPrecision(5, 2);
 
+        builder.Property(item => item.MarkupPercent)
+            .HasPrecision(5, 2);
+
         builder.Property(item => item.Volume)
             .HasMaxLength(100);
 

@@ -5,6 +5,7 @@ import {
   buildCategoryColumns,
   buildIngredientColumns,
   buildInventoryColumns,
+  buildInventoryConsumptionColumns,
   buildMenuItemColumns,
   buildModifierColumns,
   buildRecipeColumns,
@@ -40,6 +41,7 @@ import {
   emptySalonStatus,
   emptySalonTableForm,
   emptySettings,
+  KIND_OPTIONS,
   LOCATION_OPTIONS,
 } from '../constants/adminForms'
 
@@ -82,6 +84,7 @@ export function AdminProvider({ children }) {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [orderEditForm, setOrderEditForm] = useState(null)
   const [orderAlerts, setOrderAlerts] = useState(null)
+  const [lowStockAlert, setLowStockAlert] = useState(null)
   const [orderAlertPulse, setOrderAlertPulse] = useState(false)
   const [dismissedOrderAlertIds, setDismissedOrderAlertIds] = useState(() => new Set())
   const notifiedKitchenOrderIdsRef = useRef(null)
@@ -259,6 +262,75 @@ export function AdminProvider({ children }) {
       window.clearInterval(intervalId)
     }
   }, [session?.token, dismissedOrderAlertIds])
+
+  useEffect(() => {
+    if (!session?.token || !hasPermission(session, PERMISSIONS.inventory.view)) {
+      return undefined
+    }
+
+    let cancelled = false
+    let lastLowStockCount = null
+
+    async function pollInventoryAlerts() {
+      try {
+        const status = await apiRequest('/admin/inventory', { token: session.token })
+        if (cancelled || !status) {
+          return
+        }
+
+        const lowItems = []
+        for (const group of status.groups ?? []) {
+          for (const item of group.items ?? []) {
+            if (item.isLowStock) {
+              lowItems.push({
+                id: item.ingredientId,
+                persianName: item.persianName,
+                englishName: item.englishName,
+                unit: item.unit,
+                kind: item.kind,
+                currentQuantity: item.currentQuantity,
+                minAlertQuantity: item.minAlertQuantity,
+                locationLabel: group.locationLabel,
+              })
+            }
+          }
+        }
+
+        const alert = {
+          count: lowItems.length,
+          items: lowItems,
+          totalIngredients: status.totalIngredients ?? 0,
+        }
+
+        setInventoryStatus(status)
+        setLowStockAlert(alert)
+
+        if (lastLowStockCount === null) {
+          lastLowStockCount = alert.count
+        } else if (alert.count > lastLowStockCount) {
+          // Surface a system notification when new items drop below their threshold.
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            const names = lowItems.slice(0, 3).map((item) => item.persianName).join('، ')
+            new Notification('افت موجودی ثبت شد', {
+              body: `کیفیت هشدار: ${alert.count} قلم زیر حد آلارم${names ? ` — از جمله: ${names}` : ''}`,
+              tag: 'low-stock',
+            })
+          }
+          setMessage('هشدار انبار: اقلام جدیدی زیر حد آلارم قرار گرفتند.')
+        }
+        lastLowStockCount = alert.count
+      } catch {
+        // inventory alert polling is best-effort; ignore transient failures
+      }
+    }
+
+    pollInventoryAlerts()
+    const intervalId = window.setInterval(pollInventoryAlerts, 60_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [session?.token])
 
   useEffect(() => {
     if (!session?.token || activeTab !== 'record-sale' || !saleForm.menuItemId || saleResult) {
@@ -1199,6 +1271,16 @@ export function AdminProvider({ children }) {
     [stockHistory],
   )
 
+  const consumptionColumns = useMemo(
+    () =>
+      buildInventoryConsumptionColumns({
+        toPersianNumber,
+        KIND_OPTIONS,
+        LOCATION_OPTIONS,
+      }),
+    [],
+  )
+
   const salePreviewColumns = useMemo(
     () => buildSalePreviewColumns({ toPersianNumber, quantitySold: saleForm.quantitySold }),
     [salePreview, saleForm.quantitySold],
@@ -1260,6 +1342,7 @@ export function AdminProvider({ children }) {
     selectedOrder,
     orderEditForm,
     orderAlerts,
+    lowStockAlert,
     orderAlertPulse,
     salonStatus,
     siteSettings,
@@ -1331,6 +1414,7 @@ export function AdminProvider({ children }) {
     recipeColumns,
     inventoryColumns,
     stockHistoryColumns,
+    consumptionColumns,
     salePreviewColumns,
     saleResultColumns,
     orderColumns,

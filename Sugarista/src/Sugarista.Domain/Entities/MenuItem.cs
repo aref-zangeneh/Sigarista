@@ -138,9 +138,25 @@ public class MenuItem : BaseAuditableEntity
 
     public bool IsActive { get; private set; } = true;
 
+    /// <summary>
+    /// Profit margin percentage the manager wants applied on top of the computed
+    /// ingredient/packaging cost when auto pricing runs. Null = no preference set.
+    /// </summary>
+    public decimal? MarkupPercent { get; private set; }
+
     public string? RecipeDescription { get; private set; }
 
     public ICollection<RecipeItem> RecipeItems { get; private set; } = [];
+
+    public void SetMarkupPercent(decimal? markupPercent)
+    {
+        if (markupPercent is { } value && value < 0)
+        {
+            throw new DomainException("Menu item markup percent must be greater than or equal to zero.");
+        }
+
+        MarkupPercent = markupPercent;
+    }
 
     public void UpdateRecipeDescription(string? recipeDescription)
     {

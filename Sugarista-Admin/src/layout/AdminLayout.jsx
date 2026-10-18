@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { OrderAlertsBar } from '../components/OrderAlertsBar'
+import { LowStockAlertBar } from '../components/LowStockAlertBar'
 import { OrderEditorModal } from '../components/OrderEditorModal'
 import { adminRoutes, routeForPath } from '../adminRoutes'
 import { API_BASE_URL } from '../utils/adminApi'
@@ -47,6 +48,12 @@ const ROUTE_ICONS = {
   'menu-items': icon(
     <>
       <path d="M4 6h16M4 12h16M4 18h10" />
+    </>,
+  ),
+  'cost-dashboard': icon(
+    <>
+      <path d="M3 17l6-6 4 4 8-8" />
+      <path d="M15 7h6v6" />
     </>,
   ),
   addons: icon(
@@ -140,10 +147,10 @@ const ROUTE_ICONS = {
 
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
 const NAV_GROUPS = [
-  { title: 'اصلی', routes: ['overview', 'orders', 'pos', 'salon'] },
+  { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'salon'] },
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'modifiers'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
-  { title: 'انبار', routes: ['inventory', 'inventory-purchases'] },
+  { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting'] },
   { title: 'سیستم', routes: ['site-settings', 'admin-users'] },
 ]
@@ -152,10 +159,19 @@ export function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [theme, setTheme] = useState(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'))
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    document.documentElement.dataset.theme = next
+    localStorage.setItem('sugarista.admin.theme', next)
+    setTheme(next)
+  }
   const {
     session,
     handleLogout,
     orderAlerts,
+    lowStockAlert,
     orderAlertPulse,
     openOrderEditor,
     dismissOrderAlert,
@@ -167,6 +183,7 @@ export function AdminLayout() {
 
   const visibleRoutes = getAccessibleRoutes(session, adminRoutes)
   const canViewOrders = hasPermission(session, PERMISSIONS.orders.view)
+  const canViewInventory = hasPermission(session, PERMISSIONS.inventory.view)
   const currentRoute = routeForPath(location.pathname)
   const isPosRoute = location.pathname.includes('/pos')
 
@@ -301,6 +318,24 @@ export function AdminLayout() {
             <button
               type="button"
               className="topbar-icon-btn"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'تم روشن' : 'تم تیره'}
+              aria-label={theme === 'dark' ? 'فعال‌سازی تم روشن' : 'فعال‌سازی تم تیره'}
+            >
+              {theme === 'dark' ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="4.2" />
+                  <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.4 14.2A8.4 8.4 0 0 1 9.8 3.6a8.5 8.5 0 1 0 10.6 10.6Z" />
+                </svg>
+              )}
+            </button>
+            <button
+              type="button"
+              className="topbar-icon-btn"
               onClick={() => loadAdminData()}
               title="تازه‌سازی اطلاعات"
               aria-label="تازه‌سازی اطلاعات"
@@ -342,6 +377,10 @@ export function AdminLayout() {
               }}
               onDismissNew={dismissOrderAlert}
             />
+          ) : null}
+
+          {canViewInventory ? (
+            <LowStockAlertBar alert={lowStockAlert} onOpenInventory={() => navigate('/inventory')} />
           ) : null}
 
           <Outlet />

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Orders.Commands.UpdateAdminOrder;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
@@ -42,6 +43,8 @@ public class CancelAdminOrderCommandHandler : IRequestHandler<CancelAdminOrderCo
             order,
             order.Lines.ToList(),
             cancellationToken);
+
+        await DeliveryMethodInventoryService.RestoreForOrderAsync(_dbContext, order, cancellationToken);
 
         foreach (var payment in order.Payments.Where(payment => payment.Status == OrderPaymentStatus.PendingPayment))
         {

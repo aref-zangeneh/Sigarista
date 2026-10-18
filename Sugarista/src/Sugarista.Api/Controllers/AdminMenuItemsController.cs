@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sugarista.Api.Authorization;
+using Sugarista.Application.MenuItems.Commands.ApplyMenuPricing;
 using Sugarista.Application.MenuItems.Commands.DeleteMenuItem;
 using Sugarista.Application.MenuItems.Commands.UpsertMenuItem;
 using Sugarista.Application.MenuItems.Queries.GetAdminMenuItems;
 using Sugarista.Application.MenuItems.Queries.GetAdminMenuItemOptions;
+using Sugarista.Application.MenuItems.Queries.GetMenuItemPricing;
 using Sugarista.Application.Common.Models;
 using Sugarista.Domain.Constants;
 
@@ -23,6 +25,22 @@ public class AdminMenuItemsController : ApiControllerBase
         CancellationToken cancellationToken = default)
     {
         return Ok(await Mediator.Send(new GetAdminMenuItemsQuery(page, pageSize, search), cancellationToken));
+    }
+
+    [HttpGet("pricing")]
+    [RequireAnyPermission(AdminPermissions.MenuItems.View, AdminPermissions.Dashboard.Update)]
+    public async Task<ActionResult<IReadOnlyCollection<MenuItemPricingDto>>> GetPricing(CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetMenuItemPricingQuery(), cancellationToken));
+    }
+
+    [HttpPost("apply-pricing")]
+    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    public async Task<ActionResult<IReadOnlyList<Guid>>> ApplyPricing(
+        [FromBody] ApplyMenuPricingCommand command,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(command, cancellationToken));
     }
 
     [HttpGet("options")]

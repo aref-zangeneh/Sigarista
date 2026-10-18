@@ -45,6 +45,11 @@ public class InventoryPurchaseConfiguration : IEntityTypeConfiguration<Inventory
             .HasForeignKey(p => p.IngredientId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(p => p.Supplier)
+            .WithMany()
+            .HasForeignKey(p => p.SupplierId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasOne(p => p.StockMovement)
             .WithMany()
             .HasForeignKey(p => p.StockMovementId)
@@ -53,5 +58,6 @@ public class InventoryPurchaseConfiguration : IEntityTypeConfiguration<Inventory
         builder.HasIndex(p => new { p.IngredientId, p.ExpirationDate });
         builder.HasIndex(p => p.ExpirationDate);
         builder.HasIndex(p => p.ReceivedAt);
+        builder.HasIndex(p => p.SupplierId);
     }
 }

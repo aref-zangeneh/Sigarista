@@ -78,6 +78,16 @@ public class Order : BaseAuditableEntity
 
     public Guid? ServedByAdminUserId { get; private set; }
 
+    /// <summary>Delivery/service method applied to this order; null = no delivery method fee/packaging set.</summary>
+    public Guid? DeliveryMethodId { get; private set; }
+
+    public DeliveryMethod? DeliveryMethod { get; private set; }
+
+    public decimal DeliveryFee { get; private set; }
+
+    /// <summary>True once the delivery method's disposable packaging set has been deducted from stock.</summary>
+    public bool PackagingDeducted { get; private set; }
+
     public DateTimeOffset? HeldAt { get; private set; }
 
     public ICollection<OrderLine> Lines { get; private set; } = [];
@@ -116,8 +126,30 @@ public class Order : BaseAuditableEntity
             throw new DomainException("Order must contain at least one line.");
         }
 
-        TotalAmount = Lines.Sum(line => line.LineTotal);
+        TotalAmount = Lines.Sum(line => line.LineTotal) + DeliveryFee;
     }
+
+    /// <summary>
+    /// Attach (or clear) the delivery method; the fee becomes part of the order total
+    /// (items total + delivery fee). Total is only recomputed when lines exist.
+    /// </summary>
+    public void ApplyDeliveryMethod(Guid? deliveryMethodId, decimal deliveryFee)
+    {
+        if (deliveryFee < 0)
+        {
+            throw new DomainException("Delivery fee cannot be negative.");
+        }
+
+        DeliveryMethodId = deliveryMethodId;
+        DeliveryFee = deliveryFee;
+
+        if (Lines.Count > 0)
+        {
+            RecalculateTotal();
+        }
+    }
+
+    public void SetPackagingDeducted(bool deducted) => PackagingDeducted = deducted;
 
     public void MarkPaid()
     {

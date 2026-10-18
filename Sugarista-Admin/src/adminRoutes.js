@@ -2,12 +2,14 @@ import { viewPermissionForRoute } from './utils/adminPermissions'
 
 export const adminRoutes = [
   { id: 'overview', path: 'dashboard', label: 'نمای کلی' },
+  { id: 'cost-dashboard', path: 'cost-dashboard', label: 'کاست کنترل و قیمت‌گذاری' },
   { id: 'salon', path: 'salon-state', label: 'وضعیت سالن' },
   { id: 'categories', path: 'category', label: 'دسته‌بندی‌ها' },
   { id: 'menu-items', path: 'menu-items', label: 'آیتم‌های منو' },
   { id: 'addons', path: 'addons', label: 'افزودنی‌ها (اضافات)' },
   { id: 'modifiers', path: 'modifiers', label: 'تغییرات سفارش' },
   { id: 'ingredients', path: 'ingredients', label: 'مواد اولیه' },
+  { id: 'suppliers', path: 'suppliers', label: 'تامین‌کنندگان' },
   { id: 'recipes', path: 'recipes', label: 'دستور پخت' },
   { id: 'product-wiki', path: 'product-wiki', label: 'ویکی محصولات' },
   { id: 'inventory', path: 'inventory', label: 'انبار موجودی' },
@@ -15,6 +17,7 @@ export const adminRoutes = [
   { id: 'production', path: 'production', label: 'تولید' },
   { id: 'record-sale', path: 'record-sale', label: 'ثبت فروش' },
   { id: 'pos', path: 'pos', label: 'صندوق فروش' },
+  { id: 'delivery-methods', path: 'delivery-methods', label: 'روش‌های تحویل' },
   { id: 'accounting', path: 'accounting', label: 'حسابداری' },
   { id: 'orders', path: 'orders', label: 'سفارش‌ها' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },

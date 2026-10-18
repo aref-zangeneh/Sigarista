@@ -289,7 +289,33 @@ export function buildIngredientColumns({ setIngredientForm, emptyIngredientForm,
         </>
       ),
     },
-    { accessorKey: 'unit', header: 'واحد', meta: { className: 'ltr-text' } },
+    {
+      accessorKey: 'unit',
+      header: 'واحد',
+      meta: { className: 'ltr-text' },
+    },
+    {
+      accessorKey: 'kind',
+      header: 'نوع',
+      cell: ({ getValue }) => (getValue() === 'packaging' ? 'بسته‌بندی' : 'ماده اولیه'),
+    },
+    {
+      id: 'suppliers',
+      header: 'تامین‌کنندگان',
+      cell: ({ row }) => {
+        const names = row.original.supplierNames ?? []
+        if (names.length === 0) return '—'
+        const preferredId = row.original.preferredSupplierId
+        const namesWithStar = names.filter((_, index) => (row.original.supplierIds ?? [])[index] === preferredId)
+        const rest = names.filter((_, index) => (row.original.supplierIds ?? [])[index] !== preferredId)
+        return (
+          <>
+            {namesWithStar.length > 0 ? <span className="preferred-supplier">★ {namesWithStar.join('، ')}</span> : null}
+            {rest.length > 0 ? <div className="table-subtext">{rest.join('، ')}</div> : null}
+          </>
+        )
+      },
+    },
     {
       accessorKey: 'inventoryLocation',
       header: 'انبار',
@@ -313,16 +339,19 @@ export function buildIngredientColumns({ setIngredientForm, emptyIngredientForm,
               className="link-button"
               onClick={() =>
                 setIngredientForm({
-                  id: ingredient.id,
-                  persianName: ingredient.persianName,
-                  englishName: ingredient.englishName,
-                  unit: ingredient.unit,
-                  description: ingredient.description,
-                  displayOrder: ingredient.displayOrder,
-                  isActive: ingredient.isActive,
-                  inventoryLocation: ingredient.inventoryLocation ?? 'main',
-                  unitCost: ingredient.unitCost ?? '',
-                })
+                id: ingredient.id,
+                persianName: ingredient.persianName,
+                englishName: ingredient.englishName,
+                unit: ingredient.unit,
+                description: ingredient.description,
+                displayOrder: ingredient.displayOrder,
+                isActive: ingredient.isActive,
+                inventoryLocation: ingredient.inventoryLocation ?? 'main',
+                unitCost: ingredient.unitCost ?? '',
+                kind: ingredient.kind ?? 'ingredient',
+                supplierIds: ingredient.supplierIds ?? [],
+                preferredSupplierId: ingredient.preferredSupplierId ?? '',
+              })
               }
             >
               ویرایش
@@ -540,6 +569,216 @@ export function buildInventoryColumns({
       },
     },
   ]
+}
+
+const CONSUMPTION_STATUS_META = {
+  out: { label: 'تمام شده', tone: 'danger' },
+  critical: { label: 'خیلی کم (≤۳ روز)', tone: 'danger' },
+  low: { label: 'زیر حد آلارم', tone: 'danger' },
+  watch: { label: 'مراقبت (≤۷ روز)', tone: 'warn' },
+  ok: { label: 'سالم', tone: 'ok' },
+}
+
+export function buildInventoryConsumptionColumns({
+  toPersianNumber,
+  KIND_OPTIONS,
+  LOCATION_OPTIONS,
+}) {
+  return [
+    {
+      id: 'name',
+      header: 'قلم',
+      accessorFn: (row) => `${row.persianName} ${row.englishName} ${row.kind}`,
+      cell: ({ row }) => (
+        <>
+          <strong>{row.original.persianName}</strong>
+          <div className="table-subtext ltr-text">{row.original.englishName}</div>
+          <div className="table-subtext">
+            {row.original.kind === 'packaging' ? 'بسته‌بندی' : 'ماده اولیه'} •{' '}
+            {LOCATION_OPTIONS.find((o) => o.value === row.original.inventoryLocation)?.label ?? row.original.inventoryLocation}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'current',
+      header: 'موجودی زنده',
+      cell: ({ row }) => (
+        <strong>{toPersianNumber(row.original.currentQuantity)} {row.original.unit}</strong>
+      ),
+    },
+    {
+      id: 'consumed',
+      header: 'مصرف بازه',
+      cell: ({ row }) =>
+        row.original.consumedQuantity > 0
+          ? <>{toPersianNumber(row.original.consumedQuantity)} {row.original.unit}</>
+          : '—',
+    },
+    {
+      id: 'dailyAvg',
+      header: 'میانگین روزانه',
+      cell: ({ row }) =>
+        row.original.dailyAvg > 0
+          ? <>{toPersianNumber(row.original.dailyAvg)} {row.original.unit}</>
+          : '—',
+    },
+    {
+      id: 'daysRemaining',
+      header: 'روزهای باقی‌مانده',
+      cell: ({ row }) =>
+        row.original.daysRemaining != null
+          ? <strong>{toPersianNumber(row.original.daysRemaining)} روز</strong>
+          : '—',
+    },
+    {
+      id: 'status',
+      header: 'وضعیت',
+      cell: ({ row }) => {
+        const meta = CONSUMPTION_STATUS_META[row.original.status] ?? { label: row.original.status, tone: 'ok' }
+        return <span className={`status-badge consumption-badge--${meta.tone}`}>{meta.label}</span>
+      },
+    },
+    {
+      id: 'suggested',
+      header: 'پیشنهاد سفارش',
+      cell: ({ row }) =>
+        row.original.suggestedOrderQuantity > 0
+          ? <strong>{toPersianNumber(row.original.suggestedOrderQuantity)} {row.original.unit}</strong>
+          : '—',
+    },
+    {
+      id: 'purchases',
+      header: 'خرید در بازه',
+      cell: ({ row }) => toPersianNumber(row.original.purchasesInWindow ?? 0),
+    },
+  ]
+}
+
+export function buildMenuItemPricingColumns({
+  toPersianNumber,
+  formatMoney,
+  markupByItem,
+  onMarkupChange,
+  onApply,
+  bulkPercent,
+  formatShamsiDate,
+}) {
+  function previewPrice(cost, factor, markupPercent) {
+    if (!cost || cost <= 0) return null
+    const markup = markupPercent === '' || markupPercent == null ? 0 : Number(markupPercent) / 100
+    const raw = cost * factor * (1 + markup)
+    return Math.ceil(raw / 1000) * 1000
+  }
+
+  function markupFor(item) {
+    if (item.id in markupByItem) return markupByItem[item.id]
+    return item.markupPercent ?? ''
+  }
+
+  return [
+    {
+      id: 'name',
+      header: 'قلم منو',
+      accessorFn: (row) => `${row.persianName} ${row.englishName}`,
+      cell: ({ row }) => (
+        <>
+          <strong>{row.original.persianName}</strong>
+          <div className="table-subtext ltr-text">{row.original.englishName}</div>
+          <div className="table-subtext">{row.original.categoryName}</div>
+        </>
+      ),
+    },
+    {
+      id: 'cost',
+      header: 'قیمت تمام‌شده (هر واحد)',
+      cell: ({ row }) =>
+        row.original.hasRecipe ? (
+          <strong>{formatMoney(row.original.costPerServing)}</strong>
+        ) : (
+          <span className="table-subtext">فرمول تعریف نشده</span>
+        ),
+    },
+    {
+      id: 'recipe',
+      header: 'سطرهای فرمول',
+      cell: ({ row }) => (row.original.hasRecipe ? toPersianNumber(row.original.recipeLineCount) : '—'),
+    },
+    {
+      id: 'current',
+      header: 'قیمت فعلی',
+      cell: ({ row }) => {
+        const parts = []
+        if (row.original.smallPrice != null && row.original.smallPrice !== '') {
+          parts.push(`ک: ${formatMoney(row.original.smallPrice)}`)
+        }
+        if (row.original.mediumPrice != null && row.original.mediumPrice !== '') {
+          parts.push(`م: ${formatMoney(row.original.mediumPrice)}`)
+        }
+        if (row.original.largePrice != null && row.original.largePrice !== '') {
+          parts.push(`ل: ${formatMoney(row.original.largePrice)}`)
+        }
+        return parts.length > 0 ? parts.join(' / ') : '—'
+      },
+    },
+    {
+      id: 'markup',
+      header: 'درصد سود',
+      cell: ({ row }) => (
+        <input
+          className="ltr-input pricing-markup-input"
+          type="number"
+          min="0"
+          step="1"
+          placeholder={row.original.markupPercent ?? (bulkPercent ?? '')}
+          value={markupFor(row.original)}
+          onChange={(event) => onMarkupChange(row.original.id, event.target.value)}
+        />
+      ),
+    },
+    {
+      id: 'preview',
+      header: 'قیمت نهایی (پیش‌نمایش)',
+      cell: ({ row }) => {
+        const markupPercent = markupFor(row.original)
+        const previews = []
+        const variants = [
+          { label: 'ک', price: row.original.smallPrice, factor: row.original.smallCostShare },
+          { label: 'م', price: row.original.mediumPrice, factor: row.original.mediumCostShare },
+          { label: 'ل', price: row.original.largePrice, factor: row.original.largeCostShare },
+        ]
+        for (const variant of variants) {
+          if (variant.price == null) continue
+          const computed = previewPrice(row.original.costPerServing, variant.factor, markupPercent)
+          previews.push(
+            <div key={variant.label}>
+              {variant.label}: <strong>{formattedMoney(computed, formatMoney)}</strong>
+            </div>,
+          )
+        }
+        return row.original.hasRecipe && previews.length > 0 ? previews : '—'
+      },
+    },
+    {
+      id: 'actions',
+      header: 'عملیات',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <button
+          type="button"
+          className="link-button"
+          disabled={!row.original.hasRecipe}
+          onClick={() => onApply({ id: row.original.id, markupPercent: markupFor(row.original) })}
+        >
+          اعمال
+        </button>
+      ),
+    },
+  ]
+}
+
+function formattedMoney(value, formatMoney) {
+  return value == null ? '—' : formatMoney(value)
 }
 
 export function buildStockHistoryColumns({ formatDateTime }) {
@@ -802,6 +1041,12 @@ export function buildInventoryPurchaseColumns({
           <div>{expirationBadge(row.original.expirationStatus)}</div>
         </>
       ),
+    },
+    {
+      id: 'supplier',
+      header: 'تامین‌کننده',
+      accessorFn: (row) => row.supplierName ?? '',
+      cell: ({ getValue }) => getValue() || '—',
     },
     {
       id: 'costs',

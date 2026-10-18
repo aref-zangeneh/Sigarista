@@ -20,6 +20,7 @@ public class GetPosOrderQueryHandler : IRequestHandler<GetPosOrderQuery, PosOrde
             .AsNoTracking()
             .Include(o => o.Lines)
             .Include(o => o.SplitShares)
+            .Include(o => o.DeliveryMethod)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken)
             ?? throw new KeyNotFoundException("Order was not found.");
 

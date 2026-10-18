@@ -429,7 +429,9 @@ export function ProductWikiPanel({
                     onChange={(event) => setRecipeLineForm((current) => ({ ...current, ingredientId: event.target.value }))}
                   >
                     <option value="">-- انتخاب --</option>
-                    {ingredientOptions.map((item) => (
+                    {ingredientOptions
+                      .filter((item) => item.kind !== 'packaging')
+                      .map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.persianName} ({item.unit})
                       </option>

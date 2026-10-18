@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Accounting.Services;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
 
@@ -90,6 +91,7 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
             order,
             order.Lines.ToList(),
             cancellationToken);
+        await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         await _accountingService.PostOrderPaymentAsync(order, cancellationToken);

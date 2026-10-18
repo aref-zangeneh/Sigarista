@@ -30,7 +30,9 @@ public record InventoryPurchaseDto(
     string? Description,
     string? DocumentImageUrl,
     DateTimeOffset ReceivedAt,
-    string ExpirationStatus);
+    string ExpirationStatus,
+    Guid? SupplierId = null,
+    string? SupplierName = null);
 
 public class GetInventoryPurchasesQueryHandler
     : IRequestHandler<GetInventoryPurchasesQuery, PaginatedList<InventoryPurchaseDto>>
@@ -102,7 +104,9 @@ public class GetInventoryPurchasesQueryHandler
                     ? "Expired"
                     : p.ExpirationDate <= today.AddDays(7)
                         ? "ExpiringSoon"
-                        : "Ok"))
+                        : "Ok",
+                p.SupplierId,
+                p.Supplier != null ? p.Supplier.PersianName : null))
             .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
 
@@ -41,6 +42,8 @@ public class CancelPosOrderCommandHandler : IRequestHandler<CancelPosOrderComman
                 order.Lines.ToList(),
                 cancellationToken);
         }
+
+        await DeliveryMethodInventoryService.RestoreForOrderAsync(_dbContext, order, cancellationToken);
 
         order.AdminCancel();
         await _dbContext.SaveChangesAsync(cancellationToken);

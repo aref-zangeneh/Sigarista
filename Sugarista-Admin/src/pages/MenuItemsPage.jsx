@@ -1,5 +1,8 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
+import { DataTable, formatMoney } from '../components/DataTable'
+import { buildMenuItemPricingColumns } from '../components/adminTableColumns'
 
 export function MenuItemsPage() {
   const {
@@ -12,7 +15,94 @@ export function MenuItemsPage() {
     handleMenuItemSubmit,
     resetMenuItemForm,
     menuItemColumns,
+    apiRequest,
+    getReadableError,
+    setMessage,
+    setError,
+    saving: sharedSaving,
+    setSaving,
+    toPersianNumber,
   } = useAdmin()
+
+  const [pricingItems, setPricingItems] = useState([])
+  const [pricingLoading, setPricingLoading] = useState(true)
+  const [markupByItem, setMarkupByItem] = useState({})
+  const [bulkMarkup, setBulkMarkup] = useState('30')
+
+  const loadPricing = useCallback(async () => {
+    if (!session?.token) return
+    try {
+      const data = await apiRequest('/admin/menu-items/pricing', { token: session.token })
+      setPricingItems(Array.isArray(data) ? data : [])
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setPricingLoading(false)
+    }
+  }, [session?.token, apiRequest])
+
+  useEffect(() => {
+    loadPricing()
+  }, [loadPricing])
+
+  useEffect(() => {
+    loadPricing()
+  }, [tableReloadToken])
+
+  const applyPricing = useCallback(
+    async ({ itemIds, markupPercent }) => {
+      setSaving(true)
+      setError('')
+      setMessage('')
+      try {
+        const computed = markupPercent === '' || markupPercent == null ? 0 : Number(markupPercent)
+        if (Number.isNaN(computed) || computed < 0) {
+          setError('درصد سود باید عددی بزرگ‌تر یا مساوی صفر باشد.')
+          return
+        }
+
+        const updated = await apiRequest('/admin/menu-items/apply-pricing', {
+          method: 'POST',
+          token: session.token,
+          body: {
+            markupPercent: computed,
+            itemIds: itemIds ?? [],
+          },
+        })
+
+        const count = Array.isArray(updated) ? updated.length : 0
+        setMessage(
+          count > 0
+            ? `قیمت ${toPersianNumber(count)} آیتم بر اساس درصد سود ${toPersianNumber(computed)}٪ به‌روزرسانی شد.`
+            : 'قلمی با فرمول قابل قیمت‌گذاری پیدا نشد. اول فرمول را در صفحه «دستور پخت» ثبت کنید.',
+        )
+        setMarkupByItem({})
+        await loadPricing()
+      } catch (requestError) {
+        setError(getReadableError(requestError))
+      } finally {
+        setSaving(false)
+      }
+    },
+    [session?.token, apiRequest, loadPricing, toPersianNumber, setError, setMessage, setSaving],
+  )
+
+  const handleMarkupChange = useCallback((itemId, value) => {
+    setMarkupByItem((current) => ({ ...current, [itemId]: value }))
+  }, [])
+
+  const pricingColumns = useMemo(
+    () =>
+      buildMenuItemPricingColumns({
+        toPersianNumber,
+        formatMoney,
+        markupByItem,
+        onMarkupChange: handleMarkupChange,
+        onApply: ({ id, markupPercent }) => applyPricing({ itemIds: [id], markupPercent }),
+        bulkMarkup,
+      }),
+    [markupByItem, handleMarkupChange, applyPricing, bulkMarkup, toPersianNumber],
+  )
 
   return (
       <section className="two-column-layout">
@@ -392,6 +482,48 @@ export function MenuItemsPage() {
             reloadToken={tableReloadToken}
             searchPlaceholder="جستجو در آیتم‌های منو..."
           />
+        </section>
+
+        <section className="panel pricing-panel">
+          <div className="panel-head">
+            <div>
+              <h3>قیمت‌گذاری خودکار روی قیمت تمام‌شده</h3>
+              <p>
+                قیمت تمام‌شده از فرمول (مواد اولیه + بسته‌بندی) با آخرین بهای خرید محاسبه می‌شود؛ درصد سود را بدهید تا قیمت
+                نهایی انواع سایز خودکار محاسبه و ثبت شود. قیمت نهایی در منوی دیجیتال همان‌جا نمایش داده می‌شود.
+              </p>
+            </div>
+            <div className="pricing-bulk-controls">
+              <label>
+                <span>درصد سود گروهی (٪)</span>
+                <input
+                  className="ltr-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={bulkMarkup}
+                  onChange={(event) => setBulkMarkup(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={sharedSaving || pricingLoading}
+                onClick={() => applyPricing({ itemIds: null, markupPercent: bulkMarkup })}
+              >
+                اعمال روی همه
+              </button>
+            </div>
+          </div>
+          {pricingLoading ? (
+            <p className="feedback">در حال محاسبه قیمت تمام‌شده آیتم‌ها...</p>
+          ) : (
+            <DataTable
+              data={pricingItems}
+              columns={pricingColumns}
+              searchPlaceholder="جستجو در قیمت‌گذاری..."
+            />
+          )}
         </section>
       </section>
   )

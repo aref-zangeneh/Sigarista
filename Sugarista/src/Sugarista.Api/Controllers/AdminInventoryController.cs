@@ -4,6 +4,7 @@ using Sugarista.Api.Authorization;
 using Sugarista.Application.Inventory.Commands.AdjustStock;
 using Sugarista.Application.Inventory.Commands.RestockIngredient;
 using Sugarista.Application.Inventory.Commands.SetAlertThreshold;
+using Sugarista.Application.Inventory.Queries.GetInventoryConsumption;
 using Sugarista.Application.Inventory.Queries.GetInventoryStatus;
 using Sugarista.Application.Inventory.Queries.GetStockHistory;
 using Sugarista.Domain.Constants;
@@ -19,6 +20,15 @@ public class AdminInventoryController : ApiControllerBase
     public async Task<ActionResult<InventoryStatusDto>> GetStatus(CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new GetInventoryStatusQuery(), cancellationToken));
+    }
+
+    [HttpGet("consumption")]
+    [RequirePermission(AdminPermissions.Inventory.View)]
+    public async Task<ActionResult<IReadOnlyCollection<IngredientConsumptionDto>>> GetConsumption(
+        [FromQuery] int days = 30,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(new GetInventoryConsumptionQuery(days), cancellationToken));
     }
 
     [HttpGet("{ingredientId:guid}/history")]

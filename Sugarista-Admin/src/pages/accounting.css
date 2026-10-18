@@ -11,7 +11,7 @@
 
 .accounting-tabs button {
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--glass);
   border-radius: 999px;
   padding: 0.55rem 1rem;
   cursor: pointer;
@@ -34,7 +34,7 @@
   padding: 16px 18px;
   border-radius: 18px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--panel);
 }
 
 .metric-card span {
@@ -84,18 +84,18 @@
 }
 
 .amount-positive {
-  color: #0f766e;
+  color: var(--ok);
 }
 
 .amount-negative {
-  color: #b45309;
+  color: var(--warn-ink);
 }
 
 .journal-entry-card {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 14px;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--glass);
 }
 
 .journal-entry-card + .journal-entry-card {
@@ -116,6 +116,6 @@
   gap: 6px;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
-  background: rgba(255, 220, 168, 0.35);
+  background: var(--warn-soft);
   font-size: 0.82rem;
 }

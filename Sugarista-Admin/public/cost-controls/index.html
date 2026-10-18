@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>کاست کنترل و قیمت‌گذاری</title>
+<link id="app-font" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap">
+<style>
+:root{color-scheme:light}
+html{box-sizing:border-box}
+body{margin:0;padding:0}
+img{max-width:100%}
+[hidden]:not([hidden="until-found" i]){display:none!important}
+</style>
+<link rel="stylesheet" href="costdash.css">
+<style>
+/* Embedded-in-admin overrides: the admin shell already provides the main nav,
+   so the dashboard's own sidebar is hidden and its horizontal chip nav is always visible. */
+.app{grid-template-columns:minmax(0,1fr)}
+.side{display:none}
+.mnav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex-direction:row;padding-block:2px 8px}
+.mnav::-webkit-scrollbar{display:none}
+.mnav button{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-family:var(--f-sub);font-size:.84rem;cursor:pointer;white-space:nowrap}
+.mnav button.on{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.mnav button.on svg{display:none}
+.top{position:sticky;top:0}
+</style>
+</head>
+<body>
+<template id="shell">
+<div class="app">
+  <aside class="side" aria-label="منوی اصلی">
+    <div class="brand"><div class="mark" aria-hidden="true">{{ICON:cup}}</div><div><b>شوگریستا</b><span>کاست کنترل و قیمت‌گذاری</span></div></div>
+    <div class="navlbl">بخش‌ها</div>
+    <nav class="nav" id="nav"></nav>
+    <div class="savecard">
+      <h3>ذخیره‌ی تغییرات</h3>
+      <p id="save-msg"></p>
+      <button class="btn primary" type="button" data-act="save" id="save-side">{{ICON:save}} ذخیره برای همه</button>
+      <button class="btn ghost small" type="button" data-act="reset" id="reset-btn">بازگشت به اعداد اکسل</button>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="toprow">
+        <div class="mbrand"><div class="mark" aria-hidden="true">{{ICON:cup}}</div><b style="font-family:var(--f-title)">شوگریستا</b></div>
+        <div class="ttl"><h1 id="vtitle"></h1><small id="vsub"></small></div>
+        <div class="rates" id="rates"></div>
+      </div>
+      <nav class="mnav" id="mnav" aria-label="بخش‌ها"></nav>
+    </header>
+    <main class="content" id="view"></main>
+  </div>
+</div>
+</template>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

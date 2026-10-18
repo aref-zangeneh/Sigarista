@@ -15,13 +15,18 @@ public record RecordInventoryPurchaseCommand(
     decimal TaxAmount,
     decimal IncidentalCost,
     string? Description,
-    string? DocumentImageUrl) : IRequest<Guid>;
+    string? DocumentImageUrl,
+    Guid? SupplierId = null) : IRequest<Guid>;
 
 public class RecordInventoryPurchaseCommandValidator : AbstractValidator<RecordInventoryPurchaseCommand>
 {
     public RecordInventoryPurchaseCommandValidator()
     {
         RuleFor(c => c.IngredientId).NotEmpty();
+
+        RuleFor(c => c.SupplierId)
+            .Must(id => !id.HasValue || id.Value != Guid.Empty)
+            .WithMessage("Supplier id must be valid.");
         RuleFor(c => c.ExpirationDate).NotEmpty();
         RuleFor(c => c.Description).MaximumLength(1000);
         RuleFor(c => c.DocumentImageUrl).MaximumLength(2000);
@@ -80,6 +85,21 @@ public class RecordInventoryPurchaseCommandHandler : IRequestHandler<RecordInven
             .FirstOrDefaultAsync(s => s.IngredientId == request.IngredientId, cancellationToken)
             ?? throw new KeyNotFoundException("Inventory stock record was not found for this ingredient.");
 
+        Guid? supplierId = null;
+        if (request.SupplierId is { } supplier && supplier != Guid.Empty)
+        {
+            var supplierExists = await _dbContext.Suppliers
+                .AsNoTracking()
+                .AnyAsync(s => s.Id == supplier, cancellationToken);
+
+            if (!supplierExists)
+            {
+                throw new KeyNotFoundException("Supplier was not found.");
+            }
+
+            supplierId = supplier;
+        }
+
         var purchase = new InventoryPurchase(
             request.IngredientId,
             quantity,
@@ -92,7 +112,8 @@ public class RecordInventoryPurchaseCommandHandler : IRequestHandler<RecordInven
             request.TaxAmount,
             request.IncidentalCost,
             request.Description,
-            request.DocumentImageUrl);
+            request.DocumentImageUrl,
+            supplierId);
 
         var note = BuildNote(purchase, ingredient.Unit);
         var movement = stock.Restock(quantity, note);
@@ -116,7 +137,8 @@ public class RecordInventoryPurchaseCommandHandler : IRequestHandler<RecordInven
                 trackedIngredient.DisplayOrder,
                 trackedIngredient.IsActive,
                 trackedIngredient.InventoryLocation,
-                request.PurchaseUnitPrice.Value);
+                request.PurchaseUnitPrice.Value,
+                trackedIngredient.Kind);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

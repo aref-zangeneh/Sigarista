@@ -1,13 +1,13 @@
 .pos-layout {
   min-height: 100vh;
-  background: #f6f4ef;
+  background: var(--pos-bg);
 }
 
 .pos-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
   min-height: 100vh;
-  color: #1f2a1f;
+  color: var(--pos-ink);
 }
 
 .pos-main {
@@ -38,7 +38,7 @@
 
 .pos-brand p {
   margin: 4px 0 0;
-  color: #667066;
+  color: var(--pos-muted);
   font-size: 0.92rem;
 }
 
@@ -55,11 +55,11 @@
 
 .pos-search input {
   width: 100%;
-  border: 1px solid #d8dfd4;
+  border: 1px solid var(--pos-border);
   border-radius: 18px;
   padding: 14px 48px 14px 18px;
   font: inherit;
-  background: #fff;
+  background: var(--pos-surface);
 }
 
 .pos-search kbd {
@@ -67,12 +67,12 @@
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  border: 1px solid #d8dfd4;
+  border: 1px solid var(--pos-border);
   border-radius: 8px;
   padding: 2px 8px;
   font-size: 0.75rem;
-  color: #667066;
-  background: #faf9f6;
+  color: var(--pos-muted);
+  background: var(--pos-paper);
 }
 
 .pos-categories {
@@ -84,9 +84,9 @@
 
 .pos-category-card {
   min-width: 150px;
-  border: 1px solid #d8dfd4;
+  border: 1px solid var(--pos-border);
   border-radius: 22px;
-  background: #fff;
+  background: var(--pos-surface);
   padding: 16px;
   text-align: right;
   cursor: pointer;
@@ -94,8 +94,8 @@
 }
 
 .pos-category-card-active {
-  background: #1f4d2f;
-  border-color: #1f4d2f;
+  background: var(--pos-green);
+  border-color: var(--pos-green);
   color: #fff;
 }
 
@@ -116,9 +116,9 @@
 
 .pos-product-card {
   position: relative;
-  border: 1px solid #e2e8de;
+  border: 1px solid var(--pos-border-soft);
   border-radius: 24px;
-  background: #fff;
+  background: var(--pos-surface);
   padding: 14px;
   min-height: 210px;
   display: flex;
@@ -135,10 +135,10 @@
 .pos-product-placeholder {
   height: 96px;
   border-radius: 16px;
-  background: linear-gradient(180deg, #faf9f6, #eef2ea);
+  background: var(--pos-strip);
   display: grid;
   place-items: center;
-  color: #667066;
+  color: var(--pos-muted);
   font-size: 2rem;
 }
 
@@ -149,7 +149,7 @@
 
 .pos-product-card p {
   margin: 0;
-  color: #667066;
+  color: var(--pos-muted);
   font-size: 0.88rem;
 }
 
@@ -161,7 +161,7 @@
   height: 38px;
   border: none;
   border-radius: 999px;
-  background: #1f4d2f;
+  background: var(--pos-green);
   color: #fff;
   font-size: 1.4rem;
   cursor: pointer;
@@ -174,7 +174,7 @@
   min-width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: #eef2ea;
+  background: var(--pos-line);
   display: grid;
   place-items: center;
   font-size: 0.82rem;
@@ -182,8 +182,8 @@
 }
 
 .pos-sidebar {
-  background: #fff;
-  border-right: 1px solid #e2e8de;
+  background: var(--pos-surface);
+  border-right: 1px solid var(--pos-border-soft);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -191,7 +191,7 @@
 
 .pos-sidebar-head {
   padding: 20px;
-  border-bottom: 1px solid #eef2ea;
+  border-bottom: 1px solid var(--pos-line);
 }
 
 .pos-sidebar-head h2 {
@@ -206,17 +206,33 @@
 }
 
 .pos-service-toggle button {
-  border: 1px solid #d8dfd4;
+  border: 1px solid var(--pos-border);
   border-radius: 999px;
   padding: 10px;
-  background: #faf9f6;
+  background: var(--pos-paper);
   cursor: pointer;
 }
 
 .pos-service-toggle button.active {
-  background: #1f4d2f;
-  border-color: #1f4d2f;
+  background: var(--pos-green);
+  border-color: var(--pos-green);
   color: #fff;
+}
+
+.pos-delivery-select {
+  border: 1px solid var(--pos-border);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--pos-paper);
+  color: var(--pos-text);
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.pos-total-row.pos-delivery-fee-row {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .pos-form-grid {
@@ -229,11 +245,11 @@
 .pos-form-grid textarea,
 .pos-form-grid select {
   width: 100%;
-  border: 1px solid #d8dfd4;
+  border: 1px solid var(--pos-border);
   border-radius: 14px;
   padding: 10px 12px;
   font: inherit;
-  background: #faf9f6;
+  background: var(--pos-paper);
 }
 
 .pos-cart-lines {
@@ -249,7 +265,7 @@
   grid-template-columns: 52px minmax(0, 1fr);
   gap: 10px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #eef2ea;
+  border-bottom: 1px solid var(--pos-line);
 }
 
 .pos-cart-line img,
@@ -258,7 +274,7 @@
   height: 52px;
   border-radius: 14px;
   object-fit: cover;
-  background: #faf9f6;
+  background: var(--pos-paper);
 }
 
 .pos-cart-line h4 {
@@ -267,7 +283,7 @@
 }
 
 .pos-cart-line small {
-  color: #667066;
+  color: var(--pos-muted);
 }
 
 .pos-cart-line-actions {
@@ -281,14 +297,14 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid #d8dfd4;
-  background: #fff;
+  border: 1px solid var(--pos-border);
+  background: var(--pos-surface);
   cursor: pointer;
 }
 
 .pos-cart-footer {
   padding: 16px 20px 20px;
-  border-top: 1px solid #eef2ea;
+  border-top: 1px solid var(--pos-line);
   display: grid;
   gap: 10px;
 }
@@ -333,18 +349,18 @@
 }
 
 .pos-primary-button {
-  background: #1f4d2f;
+  background: var(--pos-green);
   color: #fff;
 }
 
 .pos-secondary-button {
-  background: #eef2ea;
-  color: #1f2a1f;
+  background: var(--pos-line);
+  color: var(--pos-ink);
 }
 
 .pos-danger-button {
-  background: #fff0f0;
-  color: #a32020;
+  background: var(--pos-danger);
+  color: var(--pos-danger-ink);
 }
 
 .pos-panel-toggle {
@@ -354,9 +370,9 @@
 }
 
 .pos-panel {
-  border: 1px solid #e2e8de;
+  border: 1px solid var(--pos-border-soft);
   border-radius: 18px;
-  background: #fff;
+  background: var(--pos-surface);
   padding: 14px;
 }
 
@@ -367,21 +383,21 @@
 }
 
 .pos-table-card {
-  border: 1px solid #d8dfd4;
+  border: 1px solid var(--pos-border);
   border-radius: 18px;
   padding: 12px;
-  background: #faf9f6;
+  background: var(--pos-paper);
   cursor: pointer;
   text-align: right;
 }
 
 .pos-table-card.selected {
-  border-color: #1f4d2f;
-  background: #edf5ef;
+  border-color: var(--pos-green);
+  background: var(--pos-green-soft);
 }
 
 .pos-table-card.occupied {
-  border-color: #c9a227;
+  border-color: var(--pos-gold);
 }
 
 .pos-table-card h4 {
@@ -391,7 +407,7 @@
 .pos-table-card p {
   margin: 0;
   font-size: 0.82rem;
-  color: #667066;
+  color: var(--pos-muted);
 }
 
 .pos-held-list,
@@ -407,7 +423,7 @@
   justify-content: space-between;
   gap: 10px;
   align-items: center;
-  border: 1px solid #eef2ea;
+  border: 1px solid var(--pos-line);
   border-radius: 14px;
   padding: 10px 12px;
 }
@@ -424,7 +440,7 @@
 
 .pos-modal {
   width: min(480px, 100%);
-  background: #fff;
+  background: var(--pos-surface);
   border-radius: 24px;
   padding: 20px;
   display: grid;
@@ -438,22 +454,22 @@
 }
 
 .pos-modifier-chip {
-  border: 1px solid #d8dfd4;
+  border: 1px solid var(--pos-border);
   border-radius: 999px;
   padding: 8px 12px;
-  background: #faf9f6;
+  background: var(--pos-paper);
   cursor: pointer;
 }
 
 .pos-modifier-chip.selected {
-  background: #1f4d2f;
-  border-color: #1f4d2f;
+  background: var(--pos-green);
+  border-color: var(--pos-green);
   color: #fff;
 }
 
 .pos-shortcuts {
   font-size: 0.82rem;
-  color: #667066;
+  color: var(--pos-muted);
 }
 
 .pos-feedback {
@@ -463,13 +479,13 @@
 }
 
 .pos-feedback-error {
-  background: #fff0f0;
-  color: #a32020;
+  background: var(--pos-danger);
+  color: var(--pos-danger-ink);
 }
 
 .pos-feedback-success {
-  background: #edf5ef;
-  color: #1f4d2f;
+  background: var(--pos-green-soft);
+  color: var(--pos-green);
 }
 
 @media (max-width: 1100px) {
@@ -479,7 +495,7 @@
 
   .pos-sidebar {
     border-right: none;
-    border-top: 1px solid #e2e8de;
+    border-top: 1px solid var(--pos-border-soft);
     min-height: auto;
   }
 }

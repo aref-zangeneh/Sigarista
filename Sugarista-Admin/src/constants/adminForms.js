@@ -8,6 +8,11 @@ export const LOCATION_OPTIONS = [
   { value: 'refrigerator', label: 'یخچال' },
 ]
 
+export const KIND_OPTIONS = [
+  { value: 'ingredient', label: 'ماده اولیه' },
+  { value: 'packaging', label: 'بسته‌بندی' },
+]
+
 export const emptyRestockForm = { quantity: '', note: '' }
 export const emptyAdjustForm = { delta: '', note: '' }
 export const emptyAlertForm = { minAlertQuantity: '' }
@@ -83,6 +88,9 @@ export const emptyIngredientForm = {
   isActive: true,
   inventoryLocation: 'main',
   unitCost: '',
+  kind: 'ingredient',
+  supplierIds: [],
+  preferredSupplierId: '',
 }
 
 export const emptyRecipeLineForm = {

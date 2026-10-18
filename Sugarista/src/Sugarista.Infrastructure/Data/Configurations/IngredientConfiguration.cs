@@ -36,6 +36,12 @@ public class IngredientConfiguration : IEntityTypeConfiguration<Ingredient>
             .HasColumnType("numeric(18,2)")
             .HasDefaultValue(0m);
 
+        builder.Property(i => i.Kind)
+            .HasMaxLength(20)
+            .IsRequired()
+            .HasDefaultValue("ingredient");
+
         builder.HasIndex(i => i.DisplayOrder);
+        builder.HasIndex(i => i.Kind);
     }
 }

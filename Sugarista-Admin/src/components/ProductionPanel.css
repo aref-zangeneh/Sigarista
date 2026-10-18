@@ -10,7 +10,7 @@
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--panel);
 }
 
 .production-stock-card--low {
@@ -32,7 +32,7 @@
 }
 
 .production-preview-note--warning {
-  color: #b54708;
+  color: var(--warn-ink);
 }
 
 .production-preview,

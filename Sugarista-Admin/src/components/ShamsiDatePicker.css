@@ -11,7 +11,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--panel);
   font: inherit;
   cursor: pointer;
 }
@@ -32,7 +32,7 @@
 }
 
 .jdp-day.selected span {
-  background: #aa3171 !important;
+  background: var(--accent) !important;
 }
 
 .jdp-day:not(.disabled-day):hover span {

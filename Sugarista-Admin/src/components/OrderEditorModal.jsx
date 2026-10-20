@@ -11,6 +11,9 @@ export function OrderEditorModal() {
     saving,
     closeOrderEditor,
     handleSaveOrder,
+    handleRegisterPayment,
+    registerPaymentMethod,
+    setRegisterPaymentMethod,
     updateOrderFulfillment,
     setOrderEditForm,
     updateOrderLineQuantity,
@@ -44,6 +47,12 @@ export function OrderEditorModal() {
               <span>آماده‌سازی: {fulfillmentStatusLabel(selectedOrder.fulfillmentStatus)}</span>
               <span>مبلغ کل: {formatMoney(selectedOrder.totalAmount)} تومان</span>
               <span>پرداخت شده: {formatMoney(selectedOrder.amountPaid ?? 0)} تومان</span>
+              {selectedOrder.taxTotal > 0 ? (
+                <span>مالیات: {formatMoney(selectedOrder.taxTotal)} تومان</span>
+              ) : null}
+              {selectedOrder.deliveryFee > 0 ? (
+                <span>هزینه تحویل: {formatMoney(selectedOrder.deliveryFee)} تومان</span>
+              ) : null}
               <span>تاریخ: {formatDateTime(selectedOrder.createdAt)}</span>
             </div>
     
@@ -164,7 +173,31 @@ export function OrderEditorModal() {
               </>
             ) : null}
     
+            {selectedOrder.taxTotal > 0 ? (
+              <p className="table-subtext">
+                مالیات بر ارزش افزوده بر اساس درصد مالیات آیتم‌ها محاسبه شده است: {formatMoney(selectedOrder.itemsTotal)} تومان اقلام + {formatMoney(selectedOrder.taxTotal)} مالیات
+                {selectedOrder.deliveryFee > 0 ? ` + ${formatMoney(selectedOrder.deliveryFee)} هزینه تحویل` : ''}.
+              </p>
+            ) : null}
+
             <div className="order-editor-actions">
+              {['PendingPayment', 'PartiallyPaid', 'Held'].includes(selectedOrder.status) ? (
+                <div className="invoice-pay-row">
+                  <label>
+                    <span>روش پرداخت</span>
+                    <select
+                      value={registerPaymentMethod}
+                      onChange={(event) => setRegisterPaymentMethod(event.target.value)}
+                    >
+                      <option value="Cash">نقدی</option>
+                      <option value="Card">کارت</option>
+                    </select>
+                  </label>
+                  <button type="button" disabled={saving} onClick={handleRegisterPayment}>
+                    نهایی‌سازی فاکتور و ثبت پرداخت
+                  </button>
+                </div>
+              ) : null}
               {selectedOrder.status !== 'Cancelled' ? (
                 <>
                   <button type="submit" disabled={saving}>

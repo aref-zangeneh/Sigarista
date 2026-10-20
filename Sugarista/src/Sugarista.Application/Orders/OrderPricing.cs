@@ -12,7 +12,8 @@ internal static class OrderPricing
         string? SizeLabel,
         int Quantity,
         decimal UnitPrice,
-        IReadOnlyCollection<string> ModifierLabels);
+        IReadOnlyCollection<string> ModifierLabels,
+        decimal TaxPercent = 0m);
 
     internal static ResolvedLine ResolveLine(
         MenuItem menuItem,
@@ -40,7 +41,8 @@ internal static class OrderPricing
             sizeLabel,
             quantity,
             unitPrice,
-            modifierLabels);
+            modifierLabels,
+            menuItem.TaxPercent);
     }
 
     private static (string? SizeKey, string? SizeLabel, decimal UnitPrice) ResolveUnitPrice(MenuItem menuItem, string? sizeKey)

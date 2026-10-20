@@ -22,6 +22,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.DeliveryMethod> DeliveryMethods { get; }
 
+    DbSet<Sugarista.Domain.Entities.Customer> Customers { get; }
+
     DbSet<Sugarista.Domain.Entities.DeliveryMethodPackaging> DeliveryMethodPackagings { get; }
 
     DbSet<Sugarista.Domain.Entities.IngredientSupplier> IngredientSuppliers { get; }

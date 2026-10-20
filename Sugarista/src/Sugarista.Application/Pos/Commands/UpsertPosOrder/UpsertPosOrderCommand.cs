@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Accounting.Services;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Orders;
@@ -91,6 +92,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         var isSplitBill = splitBillMode != SplitBillMode.Single;
         var resolvedLines = await ResolveLinesAsync(request.Items, cancellationToken);
         var itemsTotal = resolvedLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
+        var taxTotal = resolvedLines.Sum(line =>
+            Math.Round(line.resolved.UnitPrice * line.resolved.Quantity * line.resolved.TaxPercent / 100m, 2));
 
         Domain.Entities.DeliveryMethod? deliveryMethod = null;
         if (request.DeliveryMethodId.HasValue)
@@ -106,7 +109,14 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         }
 
         var deliveryFee = deliveryMethod?.DeliveryFee ?? 0m;
-        var totalAmount = itemsTotal + deliveryFee;
+        var totalAmount = itemsTotal + deliveryFee + taxTotal;
+
+        var customer = await CustomerDirectoryService.ResolveCustomerAsync(
+            _dbContext,
+            request.CustomerName,
+            request.CustomerPhone,
+            "pos",
+            cancellationToken);
 
         ValidateSplitBill(request, splitBillMode, totalAmount);
 
@@ -173,6 +183,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             request.ServedByAdminUserId);
 
         order.ApplyDeliveryMethod(deliveryMethod?.Id, deliveryFee);
+        order.AssignCustomer(customer?.Id);
 
         switch (action)
         {
@@ -260,7 +271,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             resolved.ModifierLabels,
             lineRequest.PayerKey,
             lineRequest.PayerLabel,
-            lineRequest.BaristaNote);
+            lineRequest.BaristaNote,
+            resolved.TaxPercent);
 
     private async Task<IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request)>> ResolveLinesAsync(
         IReadOnlyCollection<PosOrderLineRequest> items,

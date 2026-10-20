@@ -39,6 +39,8 @@ public class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
 
         builder.Property(l => l.LineTotal)
             .HasColumnType("numeric(18,2)");
+        builder.Property(l => l.TaxPercent)
+            .HasPrecision(5, 2);
 
         builder.HasOne(l => l.Order)
             .WithMany(o => o.Lines)

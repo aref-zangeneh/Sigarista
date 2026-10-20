@@ -41,6 +41,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.DeliveryFee)
             .HasColumnType("numeric(18,2)");
 
+        builder.Property(o => o.TaxTotal)
+            .HasColumnType("numeric(18,2)");
+
         builder.Property(o => o.AmountPaid)
             .HasColumnType("numeric(18,2)");
 

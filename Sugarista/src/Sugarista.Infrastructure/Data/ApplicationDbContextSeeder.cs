@@ -114,6 +114,25 @@ public class ApplicationDbContextSeeder
             ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "DeliveryMethodId" uuid;
             ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "DeliveryFee" numeric(18,2) NOT NULL DEFAULT 0;
             ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "PackagingDeducted" boolean NOT NULL DEFAULT FALSE;
+            ALTER TABLE "OrderLines" ADD COLUMN IF NOT EXISTS "TaxPercent" numeric(5,2) NOT NULL DEFAULT 0;
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "TaxTotal" numeric(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE "Orders" ADD COLUMN IF NOT EXISTS "CustomerId" uuid;
+            CREATE TABLE IF NOT EXISTS "Customers" (
+                "Id" uuid NOT NULL,
+                "PersianName" character varying(200) NOT NULL,
+                "PhoneNumber" character varying(30) NOT NULL,
+                "Email" text,
+                "Notes" text,
+                "FirstChannel" text NOT NULL,
+                "LastChannel" text NOT NULL,
+                "IsActive" boolean NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_Customers" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Customers_PhoneNumber" ON "Customers" ("PhoneNumber");
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';

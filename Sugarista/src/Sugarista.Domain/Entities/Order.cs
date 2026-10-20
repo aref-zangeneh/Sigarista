@@ -85,6 +85,14 @@ public class Order : BaseAuditableEntity
 
     public decimal DeliveryFee { get; private set; }
 
+    /// <summary>Unified customer profile linked by channel (POS / online) for the customer club.</summary>
+    public Guid? CustomerId { get; private set; }
+
+    public Customer? Customer { get; private set; }
+
+    /// <summary>Computed tax of the order (sum of per-line tax based on each item's tax percent).</summary>
+    public decimal TaxTotal { get; private set; }
+
     /// <summary>True once the delivery method's disposable packaging set has been deducted from stock.</summary>
     public bool PackagingDeducted { get; private set; }
 
@@ -126,7 +134,15 @@ public class Order : BaseAuditableEntity
             throw new DomainException("Order must contain at least one line.");
         }
 
-        TotalAmount = Lines.Sum(line => line.LineTotal) + DeliveryFee;
+        var itemsTotal = Lines.Sum(line => line.LineTotal);
+        var taxTotal = Lines.Sum(line => Math.Round(line.LineTotal * line.TaxPercent / 100m, 2));
+        TaxTotal = taxTotal;
+        TotalAmount = itemsTotal + DeliveryFee + taxTotal;
+    }
+
+    public void AssignCustomer(Guid? customerId)
+    {
+        CustomerId = customerId;
     }
 
     /// <summary>

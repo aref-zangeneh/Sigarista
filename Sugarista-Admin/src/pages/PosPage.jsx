@@ -9,6 +9,7 @@ import {
   buildCartLineKey,
   buildUpsertPayload,
   formatPrice,
+  computeCartTotals,
   orderToCart,
   resolveDefaultSizeKey,
   resolveItemPrice,
@@ -114,6 +115,7 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
                 sizeLabel,
                 quantity,
                 unitPrice,
+                taxPercent: item.taxPercent ?? 0,
                 modifierIds: selectedModifiers,
                 modifierLabels: modifiers
                   .filter((modifier) => selectedModifiers.includes(modifier.id))
@@ -245,16 +247,11 @@ export function PosPage() {
     return counts
   }, [cart])
 
-  const cartTotal = useMemo(
-    () => cart.reduce((total, line) => total + line.unitPrice * line.quantity, 0),
-    [cart],
-  )
-
   const selectedDeliveryMethod = (deliveryOptions ?? []).find(
     (option) => option.id === deliveryMethodId,
   ) ?? null
   const deliveryFee = selectedDeliveryMethod?.deliveryFee ?? 0
-  const grandTotal = cartTotal + deliveryFee
+  const cartTotals = useMemo(() => computeCartTotals(cart, deliveryFee), [cart, deliveryFee])
 
   const selectedTable = bootstrap?.tables?.find((table) => table.id === salonTableId) ?? null
 
@@ -480,6 +477,7 @@ export function PosPage() {
       sizeLabel: item.variants?.find((variant) => variant.key === sizeKey)?.label ?? null,
       quantity: 1,
       unitPrice: resolveItemPrice(item, sizeKey),
+      taxPercent: item.taxPercent ?? 0,
       modifierIds: [],
       modifierLabels: [],
       baristaNote: '',
@@ -774,6 +772,12 @@ export function PosPage() {
                 برای ثبت سفارش به مجوز «ثبت / نگه‌داشت» یا «ویرایش سفارش» در صندوق فروش نیاز دارید.
               </p>
             ) : null}
+            {cartTotals.taxTotal > 0 ? (
+              <div className="pos-total-row pos-tax-row">
+                <span>مالیات بر ارزش افزوده</span>
+                <span>{formatPrice(cartTotals.taxTotal)} تومان</span>
+              </div>
+            ) : null}
             {deliveryFee > 0 ? (
               <div className="pos-total-row pos-delivery-fee-row">
                 <span>هزینه تحویل{selectedDeliveryMethod ? ` (${selectedDeliveryMethod.persianName})` : ''}</span>
@@ -782,7 +786,7 @@ export function PosPage() {
             ) : null}
             <div className="pos-total-row">
               <span>جمع کل</span>
-              <span>{formatPrice(grandTotal)} تومان</span>
+              <span>{formatPrice(cartTotals.grandTotal)} تومان</span>
             </div>
             <div className="pos-actions">
               <button

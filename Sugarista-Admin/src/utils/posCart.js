@@ -71,6 +71,20 @@ export function buildUpsertPayload({
   }
 }
 
+export function computeCartTotals(cart, deliveryFee = 0) {
+  const itemsTotal = cart.reduce((total, line) => total + line.unitPrice * line.quantity, 0)
+  // unit prices carry no modifier charge, so tax base matches the backend line total exactly
+  const taxTotal = cart.reduce(
+    (total, line) => total + (line.unitPrice * line.quantity * (line.taxPercent ?? 0)) / 100,
+    0,
+  )
+  return {
+    itemsTotal,
+    taxTotal,
+    grandTotal: itemsTotal + deliveryFee + taxTotal,
+  }
+}
+
 export function orderToCart(order, menuItems) {
   return (order.lines ?? []).map((line) => {
     const menuItem = menuItems.find((item) => item.id === line.menuItemId)
@@ -83,6 +97,7 @@ export function orderToCart(order, menuItems) {
       sizeLabel: line.sizeLabel,
       quantity: line.quantity,
       unitPrice: line.unitPrice,
+      taxPercent: line.taxPercent ?? menuItem?.taxPercent ?? 0,
       modifierIds: line.modifierIds ?? [],
       modifierLabels: line.modifierLabels ?? [],
       baristaNote: line.baristaNote ?? '',

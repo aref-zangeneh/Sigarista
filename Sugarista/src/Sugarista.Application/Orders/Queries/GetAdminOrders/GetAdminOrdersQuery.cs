@@ -1,11 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Extensions;
+using Sugarista.Domain.Entities;
 using Sugarista.Application.Common.Models;
 
 namespace Sugarista.Application.Orders.Queries.GetAdminOrders;
 
-public record GetAdminOrdersQuery(int Page = 1, int PageSize = 25, string? Search = null)
-    : IRequest<PaginatedList<AdminOrderListItemDto>>;
+public record GetAdminOrdersQuery(
+    int Page = 1,
+    int PageSize = 25,
+    string? Search = null,
+    string? Status = null,
+    string? Fulfillment = null) : IRequest<PaginatedList<AdminOrderListItemDto>>;
 
 public record AdminOrderListItemDto(
     Guid Id,
@@ -47,6 +52,18 @@ public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, P
                 order.TrackingCode.ToLower().Contains(search) ||
                 order.CustomerName.ToLower().Contains(search) ||
                 order.CustomerPhone.ToLower().Contains(search));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Status) &&
+            Enum.TryParse<OrderStatus>(request.Status, true, out var statusFilter))
+        {
+            query = query.Where(order => order.Status == statusFilter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Fulfillment) &&
+            Enum.TryParse<FulfillmentStatus>(request.Fulfillment, true, out var fulfillmentFilter))
+        {
+            query = query.Where(order => order.FulfillmentStatus == fulfillmentFilter);
         }
 
         return await query

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Common.Options;
 using Sugarista.Application.Orders;
 using Sugarista.Domain.Entities;
@@ -164,7 +165,17 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             })
             .ToList();
 
-        var totalAmount = resolvedLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
+        var itemsTotal = resolvedLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
+        var taxTotal = resolvedLines.Sum(line =>
+            Math.Round(line.resolved.UnitPrice * line.resolved.Quantity * line.resolved.TaxPercent / 100m, 2));
+        var totalAmount = itemsTotal + taxTotal;
+
+        var customer = await CustomerDirectoryService.ResolveCustomerAsync(
+            _dbContext,
+            request.CustomerName,
+            request.CustomerPhone,
+            "online",
+            cancellationToken);
 
         if (splitBillMode == SplitBillMode.ByCustomAmount)
         {
@@ -201,8 +212,13 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 resolved.UnitPrice,
                 resolved.ModifierLabels,
                 payerKey,
-                payerLabel));
+                payerLabel,
+                null,
+                resolved.TaxPercent));
         }
+
+        order.RecalculateTotal();
+        order.AssignCustomer(customer?.Id);
 
         if (isSplitBill && request.SplitShares is { Count: > 0 })
         {

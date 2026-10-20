@@ -20,6 +20,7 @@ export const adminRoutes = [
   { id: 'delivery-methods', path: 'delivery-methods', label: 'روش‌های تحویل' },
   { id: 'accounting', path: 'accounting', label: 'حسابداری' },
   { id: 'orders', path: 'orders', label: 'سفارش‌ها' },
+  { id: 'customers', path: 'customers', label: 'باشگاه مشتریان' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },
   { id: 'admin-users', path: 'admin-users', label: 'مدیریت کاربران' },
 ].map((route) => ({

@@ -82,6 +82,7 @@ export function AdminProvider({ children }) {
   const [salePreviewLoading, setSalePreviewLoading] = useState(false)
   const [saleResult, setSaleResult] = useState(null)
   const [selectedOrder, setSelectedOrder] = useState(null)
+  const [registerPaymentMethod, setRegisterPaymentMethod] = useState('Cash')
   const [orderEditForm, setOrderEditForm] = useState(null)
   const [orderAlerts, setOrderAlerts] = useState(null)
   const [lowStockAlert, setLowStockAlert] = useState(null)
@@ -520,6 +521,34 @@ export function AdminProvider({ children }) {
 
       setMessage('سفارش با موفقیت بروزرسانی شد.')
       closeOrderEditor()
+      bumpTableReload()
+      await loadAdminData()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleRegisterPayment() {
+    if (!session?.token || !selectedOrder) {
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await apiRequest(`/admin/orders/${selectedOrder.id}/pay`, {
+        method: 'POST',
+        token: session.token,
+        body: { paymentMethod: registerPaymentMethod },
+      })
+
+      setMessage('پرداخت ثبت و فاکتور نهایی شد؛ مالی و انبار همزمان به‌روزرسانی شدند.')
+      closeOrderEditor()
+      setRegisterPaymentMethod('Cash')
       bumpTableReload()
       await loadAdminData()
     } catch (requestError) {
@@ -1381,6 +1410,9 @@ export function AdminProvider({ children }) {
     updateOrderLineQuantity,
     toggleOrderLineRemoval,
     handleSaveOrder,
+    handleRegisterPayment,
+    registerPaymentMethod,
+    setRegisterPaymentMethod,
     updateOrderFulfillment,
     dismissOrderAlert,
     handleCancelOrder,

@@ -303,7 +303,59 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("Ingredients");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FirstChannel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastChannel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PersianName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhoneNumber")
+                        .IsUnique();
+
+                    b.ToTable("Customers");
+                });
+modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -396,6 +448,16 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("DeliveryMethod");
+
+
+        b.HasOne("Sugarista.Domain.Entities.Customer", "Customer")
+            .WithMany()
+            .HasForeignKey("CustomerId")
+            .OnDelete(DeleteBehavior.SetNull);
+
+        b.HasIndex("CustomerId");
+
+        b.Navigation("Customer");
 
                     b.Navigation("Ingredient");
 
@@ -927,6 +989,12 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<decimal>("DeliveryFee")
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TaxTotal")
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<bool>("PackagingDeducted")
                         .HasColumnType("boolean");
 
@@ -1000,6 +1068,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
                     b.Property<decimal>("LineTotal")
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TaxPercent")
+                        .HasColumnType("numeric(5,2)");
 
                     b.Property<Guid>("MenuItemId")
                         .HasColumnType("uuid");

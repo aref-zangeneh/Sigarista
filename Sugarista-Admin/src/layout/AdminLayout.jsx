@@ -147,7 +147,7 @@ const ROUTE_ICONS = {
 
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
 const NAV_GROUPS = [
-  { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'salon'] },
+  { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'modifiers'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers'] },

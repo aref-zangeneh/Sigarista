@@ -21,7 +21,8 @@ public class OrderLine : BaseEntity
         IReadOnlyCollection<string> modifierLabels,
         string? payerKey = null,
         string? payerLabel = null,
-        string? baristaNote = null)
+        string? baristaNote = null,
+        decimal taxPercent = 0m)
     {
         if (orderId == Guid.Empty)
         {
@@ -60,6 +61,7 @@ public class OrderLine : BaseEntity
         ModifierLabels = NormalizeList(modifierLabels);
         AssignPayer(payerKey, payerLabel);
         BaristaNote = string.IsNullOrWhiteSpace(baristaNote) ? null : baristaNote.Trim();
+        TaxPercent = taxPercent < 0 ? 0m : taxPercent;
         InventoryDeductedQuantity = 0;
     }
 
@@ -84,6 +86,9 @@ public class OrderLine : BaseEntity
     public decimal UnitPrice { get; private set; }
 
     public decimal LineTotal { get; private set; }
+
+    /// <summary>Value-added tax percent applied on this line (snapshot of the item's tax at sale time).</summary>
+    public decimal TaxPercent { get; private set; }
 
     public string[] ModifierLabels { get; private set; } = [];
 

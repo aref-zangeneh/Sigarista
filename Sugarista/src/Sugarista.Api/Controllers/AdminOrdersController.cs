@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Sugarista.Api.Authorization;
 using Sugarista.Application.Common.Models;
 using Sugarista.Application.Orders.Commands.CancelAdminOrder;
+using Sugarista.Application.Orders.Commands.RegisterAdminPayment;
 using Sugarista.Application.Orders.Commands.UpdateAdminOrder;
 using Sugarista.Application.Orders.Commands.UpdateOrderFulfillment;
 using Sugarista.Application.Orders.Queries.GetAdminOrderAlerts;
@@ -32,9 +33,13 @@ public class AdminOrdersController : ApiControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
         [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? fulfillment = null,
         CancellationToken cancellationToken = default)
     {
-        return Ok(await Mediator.Send(new GetAdminOrdersQuery(page, pageSize, search), cancellationToken));
+        return Ok(await Mediator.Send(
+            new GetAdminOrdersQuery(page, pageSize, search, status, fulfillment),
+            cancellationToken));
     }
 
     [HttpGet("{id:guid}")]
@@ -67,6 +72,18 @@ public class AdminOrdersController : ApiControllerBase
             cancellationToken));
     }
 
+    [HttpPost("{id:guid}/pay")]
+    [RequirePermission(AdminPermissions.Orders.Update)]
+    public async Task<ActionResult<AdminOrderDetailDto>> Pay(
+        Guid id,
+        [FromBody] RegisterAdminPaymentRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(
+            new RegisterAdminPaymentCommand(id, request.PaymentMethod, request.Amount),
+            cancellationToken));
+    }
+
     [HttpPost("{id:guid}/cancel")]
     [RequirePermission(AdminPermissions.Orders.Delete)]
     public async Task<ActionResult<AdminOrderDetailDto>> Cancel(Guid id, CancellationToken cancellationToken)
@@ -88,6 +105,8 @@ public class AdminOrdersController : ApiControllerBase
 }
 
 public record UpdateOrderFulfillmentRequest(FulfillmentStatus FulfillmentStatus);
+
+public record RegisterAdminPaymentRequest(string PaymentMethod = "Cash", decimal? Amount = null);
 
 public record UpdateAdminOrderRequest(
     string? CustomerName,

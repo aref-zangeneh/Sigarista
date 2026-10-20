@@ -24,6 +24,7 @@ import { RecordSalePage } from './pages/RecordSalePage'
 import { PosPage } from './pages/PosPage'
 import { AccountingPage } from './pages/AccountingPage'
 import { OrdersPage } from './pages/OrdersPage'
+import { CustomersPage } from './pages/CustomersPage'
 import { SiteSettingsPage } from './pages/SiteSettingsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import './App.css'
@@ -48,6 +49,7 @@ const pageComponents = {
   'delivery-methods': DeliveryMethodsPage,
   accounting: AccountingPage,
   orders: OrdersPage,
+  customers: CustomersPage,
   'site-settings': SiteSettingsPage,
   'admin-users': AdminUsersPage,
 }

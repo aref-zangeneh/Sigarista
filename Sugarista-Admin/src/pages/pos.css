@@ -499,3 +499,9 @@
     min-height: auto;
   }
 }
+
+.pos-total-row.pos-tax-row {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--accent);
+}

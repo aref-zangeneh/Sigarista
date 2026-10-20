@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
@@ -39,6 +40,9 @@ public record AdminOrderDetailDto(
     DateTimeOffset? FulfillmentUpdatedAt,
     DateTimeOffset? ReadyAt,
     DateTimeOffset? ReadySmsSentAt,
+    decimal DeliveryFee,
+    decimal TaxTotal,
+    decimal ItemsTotal,
     IReadOnlyCollection<AdminOrderLineDto> Lines,
     IReadOnlyCollection<AdminOrderPaymentDto> Payments);
 
@@ -55,7 +59,8 @@ public record AdminOrderLineDto(
     string? PayerKey,
     string? PayerLabel,
     int InventoryDeductedQuantity,
-    IReadOnlyCollection<string> ModifierLabels);
+    IReadOnlyCollection<string> ModifierLabels,
+    decimal TaxPercent);
 
 public record AdminOrderPaymentDto(
     Guid Id,
@@ -102,6 +107,14 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
             !string.IsNullOrWhiteSpace(request.CustomerPhone))
         {
             order.UpdateCustomer(request.CustomerName, request.CustomerPhone, request.Note ?? order.Note);
+
+            var customer = await CustomerDirectoryService.ResolveCustomerAsync(
+                _dbContext,
+                request.CustomerName,
+                request.CustomerPhone,
+                "admin",
+                cancellationToken);
+            order.AssignCustomer(customer?.Id);
         }
         else if (request.Note is not null)
         {
@@ -265,6 +278,9 @@ internal static class AdminOrderMapper
             order.FulfillmentUpdatedAt,
             order.ReadyAt,
             order.ReadySmsSentAt,
+            order.DeliveryFee,
+            order.TaxTotal,
+            order.TotalAmount - order.DeliveryFee - order.TaxTotal,
             order.Lines
                 .Select(line => new AdminOrderLineDto(
                     line.Id,
@@ -279,7 +295,8 @@ internal static class AdminOrderMapper
                     line.PayerKey,
                     line.PayerLabel,
                     line.InventoryDeductedQuantity,
-                    line.ModifierLabels))
+                    line.ModifierLabels,
+                    line.TaxPercent))
                 .ToArray(),
             order.Payments
                 .Select(payment => new AdminOrderPaymentDto(

@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Sugarista.Application.Common.Interfaces;
 
 namespace Sugarista.Infrastructure.Services;
 

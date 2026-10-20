@@ -14,7 +14,7 @@ namespace Sugarista.Application.Exports;
 /// <c>AsAsyncEnumerable</c> (never one giant ToListAsync), honours cancellation and
 /// enforces a per-sheet row cap so very large datasets cannot exhaust the server.
 /// </summary>
-internal sealed class ExportDataBuilder(IApplicationDbContext dbContext, ISender sender)
+public sealed class ExportDataBuilder(IApplicationDbContext dbContext, ISender sender)
 {
     private readonly IApplicationDbContext _dbContext = dbContext;
     private readonly ISender _sender = sender;

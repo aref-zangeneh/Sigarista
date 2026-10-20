@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+import { apiRequest } from '../utils/adminApi'
+import { formatDateTime } from '../utils/adminFormatters'
 
 const EXPORT_SECTIONS = [
   {
@@ -90,8 +90,52 @@ const SECTION_LABELS = {
   'delivery-methods': 'روش‌های تحویل',
 }
 
+const STATUS_LABELS = {
+  Queued: 'در صف ساخت',
+  Processing: 'در حال ساخت...',
+  Completed: 'آماده دانلود',
+  Failed: 'ناموفق',
+}
+
+const PENDING_STATUSES = new Set(['Queued', 'Processing'])
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) {
+    return '—'
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} بایت`
+  }
+
+  return `${(bytes / 1024).toFixed(1)} کیلوبایت`
+}
+
+function formatDurationSeconds(completedAt, startedAt) {
+  if (!completedAt || !startedAt) {
+    return '—'
+  }
+
+  const seconds = Math.max(0, Math.round((new Date(completedAt) - new Date(startedAt)) / 1000))
+  if (seconds < 60) {
+    return `${seconds} ثانیه`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+  const rest = seconds % 60
+  return rest === 0 ? `${minutes} دقیقه` : `${minutes} دقیقه و ${rest} ثانیه`
+}
+
+function formatPeriod(fromDate, toDate) {
+  if (!fromDate && !toDate) {
+    return 'کل دیتا'
+  }
+
+  return `از ${fromDate ?? '...'} تا ${toDate ?? '...'}`
+}
+
 async function requestExportBlob(path, token) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? '/api'}${path}`, {
     headers: {
       Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -129,26 +173,97 @@ function saveBlob(blob, fileName) {
 
 export function ExportsPage() {
   const { session, getReadableError } = useAdmin()
+  const token = session?.token
 
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [busyKind, setBusyKind] = useState(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [jobs, setJobs] = useState([])
+  const [downloadingJobId, setDownloadingJobId] = useState(null)
+  const jobsRef = useRef([])
+  const jobsLoadedRef = useRef(false)
+  const isMountedRef = useRef(true)
 
-  const download = async (section) => {
-    if (!session?.token || busyKind) return
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const fetchJobs = useCallback(async () => {
+    if (!token) return
+    try {
+      const payload = await apiRequest('/admin/exports/jobs', { token })
+      if (isMountedRef.current && payload?.items) {
+        setJobs(payload.items)
+      }
+    } catch (requestError) {
+      if (isMountedRef.current) {
+        setError(getReadableError(requestError))
+      }
+    }
+  }, [getReadableError, token])
+
+  // initial load + polling: fast while queued/processing jobs exist, slow otherwise
+  useEffect(() => {
+    if (!token) return
+
+    let alive = true
+    let timer = null
+
+    const tick = async () => {
+      if (!alive) return
+      const hasPending = jobsRef.current.some((job) => PENDING_STATUSES.has(job.status))
+      const jobsAreStale = !jobsLoadedRef.current
+
+      if (hasPending || jobsAreStale) {
+        await fetchJobs()
+        jobsLoadedRef.current = true
+        if (hasPending && alive) {
+          timer = setTimeout(tick, 2500)
+          return
+        }
+      }
+
+      if (alive) {
+        timer = setTimeout(tick, 15000)
+      }
+    }
+
+    tick().catch(() => {})
+
+    return () => {
+      alive = false
+      if (timer) clearTimeout(timer)
+    }
+  }, [fetchJobs, token])
+
+  useEffect(() => {
+    jobsRef.current = jobs
+  }, [jobs])
+
+  const createJob = async (section) => {
+    if (!token || busyKind) return
     setBusyKind(section.kind)
     setError('')
     setMessage('')
     try {
-      const params = new URLSearchParams()
-      if (section.period && from) params.set('from', from)
-      if (section.period && to) params.set('to', to)
-      const suffix = params.toString() ? `?${params.toString()}` : ''
-      const result = await requestExportBlob(`/admin/exports/${section.kind}${suffix}`, session.token)
-      saveBlob(result.blob, result.fileName)
-      setMessage(`خروجی «${SECTION_LABELS[section.kind] ?? section.kind}» با نام ${result.fileName} دانلود شد.`)
+      const payload = {}
+      if (section.period && from) payload.From = from
+      if (section.period && to) payload.To = to
+      await apiRequest('/admin/exports/jobs', {
+        method: 'POST',
+        token,
+        body: { kind: section.kind, ...payload },
+      })
+      jobsLoadedRef.current = false
+      await fetchJobs()
+      setMessage(
+        `درخواست خروجی «${SECTION_LABELS[section.kind] ?? section.kind}» ثبت شد و در پس‌زمینه ساخته می‌شود؛ زمانی که آماده شد از جدول «سوابق» دانلود کنید.`,
+      )
     } catch (requestError) {
       setError(getReadableError(requestError))
     } finally {
@@ -156,7 +271,51 @@ export function ExportsPage() {
     }
   }
 
+  const downloadJob = async (job) => {
+    if (downloadingJobId) return
+    setDownloadingJobId(job.id)
+    setError('')
+    try {
+      const result = await requestExportBlob(`/admin/exports/jobs/${job.id}/download`, token)
+      saveBlob(result.blob, result.fileName || job.fileName || 'sugarista-export.xlsx')
+      setMessage(`فایل ${result.fileName} دانلود شد (${SECTION_LABELS[job.kind] ?? job.kind}).`)
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setDownloadingJobId(null)
+    }
+  }
+
+  const deleteJob = async (job) => {
+    if (PENDING_STATUSES.has(job.status)) return
+    setError('')
+    try {
+      await apiRequest(`/admin/exports/jobs/${job.id}`, { method: 'DELETE', token })
+      setJobs((current) => current.filter((entry) => entry.id !== job.id))
+      setMessage('سابقه خروجی حذف شد و فایل آن از سرور پاک شد.')
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+  }
+
   const sections = EXPORT_SECTIONS.filter((section) => hasPermission(session, section.permission))
+  const canDownload = hasPermission(session, 'admin.accounting.view')
+    || EXPORT_SECTIONS.some((section) => hasPermission(session, section.permission))
+
+  if (!canDownload) {
+    return (
+      <section className="panel-stack">
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>خروجی اکسل از تمامی بخش‌ها</h3>
+            </div>
+          </div>
+          <p className="table-subtext">شما دسترسی لازم برای این بخش را ندارید.</p>
+        </section>
+      </section>
+    )
+  }
 
   return (
     <section className="panel-stack">
@@ -165,7 +324,8 @@ export function ExportsPage() {
           <div>
             <h3>خروجی اکسل از تمامی بخش‌ها</h3>
             <p>
-              فایل‌های Excel دقیق برای ارائه به مراجع قانونی و بک‌آپ‌گیری — هر فایل دارای «برگه شناسنامه» با تاریخ خروجی و هزینه است.
+              خروجی‌ها به‌صورت صفی و در پس‌زمینه ساخته می‌شوند — حتی با دیتای بسیار زیاد، سرور هیچ‌گاه timeout نمی‌دهد.
+              هر فایل دارای «برگه شناسنامه» با تاریخ خروجی و هزینه است.
             </p>
           </div>
         </div>
@@ -196,13 +356,96 @@ export function ExportsPage() {
                 type="button"
                 className="ghost-button"
                 disabled={busyKind === section.kind}
-                onClick={() => download(section)}
+                onClick={() => createJob(section)}
               >
-                {busyKind === section.kind ? 'در حال ساخت...' : 'دریافت اکسل'}
+                {busyKind === section.kind ? 'در حال ثبت...' : 'ثبت درخواست خروجی'}
               </button>
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h3>سوابق خروجی‌ها</h3>
+            <p>
+              فایل‌های در حال ساخت و آماده دانلود — به‌صورت خودکار بروزرسانی می‌شود.
+            </p>
+          </div>
+          <button type="button" className="ghost-button" onClick={() => fetchJobs()}>
+            بروزرسانی
+          </button>
+        </div>
+
+        {jobs.length === 0 ? (
+          <p className="table-subtext">هنوز خروجی‌ای ثبت نشده است.</p>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>بخش</th>
+                  <th>بازه</th>
+                  <th>وضعیت</th>
+                  <th>ردیف‌ها</th>
+                  <th>حجم فایل</th>
+                  <th>مدت ساخت</th>
+                  <th>تاریخ درخواست</th>
+                  <th>عملیات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.map((job) => (
+                  <tr key={job.id}>
+                    <td>{SECTION_LABELS[job.kind] ?? job.kind}</td>
+                    <td>{formatPeriod(job.fromDate, job.toDate)}</td>
+                    <td>
+                      <span
+                        className={
+                          job.status === 'Completed'
+                            ? 'status-badge status-active'
+                            : job.status === 'Failed'
+                              ? 'status-badge status-cancelled'
+                              : 'status-badge status-pending'
+                        }
+                      >
+                        {STATUS_LABELS[job.status] ?? job.status}
+                      </span>
+                      {job.errorMessage ? (
+                        <p className="table-subtext">{job.errorMessage}</p>
+                      ) : null}
+                    </td>
+                    <td>{job.rowsCount ? Number(job.rowsCount).toLocaleString('fa-IR') : '—'}</td>
+                    <td>{formatBytes(job.fileSizeBytes)}</td>
+                    <td>{formatDurationSeconds(job.completedAt, job.startedAt)}</td>
+                    <td>{formatDateTime(job.createdAt)}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          disabled={job.status !== 'Completed' || downloadingJobId}
+                          onClick={() => downloadJob(job)}
+                        >
+                          {downloadingJobId === job.id ? 'در حال دانلود...' : 'دانلود'}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-button danger"
+                          disabled={PENDING_STATUSES.has(job.status)}
+                          onClick={() => deleteJob(job)}
+                        >
+                          حذف
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </section>
   )

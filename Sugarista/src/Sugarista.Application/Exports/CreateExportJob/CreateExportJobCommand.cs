@@ -10,22 +10,7 @@ namespace Sugarista.Application.Exports.CreateExportJob;
 /// so large datasets can never time out the HTTP request.
 /// </summary>
 public record CreateExportJobCommand(string Kind, DateOnly? From = null, DateOnly? To = null)
-    : IRequest<ExportJobDto>;
-
-public record ExportJobDto(
-    Guid Id,
-    string Kind,
-    DateOnly? FromDate,
-    DateOnly? ToDate,
-    string Status,
-    string FileName,
-    string? ErrorMessage,
-    long RowsCount,
-    long FileSizeBytes,
-    string RequestedBy,
-    DateTimeOffset? StartedAt,
-    DateTimeOffset? CompletedAt,
-    DateTimeOffset CreatedAt);
+    : IRequest<Sugarista.Application.Exports.ExportJobDto>;
 
 public class CreateExportJobCommandValidator : AbstractValidator<CreateExportJobCommand>
 {
@@ -42,7 +27,7 @@ public class CreateExportJobCommandValidator : AbstractValidator<CreateExportJob
     }
 }
 
-public class CreateExportJobCommandHandler : IRequestHandler<CreateExportJobCommand, ExportJobDto>
+public class CreateExportJobCommandHandler : IRequestHandler<CreateExportJobCommand, Sugarista.Application.Exports.ExportJobDto>
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IExportJobQueue _queue;
@@ -71,24 +56,6 @@ public class CreateExportJobCommandHandler : IRequestHandler<CreateExportJobComm
 
         await _queue.EnqueueAsync(job.Id, cancellationToken);
 
-        return ExportJobMapper.ToDto(job);
+        return Sugarista.Application.Exports.ExportJobMapper.ToDto(job);
     }
-}
-
-internal static class ExportJobMapper
-{
-    internal static ExportJobDto ToDto(ExportJob job) => new(
-        job.Id,
-        job.Kind,
-        job.FromDate,
-        job.ToDate,
-        job.Status.ToString(),
-        job.FileName ?? string.Empty,
-        job.ErrorMessage,
-        job.RowsCount,
-        job.FileSizeBytes,
-        job.RequestedBy,
-        job.StartedAt,
-        job.CompletedAt,
-        job.CreatedAt);
 }

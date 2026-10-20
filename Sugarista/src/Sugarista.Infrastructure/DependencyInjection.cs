@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Exports;
 using Sugarista.Application.Common.Options;
 using Sugarista.Infrastructure.Notifications;
 using Sugarista.Infrastructure.Auth;
@@ -38,6 +39,10 @@ public static class DependencyInjection
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IExcelExporter, ClosedXmlExcelExporter>();
+        services.AddSingleton<IExportJobQueue, ExportJobQueue>();
+        services.AddScoped<IExportFileStore, LocalFileStorageService>();
+        services.AddScoped<ExportDataBuilder>();
+        services.AddHostedService<ExportJobRunnerService>();
         services.AddHttpClient<KavenegarSmsService>();
         services.AddScoped<LoggingSmsService>();
         services.AddScoped<ISmsService>(provider =>

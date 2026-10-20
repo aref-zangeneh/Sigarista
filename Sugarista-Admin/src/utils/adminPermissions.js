@@ -1,4 +1,10 @@
 export const PERMISSIONS = {
+  exports: {
+    view: 'admin.accounting.view',
+    create: 'admin.accounting.create',
+    update: 'admin.accounting.update',
+    delete: 'admin.accounting.delete',
+  },
   customers: {
     view: 'admin.orders.view',
     create: 'admin.orders.update',

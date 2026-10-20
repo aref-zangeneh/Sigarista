@@ -19,6 +19,7 @@ export const adminRoutes = [
   { id: 'pos', path: 'pos', label: 'صندوق فروش' },
   { id: 'delivery-methods', path: 'delivery-methods', label: 'روش‌های تحویل' },
   { id: 'accounting', path: 'accounting', label: 'حسابداری' },
+  { id: 'exports', path: 'exports', label: 'خروجی اکسل' },
   { id: 'orders', path: 'orders', label: 'سفارش‌ها' },
   { id: 'customers', path: 'customers', label: 'باشگاه مشتریان' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },

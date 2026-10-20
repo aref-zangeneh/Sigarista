@@ -133,6 +133,27 @@ public class ApplicationDbContextSeeder
                 CONSTRAINT "PK_Customers" PRIMARY KEY ("Id")
             );
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_Customers_PhoneNumber" ON "Customers" ("PhoneNumber");
+            CREATE TABLE IF NOT EXISTS "ExportJobs" (
+                "Id" uuid NOT NULL,
+                "Kind" character varying(60) NOT NULL,
+                "FromDate" date,
+                "ToDate" date,
+                "RequestedBy" character varying(120) NOT NULL,
+                "Status" integer NOT NULL,
+                "FileName" character varying(260),
+                "StoragePath" character varying(600),
+                "ErrorMessage" character varying(1020),
+                "RowsCount" bigint NOT NULL DEFAULT 0,
+                "FileSizeBytes" bigint NOT NULL DEFAULT 0,
+                "StartedAt" timestamp with time zone,
+                "CompletedAt" timestamp with time zone,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_ExportJobs" PRIMARY KEY ("Id")
+            );
+            CREATE INDEX IF NOT EXISTS "IX_ExportJobs_Status" ON "ExportJobs" ("Status");
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';

@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.Configure<SmsOptions>(configuration.GetSection(SmsOptions.SectionName));
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.AddScoped<IExcelExporter, ClosedXmlExcelExporter>();
         services.AddHttpClient<KavenegarSmsService>();
         services.AddScoped<LoggingSmsService>();
         services.AddScoped<ISmsService>(provider =>

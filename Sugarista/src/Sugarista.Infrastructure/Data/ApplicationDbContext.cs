@@ -37,6 +37,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Customer> Customers => Set<Customer>();
 
+    public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
+
     public DbSet<RecipeItem> RecipeItems => Set<RecipeItem>();
 
     public DbSet<InventoryStock> InventoryStocks => Set<InventoryStock>();

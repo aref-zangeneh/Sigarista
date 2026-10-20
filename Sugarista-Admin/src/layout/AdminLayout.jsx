@@ -151,7 +151,7 @@ const NAV_GROUPS = [
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'modifiers'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers'] },
-  { title: 'فروش و مالی', routes: ['record-sale', 'accounting'] },
+  { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'سیستم', routes: ['site-settings', 'admin-users'] },
 ]
 

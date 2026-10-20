@@ -25,6 +25,7 @@ import { PosPage } from './pages/PosPage'
 import { AccountingPage } from './pages/AccountingPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { CustomersPage } from './pages/CustomersPage'
+import { ExportsPage } from './pages/ExportsPage'
 import { SiteSettingsPage } from './pages/SiteSettingsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import './App.css'
@@ -50,6 +51,7 @@ const pageComponents = {
   accounting: AccountingPage,
   orders: OrdersPage,
   customers: CustomersPage,
+  exports: ExportsPage,
   'site-settings': SiteSettingsPage,
   'admin-users': AdminUsersPage,
 }

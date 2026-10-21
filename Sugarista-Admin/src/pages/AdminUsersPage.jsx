@@ -30,6 +30,8 @@ export function AdminUsersPage() {
   const { session, setMessage, setError, saving, setSaving } = useAdmin()
   const [users, setUsers] = useState([])
   const [permissionCatalog, setPermissionCatalog] = useState([])
+  const [roles, setRoles] = useState([])
+  const [roleEditor, setRoleEditor] = useState(null)
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyUserForm)
   const [passwordForm, setPasswordForm] = useState({ userId: null, newPassword: '' })
@@ -51,15 +53,31 @@ export function AdminUsersPage() {
     }))
   }, [permissionCatalog, form.permissions])
 
+  const groupedRolePermissions = useMemo(() => {
+    if (!roleEditor) return []
+    const selected = new Set(roleEditor.permissions)
+    return permissionCatalog.map((group) => ({
+      ...group,
+      permissions: group.permissions.map((permission) => ({
+        ...permission,
+        checked: selected.has(permission.key),
+      })),
+    }))
+  }, [permissionCatalog, roleEditor])
+
   async function loadUsers() {
     setLoading(true)
     try {
-      const [usersResponse, catalogResponse] = await Promise.all([
+      const [usersResponse, catalogResponse, rolesResponse] = await Promise.all([
         apiRequest('/admin/users', { token: session.token }),
         apiRequest('/admin/users/permissions/catalog', { token: session.token }),
+        canManagePermissions || canUpdate
+          ? apiRequest('/admin/users/roles', { token: session.token })
+          : Promise.resolve([]),
       ])
       setUsers(usersResponse ?? [])
       setPermissionCatalog(catalogResponse ?? [])
+      setRoles(rolesResponse ?? [])
     } catch (requestError) {
       setError(getReadableError(requestError))
     } finally {
@@ -71,6 +89,7 @@ export function AdminUsersPage() {
     if (session?.token) {
       loadUsers()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.token])
 
   function resetForm() {
@@ -283,13 +302,43 @@ export function AdminUsersPage() {
           ) : null}
 
           <label>
-            <span>نقش</span>
-            <input
-              className="ltr-input"
-              value={form.role}
-              onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}
-              disabled={form.id ? !canUpdate : !canCreate}
-            />
+            <span>نقش دسترسی</span>
+            {roles.length > 0 ? (
+              <select
+                className="ltr-input"
+                value={roles.some((item) => item.name === form.role) ? form.role : ''}
+                disabled={form.id ? !canUpdate : !canCreate}
+                onChange={(event) => {
+                  const selectedName = event.target.value
+                  const preset = roles.find((item) => item.name === selectedName)
+                  if (!preset) {
+                    setForm((current) => ({ ...current, role: selectedName }))
+                    return
+                  }
+                  const bundle = preset.permissions ?? []
+                  setForm((current) => ({
+                    ...current,
+                    role: selectedName,
+                    permissions: [...new Set([...current.permissions, ...bundle])],
+                  }))
+                }}
+              >
+                <option value="">— بدون نقش / شخصی‌سازی کامل —</option>
+                {roles.map((item) => (
+                  <option key={item.id} value={item.name}>
+                    {item.displayName} ({item.name}){item.isSystem ? ' ★' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="ltr-input"
+                value={form.role}
+                onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}
+                disabled={form.id ? !canUpdate : !canCreate}
+              />
+            )}
+            <span className="admin-users-role-hint">مجوزهای نقش به‌صورت زنده اعمال می‌شود؛ تیک‌های اضافی شخصی‌ساز این کاربر می‌مانند.</span>
           </label>
 
           <label className="checkbox-row">
@@ -415,6 +464,187 @@ export function AdminUsersPage() {
           </ul>
         </section>
       </section>
+
+        {canManagePermissions ? (
+          <section className="panel admin-roles-panel">
+            <div className="panel-head">
+              <div>
+                <h3>نقش‌های دسترسی</h3>
+                <p>
+                  هر نقش بسته‌ای از مجوزهاست. کاربرانِ هر نقش مجوزها را در «ورود بعدی» به‌صورت زنده می‌گیرند؛
+                  نقش‌های سیستمی (★) قابل حذف نیستند.
+                </p>
+              </div>
+              {!roleEditor ? (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setRoleEditor({ id: null, name: '', displayName: '', permissions: [] })}
+                >
+                  + نقش جدید
+                </button>
+              ) : (
+                <button type="button" className="ghost-button" onClick={() => setRoleEditor(null)}>
+                  بستن
+                </button>
+              )}
+            </div>
+
+            {roleEditor ? (
+              <form
+                className="admin-roles-editor"
+                onSubmit={async (event) => {
+                  event.preventDefault()
+                  try {
+                    if (roleEditor.id) {
+                      await apiRequest(`/admin/users/roles/${roleEditor.id}`, {
+                        method: 'PUT',
+                        token: session.token,
+                        body: { displayName: roleEditor.displayName, permissions: roleEditor.permissions },
+                      })
+                    } else {
+                      await apiRequest('/admin/users/roles', {
+                        method: 'POST',
+                        token: session.token,
+                        body: {
+                          name: roleEditor.name.trim(),
+                          displayName: roleEditor.displayName,
+                          permissions: roleEditor.permissions,
+                        },
+                      })
+                    }
+                    setRoleEditor(null)
+                    await loadUsers()
+                    setMessage('نقش ذخیره شد.')
+                  } catch (requestError) {
+                    setError(getReadableError(requestError))
+                  }
+                }}
+              >
+                <div className="field-grid">
+                  <label>
+                    <span>نام نقش (لاتین) *</span>
+                    <input
+                      className="ltr-input"
+                      value={roleEditor.name}
+                      disabled={Boolean(roleEditor.id)}
+                      required={!roleEditor.id}
+                      onChange={(event) => setRoleEditor((current) => ({ ...current, name: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    <span>نام نمایشی *</span>
+                    <input
+                      value={roleEditor.displayName}
+                      required
+                      onChange={(event) => setRoleEditor((current) => ({ ...current, displayName: event.target.value }))}
+                    />
+                  </label>
+                </div>
+
+                <div className="admin-users-permission-groups">
+                  {groupedRolePermissions.map((group) => (
+                    <article key={group.sectionId} className="admin-users-permission-group">
+                      <header>
+                        <label className="checkbox-row">
+                          <input
+                            type="checkbox"
+                            checked={group.permissions.every((permission) => permission.checked)}
+                            onChange={(event) => setRoleEditor((current) => {
+                              const keys = group.permissions.map((permission) => permission.key)
+                              return {
+                                ...current,
+                                permissions: event.target.checked
+                                  ? [...new Set([...current.permissions, ...keys])]
+                                  : current.permissions.filter((key) => !keys.includes(key)),
+                              }
+                            })}
+                          />
+                          <strong>{group.sectionLabel}</strong>
+                        </label>
+                      </header>
+                      <div>
+                        {group.permissions.map((permission) => (
+                          <label key={permission.key} className="checkbox-row">
+                            <input
+                              type="checkbox"
+                              checked={permission.checked}
+                              onChange={(event) => setRoleEditor((current) => ({
+                                ...current,
+                                permissions: event.target.checked
+                                  ? [...new Set([...current.permissions, permission.key])]
+                                  : current.permissions.filter((key) => key !== permission.key),
+                              }))}
+                            />
+                            <span>{permission.actionLabel} — {permission.action}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="modal-actions">
+                  <button type="submit" className="ghost-button">ذخیره نقش</button>
+                  <button type="button" className="ghost-button" onClick={() => setRoleEditor(null)}>انصراف</button>
+                </div>
+              </form>
+            ) : (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>نقش</th>
+                    <th>نام</th>
+                    <th>تعداد مجوزها</th>
+                    <th>کاربران</th>
+                    <th>عملیات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roles.map((role) => (
+                    <tr key={role.id}>
+                      <td>{role.isSystem ? '★ سیستمی' : 'زیرساخت اختصاصی'}</td>
+                      <td>{role.displayName} <span className="ltr-input admin-users-role-name">{role.name}</span></td>
+                      <td>{(role.permissions ?? []).length}</td>
+                      <td>{role.userCount ?? 0}</td>
+                      <td className="table-actions">
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => setRoleEditor({
+                            id: role.id,
+                            name: role.name,
+                            displayName: role.displayName,
+                            permissions: [...(role.permissions ?? [])],
+                          })}
+                        >
+                          ویرایش
+                        </button>
+                        {!role.isSystem ? (
+                          <button
+                            type="button"
+                            className="ghost-button danger"
+                            onClick={async () => {
+                              try {
+                                await apiRequest(`/admin/users/roles/${role.id}`, { method: 'DELETE', token: session.token })
+                                await loadUsers()
+                                setMessage('نقش حذف شد.')
+                              } catch (requestError) {
+                                setError(getReadableError(requestError))
+                              }
+                            }}
+                          >
+                            حذف
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        ) : null}
 
       {form.id && canUpdate ? (
         <section className="panel admin-users-password-panel">

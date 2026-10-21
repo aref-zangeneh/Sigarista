@@ -18,6 +18,19 @@ using Sugarista.Application.Hr.Periods.GetPayrollPeriods;
 using Sugarista.Application.Hr.Periods.PayPayrollEntry;
 using Sugarista.Application.Hr.Periods.PayPayrollPeriod;
 using Sugarista.Application.Hr.Periods.ReopenPayrollPeriod;
+using Sugarista.Application.Hr.OpenHours.GetCafeOpenHours;
+using Sugarista.Application.Hr.OpenHours.UpdateCafeOpenHours;
+using Sugarista.Application.Hr.Punches.GetPunches;
+using Sugarista.Application.Hr.Punches.GetPunchStatus;
+using Sugarista.Application.Hr.Punches.PunchIn;
+using Sugarista.Application.Hr.Punches.PunchOut;
+using Sugarista.Application.Hr.Shifts.DeleteShiftPlan;
+using Sugarista.Application.Hr.Shifts.GetShiftPlans;
+using Sugarista.Application.Hr.Shifts.UpsertShiftPlan;
+using Sugarista.Application.Users.Roles.CreateAdminRole;
+using Sugarista.Application.Users.Roles.DeleteAdminRole;
+using Sugarista.Application.Users.Roles.GetAdminRoles;
+using Sugarista.Application.Users.Roles.UpdateAdminRole;
 using Sugarista.Application.Hr.WorkLogs.DeleteEmployeeWorkLog;
 using Sugarista.Application.Hr.WorkLogs.GetEmployeeWorkLogs;
 using Sugarista.Application.Hr.WorkLogs.SaveEmployeeWorkLog;
@@ -240,6 +253,102 @@ public class AdminHrController : ApiControllerBase
         return Ok(await Mediator.Send(new PayPayrollPeriodCommand(periodId), cancellationToken));
     }
 
+    // ── Café opening hours (ساعات بازگشایی) ──────────────────────
+
+    [HttpGet("open-hours")]
+    [RequirePermission(View)]
+    public async Task<IActionResult> GetOpenHours(CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetCafeOpenHoursQuery(), cancellationToken));
+    }
+
+    [HttpPut("open-hours")]
+    [RequirePermission(Mutate)]
+    public async Task<IActionResult> UpdateOpenHours(
+        [FromBody] UpdateCafeOpenHoursRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(
+            new UpdateCafeOpenHoursCommand(request.Days), cancellationToken));
+    }
+
+    // ── Approved shift plans (شیفت مصوب) ─────────────────────────
+
+    [HttpGet("shifts")]
+    [RequirePermission(View)]
+    public async Task<IActionResult> GetShiftPlans(
+        [FromQuery] Guid? employeeId = null,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(new GetShiftPlansQuery(employeeId), cancellationToken));
+    }
+
+    [HttpPost("shifts")]
+    [RequirePermission(Mutate)]
+    public async Task<IActionResult> UpsertShiftPlan(
+        [FromBody] UpsertShiftPlanRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new UpsertShiftPlanCommand(
+            request.EmployeeId,
+            request.Weekday,
+            request.StartTime,
+            request.EndTime), cancellationToken));
+    }
+
+    [HttpDelete("shifts/{id:guid}")]
+    [RequirePermission(AdminPermissions.Hr.Delete)]
+    public async Task<IActionResult> DeleteShiftPlan(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        await Mediator.Send(new DeleteShiftPlanCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    // ── Punch in / out (حضور واقعی) ──────────────────────────────
+
+    [HttpGet("punches/status")]
+    [RequirePermission(View)]
+    public async Task<IActionResult> GetPunchStatus(
+        [FromQuery] Guid? employeeId = null,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(new GetPunchStatusQuery(), cancellationToken));
+    }
+
+    [HttpGet("punches")]
+    [RequirePermission(View)]
+    public async Task<IActionResult> GetPunches(
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] DateOnly? from = null,
+        [FromQuery] DateOnly? to = null,
+        [FromQuery] int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(
+            new GetPunchesQuery(employeeId, from, to, page, 50),
+            cancellationToken));
+    }
+
+    [HttpPost("punches/in")]
+    [RequirePermission(Mutate)]
+    public async Task<IActionResult> PunchIn(
+        [FromBody] PunchInRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new PunchInCommand(request.EmployeeId, request.Note), cancellationToken));
+    }
+
+    [HttpPost("punches/out")]
+    [RequirePermission(Mutate)]
+    public async Task<IActionResult> PunchOut(
+        [FromBody] PunchOutRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new PunchOutCommand(request.EmployeeId), cancellationToken));
+    }
+
     // ── Glossary ─────────────────────────────────────────────────
 
     [HttpGet("glossary")]
@@ -301,3 +410,17 @@ public record AdjustPayrollEntryRequest(
     string? Note);
 
 public record UpdateHrGlossaryTermRequest(string Definition);
+
+public record UpdateCafeOpenHoursRequest(IReadOnlyList<CafeOpenHourInput> Days);
+
+public record UpsertShiftPlanRequest(
+    Guid EmployeeId,
+    int Weekday,
+    string StartTime,
+    string EndTime);
+
+public record PunchInRequest(
+    Guid EmployeeId,
+    string? Note);
+
+public record PunchOutRequest(Guid EmployeeId);

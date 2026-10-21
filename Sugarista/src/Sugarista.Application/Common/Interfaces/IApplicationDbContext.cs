@@ -26,11 +26,25 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.ExportJob> ExportJobs { get; }
 
+    DbSet<Sugarista.Domain.Entities.AdminRole> AdminRoles { get; }
+
+    DbSet<Sugarista.Domain.Entities.AdminRolePermission> AdminRolePermissions { get; }
+
+    DbSet<Sugarista.Domain.Entities.CafeOpenHour> CafeOpenHours { get; }
+
     DbSet<Sugarista.Domain.Entities.Employee> Employees { get; }
 
     DbSet<Sugarista.Domain.Entities.EmployeePayPlan> EmployeePayPlans { get; }
 
     DbSet<Sugarista.Domain.Entities.EmployeeWorkLog> EmployeeWorkLogs { get; }
+
+    DbSet<Sugarista.Domain.Entities.EmployeeShiftPlan> EmployeeShiftPlans { get; }
+
+    DbSet<Sugarista.Domain.Entities.PunchAttendance> PunchAttendances { get; }
+
+    DbSet<Sugarista.Domain.Entities.CafeAsset> CafeAssets { get; }
+
+    DbSet<Sugarista.Domain.Entities.CafeAssetPhoto> CafeAssetPhotos { get; }
 
     DbSet<Sugarista.Domain.Entities.PayrollPeriod> PayrollPeriods { get; }
 

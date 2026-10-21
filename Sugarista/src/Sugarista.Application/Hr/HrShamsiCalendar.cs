@@ -33,4 +33,20 @@ public static class HrShamsiCalendar
     {
         return $"{MonthNames[Math.Clamp(shamsiMonth, 1, 12) - 1]} {shamsiYear:0000}";
     }
+
+    /// <summary>Persian weekday label for a .NET DayOfWeek (شنبه .. جمعه).</summary>
+    public static string WeekdayLabel(int weekday)
+    {
+        return weekday switch
+        {
+            0 => "یکشنبه",
+            1 => "دوشنبه",
+            2 => "سه‌شنبه",
+            3 => "چهارشنبه",
+            4 => "پنجشنبه",
+            5 => "جمعه",
+            6 => "شنبه",
+            _ => string.Empty,
+        };
+    }
 }

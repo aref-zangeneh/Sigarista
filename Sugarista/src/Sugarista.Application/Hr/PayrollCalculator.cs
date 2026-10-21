@@ -52,4 +52,27 @@ public static class PayrollCalculator
     {
         return decimal.Round(overtimeHours * effectiveHourlyRate * multiplier, 0, MidpointRounding.AwayFromZero);
     }
+
+    /// <summary>
+    /// Short-work deduction (کسرکار): only meaningful for fixed-salary plans —
+    /// hourly plans already earn strictly for the hours actually worked.
+    /// The pro-rata hourly value of the fixed salary is used as the unit.
+    /// </summary>
+    public static decimal UnderworkDeduction(
+        PayPlanKind kind,
+        decimal underworkHours,
+        decimal effectiveHourlyRate)
+    {
+        if (underworkHours <= 0)
+        {
+            return 0m;
+        }
+
+        return kind switch
+        {
+            PayPlanKind.Monthly => decimal.Round(underworkHours * effectiveHourlyRate, 0, MidpointRounding.AwayFromZero),
+            PayPlanKind.MonthlyPlusCommission => decimal.Round(underworkHours * effectiveHourlyRate, 0, MidpointRounding.AwayFromZero),
+            _ => 0m,
+        };
+    }
 }

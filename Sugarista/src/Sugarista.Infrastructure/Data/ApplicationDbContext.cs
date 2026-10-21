@@ -39,11 +39,25 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
 
+    public DbSet<CafeOpenHour> CafeOpenHours => Set<CafeOpenHour>();
+
+    public DbSet<AdminRole> AdminRoles => Set<AdminRole>();
+
+    public DbSet<AdminRolePermission> AdminRolePermissions => Set<AdminRolePermission>();
+
     public DbSet<Employee> Employees => Set<Employee>();
 
     public DbSet<EmployeePayPlan> EmployeePayPlans => Set<EmployeePayPlan>();
 
     public DbSet<EmployeeWorkLog> EmployeeWorkLogs => Set<EmployeeWorkLog>();
+
+    public DbSet<EmployeeShiftPlan> EmployeeShiftPlans => Set<EmployeeShiftPlan>();
+
+    public DbSet<PunchAttendance> PunchAttendances => Set<PunchAttendance>();
+
+    public DbSet<CafeAsset> CafeAssets => Set<CafeAsset>();
+
+    public DbSet<CafeAssetPhoto> CafeAssetPhotos => Set<CafeAssetPhoto>();
 
     public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
 

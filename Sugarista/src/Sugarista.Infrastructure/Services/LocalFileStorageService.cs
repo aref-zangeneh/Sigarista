@@ -39,7 +39,6 @@ public class LocalFileStorageService : IFileStorageService, IExportFileStore
         {
             throw new InvalidOperationException("Uploaded file exceeds the maximum allowed size.");
         }
-
         if (!AllowedContentTypes.Contains(file.ContentType))
         {
             throw new InvalidOperationException("Only image files (JPEG, PNG, WebP, GIF) are allowed.");
@@ -79,6 +78,88 @@ public class LocalFileStorageService : IFileStorageService, IExportFileStore
         await file.Content.CopyToAsync(output, cancellationToken);
 
         return $"/api/files/inventory-documents/{fileName}";
+    }
+
+    /// <summary>Saves a photo of a café asset into uploads/asset-photos.</summary>
+    public async Task<string> SaveAssetPhotoAsync(StoredFileUpload file, CancellationToken cancellationToken = default)
+    {
+        if (file.Length <= 0)
+        {
+            throw new InvalidOperationException("Uploaded file is empty.");
+        }
+
+        if (file.Length > _maxInventoryDocumentBytes)
+        {
+            throw new InvalidOperationException("حجم تصویر بیشتر از حد مجاز (۵ مگابایت) است.");
+        }
+
+        if (!AllowedContentTypes.Contains(file.ContentType))
+        {
+            throw new InvalidOperationException("فقط تصاویر JPEG، PNG، WebP و GIF پذیرفته می‌شوند.");
+        }
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".webp", ".gif",
+        };
+
+        if (!allowedExtensions.Contains(extension))
+        {
+            extension = file.ContentType switch
+            {
+                "image/jpeg" => ".jpg",
+                "image/png" => ".png",
+                "image/webp" => ".webp",
+                "image/gif" => ".gif",
+                _ => ".jpg",
+            };
+        }
+
+        var directory = Path.Combine(_uploadRootPath, "asset-photos");
+        Directory.CreateDirectory(directory);
+
+        var fileName = $"{Guid.NewGuid():N}{extension}";
+        var fullPath = Path.Combine(directory, fileName);
+
+        await using var output = File.Create(fullPath);
+        await file.Content.CopyToAsync(output, cancellationToken);
+
+        return $"/api/files/asset-photos/{fileName}";
+    }
+
+    /// <summary>Deletes a stored asset photo file. Ignores URLs that do not belong to the asset gallery.</summary>
+    public Task DeleteAssetPhotoAsync(string imageUrl, CancellationToken cancellationToken = default)
+    {
+        const string prefix = "/api/files/asset-photos/";
+
+        if (string.IsNullOrWhiteSpace(imageUrl) ||
+            !imageUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.CompletedTask;
+        }
+
+        var fileName = Path.GetFileName(imageUrl[prefix.Length..]);
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return Task.CompletedTask;
+        }
+
+        var directory = Path.GetFullPath(Path.Combine(_uploadRootPath, "asset-photos"));
+        var fullPath = Path.GetFullPath(Path.Combine(directory, fileName));
+
+        if (!fullPath.StartsWith(directory, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+
+        return Task.CompletedTask;
     }
 
     public async Task<string> SaveAsync(string fileName, byte[] content, CancellationToken cancellationToken = default)

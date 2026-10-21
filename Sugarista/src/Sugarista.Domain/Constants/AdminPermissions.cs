@@ -135,6 +135,14 @@ public static class AdminPermissions
         public const string Delete = "admin.hr.delete";
     }
 
+    public static class Assets
+    {
+        public const string View = "admin.assets.view";
+        public const string Create = "admin.assets.create";
+        public const string Update = "admin.assets.update";
+        public const string Delete = "admin.assets.delete";
+    }
+
     public static class Accounting
     {
         public const string View = "admin.accounting.view";
@@ -222,6 +230,10 @@ public static class AdminPermissions
         new(Hr.Create, "hr", "create", "منابع انسانی", "ثبت پرسنل / ساختار پرداخت"),
         new(Hr.Update, "hr", "update", "منابع انسانی", "ویرایش / حضور و پرداخت حقوق"),
         new(Hr.Delete, "hr", "delete", "منابع انسانی", "حذف / غیرفعال‌سازی"),
+        new(Assets.View, "assets", "view", "اموال و تجهیزات", "مشاهدهٔ اموال"),
+        new(Assets.Create, "assets", "create", "اموال و تجهیزات", "ثبت قلم / بارگذاری عکس"),
+        new(Assets.Update, "assets", "update", "اموال و تجهیزات", "ویرایش / خارج از رده کردن"),
+        new(Assets.Delete, "assets", "delete", "اموال و تجهیزات", "حذف قلم / حذف عکس"),
         new(SiteSettings.View, "site-settings", "view", "تنظیمات سایت", "مشاهده"),
         new(SiteSettings.Update, "site-settings", "update", "تنظیمات سایت", "ویرایش"),
         new(Users.View, "admin-users", "view", "مدیریت کاربران", "مشاهده"),

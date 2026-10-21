@@ -33,6 +33,8 @@ public class Employee : BaseAuditableEntity
         PayPlans = [];
         WorkLogs = [];
         PayrollEntries = [];
+        ShiftPlans = [];
+        Punches = [];
     }
 
     public string PersianName { get; private set; } = string.Empty;
@@ -59,6 +61,10 @@ public class Employee : BaseAuditableEntity
     public ICollection<EmployeeWorkLog> WorkLogs { get; private set; } = [];
 
     public ICollection<PayrollEntry> PayrollEntries { get; private set; } = [];
+
+    public ICollection<EmployeeShiftPlan> ShiftPlans { get; private set; } = [];
+
+    public ICollection<PunchAttendance> Punches { get; private set; } = [];
 
     public void Update(
         string persianName,

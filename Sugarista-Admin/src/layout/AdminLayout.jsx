@@ -138,11 +138,19 @@ const ROUTE_ICONS = {
     </>,
   ),
   hr: icon(
+
     <>
       <circle cx="8" cy="7.5" r="3" />
       <path d="M2.5 19a5.5 5.5 0 0 1 11 0" />
       <path d="M14.5 4.5a3 3 0 0 1 0 6M13.5 13.8a5.5 5.5 0 0 1 3.9 5.2" />
       <path d="M20 9.5v5M17.5 12h5" />
+    </>,
+  ),
+  assets: icon(
+    <>
+      <rect x="4" y="7" width="16" height="13" rx="2" />
+      <path d="M9 7V5a3 3 0 0 1 6 0v2" />
+      <path d="M4 12h16" />
     </>,
   ),
   'admin-users': icon(
@@ -158,7 +166,7 @@ const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'modifiers'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
-  { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers'] },
+  { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'منابع انسانی', routes: ['hr'] },
   { title: 'سیستم', routes: ['site-settings', 'admin-users'] },

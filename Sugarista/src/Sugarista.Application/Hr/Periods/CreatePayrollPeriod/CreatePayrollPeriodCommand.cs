@@ -26,6 +26,9 @@ public record PayrollEntryDto(
     decimal WorkedHours,
     decimal OvertimeHours,
     int ShiftCount,
+    decimal ScheduledHours,
+    decimal UnderworkHours,
+    decimal UnderworkDeduction,
     decimal BasePay,
     decimal OvertimePay,
     decimal CommissionSalesAmount,
@@ -57,6 +60,9 @@ public static class PayrollMapper
         entry.WorkedHours,
         entry.OvertimeHours,
         entry.ShiftCount,
+        entry.ScheduledHours,
+        entry.UnderworkHours,
+        entry.UnderworkDeduction,
         entry.BasePay,
         entry.OvertimePay,
         entry.CommissionSalesAmount,
@@ -154,12 +160,31 @@ public class CreatePayrollPeriodCommandHandler : IRequestHandler<CreatePayrollPe
 
         var loggedEmployeeIds = logsByEmployee.Keys.ToList();
 
+        // real presence from the punch buttons — takes precedence over manual logs
+        var punches = await _dbContext.PunchAttendances
+            .AsNoTracking()
+            .Where(attendance => attendance.WorkDate >= period.StartDate
+                && attendance.WorkDate <= period.EndDate
+                && attendance.PunchInAt != null
+                && attendance.PunchOutAt != null)
+            .ToListAsync(cancellationToken);
+
+        var workedMinutesByEmployee = punches
+            .GroupBy(attendance => attendance.EmployeeId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(attendance => attendance.WorkedMinutes));
+
+        var punchEmployeeIds = workedMinutesByEmployee.Keys.ToList();
+
         // employees active now, or inactive-but-worked this period
         var employees = await _dbContext.Employees
             .AsNoTracking()
             .Include(employee => employee.PayPlans)
+            .Include(employee => employee.ShiftPlans)
             .Where(employee => employee.IsActive
-                || loggedEmployeeIds.Contains(employee.Id))
+                || loggedEmployeeIds.Contains(employee.Id)
+                || punchEmployeeIds.Contains(employee.Id))
             .ToListAsync(cancellationToken);
 
         foreach (var employee in employees)
@@ -176,14 +201,43 @@ public class CreatePayrollPeriodCommandHandler : IRequestHandler<CreatePayrollPe
             {
                 continue; // no pay structure yet — nothing to compute
             }
+            
+            var shiftPlans = employee.ShiftPlans.ToList();
 
-            var logs = logsByEmployee.GetValueOrDefault(employee.Id) ?? [];
-            var worked = logs.Sum(log => log.WorkedHours);
-            var overtime = logs.Sum(log => log.OvertimeHours);
-            var shifts = logs.Sum(log => log.ShiftCount);
+            // approved scheduled hours of the period from the weekly shift plan
+            var scheduledHours = ComputeScheduledHours(period, shiftPlans);
+
+            decimal worked;
+            decimal overtime;
+            var shifts = 0;
+
+            if (workedMinutesByEmployee.TryGetValue(employee.Id, out var punchMinutes))
+            {
+                // punches drive the numbers; overtime = real presence over approved shifts
+                worked = decimal.Round(punchMinutes / 60m, 2, MidpointRounding.AwayFromZero);
+                overtime = scheduledHours > 0 && worked > scheduledHours
+                    ? decimal.Round(worked - scheduledHours, 2)
+                    : 0m;
+            }
+            else
+            {
+                // manual work-log fallback (no punch data this period)
+                var logs = logsByEmployee.GetValueOrDefault(employee.Id) ?? [];
+                worked = logs.Sum(log => log.WorkedHours);
+                overtime = logs.Sum(log => log.OvertimeHours);
+                shifts = logs.Sum(log => log.ShiftCount);
+            }
+
+            var underwork = scheduledHours > 0 && worked < scheduledHours
+                ? decimal.Round(scheduledHours - worked, 2)
+                : 0m;
 
             var (effectiveHourly, basePay) = PayrollCalculator.Compute(plan, worked, overtime, shifts);
             var overtimePay = PayrollCalculator.OvertimePay(overtime, effectiveHourly, plan.OvertimeMultiplier);
+            var underworkDeduction = PayrollCalculator.UnderworkDeduction(
+                plan.Kind,
+                underwork,
+                effectiveHourly);
 
             var entry = period.Entries.FirstOrDefault(existing => existing.EmployeeId == employee.Id);
             if (entry is null)
@@ -203,6 +257,7 @@ public class CreatePayrollPeriodCommandHandler : IRequestHandler<CreatePayrollPe
                     plan.CommissionPercent);
                 period.Entries.Add(entry);
                 _dbContext.PayrollEntries.Add(entry);
+                entry.SetSchedule(scheduledHours, underwork, underworkDeduction);
             }
             else
             {
@@ -212,8 +267,33 @@ public class CreatePayrollPeriodCommandHandler : IRequestHandler<CreatePayrollPe
                     shifts,
                     basePay,
                     effectiveHourly * plan.OvertimeMultiplier,
-                    plan.CommissionPercent);
+                    plan.CommissionPercent,
+                    scheduledHours,
+                    underwork,
+                    underworkDeduction);
             }
         }
+    }
+
+    /// <summary>Sum of approved shift lengths across every day of the period.</summary>
+    private static decimal ComputeScheduledHours(PayrollPeriod period, List<EmployeeShiftPlan> shiftPlans)
+    {
+        if (shiftPlans.Count == 0)
+        {
+            return 0m;
+        }
+
+        var plannedMinutes = 0m;
+        for (var day = period.StartDate; day <= period.EndDate; day = day.AddDays(1))
+        {
+            var weekday = (int)day.DayOfWeek;
+            var plan = shiftPlans.FirstOrDefault(item => item.Weekday == weekday);
+            if (plan is not null)
+            {
+                plannedMinutes += plan.ScheduledMinutes;
+            }
+        }
+
+        return decimal.Round(plannedMinutes / 60m, 2, MidpointRounding.AwayFromZero);
     }
 }

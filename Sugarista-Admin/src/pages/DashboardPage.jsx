@@ -1,18 +1,19 @@
 import { useAdmin } from '../context/AdminContext'
 import { DashboardOverview } from '../components/DashboardOverview'
+import { PunchWidget } from '../components/PunchWidget'
 
 export function DashboardPage() {
   const {
     dashboard,
     dashboardLoading,
     dashboardError,
-    loading,
-    error,
     navigateToTab,
     loadDashboard,
   } = useAdmin()
 
   return (
+    <>
+      <PunchWidget />
       <DashboardOverview
         dashboard={dashboard}
         loading={dashboardLoading}
@@ -20,5 +21,6 @@ export function DashboardPage() {
         onNavigate={navigateToTab}
         onRefresh={() => loadDashboard()}
       />
+    </>
   )
 }

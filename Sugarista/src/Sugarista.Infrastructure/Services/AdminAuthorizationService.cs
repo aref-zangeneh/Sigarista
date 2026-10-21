@@ -31,8 +31,19 @@ public class AdminAuthorizationService : IAdminAuthorizationService
             return Domain.Constants.AdminPermissions.AllKeys.ToList();
         }
 
+        // union of the user's own permission rows and the bundle of the role
+        // he/she is assigned to — editing a role's bundle takes effect for all
+        // members on their next login.
+        var rolePermissions = await _dbContext.AdminRoles
+            .AsNoTracking()
+            .Where(entity => entity.Name == user.Role)
+            .SelectMany(entity => entity.Permissions)
+            .Select(permission => permission.PermissionKey)
+            .ToListAsync(cancellationToken);
+
         return user.Permissions
             .Select(permission => permission.PermissionKey)
+            .Concat(rolePermissions)
             .Distinct(StringComparer.Ordinal)
             .ToList();
     }

@@ -67,6 +67,38 @@ function InfoTip({ termKey, glossary }) {
   )
 }
 
+function weekdayLabel(weekday) {
+  return HrShamsiWeekday[weekday] ?? ''
+}
+
+const HrShamsiWeekday = {
+  6: 'شنبه',
+  0: 'یکشنبه',
+  1: 'دوشنبه',
+  2: 'سه‌شنبه',
+  3: 'چهارشنبه',
+  4: 'پنجشنبه',
+  5: 'جمعه',
+}
+
+function PunchButtons({ punchStatus, doesPunch }) {
+  return (
+    <span className="hr-punch-buttons">
+      {punchStatus.map((status) => (
+        <button
+          key={status.employeeId}
+          type="button"
+          className={`ghost-button${status.state === 'In' ? ' hr-punch-out' : ''}`}
+          onClick={() => doesPunch(status.employeeId, status.state === 'In' ? 'out' : 'in')}
+          title={status.state === 'In' ? 'ثبت خروج' : 'ثبت ورود'}
+        >
+          {status.employeeName} {status.state === 'In' ? '— ثبت خروج' : '— ثبت ورود'}
+        </button>
+      ))}
+    </span>
+  )
+}
+
 function emptyEmployeeForm() {
   return {
     id: null,
@@ -91,6 +123,8 @@ function defaultPayForm() {
     notes: '',
   }
 }
+
+HrPage.weekdayLabel = weekdayLabel
 
 export function HrPage() {
   const { session, apiRequest, getReadableError } = useAdmin()
@@ -137,6 +171,16 @@ export function HrPage() {
   const [payDefaultYear, setPayDefaultYear] = useState(0)
   const [payDefaultMonth, setPayDefaultMonth] = useState(1)
   const [entryForm, setEntryForm] = useState(null)
+
+  // planning (task 17): café hours + approved shifts
+  const [openHoursDraft, setOpenHoursDraft] = useState(null)
+  const [shiftPlans, setShiftPlans] = useState([])
+  const [shiftForm, setShiftForm] = useState({ employeeId: '', weekday: 6, startTime: '16:00', endTime: '23:00' })
+
+  // attendance (task 18): punch live status + log
+  const [punchStatus, setPunchStatus] = useState([])
+  const [punches, setPunches] = useState([])
+  const [punchEmployeeId, setPunchEmployeeId] = useState('')
 
   const loadGlossary = useCallback(async () => {
     if (!token) return
@@ -576,6 +620,130 @@ export function HrPage() {
     }
   }
 
+  /* ── Planning: café hours + shifts ─────────────────────── */
+
+  const loadOpenHours = useCallback(async () => {
+    if (!token) return
+    try {
+      const data = await apiRequest('/admin/hr/open-hours', { token })
+      setOpenHoursDraft((data ?? []).map((row) => ({ ...row })))
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  const saveOpenHours = async () => {
+    resetFeedback()
+    try {
+      const data = await apiRequest('/admin/hr/open-hours', {
+        method: 'PUT',
+        token,
+        body: {
+          days: (openHoursDraft ?? []).map((row) => ({
+            weekday: row.weekday,
+            isOpen: row.isOpen,
+            openTime: row.openTime,
+            closeTime: row.closeTime,
+          })),
+        },
+      })
+      setOpenHoursDraft((data ?? []).map((row) => ({ ...row })))
+      setMessage('ساعات بازگشایی ذخیره شد.')
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+  }
+
+  const loadShiftPlans = useCallback(async () => {
+    if (!token) return
+    try {
+      const data = await apiRequest('/admin/hr/shifts', { token })
+      setShiftPlans(Array.isArray(data) ? data : [])
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  const saveShift = async () => {
+    resetFeedback()
+    try {
+      await apiRequest('/admin/hr/shifts', {
+        method: 'POST',
+        token,
+        body: {
+          employeeId: shiftForm.employeeId,
+          weekday: Number(shiftForm.weekday),
+          startTime: shiftForm.startTime,
+          endTime: shiftForm.endTime,
+        },
+      })
+      setMessage('شیفت مصوب ذخیره شد.')
+      loadShiftPlans()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+  }
+
+  const deleteShift = async (plan) => {
+    resetFeedback()
+    try {
+      await apiRequest(`/admin/hr/shifts/${plan.id}`, { method: 'DELETE', token })
+      setMessage('شیفت حذف شد.')
+      loadShiftPlans()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+  }
+
+  /* ── Attendance: punch in / out ─────────────────────────── */
+
+  const loadPunchStatus = useCallback(async () => {
+    if (!token) return
+    try {
+      const data = await apiRequest('/admin/hr/punches/status', { token })
+      setPunchStatus(Array.isArray(data) ? data : [])
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  const loadPunches = useCallback(async () => {
+    if (!token) return
+    try {
+      const params = new URLSearchParams({ page: 1, pageSize: 50 })
+      if (punchEmployeeId) params.set('employeeId', punchEmployeeId)
+      const data = await apiRequest(`/admin/hr/punches?${params.toString()}`, { token })
+      setPunches(Array.isArray(data.items) ? data.items : [])
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [punchEmployeeId, token])
+
+  const doPunch = async (employeeId, direction) => {
+    resetFeedback()
+    try {
+      await apiRequest(`/admin/hr/punches/${direction}`, {
+        method: 'POST',
+        token,
+        body: direction === 'in' ? { employeeId, note: null } : { employeeId },
+      })
+      setMessage(direction === 'in' ? 'ورود ثبت شد.' : 'خروج ثبت شد — ساعت کارکرد محاسبه شد.')
+      await loadPunchStatus()
+      loadPunches()
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    }
+  }
+
+  const loadPlannedData = async () => {
+    await loadOpenHours()
+    loadShiftPlans()
+  }
+
   const glossaryEntries = useMemo(() => {
     if (!glossary) return []
     return Object.entries(glossary).sort(([a], [b]) => a.localeCompare(b))
@@ -601,7 +769,9 @@ export function HrPage() {
       <div className="hr-tabs" role="tablist">
         {[
           { id: 'employees', label: 'پرسنل' },
-          { id: 'worklogs', label: 'کارکرد و حضور' },
+          { id: 'planning', label: 'برنامه‌ریزی' },
+          { id: 'attendance', label: 'حضور و غیاب' },
+          { id: 'worklogs', label: 'کارکرد دستی' },
           { id: 'payroll', label: 'حقوق و دستمزد' },
           { id: 'glossary', label: 'تعریف اصطلاحات' },
         ].map((entry) => (
@@ -609,7 +779,18 @@ export function HrPage() {
             key={entry.id}
             type="button"
             className={`hr-tab-button${tab === entry.id ? ' is-active' : ''}`}
-            onClick={() => setTab(entry.id)}
+            onClick={() => {
+              setTab(entry.id)
+              resetFeedback()
+              if (entry.id === 'planning') loadPlannedData()
+              if (entry.id === 'attendance') {
+                loadPunchStatus()
+                loadPunches()
+              }
+              if (entry.id === 'worklogs') {
+                if (employees.length === 0) loadEmployees()
+              }
+            }}
           >
             {entry.label}
           </button>
@@ -954,6 +1135,258 @@ export function HrPage() {
         </section>
       ) : null}
 
+      {/* ─────────── Planning tab: café hours + approved shifts ─────────── */}
+      {tab === 'planning' ? (
+        <>
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h3>ساعات بازگشایی کافه {<InfoTip termKey="hr.openHours" glossary={glossary} />}</h3>
+                <p>برای هر روز هفته، باز بودن و ساعت باز/بسته شدن را تنظیم کنید.</p>
+              </div>
+              {canUpdate ? (
+                <button type="button" className="ghost-button" onClick={saveOpenHours} disabled={!openHoursDraft?.length}>
+                  ذخیره ساعات
+                </button>
+              ) : null}
+            </div>
+
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>روز</th>
+                  <th>باز است؟</th>
+                  <th>باز شدن</th>
+                  <th>بسته شدن</th>
+                  <th>ساعت خدمات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(openHoursDraft ?? []).map((row, index) => (
+                  <tr key={row.weekday}>
+                    <td>{HrPage.weekdayLabel(row.weekday)}</td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={row.isOpen}
+                        onChange={(event) => setOpenHoursDraft((draft) => {
+                          const next = [...draft]
+                          next[index] = { ...row, isOpen: event.target.checked }
+                          return next
+                        })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="time"
+                        value={row.openTime}
+                        disabled={!row.isOpen}
+                        onChange={(event) => setOpenHoursDraft((draft) => {
+                          const next = [...draft]
+                          next[index] = { ...row, openTime: event.target.value }
+                          return next
+                        })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="time"
+                        value={row.closeTime}
+                        disabled={!row.isOpen}
+                        onChange={(event) => setOpenHoursDraft((draft) => {
+                          const next = [...draft]
+                          next[index] = { ...row, closeTime: event.target.value }
+                          return next
+                        })}
+                      />
+                    </td>
+                    <td>{row.isOpen ? toPersianNumber(Math.round((row.scheduledMinutes ?? 0) / 6) / 10) : '—'} ساعت</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h3>شیفت‌های مصوب پرسنل {<InfoTip termKey="hr.shiftPlan" glossary={glossary} />}</h3>
+                <p>برای هر نفر و هر روز هفته، شیفت مصوب را تعیین کنید — مبنای مقایسهٔ حضور واقعی برای اضافه‌کار و کسرکار.</p>
+              </div>
+            </div>
+
+            {canUpdate ? (
+              <div className="hr-worklog-form field-grid">
+                <label>
+                  <span>پرسنل *</span>
+                  <select
+                    value={shiftForm.employeeId}
+                    onChange={(event) => setShiftForm((form) => ({ ...form, employeeId: event.target.value }))}
+                  >
+                    <option value="">انتخاب کنید...</option>
+                    {employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>{employee.persianName} — {employee.position}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>روز * {<InfoTip termKey="hr.shiftPlan" glossary={glossary} />}</span>
+                  <select
+                    value={shiftForm.weekday}
+                    onChange={(event) => setShiftForm((form) => ({ ...form, weekday: Number(event.target.value) }))}
+                  >
+                    {[6, 0, 1, 2, 3, 4, 5].map((weekday) => (
+                      <option key={weekday} value={weekday}>{HrPage.weekdayLabel(weekday)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>از ساعت *</span>
+                  <input
+                    type="time"
+                    value={shiftForm.startTime}
+                    onChange={(event) => setShiftForm((form) => ({ ...form, startTime: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  <span>تا ساعت *</span>
+                  <input
+                    type="time"
+                    value={shiftForm.endTime}
+                    onChange={(event) => setShiftForm((form) => ({ ...form, endTime: event.target.value }))}
+                  />
+                </label>
+                <div className="hr-form-actions">
+                  <button type="button" className="ghost-button" onClick={saveShift}>
+                    ثبت شیفت
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {!shiftPlans.length ? (
+              <p>شیفت مصوبی ثبت نشده است — بدون آن، اضافه‌کار و کسرکار قابل مقایسه نیست.</p>
+            ) : (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>پرسنل</th>
+                    <th>روز</th>
+                    <th>از</th>
+                    <th>تا</th>
+                    <th>ساعت مصوب</th>
+                    <th>عملیات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shiftPlans.map((plan) => (
+                    <tr key={plan.id}>
+                      <td>{plan.employeeName}</td>
+                      <td>{plan.weekdayLabel}</td>
+                      <td dir="ltr">{plan.startTime}</td>
+                      <td dir="ltr">{plan.endTime}</td>
+                      <td>{toPersianNumber(Math.round((plan.scheduledMinutes / 6)) / 10)} ساعت</td>
+                      <td className="table-actions">
+                        {canUpdate ? (
+                          <button
+                            type="button"
+                            className="ghost-button"
+                            onClick={() => setShiftForm(() => ({
+                              employeeId: plan.employeeId,
+                              weekday: plan.weekday,
+                              startTime: plan.startTime,
+                              endTime: plan.endTime,
+                            }))}
+                          >
+                            ویرایش
+                          </button>
+                        ) : null}
+                        {canDelete ? (
+                          <button type="button" className="ghost-button danger" onClick={() => deleteShift(plan)}>
+                            حذف
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        </>
+      ) : null}
+
+      {/* ─────────── Attendance tab: punch in/out ─────────── */}
+      {tab === 'attendance' ? (
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>حضور و غیاب {(canUpdate) ? <PunchButtons punchStatus={punchStatus} doesPunch={doPunch} glossary={glossary} /> : null}</h3>
+              <p>دکمه‌های «ورود» و «خروج» دقیقا زمان حضور واقعی را ثبت می‌کنند — مبناي حقوق دوره.</p>
+              <p className="table-subtext">{<InfoTip termKey="hr.punch" glossary={glossary} />} وضعیت‌ها: {<InfoTip termKey="hr.punchState" glossary={glossary} />}</p>
+            </div>
+            <form className="inline-form" onSubmit={(event) => { event.preventDefault(); loadPunches() }}>
+              <select
+                value={punchEmployeeId}
+                onChange={(event) => { setPunchEmployeeId(event.target.value); loadPunches() }}
+              >
+                <option value="">همهٔ پرسنل</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>{employee.persianName} — {employee.position}</option>
+                ))}
+              </select>
+              <button type="submit" className="ghost-button">بروزرسانی</button>
+            </form>
+          </div>
+
+          <div className="stat-grid">
+            {punchStatus.length === 0 ? <p>پرسنلی ثبت نشده است.</p> : punchStatus.map((status) => (
+              <div key={status.employeeId} className="stat-card">
+                <span>{status.employeeName}</span>
+                <strong>{status.state === 'In' ? 'پانچ باز ⏳' : status.state === 'Out' ? 'خروج ثبت شد ✓' : 'بدون ثبت'}</strong>
+                <span className="table-subtext">
+                  {status.punchInAt ? 'ورود: ' + formatDateTime(status.punchInAt) : 'امروز پانچی ندارد'}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {!punches.length ? (
+            <p>در تاریخ خواسته‌شده پانچی ثبت نشده است.</p>
+          ) : (
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>پرسنل</th>
+                  <th>روز</th>
+                  <th>ورود</th>
+                  <th>خروج</th>
+                  <th>ساعت کارکرد</th>
+                  <th>وضعیت</th>
+                  <th>یادداشت</th>
+                </tr>
+              </thead>
+              <tbody>
+                {punches.map((punch) => {
+                  const punchDate = punch.punchInAt ? new Date(punch.punchInAt) : null
+                  return (
+                    <tr key={punch.id}>
+                      <td>{punch.employeeName}</td>
+                      <td>{gregorianIsoToShamsiLabel(punch.workDate)}</td>
+                      <td dir="ltr">{punchDate ? punchDate.toLocaleTimeString('fa-IR') : '—'}</td>
+                      <td dir="ltr">{punch.punchOutAt ? new Date(punch.punchOutAt).toLocaleTimeString('fa-IR') : '—'}</td>
+                      <td>{toPersianNumber(Math.round(punch.workedMinutes / 6) / 10)} ساعت</td>
+                      <td>{punch.status === 'Open' ? 'پانچ باز' : punch.status === 'Closed' ? 'بسته' : 'ناتمام'}</td>
+                      <td>{punch.note ?? '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </section>
+      ) : null}
+
       {/* ─────────── Payroll tab ─────────── */}
       {tab === 'payroll' ? (
         <section className="panel">
@@ -1050,6 +1483,8 @@ export function HrPage() {
                     <th>کارکرد (ساعت)</th>
                     <th>اضافه‌کار (ساعت)</th>
                     <th>شیفت</th>
+                    <th>شیفت مصوب {<InfoTip termKey="hr.scheduledHours" glossary={glossary} />}</th>
+                    <th>کسرکار {<InfoTip termKey="hr.underwork" glossary={glossary} />}</th>
                     <th>پایه {<InfoTip termKey="hr.payroll.basePay" glossary={glossary} />}</th>
                     <th>مبلغ اضافه‌کار {<InfoTip termKey="hr.payroll.overtimePay" glossary={glossary} />}</th>
                     <th>پورسانت {<InfoTip termKey="hr.payroll.commissionPay" glossary={glossary} />}</th>
@@ -1072,6 +1507,10 @@ export function HrPage() {
                       <td>{toPersianNumber(entry.workedHours)}</td>
                       <td>{toPersianNumber(entry.overtimeHours)}</td>
                       <td>{toPersianNumber(entry.shiftCount)}</td>
+                      <td>{entry.scheduledHours ? toPersianNumber(entry.scheduledHours) : '—'}</td>
+                      <td>
+                        {entry.underworkHours ? `${toPersianNumber(entry.underworkHours)} ساعت / ${Number(entry.underworkDeduction).toLocaleString('fa-IR')} تومان` : '—'}
+                      </td>
                       <td>{Number(entry.basePay).toLocaleString('fa-IR')}</td>
                       <td>{Number(entry.overtimePay).toLocaleString('fa-IR')}</td>
                       <td>{Number(entry.commissionPay).toLocaleString('fa-IR')}</td>
@@ -1098,7 +1537,7 @@ export function HrPage() {
                     </tr>
                   ))}
                   {periodDetail.entries.length === 0 ? (
-                    <tr><td colSpan={14}>فیشی برای این دوره وجود ندارد.</td></tr>
+                    <tr><td colSpan={16}>فیشی برای این دوره وجود ندارد.</td></tr>
                   ) : null}
                 </tbody>
               </table>

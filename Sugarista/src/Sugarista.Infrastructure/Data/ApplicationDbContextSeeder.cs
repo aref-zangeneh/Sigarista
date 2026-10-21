@@ -40,6 +40,8 @@ public class ApplicationDbContextSeeder
         await SeedIngredientsAsync(cancellationToken);
         await SeedInventoryStocksAsync(cancellationToken);
         await SeedAccountingAccountsAsync(cancellationToken);
+        await SeedCafeOpenHoursAsync(cancellationToken);
+        await SeedSystemRolesAsync(cancellationToken);
     }
 
     private async Task EnsureSchemaCompatibilityAsync(CancellationToken cancellationToken)
@@ -273,6 +275,113 @@ public class ApplicationDbContextSeeder
                 CONSTRAINT "PK_HrGlossaryTerms" PRIMARY KEY ("Id")
             );
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_HrGlossaryTerms_Key" ON "HrGlossaryTerms" ("Key");
+            ALTER TABLE "PayrollEntries" ADD COLUMN IF NOT EXISTS "ScheduledHours" numeric(6,2) NOT NULL DEFAULT 0;
+            ALTER TABLE "PayrollEntries" ADD COLUMN IF NOT EXISTS "UnderworkHours" numeric(6,2) NOT NULL DEFAULT 0;
+            ALTER TABLE "PayrollEntries" ADD COLUMN IF NOT EXISTS "UnderworkDeduction" numeric(18,2) NOT NULL DEFAULT 0;
+
+            CREATE TABLE IF NOT EXISTS "CafeOpenHours" (
+                "Id" uuid NOT NULL,
+                "Weekday" integer NOT NULL,
+                "IsOpen" boolean NOT NULL DEFAULT true,
+                "OpenTime" time NOT NULL,
+                "CloseTime" time NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_CafeOpenHours" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_CafeOpenHours_Weekday" ON "CafeOpenHours" ("Weekday");
+
+            CREATE TABLE IF NOT EXISTS "EmployeeShiftPlans" (
+                "Id" uuid NOT NULL,
+                "EmployeeId" uuid NOT NULL,
+                "Weekday" integer NOT NULL,
+                "StartTime" time NOT NULL,
+                "EndTime" time NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_EmployeeShiftPlans" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_EmployeeShiftPlans_Employees_EmployeeId" FOREIGN KEY ("EmployeeId") REFERENCES "Employees" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_EmployeeShiftPlans_EmployeeId" ON "EmployeeShiftPlans" ("EmployeeId");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_EmployeeShiftPlans_EmployeeId_Weekday" ON "EmployeeShiftPlans" ("EmployeeId", "Weekday");
+
+            CREATE TABLE IF NOT EXISTS "PunchAttendances" (
+                "Id" uuid NOT NULL,
+                "EmployeeId" uuid NOT NULL,
+                "WorkDate" date NOT NULL,
+                "PunchInAt" timestamp with time zone,
+                "PunchOutAt" timestamp with time zone,
+                "Source" text NOT NULL DEFAULT 'dashboard',
+                "Note" text,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_PunchAttendances" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_PunchAttendances_Employees_EmployeeId" FOREIGN KEY ("EmployeeId") REFERENCES "Employees" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_PunchAttendances_EmployeeId_WorkDate" ON "PunchAttendances" ("EmployeeId", "WorkDate");
+            CREATE INDEX IF NOT EXISTS "IX_PunchAttendances_PunchInAt" ON "PunchAttendances" ("PunchInAt");
+
+            CREATE TABLE IF NOT EXISTS "AdminRoles" (
+                "Id" uuid NOT NULL,
+                "Name" character varying(60) NOT NULL,
+                "DisplayName" character varying(100) NOT NULL,
+                "IsSystem" boolean NOT NULL DEFAULT false,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_AdminRoles" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_AdminRoles_Name" ON "AdminRoles" ("Name");
+
+            CREATE TABLE IF NOT EXISTS "AdminRolePermissions" (
+                "Id" uuid NOT NULL,
+                "AdminRoleId" uuid NOT NULL,
+                "PermissionKey" text NOT NULL,
+                CONSTRAINT "PK_AdminRolePermissions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_AdminRolePermissions_AdminRoles_AdminRoleId" FOREIGN KEY ("AdminRoleId") REFERENCES "AdminRoles" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_AdminRolePermissions_AdminRoleId" ON "AdminRolePermissions" ("AdminRoleId");
+
+            CREATE TABLE IF NOT EXISTS "CafeAssets" (
+                "Id" uuid NOT NULL,
+                "PersianName" character varying(150) NOT NULL,
+                "EnglishName" character varying(150),
+                "Category" character varying(60) NOT NULL,
+                "SerialNumber" character varying(80),
+                "Location" character varying(100) NOT NULL,
+                "PurchaseDate" date,
+                "UnitPrice" numeric(18,2) NOT NULL DEFAULT 0,
+                "Quantity" integer NOT NULL DEFAULT 1,
+                "SupplierName" character varying(120),
+                "Note" character varying(500),
+                "IsActive" boolean NOT NULL DEFAULT true,
+                "DisposalNote" character varying(300),
+                "DisposedAt" timestamp with time zone,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_CafeAssets" PRIMARY KEY ("Id")
+            );
+            CREATE INDEX IF NOT EXISTS "IX_CafeAssets_Category_IsActive" ON "CafeAssets" ("Category", "IsActive");
+
+            CREATE TABLE IF NOT EXISTS "CafeAssetPhotos" (
+                "Id" uuid NOT NULL,
+                "AssetId" uuid NOT NULL,
+                "ImageUrl" character varying(300) NOT NULL,
+                "Caption" character varying(150),
+                "IsPrimary" boolean NOT NULL DEFAULT false,
+                CONSTRAINT "PK_CafeAssetPhotos" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_CafeAssetPhotos_CafeAssets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "CafeAssets" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_CafeAssetPhotos_AssetId_IsPrimary" ON "CafeAssetPhotos" ("AssetId", "IsPrimary");
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';
@@ -469,6 +578,68 @@ public class ApplicationDbContextSeeder
             );
             """,
             cancellationToken);
+    }
+
+    private async Task SeedCafeOpenHoursAsync(CancellationToken cancellationToken)
+    {
+        var existing = await _dbContext.CafeOpenHours.ToListAsync(cancellationToken);
+        var added = false;
+
+        for (var weekday = 0; weekday <= 6; weekday++)
+        {
+            if (existing.Exists(row => row.Weekday == weekday))
+            {
+                continue;
+            }
+
+            // default: open 09:00–22:00, Friday closed
+            _dbContext.CafeOpenHours.Add(
+                new CafeOpenHour(
+                    weekday,
+                    weekday != (int)DayOfWeek.Friday,
+                    new TimeOnly(9, 0),
+                    new TimeOnly(22, 0)));
+            added = true;
+        }
+
+        if (added)
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private async Task SeedSystemRolesAsync(CancellationToken cancellationToken)
+    {
+        var seeded = await _dbContext.AdminRoles
+            .Select(entity => entity.Name)
+            .ToListAsync(cancellationToken);
+
+        var presets = new (string Name, string DisplayName, string[] Permissions)[]
+        {
+            (Domain.Constants.RoleNames.Admin, "مدیر کل", Domain.Constants.DefaultRolePermissions.Admin),
+            (Domain.Constants.RoleNames.Cashier, "صندوقدار", Domain.Constants.DefaultRolePermissions.Cashier),
+            (Domain.Constants.RoleNames.InventoryManager, "مدیر انبار", Domain.Constants.DefaultRolePermissions.InventoryManager),
+            (Domain.Constants.RoleNames.Hr, "منابع انسانی", Domain.Constants.DefaultRolePermissions.Hr),
+        };
+
+        var added = false;
+        foreach (var preset in presets)
+        {
+            if (seeded.Contains(preset.Name))
+            {
+                continue;
+            }
+
+            var role = new AdminRole(preset.Name, preset.DisplayName, isSystem: true);
+            role.ReplacePermissions(preset.Permissions);
+            _dbContext.AdminRoles.Add(role);
+            added = true;
+        }
+
+        if (added)
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task SeedSiteSettingsAsync(CancellationToken cancellationToken)

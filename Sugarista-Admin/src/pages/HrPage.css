@@ -183,3 +183,34 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ── punch buttons (task 18) ───────────────────────────────── */
+.hr-punch-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-right: 12px;
+}
+
+.hr-punch-buttons .ghost-button {
+  background: var(--accent-soft, rgba(124, 95, 63, 0.14));
+  font-size: 0.8rem;
+  padding: 5px 10px;
+}
+
+.hr-punch-buttons .ghost-button.hr-punch-out {
+  border-color: var(--danger, #b3261e);
+  color: var(--danger, #b3261e);
+}
+
+/* diary table time inputs */
+.hr-input-time {
+  direction: ltr;
+  width: 110px;
+}
+
+/* punch status cards */
+.hr-punch-state-in {
+  color: var(--accent, #7c5f3f);
+  font-weight: 700;
+}

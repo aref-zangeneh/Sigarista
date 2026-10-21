@@ -76,6 +76,15 @@ public class PayrollEntry : BaseAuditableEntity
 
     public int ShiftCount { get; private set; }
 
+    /// <summary>Sum of approved shift hours in the period (شیفت مصوب).</summary>
+    public decimal ScheduledHours { get; private set; }
+
+    /// <summary>Approved-hours shortfall of the real presence (کسرکار).</summary>
+    public decimal UnderworkHours { get; private set; }
+
+    /// <summary>Deduction for short work — only for fixed-salary plans.</summary>
+    public decimal UnderworkDeduction { get; private set; }
+
     public decimal BasePay { get; private set; }
 
     public decimal OvertimePay { get; private set; }
@@ -106,7 +115,7 @@ public class PayrollEntry : BaseAuditableEntity
 
     public decimal TotalPay => decimal
         .Round(
-            BasePay + OvertimePay + CommissionPay + Bonus - Deductions - Advance,
+            BasePay + OvertimePay + CommissionPay + Bonus - Deductions - Advance - UnderworkDeduction,
             0,
             MidpointRounding.AwayFromZero);
 
@@ -158,11 +167,19 @@ public class PayrollEntry : BaseAuditableEntity
         int shiftCount,
         decimal basePay,
         decimal overtimeRate,
-        decimal commissionPercent)
+        decimal commissionPercent,
+        decimal scheduledHours,
+        decimal underworkHours,
+        decimal underworkDeduction)
     {
         if (Status != PayrollEntryStatus.Draft)
         {
             throw new DomainException("فیش پرداخت‌شده قابل بروزرسانی نیست.");
+        }
+
+        if (scheduledHours < 0 || underworkHours < 0 || underworkDeduction < 0)
+        {
+            throw new DomainException("ساعت مصوب و کسرکار باید نامنفی باشند.");
         }
 
         WorkedHours = workedHours;
@@ -170,8 +187,24 @@ public class PayrollEntry : BaseAuditableEntity
         ShiftCount = shiftCount;
         BasePay = basePay;
         OvertimePay = decimal.Round(overtimeHours * overtimeRate, 0);
+        ScheduledHours = scheduledHours;
+        UnderworkHours = underworkHours;
+        UnderworkDeduction = underworkDeduction;
         CommissionPercent = commissionPercent;
         CommissionPay = decimal.Round(CommissionSalesAmount * CommissionPercent / 100m, 0);
+    }
+
+    /// <summary>Initial schedule info of a freshly generated receipt.</summary>
+    public void SetSchedule(decimal scheduledHours, decimal underworkHours, decimal underworkDeduction)
+    {
+        if (scheduledHours < 0 || underworkHours < 0 || underworkDeduction < 0)
+        {
+            throw new DomainException("ساعت مصوب و کسرکار باید نامنفی باشند.");
+        }
+
+        ScheduledHours = scheduledHours;
+        UnderworkHours = underworkHours;
+        UnderworkDeduction = underworkDeduction;
     }
 
     public void MarkPaid(DateTimeOffset now, Guid journalEntryId)

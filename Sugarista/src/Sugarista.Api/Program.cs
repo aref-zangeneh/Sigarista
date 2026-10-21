@@ -85,6 +85,7 @@ var uploadsRoot = Path.IsPathRooted(fileStorageOptions.UploadRootPath)
     ? fileStorageOptions.UploadRootPath
     : Path.Combine(app.Environment.ContentRootPath, fileStorageOptions.UploadRootPath);
 Directory.CreateDirectory(Path.Combine(uploadsRoot, "inventory-documents"));
+Directory.CreateDirectory(Path.Combine(uploadsRoot, "asset-photos"));
 
 app.UseStaticFiles(new StaticFileOptions
 {

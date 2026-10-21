@@ -22,6 +22,7 @@ export const adminRoutes = [
   { id: 'exports', path: 'exports', label: 'خروجی اکسل' },
   { id: 'orders', path: 'orders', label: 'سفارش‌ها' },
   { id: 'customers', path: 'customers', label: 'باشگاه مشتریان' },
+  { id: 'hr', path: 'hr', label: 'منابع انسانی' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },
   { id: 'admin-users', path: 'admin-users', label: 'مدیریت کاربران' },
 ].map((route) => ({

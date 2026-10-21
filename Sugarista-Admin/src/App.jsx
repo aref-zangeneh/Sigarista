@@ -26,6 +26,7 @@ import { AccountingPage } from './pages/AccountingPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { ExportsPage } from './pages/ExportsPage'
+import { HrPage } from './pages/HrPage'
 import { SiteSettingsPage } from './pages/SiteSettingsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import './App.css'
@@ -52,6 +53,7 @@ const pageComponents = {
   orders: OrdersPage,
   customers: CustomersPage,
   exports: ExportsPage,
+  hr: HrPage,
   'site-settings': SiteSettingsPage,
   'admin-users': AdminUsersPage,
 }

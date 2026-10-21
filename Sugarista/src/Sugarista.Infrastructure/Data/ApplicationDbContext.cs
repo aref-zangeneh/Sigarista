@@ -39,6 +39,18 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
 
+    public DbSet<Employee> Employees => Set<Employee>();
+
+    public DbSet<EmployeePayPlan> EmployeePayPlans => Set<EmployeePayPlan>();
+
+    public DbSet<EmployeeWorkLog> EmployeeWorkLogs => Set<EmployeeWorkLog>();
+
+    public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
+
+    public DbSet<PayrollEntry> PayrollEntries => Set<PayrollEntry>();
+
+    public DbSet<HrGlossaryTerm> HrGlossaryTerms => Set<HrGlossaryTerm>();
+
     public DbSet<RecipeItem> RecipeItems => Set<RecipeItem>();
 
     public DbSet<InventoryStock> InventoryStocks => Set<InventoryStock>();

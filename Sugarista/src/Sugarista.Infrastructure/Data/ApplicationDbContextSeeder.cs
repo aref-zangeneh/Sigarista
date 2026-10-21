@@ -154,6 +154,125 @@ public class ApplicationDbContextSeeder
                 CONSTRAINT "PK_ExportJobs" PRIMARY KEY ("Id")
             );
             CREATE INDEX IF NOT EXISTS "IX_ExportJobs_Status" ON "ExportJobs" ("Status");
+            CREATE TABLE IF NOT EXISTS "Employees" (
+                "Id" uuid NOT NULL,
+                "PersianName" character varying(120) NOT NULL,
+                "EnglishName" character varying(120),
+                "PhoneNumber" character varying(30),
+                "NationalId" character varying(30),
+                "Position" character varying(120) NOT NULL,
+                "HireDate" date NOT NULL,
+                "TerminationDate" date,
+                "IsActive" boolean NOT NULL DEFAULT true,
+                "Notes" character varying(800),
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_Employees" PRIMARY KEY ("Id")
+            );
+            CREATE INDEX IF NOT EXISTS "IX_Employees_IsActive" ON "Employees" ("IsActive");
+
+            CREATE TABLE IF NOT EXISTS "EmployeePayPlans" (
+                "Id" uuid NOT NULL,
+                "EmployeeId" uuid NOT NULL,
+                "Kind" integer NOT NULL,
+                "SalaryAmount" numeric(18,2) NOT NULL,
+                "HourlyRate" numeric(18,2) NOT NULL,
+                "ShiftRate" numeric(18,2) NOT NULL,
+                "CommissionPercent" numeric(9,4) NOT NULL,
+                "OvertimeMultiplier" numeric(9,4) NOT NULL,
+                "Notes" character varying(800),
+                "IsActive" boolean NOT NULL DEFAULT true,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_EmployeePayPlans" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_EmployeePayPlans_Employees_EmployeeId" FOREIGN KEY ("EmployeeId") REFERENCES "Employees" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_EmployeePayPlans_EmployeeId" ON "EmployeePayPlans" ("EmployeeId");
+            CREATE INDEX IF NOT EXISTS "IX_EmployeePayPlans_EmployeeId_IsActive" ON "EmployeePayPlans" ("EmployeeId", "IsActive");
+
+            CREATE TABLE IF NOT EXISTS "EmployeeWorkLogs" (
+                "Id" uuid NOT NULL,
+                "EmployeeId" uuid NOT NULL,
+                "WorkDate" date NOT NULL,
+                "WorkedHours" numeric(6,2) NOT NULL,
+                "OvertimeHours" numeric(6,2) NOT NULL,
+                "ShiftCount" integer NOT NULL,
+                "Note" character varying(500),
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_EmployeeWorkLogs" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_EmployeeWorkLogs_Employees_EmployeeId" FOREIGN KEY ("EmployeeId") REFERENCES "Employees" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_EmployeeWorkLogs_WorkDate" ON "EmployeeWorkLogs" ("WorkDate");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_EmployeeWorkLogs_EmployeeId_WorkDate" ON "EmployeeWorkLogs" ("EmployeeId", "WorkDate");
+
+            CREATE TABLE IF NOT EXISTS "PayrollPeriods" (
+                "Id" uuid NOT NULL,
+                "ShamsiYear" integer NOT NULL,
+                "ShamsiMonth" integer NOT NULL,
+                "StartDate" date NOT NULL,
+                "EndDate" date NOT NULL,
+                "Status" integer NOT NULL DEFAULT 0,
+                "Note" character varying(500),
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_PayrollPeriods" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_PayrollPeriods_ShamsiYear_ShamsiMonth" ON "PayrollPeriods" ("ShamsiYear", "ShamsiMonth");
+
+            CREATE TABLE IF NOT EXISTS "PayrollEntries" (
+                "Id" uuid NOT NULL,
+                "PeriodId" uuid NOT NULL,
+                "EmployeeId" uuid NOT NULL,
+                "EmployeeName" character varying(160) NOT NULL,
+                "EmployeePosition" character varying(160) NOT NULL,
+                "PayPlanKind" integer NOT NULL,
+                "WorkedHours" numeric(6,2) NOT NULL,
+                "OvertimeHours" numeric(6,2) NOT NULL,
+                "ShiftCount" integer NOT NULL,
+                "BasePay" numeric(18,2) NOT NULL,
+                "OvertimePay" numeric(18,2) NOT NULL,
+                "CommissionSalesAmount" numeric(18,2) NOT NULL,
+                "CommissionPercent" numeric(9,4) NOT NULL,
+                "CommissionPay" numeric(18,2) NOT NULL,
+                "Bonus" numeric(18,2) NOT NULL,
+                "Deductions" numeric(18,2) NOT NULL,
+                "Advance" numeric(18,2) NOT NULL,
+                "Status" integer NOT NULL DEFAULT 0,
+                "PaidAt" timestamp with time zone,
+                "JournalEntryId" uuid,
+                "Note" character varying(800),
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_PayrollEntries" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_PayrollEntries_Employees_EmployeeId" FOREIGN KEY ("EmployeeId") REFERENCES "Employees" ("Id") ON DELETE RESTRICT,
+                CONSTRAINT "FK_PayrollEntries_PayrollPeriods_PeriodId" FOREIGN KEY ("PeriodId") REFERENCES "PayrollPeriods" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_PayrollEntries_EmployeeId" ON "PayrollEntries" ("EmployeeId");
+            CREATE INDEX IF NOT EXISTS "IX_PayrollEntries_Status" ON "PayrollEntries" ("Status");
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_PayrollEntries_PeriodId_EmployeeId" ON "PayrollEntries" ("PeriodId", "EmployeeId");
+
+            CREATE TABLE IF NOT EXISTS "HrGlossaryTerms" (
+                "Id" uuid NOT NULL,
+                "Key" character varying(80) NOT NULL,
+                "Definition" character varying(1200) NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_HrGlossaryTerms" PRIMARY KEY ("Id")
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_HrGlossaryTerms_Key" ON "HrGlossaryTerms" ("Key");
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';

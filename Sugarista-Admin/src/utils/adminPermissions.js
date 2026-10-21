@@ -17,6 +17,12 @@ export const PERMISSIONS = {
     update: 'admin.orders.update',
     delete: 'admin.orders.delete',
   },
+  hr: {
+    view: 'admin.hr.view',
+    create: 'admin.hr.create',
+    update: 'admin.hr.update',
+    delete: 'admin.hr.delete',
+  },
   suppliers: {
     view: 'admin.ingredients.view',
     create: 'admin.ingredients.create',

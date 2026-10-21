@@ -1,0 +1,185 @@
+/* ── HR page (منابع انسانی) ────────────────────────────────── */
+
+.hr-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hr-tab-button {
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.25));
+  background: transparent;
+  color: inherit;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.hr-tab-button.is-active {
+  background: var(--accent, #7c5f3f);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* editable info tooltips */
+.info-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 4px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.35));
+  background: transparent;
+  color: inherit;
+  font-size: 0.72rem;
+  cursor: help;
+  vertical-align: middle;
+}
+
+.info-tip:hover {
+  background: var(--accent, #7c5f3f);
+  color: #fff;
+}
+
+.hr-plan-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hr-pay-badge {
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.3));
+}
+
+.hr-total-cell {
+  font-weight: 700;
+}
+
+.hr-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.hr-worklog-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.hr-worklog-form .hr-form-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.hr-payroll-actions {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.hr-period-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* expandable work log editor row */
+.hr-log-editor {
+  display: grid;
+  grid-template-columns: auto repeat(4, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: center;
+  background: var(--panel);
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.hr-log-input {
+  width: 100%;
+  padding: 4px 8px;
+}
+
+/* glossary rows */
+.hr-glossary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.hr-glossary-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hr-glossary-key {
+  font-family: monospace;
+  direction: ltr;
+  text-align: right;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.hr-glossary-row textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 6px 10px;
+}
+
+/* employee editor modal */
+.hr-editor-modal,
+.hr-detail-modal {
+  max-width: 720px;
+  width: min(92vw, 720px);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.hr-editor-modal .field-grid,
+.hr-worklog-form.field-grid {
+  margin-bottom: 12px;
+}
+
+.hr-section-title {
+  margin: 14px 0 8px;
+  font-size: 0.95rem;
+}
+
+.hr-glossary-def {
+  display: block;
+  font-size: 0.78rem;
+  opacity: 0.8;
+  line-height: 1.7;
+  margin-top: 4px;
+}
+
+.hr-full-width {
+  grid-column: 1 / -1;
+}
+
+/* responsive */
+@media (max-width: 780px) {
+  .hr-worklog-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hr-log-editor {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

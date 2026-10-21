@@ -137,6 +137,14 @@ const ROUTE_ICONS = {
       <path d="M19 12a7 7 0 0 0-.14-1.4l2-1.56-2-3.46-2.36 1a7 7 0 0 0-2.42-1.4L13.6 2h-3.2l-.08 2.68a7 7 0 0 0-2.42 1.4l-2.36-1-2 3.46 2 1.56A7 7 0 0 0 5 12c0 .48.05.94.14 1.4l-2 1.56 2 3.46 2.36-1a7 7 0 0 0 2.42 1.4l.08 2.68h3.2l.08-2.68a7 7 0 0 0 2.42-1.4l2.36 1 2-3.46-2-1.56c.09-.46.14-.92.14-1.4z" />
     </>,
   ),
+  hr: icon(
+    <>
+      <circle cx="8" cy="7.5" r="3" />
+      <path d="M2.5 19a5.5 5.5 0 0 1 11 0" />
+      <path d="M14.5 4.5a3 3 0 0 1 0 6M13.5 13.8a5.5 5.5 0 0 1 3.9 5.2" />
+      <path d="M20 9.5v5M17.5 12h5" />
+    </>,
+  ),
   'admin-users': icon(
     <>
       <circle cx="9" cy="8" r="3.2" />
@@ -152,6 +160,7 @@ const NAV_GROUPS = [
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
+  { title: 'منابع انسانی', routes: ['hr'] },
   { title: 'سیستم', routes: ['site-settings', 'admin-users'] },
 ]
 

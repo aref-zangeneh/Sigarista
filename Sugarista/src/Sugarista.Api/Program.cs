@@ -17,7 +17,12 @@ var configuration = builder.Configuration;
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(configuration);
 
-builder.Services.AddControllers()
+builder.Services.AddScoped<Sugarista.Api.Filters.ActivityLogFilter>();
+
+builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add<Sugarista.Api.Filters.ActivityLogFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;

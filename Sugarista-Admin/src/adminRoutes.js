@@ -23,10 +23,10 @@ export const adminRoutes = [
   { id: 'orders', path: 'orders', label: 'سفارش‌ها' },
   { id: 'customers', path: 'customers', label: 'باشگاه مشتریان' },
   { id: 'assets', path: 'assets-registry', label: 'اموال و تجهیزات' },
-  { id: 'assets', path: 'assets', label: 'اموال و تجهیزات' },
   { id: 'hr', path: 'hr', label: 'منابع انسانی' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },
   { id: 'admin-users', path: 'admin-users', label: 'مدیریت کاربران' },
+  { id: 'activity-log', path: 'activity-log', label: 'لاگ فعالیت‌ها' },
 ].map((route) => ({
   ...route,
   viewPermission: viewPermissionForRoute(route.id),

@@ -166,6 +166,12 @@ public static class AdminPermissions
         public const string ManagePermissions = "admin.users.manage-permissions";
     }
 
+    public static class ActivityLogs
+    {
+        public const string View = "admin.activity-logs.view";
+        public const string Delete = "admin.activity-logs.delete";
+    }
+
     public static readonly IReadOnlyList<AdminPermissionDefinition> Catalog =
     [
         new(Dashboard.View, "dashboard", "view", "نمای کلی", "مشاهده داشبورد"),
@@ -236,6 +242,8 @@ public static class AdminPermissions
         new(Assets.Delete, "assets", "delete", "اموال و تجهیزات", "حذف قلم / حذف عکس"),
         new(SiteSettings.View, "site-settings", "view", "تنظیمات سایت", "مشاهده"),
         new(SiteSettings.Update, "site-settings", "update", "تنظیمات سایت", "ویرایش"),
+        new(ActivityLogs.View, "activity-logs", "view", "لاگ فعالیت‌ها", "مشاهدهٔ لاگ کاربران"),
+        new(ActivityLogs.Delete, "activity-logs", "delete", "لاگ فعالیت‌ها", "پاک‌سازی لاگ‌های قدیمی"),
         new(Users.View, "admin-users", "view", "مدیریت کاربران", "مشاهده"),
         new(Users.Create, "admin-users", "create", "مدیریت کاربران", "ایجاد کاربر"),
         new(Users.Update, "admin-users", "update", "مدیریت کاربران", "ویرایش کاربر"),

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sugarista.Application.Auth.Commands.LoginAdmin;
 
@@ -13,4 +14,12 @@ public class AuthController : ApiControllerBase
     {
         return Ok(await Mediator.Send(command, cancellationToken));
     }
+
+    /// <summary>
+    /// Stateless JWT: the token is discarded client-side. The call exists so the
+    /// activity log can record a proper «خروج» event for the signed-in user.
+    /// </summary>
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public IActionResult Logout() => NoContent();
 }

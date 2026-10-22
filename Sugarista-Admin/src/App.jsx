@@ -28,6 +28,7 @@ import { CustomersPage } from './pages/CustomersPage'
 import { ExportsPage } from './pages/ExportsPage'
 import { HrPage } from './pages/HrPage'
 import { AssetsPage } from './pages/AssetsPage'
+import { ActivityLogPage } from './pages/ActivityLogPage'
 import { SiteSettingsPage } from './pages/SiteSettingsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import './App.css'
@@ -58,6 +59,7 @@ const pageComponents = {
   hr: HrPage,
   'site-settings': SiteSettingsPage,
   'admin-users': AdminUsersPage,
+  'activity-log': ActivityLogPage,
 }
 
 function ProtectedRoute({ route, children }) {

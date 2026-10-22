@@ -129,10 +129,15 @@ export const PERMISSIONS = {
     update: 'admin.site-settings.update',
   },
   'admin-users': {
-    view: 'admin.users.view',    create: 'admin.users.create',
+    view: 'admin.users.view',
+    create: 'admin.users.create',
     update: 'admin.users.update',
     delete: 'admin.users.delete',
     managePermissions: 'admin.users.manage-permissions',
+  },
+  'activity-log': {
+    view: 'admin.activity-logs.view',
+    delete: 'admin.activity-logs.delete',
   },
 }
 

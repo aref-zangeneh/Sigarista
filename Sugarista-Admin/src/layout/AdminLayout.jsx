@@ -153,6 +153,13 @@ const ROUTE_ICONS = {
       <path d="M4 12h16" />
     </>,
   ),
+  'activity-log': icon(
+    <>
+      <path d="M9 4h6a2 2 0 0 1 2 2v1" />
+      <rect x="4" y="5" width="16" height="16" rx="3" />
+      <path d="M8 10h8M8 14h8M8 18h5" />
+    </>,
+  ),
   'admin-users': icon(
     <>
       <circle cx="9" cy="8" r="3.2" />
@@ -169,7 +176,7 @@ const NAV_GROUPS = [
   { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'منابع انسانی', routes: ['hr'] },
-  { title: 'سیستم', routes: ['site-settings', 'admin-users'] },
+  { title: 'سیستم', routes: ['site-settings', 'admin-users', 'activity-log'] },
 ]
 
 export function AdminLayout() {

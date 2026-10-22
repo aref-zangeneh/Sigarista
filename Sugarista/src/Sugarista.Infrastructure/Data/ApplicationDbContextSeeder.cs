@@ -382,6 +382,30 @@ public class ApplicationDbContextSeeder
                 CONSTRAINT "FK_CafeAssetPhotos_CafeAssets_AssetId" FOREIGN KEY ("AssetId") REFERENCES "CafeAssets" ("Id") ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS "IX_CafeAssetPhotos_AssetId_IsPrimary" ON "CafeAssetPhotos" ("AssetId", "IsPrimary");
+
+            CREATE TABLE IF NOT EXISTS "AdminActivityLogs" (
+                "Id" uuid NOT NULL,
+                "ActorId" uuid,
+                "ActorUsername" character varying(100) NOT NULL,
+                "ActorDisplayName" character varying(150),
+                "Action" character varying(30) NOT NULL,
+                "SectionId" character varying(80) NOT NULL,
+                "SectionTitle" character varying(120) NOT NULL,
+                "EntityLabel" character varying(200),
+                "Description" character varying(500) NOT NULL,
+                "ChangedFields" character varying(500),
+                "HttpMethod" character varying(10) NOT NULL,
+                "Path" character varying(300) NOT NULL,
+                "StatusCode" integer NOT NULL DEFAULT 0,
+                "Succeeded" boolean NOT NULL DEFAULT true,
+                "IpAddress" character varying(60),
+                "UserAgent" character varying(300),
+                "OccurredAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_AdminActivityLogs" PRIMARY KEY ("Id")
+            );
+            CREATE INDEX IF NOT EXISTS "IX_AdminActivityLogs_OccurredAt" ON "AdminActivityLogs" ("OccurredAt");
+            CREATE INDEX IF NOT EXISTS "IX_AdminActivityLogs_ActorUsername_OccurredAt" ON "AdminActivityLogs" ("ActorUsername", "OccurredAt");
+            CREATE INDEX IF NOT EXISTS "IX_AdminActivityLogs_SectionId_OccurredAt" ON "AdminActivityLogs" ("SectionId", "OccurredAt");
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';
@@ -639,6 +663,36 @@ public class ApplicationDbContextSeeder
         if (added)
         {
             await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        // The «مدیر کل» role is the full-access bundle: when a release introduces a
+        // brand-new permission, append it so existing installs keep seeing new screens.
+        var adminRole = await _dbContext.AdminRoles
+            .Include(role => role.Permissions)
+            .FirstOrDefaultAsync(
+                role => role.Name == Domain.Constants.RoleNames.Admin,
+                cancellationToken);
+
+        if (adminRole is not null)
+        {
+            var existingKeys = adminRole.Permissions
+                .Select(permission => permission.PermissionKey)
+                .ToHashSet(StringComparer.Ordinal);
+
+            var missingKeys = Domain.Constants.DefaultRolePermissions.Admin
+                .Where(key => !existingKeys.Contains(key))
+                .ToList();
+
+            if (missingKeys.Count > 0)
+            {
+                foreach (var permissionKey in missingKeys)
+                {
+                    _dbContext.AdminRolePermissions.Add(
+                        new AdminRolePermission(adminRole.Id, permissionKey));
+                }
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
         }
     }
 

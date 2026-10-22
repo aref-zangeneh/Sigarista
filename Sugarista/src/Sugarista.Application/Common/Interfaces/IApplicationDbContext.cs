@@ -46,6 +46,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.CafeAssetPhoto> CafeAssetPhotos { get; }
 
+    DbSet<Sugarista.Domain.Entities.AdminActivityLog> AdminActivityLogs { get; }
+
     DbSet<Sugarista.Domain.Entities.PayrollPeriod> PayrollPeriods { get; }
 
     DbSet<Sugarista.Domain.Entities.PayrollEntry> PayrollEntries { get; }

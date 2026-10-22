@@ -769,6 +769,15 @@ export function AdminProvider({ children }) {
   }
 
   function handleLogout() {
+    // best-effort: record the «خروج» event in the activity log, then drop the token
+    if (session?.token) {
+      fetch(`/api/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.token}` },
+        keepalive: true,
+      }).catch(() => {})
+    }
+
     setSession(null)
     navigate('/', { replace: true })
     setCategoryOptions([])

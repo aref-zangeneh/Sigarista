@@ -59,6 +59,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<CafeAssetPhoto> CafeAssetPhotos => Set<CafeAssetPhoto>();
 
+    public DbSet<AdminActivityLog> AdminActivityLogs => Set<AdminActivityLog>();
+
     public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
 
     public DbSet<PayrollEntry> PayrollEntries => Set<PayrollEntry>();

@@ -4,6 +4,7 @@ import { hasPermission } from '../utils/adminPermissions'
 import { gregorianIsoToShamsiLabel } from '../utils/shamsiDate'
 import { formatDateTime, toPersianNumber } from '../utils/adminFormatters'
 import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import './HrPage.css'
 
 const PAY_KINDS = [
@@ -263,7 +264,12 @@ export function HrPage() {
     loadPeriods()
     // default shamsi month/year for the payroll tab (fa-IR calendar)
     try {
-      const parts = new Intl.DateTimeFormat('fa-IR-u-nu-latn', { year: 'numeric', month: 'numeric' }).format(new Date())
+      const parts = new Intl.DateTimeFormat('fa-IR-u-nu-latn', {
+        year: 'numeric',
+        month: 'numeric',
+        calendar: 'persian',
+        timeZone: 'Asia/Tehran',
+      }).format(new Date())
       const match = /(\d+)\s*\/\s*(\d+)/.exec(parts)
       if (match) {
         setPayDefaultYear(Number(match[1]))
@@ -749,6 +755,13 @@ export function HrPage() {
     return Object.entries(glossary).sort(([a], [b]) => a.localeCompare(b))
   }, [glossary])
 
+  useEscapeKey(Boolean(detail), () => setDetail(null))
+  useEscapeKey(Boolean(employeeForm || planForm) && !detail, () => {
+    setEmployeeForm(null)
+    setPlanForm(null)
+  })
+  useEscapeKey(Boolean(entryForm) && !detail && !employeeForm && !planForm, () => setEntryForm(null))
+
   if (!canView) {
     return (
       <section className="panel-stack">
@@ -890,8 +903,14 @@ export function HrPage() {
 
           {detail ? (
             <div className="modal-backdrop" onClick={() => setDetail(null)}>
-              <div className="modal-card hr-detail-modal" onClick={(event) => event.stopPropagation()}>
-                <h3>پرونده {detail.persianName}</h3>
+              <div
+                className="modal-card hr-detail-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="hr-detail-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="hr-detail-title">پرونده {detail.persianName}</h3>
                 <div className="stat-grid">
                   <div className="stat-card">
                     <span>سمت</span>
@@ -1598,8 +1617,14 @@ export function HrPage() {
       {/* ─────────── Employee editor modal ─────────── */}
       {employeeForm && planForm ? (
         <div className="modal-backdrop" onClick={() => { setEmployeeForm(null); setPlanForm(null) }}>
-          <div className="modal-card hr-editor-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>{employeeForm.id ? `ویرایش پرونده ${employeeForm.persianName}` : 'پرسنل جدید'}</h3>
+          <div
+            className="modal-card hr-editor-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hr-employee-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="hr-employee-title">{employeeForm.id ? `ویرایش پرونده ${employeeForm.persianName}` : 'پرسنل جدید'}</h3>
 
             <div className="field-grid">
               <label>
@@ -1761,8 +1786,14 @@ export function HrPage() {
       {/* ─────────── Payroll entry adjust modal ─────────── */}
       {entryForm && periodDetail ? (
         <div className="modal-backdrop" onClick={() => setEntryForm(null)}>
-          <div className="modal-card hr-editor-modal" onClick={(event) => event.stopPropagation()}>
-            <h3>تعدیل فیش: {entryForm.employeeName}</h3>
+          <div
+            className="modal-card hr-editor-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hr-entry-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="hr-entry-title">تعدیل فیش: {entryForm.employeeName}</h3>
             <div className="field-grid">
               <label>
                 <span>فروش منسوب به این نفر (تومان) {<InfoTip termKey="hr.plan.commissionSales" glossary={glossary} />}</span>

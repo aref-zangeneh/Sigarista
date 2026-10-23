@@ -3,6 +3,7 @@ import { useAdmin } from '../context/AdminContext'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
 import { apiRequest } from '../utils/adminApi'
 import { formatDateTime } from '../utils/adminFormatters'
+import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
 
 const EXPORT_SECTIONS = [
   {
@@ -333,11 +334,11 @@ export function ExportsPage() {
         <div className="exports-period-row">
           <label>
             <span>از تاریخ (برای بخش‌های دوره‌ای)</span>
-            <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+            <ShamsiDatePicker value={from} onChange={setFrom} showHint={false} />
           </label>
           <label>
             <span>تا تاریخ</span>
-            <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+            <ShamsiDatePicker value={to} onChange={setTo} showHint={false} />
           </label>
         </div>
 

@@ -590,6 +590,7 @@ export function AdminUsersPage() {
                 </div>
               </form>
             ) : (
+              <div className="admin-table-scroll">
               <table className="admin-table">
                 <thead>
                   <tr>
@@ -642,6 +643,7 @@ export function AdminUsersPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </section>
         ) : null}

@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Sugarista.Application.Common.Options;
+using Sugarista.Application.Orders;
 
 namespace Sugarista.Application.SiteSettings.Queries.GetSiteSettings;
 
@@ -52,15 +55,20 @@ public record SiteSettingsDto
     public string FooterCallLabel { get; init; } = string.Empty;
     public bool IsOnlineSalesEnabled { get; init; } = true;
     public string OnlineSalesNotice { get; init; } = string.Empty;
+    public bool IsOnlineOrderingAvailable { get; init; } = true;
 }
 
 public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery, SiteSettingsDto>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly PaymentOptions _paymentOptions;
 
-    public GetSiteSettingsQueryHandler(IApplicationDbContext dbContext)
+    public GetSiteSettingsQueryHandler(
+        IApplicationDbContext dbContext,
+        IOptions<PaymentOptions> paymentOptions)
     {
         _dbContext = dbContext;
+        _paymentOptions = paymentOptions.Value;
     }
 
     public async Task<SiteSettingsDto> Handle(GetSiteSettingsQuery request, CancellationToken cancellationToken)
@@ -118,6 +126,14 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        return settings ?? throw new InvalidOperationException("Site settings were not found.");
+        if (settings is null)
+        {
+            throw new InvalidOperationException("Site settings were not found.");
+        }
+
+        return settings with
+        {
+            IsOnlineOrderingAvailable = PaymentAvailability.IsOnlinePaymentConfigured(_paymentOptions)
+        };
     }
 }

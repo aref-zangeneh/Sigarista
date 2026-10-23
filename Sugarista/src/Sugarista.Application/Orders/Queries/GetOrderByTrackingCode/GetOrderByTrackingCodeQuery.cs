@@ -5,9 +5,7 @@ namespace Sugarista.Application.Orders.Queries.GetOrderByTrackingCode;
 public record GetOrderByTrackingCodeQuery(string TrackingCode) : IRequest<OrderStatusDto?>;
 
 public record OrderStatusDto(
-    Guid Id,
     string TrackingCode,
-    string CustomerName,
     string Status,
     string FulfillmentStatus,
     string FulfillmentStatusLabel,
@@ -55,9 +53,7 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
         var fulfillmentStatus = order.FulfillmentStatus.ToString();
 
         return new OrderStatusDto(
-            order.Id,
             order.TrackingCode,
-            order.CustomerName,
             order.Status.ToString(),
             fulfillmentStatus,
             FulfillmentStatusLabels.ToPersian(fulfillmentStatus, order.Status.ToString()),

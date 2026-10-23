@@ -23,6 +23,9 @@ function formatReceiptDate(date = new Date()) {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    calendar: 'persian',
+    numberingSystem: 'arabext',
+    timeZone: 'Asia/Tehran',
   })
 }
 

@@ -24,7 +24,17 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception occurred.");
+            if (ex is ValidationException or DomainException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
+            {
+                // Expected business/input failures: log a short line instead of a
+                // full stack trace, and never include request bodies or tokens.
+                _logger.LogWarning("Request failed with {ExceptionType}: {Message}", ex.GetType().Name, ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "An unhandled exception occurred for {Method} {Path}.", context.Request.Method, context.Request.Path);
+            }
+
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -45,9 +55,13 @@ public class ExceptionHandlingMiddleware
         {
             Status = (int)statusCode,
             Title = title,
-            Detail = exception.Message,
+            Detail = statusCode == HttpStatusCode.InternalServerError
+                ? "خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید."
+                : exception.Message,
             Instance = context.Request.Path
         };
+
+        problemDetails.Extensions["traceId"] = context.TraceIdentifier;
 
         if (exception is ValidationException validationException)
         {

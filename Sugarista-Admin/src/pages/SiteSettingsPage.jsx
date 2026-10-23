@@ -128,18 +128,24 @@ export function SiteSettingsPage() {
                 <SectionIcon name="cart" />
               </span>
               <div>
-                <h3>
+                <h2>
                   فروش آنلاین
                   <span className={`settings-pill ${salesPaused ? 'is-off' : 'is-on'}`}>
                     {salesPaused ? 'غیرفعال' : 'فعال'}
                   </span>
-                </h3>
+                </h2>
                 <p>کامل کنترل سفارش و پرداخت آنلاین روی سایت مشتریان</p>
               </div>
             </div>
           </div>
 
           <div className="settings-sales-body">
+            {siteSettings.isOnlineOrderingAvailable === false ? (
+              <p className="feedback feedback-error" role="status">
+                درگاه پرداخت آنلاین پیکربندی نشده است؛ تا زمان اتصال درگاه واقعی، سفارش آنلاین در
+                محیط عملیاتی غیرفعال می‌ماند.
+              </p>
+            ) : null}
             <label className="settings-switch-row">
               <div className="settings-switch-text">
                 <strong>توقف فروش آنلاین</strong>
@@ -196,7 +202,7 @@ export function SiteSettingsPage() {
                   <SectionIcon name={section.icon} />
                 </span>
                 <div>
-                  <h3>{section.title}</h3>
+                  <h2>{section.title}</h2>
                   <p>{section.description}</p>
                 </div>
               </div>

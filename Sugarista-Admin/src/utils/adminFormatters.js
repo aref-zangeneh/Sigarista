@@ -29,5 +29,8 @@ export function formatDateTime(value) {
   return new Intl.DateTimeFormat('fa-IR', {
     dateStyle: 'short',
     timeStyle: 'short',
+    calendar: 'persian',
+    numberingSystem: 'arabext',
+    timeZone: 'Asia/Tehran',
   }).format(new Date(value))
 }

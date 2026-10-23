@@ -43,7 +43,7 @@ document.addEventListener("alpine:init", () => {
       heroDescription: "",
       heroPrimaryButtonLabel: "شروع مرور منو",
       heroSecondaryButtonLabel: "پرفروش‌ها",
-      heroHours: "08:00 - 23:00",
+      heroHours: "",
       howToOrderLabel: "How To Order",
       howToOrderTitle: "سفارش در 3 قدم",
       howToOrderStatus: "Fast UX",
@@ -66,16 +66,17 @@ document.addEventListener("alpine:init", () => {
       visitLabel: "Visit Sugarista",
       visitTitle: "اطلاعات کافه",
       visitDescription: "",
-      contactPhone: "+980000000000",
+      contactPhone: "",
       address: "",
       breakfastHours: "",
       takeawayStatus: "",
-      instagramUrl: "https://instagram.com/",
+      instagramUrl: "",
       footerText: "Sugarista Cafe Digital Menu Theme",
       footerPopularLabel: "پرفروش‌ها",
       footerMenuLabel: "منو",
       footerCallLabel: "تماس",
       isOnlineSalesEnabled: true,
+      isOnlineOrderingAvailable: true,
       onlineSalesNotice: ""
     },
     async init() {
@@ -338,9 +339,16 @@ document.addEventListener("alpine:init", () => {
       return this.cart.reduce((total, line) => total + line.quantity, 0);
     },
     get salesClosed() {
-      return this.settings.isOnlineSalesEnabled === false;
+      return (
+        this.settings.isOnlineSalesEnabled === false ||
+        this.settings.isOnlineOrderingAvailable === false
+      );
     },
     get salesNoticeText() {
+      if (this.settings.isOnlineOrderingAvailable === false) {
+        return "سفارش آنلاین هنوز فعال نشده است؛ لطفاً حضوری سفارش دهید.";
+      }
+
       const notice = (this.settings.onlineSalesNotice || "").trim();
       return notice || "فروش آنلاین موقتاً غیرفعال است؛ می‌توانید حضوری سفارش دهید.";
     },
@@ -448,6 +456,29 @@ document.addEventListener("alpine:init", () => {
     },
     closeAddToCartModal() {
       this.addToCartModal = null;
+    },
+    trapFocus(event) {
+      const container = event.currentTarget;
+      const selector =
+        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+      const focusables = [...container.querySelectorAll(selector)].filter(
+        (element) => element.offsetParent !== null || element === document.activeElement
+      );
+
+      if (!focusables.length) {
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     },
     defaultVariantForItem(item) {
       if (!item.variants?.length) {

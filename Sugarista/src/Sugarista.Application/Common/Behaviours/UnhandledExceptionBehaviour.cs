@@ -19,15 +19,24 @@ public class UnhandledExceptionBehaviour<TRequest, TResponse> : IPipelineBehavio
         {
             return await next(cancellationToken);
         }
+        catch (UnauthorizedAccessException)
+        {
+            // Expected for bad credentials or missing permissions. The API middleware
+            // records the safe warning; do not log request payloads or a stack trace here.
+            throw;
+        }
+        catch (FluentValidation.ValidationException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             var requestName = typeof(TRequest).Name;
 
             _logger.LogError(
                 ex,
-                "Unhandled exception for request {RequestName}: {@Request}",
-                requestName,
-                request);
+                "Unhandled exception for request {RequestName}",
+                requestName);
 
             throw;
         }

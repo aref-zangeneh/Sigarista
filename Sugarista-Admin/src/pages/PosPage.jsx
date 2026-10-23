@@ -5,6 +5,7 @@ import { apiRequest, getReadableError } from '../utils/adminApi'
 import { formatDateTime, formatDuration, toPersianNumber } from '../utils/adminFormatters'
 import { hasPermission, PERMISSIONS, canSubmitPosOrder } from '../utils/adminPermissions'
 import { printPosReceipts } from '../utils/posReceipt'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
   buildCartLineKey,
   buildUpsertPayload,
@@ -24,6 +25,8 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
   const [baristaNote, setBaristaNote] = useState('')
   const [quantity, setQuantity] = useState(1)
 
+  useEscapeKey(true, onClose)
+
   const unitPrice = resolveItemPrice(item, sizeKey)
   const sizeLabel =
     item.variants?.find((variant) => variant.key === sizeKey)?.label || sizeKey || 'پیش‌فرض'
@@ -38,8 +41,14 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
 
   return (
     <div className="pos-modal-backdrop" onClick={onClose}>
-      <div className="pos-modal" onClick={(event) => event.stopPropagation()}>
-        <h3>{item.persianName}</h3>
+      <div
+        className="pos-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pos-product-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h3 id="pos-product-modal-title">{item.persianName}</h3>
         <p>{item.description}</p>
 
         {item.variants?.length ? (
@@ -496,7 +505,16 @@ export function PosPage() {
             <div className="pos-brand">
               <div>
                 <h1>صندوق فروش</h1>
-                <p>{new Date().toLocaleDateString('fa-IR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                <p>
+                  {new Date().toLocaleDateString('fa-IR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    calendar: 'persian',
+                    numberingSystem: 'arabext',
+                    timeZone: 'Asia/Tehran',
+                  })}
+                </p>
               </div>
             </div>
             <div className="pos-header-actions">

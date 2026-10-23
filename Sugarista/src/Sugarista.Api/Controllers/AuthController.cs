@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Sugarista.Application.Auth.Commands.LoginAdmin;
 
 namespace Sugarista.Api.Controllers;
 
 [Route("api/auth")]
+[EnableRateLimiting("auth")]
 public class AuthController : ApiControllerBase
 {
     [HttpPost("login")]

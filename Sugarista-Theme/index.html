@@ -8,18 +8,13 @@
     name="description"
     content="منوی دیجیتال کافه شوگریستا؛ مرور سریع دسته‌ها، جستجوی آسان و تجربه بهتر برای مهمان‌های QR."
   >
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css"
-    rel="stylesheet"
-  >
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-  >
+  <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.rtl.min.css">
+  <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
   <link rel="preload" href="assets/fonts/YekanBakh-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body x-data="cafeMenu()" x-init="init()">
+  <a class="skip-link" href="#menu">رفتن به منو</a>
   <div class="page-shell">
     <header class="menu-page-header">
       <div class="container">
@@ -35,6 +30,7 @@
           </div>
           <div class="menu-page-actions">
             <a
+              x-show="settings.instagramUrl"
               :href="instagramHref()"
               target="_blank"
               rel="noreferrer"
@@ -43,20 +39,31 @@
             >
               <i class="bi bi-instagram"></i>
             </a>
-            <a :href="callHref()" class="menu-page-icon-btn menu-page-icon-btn--primary" aria-label="تماس">
+            <a
+              x-show="settings.contactPhone"
+              :href="callHref()"
+              class="menu-page-icon-btn menu-page-icon-btn--primary"
+              aria-label="تماس"
+            >
               <i class="bi bi-telephone"></i>
             </a>
           </div>
         </div>
 
-        <div class="alert alert-light border-0 rounded-3 mb-0 mt-3" x-show="loading">
+        <div class="alert alert-light border-0 rounded-3 mb-0 mt-3" x-show="loading" role="status" aria-live="polite">
           در حال بارگذاری منو...
         </div>
-        <div class="alert alert-danger border-0 rounded-3 mb-0 mt-3" x-show="error" x-text="error"></div>
+        <div
+          class="alert alert-danger border-0 rounded-3 mb-0 mt-3"
+          x-show="error"
+          x-text="error"
+          role="alert"
+          aria-live="assertive"
+        ></div>
       </div>
     </header>
 
-    <div class="sales-notice" x-show="salesClosed" x-cloak>
+    <div class="sales-notice" x-show="salesClosed" x-cloak role="status" aria-live="polite">
       <div class="container sales-notice-inner">
         <i class="bi bi-pause-circle"></i>
         <p x-text="salesNoticeText"></p>
@@ -64,7 +71,7 @@
     </div>
 
     <main>
-      <section id="menu" class="menu-section">
+      <section id="menu" class="menu-section" tabindex="-1">
         <div class="menu-sticky-shell">
           <div class="container">
             <div class="menu-sticky-nav">
@@ -76,6 +83,10 @@
                   :class="{ active: selectedCategory === 'all' }"
                   :aria-selected="selectedCategory === 'all'"
                   @click="setCategory('all')"
+                  @keydown.arrow-left.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i+1)%tabs.length].focus()"
+                  @keydown.arrow-right.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i-1+tabs.length)%tabs.length].focus()"
+                  @keydown.home.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[0].focus()"
+                  @keydown.end.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[tabs.length-1].focus()"
                 >
                   همه
                 </button>
@@ -87,6 +98,10 @@
                     :class="{ active: selectedCategory === category.id }"
                     :aria-selected="selectedCategory === category.id"
                     @click="setCategory(category.id)"
+                    @keydown.arrow-left.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i+1)%tabs.length].focus()"
+                    @keydown.arrow-right.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i-1+tabs.length)%tabs.length].focus()"
+                    @keydown.home.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[0].focus()"
+                    @keydown.end.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[tabs.length-1].focus()"
                   >
                     <span x-text="category.label"></span>
                   </button>
@@ -248,7 +263,7 @@
             <div class="empty-icon mx-auto mb-3">
               <i class="bi bi-search"></i>
             </div>
-            <h3 class="h5 mb-2">موردی پیدا نشد</h3>
+            <h2 class="h5 mb-2">موردی پیدا نشد</h2>
             <p class="text-secondary mb-4">عبارت دیگری جستجو کنید یا فیلتر را پاک کنید.</p>
             <button type="button" class="btn btn-dark rounded-pill px-4" @click="resetFilters()">
               نمایش همه آیتم‌ها
@@ -257,7 +272,10 @@
         </div>
       </section>
 
-      <section class="visit-section pb-5">
+      <section
+        class="visit-section pb-5"
+        x-show="settings.visitTitle || settings.visitDescription || settings.contactPhone || settings.address || settings.breakfastHours || settings.takeawayStatus || settings.instagramUrl"
+      >
         <div class="container">
           <div class="visit-card">
             <div class="visit-layout">
@@ -265,11 +283,17 @@
                 <h2 class="visit-title mb-2" x-text="settings.visitTitle"></h2>
                 <p class="visit-copy mb-4" x-text="settings.visitDescription"></p>
                 <div class="visit-actions">
-                  <a :href="callHref()" class="btn btn-dark rounded-pill px-4">
+                  <a x-show="settings.contactPhone" :href="callHref()" class="btn btn-dark rounded-pill px-4">
                     <i class="bi bi-telephone me-1"></i>
                     تماس با کافه
                   </a>
-                  <a :href="instagramHref()" target="_blank" rel="noreferrer" class="btn btn-outline-dark rounded-pill px-4">
+                  <a
+                    x-show="settings.instagramUrl"
+                    :href="instagramHref()"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="btn btn-outline-dark rounded-pill px-4"
+                  >
                     <i class="bi bi-instagram me-1"></i>
                     اینستاگرام
                   </a>
@@ -277,15 +301,15 @@
               </div>
 
               <div class="visit-meta">
-                <div>
+                <div x-show="settings.address">
                   <span>آدرس</span>
                   <strong x-text="settings.address"></strong>
                 </div>
-                <div>
+                <div x-show="settings.breakfastHours">
                   <span>سرو صبحانه</span>
                   <strong x-text="settings.breakfastHours"></strong>
                 </div>
-                <div>
+                <div x-show="settings.takeawayStatus">
                   <span>بیرون‌بر</span>
                   <strong x-text="settings.takeawayStatus"></strong>
                 </div>
@@ -302,7 +326,7 @@
         <div class="footer-links">
           <a href="#popular" x-text="settings.footerPopularLabel"></a>
           <a href="#menu" x-text="settings.footerMenuLabel"></a>
-          <a :href="callHref()" x-text="settings.footerCallLabel"></a>
+          <a x-show="settings.contactPhone" :href="callHref()" x-text="settings.footerCallLabel"></a>
         </div>
       </div>
     </footer>
@@ -322,17 +346,36 @@
       </div>
     </div>
 
-    <div class="cart-overlay" x-show="cartDrawerOpen" x-cloak @click.self="closeCartDrawer()">
-      <aside class="cart-drawer">
+    <div
+      class="cart-overlay"
+      x-show="cartDrawerOpen"
+      x-cloak
+      @click.self="closeCartDrawer()"
+      @keydown.tab="trapFocus($event)"
+      @keydown.escape.window="closeCartDrawer()"
+      x-effect="if (cartDrawerOpen) $nextTick(() => $refs.cartClose?.focus())"
+    >
+      <aside
+        class="cart-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-drawer-title"
+      >
         <div class="cart-drawer-head">
           <div>
-            <h3 class="h5 mb-1" x-text="cartView === 'checkout' ? 'تسویه حساب' : 'سبد خرید'"></h3>
+            <h3 id="cart-drawer-title" class="h5 mb-1" x-text="cartView === 'checkout' ? 'تسویه حساب' : 'سبد خرید'"></h3>
             <p class="mb-0 text-secondary" x-show="cartView === 'cart'">
               <span x-text="toPersianNumber(cartCount)"></span> قلم
             </p>
           </div>
-          <button type="button" class="btn btn-light btn-sm rounded-circle" @click="closeCartDrawer()">
-            <i class="bi bi-x-lg"></i>
+          <button
+            type="button"
+            class="btn btn-light btn-sm rounded-circle"
+            x-ref="cartClose"
+            aria-label="بستن سبد خرید"
+            @click="closeCartDrawer()"
+          >
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -356,6 +399,7 @@
                   <label class="small text-secondary">مهمان:</label>
                   <select
                     class="form-select form-select-sm guest-select"
+                    aria-label="انتخاب مهمان برای این آیتم"
                     @change="assignCartPayer(line.cartKey, Number($event.target.value))"
                   >
                     <template x-for="guestNumber in guestOptions" :key="`guest-${line.cartKey}-${guestNumber}`">
@@ -367,9 +411,9 @@
               </div>
               <div class="cart-line-actions">
                 <div class="qty-control">
-                  <button type="button" @click="updateCartQuantity(line.cartKey, -1)">−</button>
+                  <button type="button" aria-label="کاهش تعداد" @click="updateCartQuantity(line.cartKey, -1)">−</button>
                   <span x-text="toPersianNumber(line.quantity)"></span>
-                  <button type="button" @click="updateCartQuantity(line.cartKey, 1)">+</button>
+                  <button type="button" aria-label="افزایش تعداد" @click="updateCartQuantity(line.cartKey, 1)">+</button>
                 </div>
                 <button type="button" class="btn btn-link link-danger p-0" @click="removeFromCart(line.cartKey)">
                   حذف
@@ -380,7 +424,13 @@
         </div>
 
         <div class="cart-drawer-body" x-show="cartView === 'checkout'">
-          <div class="alert alert-danger border-0" x-show="checkoutError" x-text="checkoutError"></div>
+          <div
+            class="alert alert-danger border-0"
+            x-show="checkoutError"
+            x-text="checkoutError"
+            role="alert"
+            aria-live="assertive"
+          ></div>
           <div class="mb-3 split-toggle-card">
             <label class="form-check-label d-flex align-items-center gap-2">
               <input type="checkbox" class="form-check-input mt-0" x-model="checkoutForm.isSplitBill" @change="handleSplitBillToggle()">
@@ -388,16 +438,26 @@
             </label>
           </div>
           <div class="mb-3" x-show="checkoutForm.isSplitBill">
-            <label class="form-label">تعداد مهمان</label>
-            <select class="form-select" x-model.number="checkoutForm.guestCount" @change="handleSplitGuestCountChange()">
+            <label class="form-label" for="checkout-guest-count">تعداد مهمان</label>
+            <select
+              id="checkout-guest-count"
+              class="form-select"
+              x-model.number="checkoutForm.guestCount"
+              @change="handleSplitGuestCountChange()"
+            >
               <template x-for="count in [2,3,4,5,6,7,8]" :key="`guest-count-${count}`">
                 <option :value="count" x-text="toPersianNumber(count)"></option>
               </template>
             </select>
           </div>
           <div class="mb-3" x-show="checkoutForm.isSplitBill">
-            <label class="form-label">روش تقسیم حساب</label>
-            <select class="form-select" x-model="checkoutForm.splitBillMode" @change="handleSplitBillModeChange()">
+            <label class="form-label" for="checkout-split-mode">روش تقسیم حساب</label>
+            <select
+              id="checkout-split-mode"
+              class="form-select"
+              x-model="checkoutForm.splitBillMode"
+              @change="handleSplitBillModeChange()"
+            >
               <option value="ByItem">تخصیص آیتم‌ها به هر مهمان</option>
               <option value="ByPercentage">تقسیم درصدی (مثلاً ۳۰٪ و ۷۰٪)</option>
               <option value="ByCustomAmount">مبلغ دلخواه (مثلاً ۱ میلیون و ۳ میلیون)</option>
@@ -414,6 +474,7 @@
                   </div>
                   <select
                     class="form-select form-select-sm guest-select"
+                    aria-label="انتخاب مهمان برای این آیتم"
                     @change="assignCartPayer(line.cartKey, Number($event.target.value))"
                   >
                     <template x-for="guestNumber in guestOptions" :key="`checkout-guest-${line.cartKey}-${guestNumber}`">
@@ -471,16 +532,31 @@
             </div>
           </template>
           <div class="mb-3">
-            <label class="form-label">نام و نام خانوادگی (مسئول سفارش)</label>
-            <input type="text" class="form-control" x-model="checkoutForm.customerName" required>
+            <label class="form-label" for="checkout-customer-name">نام و نام خانوادگی (مسئول سفارش)</label>
+            <input
+              id="checkout-customer-name"
+              type="text"
+              class="form-control"
+              x-model="checkoutForm.customerName"
+              autocomplete="name"
+              required
+            >
           </div>
           <div class="mb-3">
-            <label class="form-label">شماره تماس</label>
-            <input type="tel" class="form-control ltr-text" x-model="checkoutForm.customerPhone" required>
+            <label class="form-label" for="checkout-customer-phone">شماره تماس</label>
+            <input
+              id="checkout-customer-phone"
+              type="tel"
+              class="form-control ltr-text"
+              x-model="checkoutForm.customerPhone"
+              autocomplete="tel"
+              inputmode="tel"
+              required
+            >
           </div>
           <div class="mb-3">
-            <label class="form-label">توضیحات (اختیاری)</label>
-            <textarea class="form-control" rows="3" x-model="checkoutForm.note"></textarea>
+            <label class="form-label" for="checkout-note">توضیحات (اختیاری)</label>
+            <textarea id="checkout-note" class="form-control" rows="3" x-model="checkoutForm.note"></textarea>
           </div>
           <div class="checkout-summary">
             <span>مبلغ قابل پرداخت</span>
@@ -520,15 +596,35 @@
       </aside>
     </div>
 
-    <div class="add-cart-overlay" x-show="addToCartModal" x-cloak @click.self="closeAddToCartModal()">
-      <div class="add-cart-modal" x-show="addToCartModal">
+    <div
+      class="add-cart-overlay"
+      x-show="addToCartModal"
+      x-cloak
+      @click.self="closeAddToCartModal()"
+      @keydown.tab="trapFocus($event)"
+      @keydown.escape.window="closeAddToCartModal()"
+      x-effect="if (addToCartModal) $nextTick(() => $refs.addCartClose?.focus())"
+    >
+      <div
+        class="add-cart-modal"
+        x-show="addToCartModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-cart-title"
+      >
         <div class="add-cart-modal-head">
           <div>
-            <h3 class="h5 mb-1" x-text="addToCartModal?.item?.name"></h3>
+            <h3 id="add-cart-title" class="h5 mb-1" x-text="addToCartModal?.item?.name"></h3>
             <small class="english-name" x-text="addToCartModal?.item?.englishName"></small>
           </div>
-          <button type="button" class="btn btn-light btn-sm rounded-circle" @click="closeAddToCartModal()">
-            <i class="bi bi-x-lg"></i>
+          <button
+            type="button"
+            class="btn btn-light btn-sm rounded-circle"
+            x-ref="addCartClose"
+            aria-label="بستن"
+            @click="closeAddToCartModal()"
+          >
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -568,9 +664,17 @@
           <div class="mb-3">
             <label class="form-label">تعداد</label>
             <div class="qty-control qty-control-lg">
-              <button type="button" @click="addToCartModal.quantity = Math.max(1, addToCartModal.quantity - 1)">−</button>
+              <button
+                type="button"
+                aria-label="کاهش تعداد"
+                @click="addToCartModal.quantity = Math.max(1, addToCartModal.quantity - 1)"
+              >−</button>
               <span x-text="toPersianNumber(addToCartModal?.quantity ?? 1)"></span>
-              <button type="button" @click="addToCartModal.quantity += 1">+</button>
+              <button
+                type="button"
+                aria-label="افزایش تعداد"
+                @click="addToCartModal.quantity += 1"
+              >+</button>
             </div>
           </div>
 
@@ -588,19 +692,37 @@
       </div>
     </div>
 
-    <div class="payment-overlay" x-show="mockPayment || splitMockPayment" x-cloak>
-      <div class="payment-card">
+    <div
+      class="payment-overlay"
+      x-show="mockPayment || splitMockPayment"
+      x-cloak
+      @keydown.tab="trapFocus($event)"
+      @keydown.escape.window="cancelMockPayment()"
+      x-effect="if (mockPayment || splitMockPayment) $nextTick(() => $refs.paymentCancel?.focus())"
+    >
+      <div class="payment-card" role="dialog" aria-modal="true" aria-labelledby="payment-title">
         <span class="payment-badge">درگاه پرداخت (آزمایشی)</span>
-        <h2 class="h4 mb-2">تأیید پرداخت</h2>
+        <h2 id="payment-title" class="h4 mb-2">تأیید پرداخت</h2>
         <p class="text-secondary mb-4" x-show="!splitMockPayment">
           این یک درگاه آزمایشی است. پس از تأیید، سفارش شما ثبت و برای تحویل در پیشخوان آماده می‌شود.
         </p>
         <p class="text-secondary mb-4" x-show="splitMockPayment">
           پرداخت سهم شما از سفارش مشترک. پس از تأیید، وضعیت پرداخت شما ثبت می‌شود.
         </p>
-        <div class="alert alert-danger border-0" x-show="checkoutError" x-text="checkoutError"></div>
+        <div
+          class="alert alert-danger border-0"
+          x-show="checkoutError"
+          x-text="checkoutError"
+          role="alert"
+          aria-live="assertive"
+        ></div>
         <div class="payment-actions">
-          <button type="button" class="btn btn-outline-dark rounded-pill px-4" @click="cancelMockPayment()">
+          <button
+            type="button"
+            class="btn btn-outline-dark rounded-pill px-4"
+            x-ref="paymentCancel"
+            @click="cancelMockPayment()"
+          >
             انصراف
           </button>
           <button
@@ -616,10 +738,16 @@
       </div>
     </div>
 
-    <div class="split-overlay" x-show="splitOrder && !splitMockPayment && !orderSuccess" x-cloak>
-      <div class="split-card">
+    <div
+      class="split-overlay"
+      x-show="splitOrder && !splitMockPayment && !orderSuccess"
+      x-cloak
+      @keydown.tab="trapFocus($event)"
+      x-effect="if (splitOrder && !splitMockPayment && !orderSuccess) $nextTick(() => $refs.splitClose?.focus())"
+    >
+      <div class="split-card" role="dialog" aria-modal="true" aria-labelledby="split-title">
         <span class="payment-badge">تسویه جداگانه</span>
-        <h2 class="h4 mb-1">سفارش <span x-text="splitOrder?.trackingCode"></span></h2>
+        <h2 id="split-title" class="h4 mb-1">سفارش <span x-text="splitOrder?.trackingCode"></span></h2>
         <p class="text-secondary mb-3">
           هر مهمان سهم خود را جداگانه پرداخت می‌کند. پس از پرداخت همه، سفارش برای تحویل آماده می‌شود.
         </p>
@@ -629,7 +757,13 @@
           <span>از</span>
           <strong x-text="formatPrice(splitOrder?.totalAmount || 0)"></strong>
         </div>
-        <div class="alert alert-danger border-0" x-show="checkoutError" x-text="checkoutError"></div>
+        <div
+          class="alert alert-danger border-0"
+          x-show="checkoutError"
+          x-text="checkoutError"
+          role="alert"
+          aria-live="assertive"
+        ></div>
         <div class="split-payer-list">
           <template x-for="payer in splitOrder?.payers || []" :key="payer.payerKey">
             <article class="split-payer-card" :class="{ 'split-payer-card--paid': payer.isPaid }">
@@ -650,21 +784,37 @@
             </article>
           </template>
         </div>
-        <button type="button" class="btn btn-outline-dark rounded-pill mt-4" @click="window.location.href='/'">
+        <button
+          type="button"
+          class="btn btn-outline-dark rounded-pill mt-4"
+          x-ref="splitClose"
+          @click="window.location.href='/'"
+        >
           بازگشت به منو
         </button>
       </div>
     </div>
 
-    <div class="success-overlay" x-show="orderSuccess" x-cloak>
-      <div class="success-card">
+    <div
+      class="success-overlay"
+      x-show="orderSuccess"
+      x-cloak
+      @keydown.tab="trapFocus($event)"
+      x-effect="if (orderSuccess) $nextTick(() => $refs.successClose?.focus())"
+    >
+      <div class="success-card" role="dialog" aria-modal="true" aria-labelledby="success-title">
         <div class="success-icon">
-          <i class="bi bi-check2-circle"></i>
+          <i class="bi bi-check2-circle" aria-hidden="true"></i>
         </div>
-        <h2 class="h4 mb-2">سفارش با موفقیت ثبت شد</h2>
+        <h2 id="success-title" class="h4 mb-2">سفارش با موفقیت ثبت شد</h2>
         <p class="text-secondary mb-3">لطفاً با کد پیگیری زیر به پیشخوان مراجعه کنید.</p>
         <div class="tracking-code" x-text="orderSuccess?.trackingCode"></div>
-        <button type="button" class="btn btn-dark rounded-pill px-4 mt-4" @click="dismissOrderSuccess()">
+        <button
+          type="button"
+          class="btn btn-dark rounded-pill px-4 mt-4"
+          x-ref="successClose"
+          @click="dismissOrderSuccess()"
+        >
           بازگشت به منو
         </button>
       </div>
@@ -679,14 +829,18 @@
         <i class="bi bi-basket"></i>
         <span x-text="cartCount > 0 ? toPersianNumber(cartCount) : 'سبد'"></span>
       </button>
-      <a :href="callHref()" class="mobile-order-link mobile-order-link--primary">
+      <a
+        x-show="settings.contactPhone"
+        :href="callHref()"
+        class="mobile-order-link mobile-order-link--primary"
+      >
         <i class="bi bi-telephone"></i>
         <span x-text="settings.footerCallLabel"></span>
       </a>
     </div>
   </div>
 
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+  <script defer src="assets/vendor/alpine/alpine.min.js"></script>
   <script src="assets/js/config.js"></script>
   <script src="assets/js/app.js"></script>
 </body>

@@ -124,6 +124,8 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
 
     public async Task<CreateOrderCheckoutResultDto> Handle(CreateOrderCheckoutCommand request, CancellationToken cancellationToken)
     {
+        PaymentAvailability.EnsureOnlinePaymentIsConfigured(_paymentOptions);
+
         var siteSettings = await _dbContext.SiteSettings
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);

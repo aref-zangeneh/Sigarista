@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { OrderAlertsBar } from '../components/OrderAlertsBar'
 import { LowStockAlertBar } from '../components/LowStockAlertBar'
@@ -183,6 +183,9 @@ export function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const burgerRef = useRef(null)
+  const sidebarCloseRef = useRef(null)
+  const wasMobileNavOpen = useRef(false)
   const [theme, setTheme] = useState(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'))
 
   const toggleTheme = () => {
@@ -227,6 +230,21 @@ export function AdminLayout() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [mobileNavOpen])
 
+  useEffect(() => {
+    if (mobileNavOpen) {
+      wasMobileNavOpen.current = true
+      sidebarCloseRef.current?.focus()
+      return undefined
+    }
+
+    if (wasMobileNavOpen.current) {
+      wasMobileNavOpen.current = false
+      burgerRef.current?.focus()
+    }
+
+    return undefined
+  }, [mobileNavOpen])
+
   if (isPosRoute) {
     return (
       <div className="pos-layout">
@@ -255,6 +273,9 @@ export function AdminLayout() {
 
   return (
     <div className="admin-shell">
+      <a className="skip-link" href="#admin-main">
+        رفتن به محتوای اصلی
+      </a>
       <aside
         className={mobileNavOpen ? 'sidebar sidebar--open' : 'sidebar'}
         aria-label="ناوبری مدیریت"
@@ -263,6 +284,7 @@ export function AdminLayout() {
           <span className="sidebar-logo">S</span>
           <span className="sidebar-brand-text">Sugarista</span>
           <button
+            ref={sidebarCloseRef}
             type="button"
             className="topbar-icon-btn sidebar-close"
             onClick={() => setMobileNavOpen(false)}
@@ -318,10 +340,11 @@ export function AdminLayout() {
         />
       ) : null}
 
-      <div className="main-wrap">
+      <div className="main-wrap" inert={mobileNavOpen ? true : undefined}>
         <header className="topbar">
           <div className="topbar-start">
             <button
+              ref={burgerRef}
               type="button"
               className="topbar-burger"
               onClick={() => setMobileNavOpen((open) => !open)}
@@ -383,11 +406,21 @@ export function AdminLayout() {
           </div>
         </header>
 
-        <main className="content">
-          {message ? <p className="feedback feedback-success">{message}</p> : null}
-          {error ? <p className="feedback feedback-error">{error}</p> : null}
+        <main className="content" id="admin-main" tabIndex={-1}>
+          {message ? (
+            <p className="feedback feedback-success" role="status" aria-live="polite">
+              {message}
+            </p>
+          ) : null}
+          {error ? (
+            <p className="feedback feedback-error" role="alert" aria-live="assertive">
+              {error}
+            </p>
+          ) : null}
           {loading ? (
-            <p className="feedback">در حال بارگذاری جدیدترین اطلاعات...</p>
+            <p className="feedback" role="status" aria-live="polite">
+              در حال بارگذاری جدیدترین اطلاعات...
+            </p>
           ) : null}
 
           {canViewOrders ? (

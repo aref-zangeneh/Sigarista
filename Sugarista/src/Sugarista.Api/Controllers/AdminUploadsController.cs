@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Sugarista.Api.Authorization;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Domain.Constants;
@@ -8,6 +9,7 @@ namespace Sugarista.Api.Controllers;
 
 [Authorize]
 [Route("api/admin/uploads")]
+[EnableRateLimiting("uploads")]
 public class AdminUploadsController : ApiControllerBase
 {
     [HttpPost("inventory-documents")]

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { DataTable } from '../components/DataTable'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 const CONSUMPTION_WINDOWS = [
   { value: 7, label: '۷ روز اخیر' },
@@ -52,6 +53,10 @@ export function InventoryPage() {
   useEffect(() => {
     loadConsumption(30)
   }, [loadConsumption])
+
+  useEscapeKey(Boolean(inventoryAction.mode), () =>
+    setInventoryAction({ ingredientId: null, mode: null }),
+  )
 
   return (
       <section className="panel-stack">
@@ -152,8 +157,14 @@ export function InventoryPage() {
     
         {inventoryAction.mode === 'restock' ? (
           <div className="modal-backdrop" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>
-            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-              <h3>شارژ موجودی</h3>
+            <div
+              className="modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="inventory-restock-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="inventory-restock-title">شارژ موجودی</h3>
               <form
                 onSubmit={async (event) => {
                   event.preventDefault()
@@ -196,8 +207,14 @@ export function InventoryPage() {
     
         {inventoryAction.mode === 'adjust' ? (
           <div className="modal-backdrop" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>
-            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-              <h3>تصحیح موجودی</h3>
+            <div
+              className="modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="inventory-adjust-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="inventory-adjust-title">تصحیح موجودی</h3>
               <p>مقدار مثبت = افزایش، مقدار منفی = کاهش</p>
               <form
                 onSubmit={async (event) => {
@@ -241,8 +258,14 @@ export function InventoryPage() {
     
         {inventoryAction.mode === 'alert' ? (
           <div className="modal-backdrop" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>
-            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-              <h3>تنظیم حد هشدار موجودی</h3>
+            <div
+              className="modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="inventory-alert-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="inventory-alert-title">تنظیم حد هشدار موجودی</h3>
               <form
                 onSubmit={async (event) => {
                   event.preventDefault()
@@ -281,9 +304,15 @@ export function InventoryPage() {
     
         {inventoryAction.mode === 'history' ? (
           <div className="modal-backdrop" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>
-            <div className="modal-card modal-card--wide" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="modal-card modal-card--wide"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="inventory-history-title"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="panel-head">
-                <h3>تاریخچه موجودی</h3>
+                <h3 id="inventory-history-title">تاریخچه موجودی</h3>
                 <button type="button" className="ghost-button" onClick={() => setInventoryAction({ ingredientId: null, mode: null })}>بستن</button>
               </div>
               <DataTable

@@ -3,6 +3,8 @@ import { useAdmin } from '../context/AdminContext'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { toPersianNumber } from '../utils/adminFormatters'
 import { gregorianIsoToShamsiLabel } from '../utils/shamsiDate'
+import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import './AssetsPage.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
@@ -135,6 +137,9 @@ export function AssetsPage() {
   const closeForm = () => {
     setFormOpen(false)
   }
+
+  useEscapeKey(formOpen, closeForm)
+  useEscapeKey(Boolean(detail) && !formOpen, () => setDetail(null))
 
   const openEdit = (asset) => {
     resetFeedback()
@@ -478,10 +483,15 @@ export function AssetsPage() {
       {/* ── create / edit modal ── */}
       {formOpen ? (
         <div className="modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) closeForm() }}>
-          <div className="modal assets-form-modal">
+          <div
+            className="modal assets-form-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="asset-form-title"
+          >
             <div className="panel-head">
               <div>
-                <h3>{form.id ? 'ویرایش قلم اموال' : 'ثبت قلم اموال جدید'}</h3>
+                <h3 id="asset-form-title">{form.id ? 'ویرایش قلم اموال' : 'ثبت قلم اموال جدید'}</h3>
                 <p>فیلدهای ستاره‌دار الزامی‌اند. تا ۵ عکس می‌توانید ضمیمه کنید.</p>
               </div>
             </div>
@@ -554,11 +564,11 @@ export function AssetsPage() {
                 />
               </label>
               <label>
-                <span>تاریخ خرید (میلادی)</span>
-                <input
-                  type="date"
+                <span>تاریخ خرید</span>
+                <ShamsiDatePicker
                   value={form.purchaseDate ?? ''}
-                  onChange={(event) => setForm((current) => ({ ...current, purchaseDate: event.target.value }))}
+                  onChange={(purchaseDate) => setForm((current) => ({ ...current, purchaseDate }))}
+                  showHint={false}
                 />
               </label>
               <label>
@@ -636,10 +646,15 @@ export function AssetsPage() {
       {/* ── photos gallery modal ── */}
       {detail ? (
         <div className="modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) setDetail(null) }}>
-          <div className="modal assets-photos-modal">
+          <div
+            className="modal assets-photos-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="asset-photos-title"
+          >
             <div className="panel-head">
               <div>
-                <h3>عکس‌های «{detail.persianName}»</h3>
+                <h3 id="asset-photos-title">عکس‌های «{detail.persianName}»</h3>
                 <p>
                   {detail.category} — {detail.location} — ارزش دفتری {Number(detail.totalValue).toLocaleString('fa-IR')} تومان
                 </p>

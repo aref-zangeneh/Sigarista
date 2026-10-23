@@ -174,6 +174,7 @@ export const emptySettings = {
   footerMenuLabel: '',
   footerCallLabel: '',
   isOnlineSalesEnabled: true,
+  isOnlineOrderingAvailable: true,
   onlineSalesNotice: '',
 }
 

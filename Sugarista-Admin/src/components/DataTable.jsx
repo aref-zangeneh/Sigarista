@@ -177,7 +177,27 @@ export function DataTable({
                       key={header.id}
                       className={canSort ? 'data-table-th--sortable' : undefined}
                       style={{ width: header.column.columnDef.size }}
+                      tabIndex={canSort ? 0 : undefined}
+                      aria-sort={
+                        canSort
+                          ? sorted === 'asc'
+                            ? 'ascending'
+                            : sorted === 'desc'
+                              ? 'descending'
+                              : 'none'
+                          : undefined
+                      }
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                      onKeyDown={
+                        canSort
+                          ? (event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                header.column.getToggleSortingHandler()?.(event)
+                              }
+                            }
+                          : undefined
+                      }
                     >
                       <span className="data-table-th-content">
                         {header.isPlaceholder
@@ -198,7 +218,12 @@ export function DataTable({
           <tbody>
             {table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td className="data-table-empty" colSpan={columns.length}>
+                <td
+                  className="data-table-empty"
+                  colSpan={columns.length}
+                  role="status"
+                  aria-live="polite"
+                >
                   {loading ? 'در حال بارگذاری...' : emptyMessage}
                 </td>
               </tr>

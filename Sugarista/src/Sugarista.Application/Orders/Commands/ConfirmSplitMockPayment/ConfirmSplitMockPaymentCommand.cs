@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Common.Options;
+using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
 
@@ -33,19 +36,24 @@ public class ConfirmSplitMockPaymentCommandHandler
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IPaymentGateway _paymentGateway;
+    private readonly PaymentOptions _paymentOptions;
 
     public ConfirmSplitMockPaymentCommandHandler(
         IApplicationDbContext dbContext,
-        IPaymentGateway paymentGateway)
+        IPaymentGateway paymentGateway,
+        IOptions<PaymentOptions> paymentOptions)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
+        _paymentOptions = paymentOptions.Value;
     }
 
     public async Task<ConfirmSplitMockPaymentResultDto> Handle(
         ConfirmSplitMockPaymentCommand request,
         CancellationToken cancellationToken)
     {
+        PaymentAvailability.EnsureOnlinePaymentIsConfigured(_paymentOptions);
+
         var order = await _dbContext.Orders
             .Include(o => o.Lines)
             .Include(o => o.Payments)

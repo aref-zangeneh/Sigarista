@@ -2,6 +2,7 @@ import { DataTable, formatMoney } from './DataTable'
 import { OrderFulfillmentActions, fulfillmentStatusLabel } from './OrderAlertsBar'
 import { toPersianNumber, formatDateTime } from '../utils/adminFormatters'
 import { useAdmin } from '../context/AdminContext'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 export function OrderEditorModal() {
   const admin = useAdmin()
@@ -21,17 +22,25 @@ export function OrderEditorModal() {
     handleCancelOrder,
   } = admin
 
+  useEscapeKey(Boolean(selectedOrder && orderEditForm), closeOrderEditor)
+
   if (!selectedOrder || !orderEditForm) {
     return null
   }
 
   return (
       <div className="modal-backdrop" onClick={closeOrderEditor}>
-        <div className="modal-card modal-card--wide" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="modal-card modal-card--wide"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="order-editor-title"
+          onClick={(event) => event.stopPropagation()}
+        >
           <form onSubmit={handleSaveOrder}>
             <div className="panel-head">
               <div>
-                <h3>مدیریت سفارش {selectedOrder.trackingCode}</h3>
+                <h3 id="order-editor-title">مدیریت سفارش {selectedOrder.trackingCode}</h3>
                 <p>
                   {selectedOrder.isSplitBill ? 'تسویه جداگانه · ' : ''}
                   {selectedOrder.status}

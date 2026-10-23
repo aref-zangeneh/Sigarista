@@ -18,6 +18,7 @@ export function ShamsiDatePicker({
   placeholder = 'انتخاب تاریخ از تقویم شمسی',
   minDate,
   maxDate,
+  showHint = true,
 }) {
   const visibleRef = useRef(null)
   const gregorianRef = useRef(null)
@@ -86,7 +87,9 @@ export function ShamsiDatePicker({
         readOnly={false}
       />
       <input type="hidden" id={gregorianInputId} ref={gregorianRef} />
-      <small className="table-subtext">روی فیلد کلیک کنید تا تقویم جلالی باز شود</small>
+      {showHint ? (
+        <small className="table-subtext">روی فیلد کلیک کنید تا تقویم جلالی باز شود</small>
+      ) : null}
     </div>
   )
 }

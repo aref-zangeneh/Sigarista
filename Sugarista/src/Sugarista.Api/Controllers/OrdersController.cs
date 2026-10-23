@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Sugarista.Application.Orders.Commands.ConfirmMockPayment;
 using Sugarista.Application.Orders.Commands.ConfirmSplitMockPayment;
 using Sugarista.Application.Orders.Commands.CreateOrderCheckout;
@@ -9,6 +10,7 @@ using Sugarista.Application.Orders.Queries.GetSplitOrderStatus;
 namespace Sugarista.Api.Controllers;
 
 [Route("api/orders")]
+[EnableRateLimiting("checkout")]
 public class OrdersController : ApiControllerBase
 {
     [HttpPost("checkout")]

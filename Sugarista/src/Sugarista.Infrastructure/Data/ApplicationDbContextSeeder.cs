@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
@@ -13,17 +14,20 @@ public class ApplicationDbContextSeeder
     private readonly ApplicationDbContext _dbContext;
     private readonly IAdminPasswordService _adminPasswordService;
     private readonly IOptions<AdminBootstrapOptions> _adminOptions;
+    private readonly IHostEnvironment _environment;
     private readonly ILogger<ApplicationDbContextSeeder> _logger;
 
     public ApplicationDbContextSeeder(
         ApplicationDbContext dbContext,
         IAdminPasswordService adminPasswordService,
         IOptions<AdminBootstrapOptions> adminOptions,
+        IHostEnvironment environment,
         ILogger<ApplicationDbContextSeeder> logger)
     {
         _dbContext = dbContext;
         _adminPasswordService = adminPasswordService;
         _adminOptions = adminOptions;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -32,12 +36,25 @@ public class ApplicationDbContextSeeder
         await _dbContext.Database.MigrateAsync(cancellationToken);
         await EnsureSchemaCompatibilityAsync(cancellationToken);
 
+        // Demo catalog, sample tables and example settings only exist in local
+        // development. A production database must never start with invented
+        // menu items, prices, stock or contact information.
+        var seedDemoContent = _environment.IsDevelopment();
+
         await SeedSiteSettingsAsync(cancellationToken);
-        await SeedMenuAsync(cancellationToken);
-        await SeedSalonAsync(cancellationToken);
+        if (seedDemoContent)
+        {
+            await SeedMenuAsync(cancellationToken);
+            await SeedSalonAsync(cancellationToken);
+        }
+
         await SeedAdminAsync(cancellationToken);
         await EnsureBootstrapSuperAdminAsync(cancellationToken);
-        await SeedIngredientsAsync(cancellationToken);
+        if (seedDemoContent)
+        {
+            await SeedIngredientsAsync(cancellationToken);
+        }
+
         await SeedInventoryStocksAsync(cancellationToken);
         await SeedAccountingAccountsAsync(cancellationToken);
         await SeedCafeOpenHoursAsync(cancellationToken);
@@ -700,6 +717,23 @@ public class ApplicationDbContextSeeder
     {
         if (await _dbContext.SiteSettings.AnyAsync(cancellationToken))
         {
+            return;
+        }
+
+        if (!_environment.IsDevelopment())
+        {
+            // Neutral bootstrap row: no invented phone number, address, opening
+            // hours or marketing copy. The owner fills these in from the admin UI.
+            _dbContext.SiteSettings.Add(new SiteSettings
+            {
+                CafeName = "کافه",
+                BrowserTitle = "منوی دیجیتال کافه",
+                BrandTitle = "منوی دیجیتال",
+                IsOnlineSalesEnabled = false,
+                OnlineSalesNotice = "سفارش آنلاین پس از پیکربندی درگاه پرداخت فعال می‌شود."
+            });
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
             return;
         }
 

@@ -1181,7 +1181,13 @@ export function buildProductionBatchColumns({ toPersianNumber }) {
       accessorKey: 'producedAt',
       header: 'زمان تولید',
       cell: ({ getValue }) =>
-        new Intl.DateTimeFormat('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(getValue())),
+        new Intl.DateTimeFormat('fa-IR', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+          calendar: 'persian',
+          numberingSystem: 'arabext',
+          timeZone: 'Asia/Tehran',
+        }).format(new Date(getValue())),
     },
   ]
 }

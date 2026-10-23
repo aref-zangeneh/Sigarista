@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { PERMISSIONS, hasPermission } from '../utils/adminPermissions'
+import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
+import { gregorianIsoToShamsiLabel } from '../utils/shamsiDate'
 import './accounting.css'
 
 const TABS = [
@@ -299,15 +301,15 @@ export function AccountingPage() {
         <div className="form-panel" style={{ minWidth: 280 }}>
           <label>
             از تاریخ
-            <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
+            <ShamsiDatePicker value={fromDate} onChange={setFromDate} showHint={false} />
           </label>
           <label>
             تا تاریخ
-            <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} />
+            <ShamsiDatePicker value={toDate} onChange={setToDate} showHint={false} />
           </label>
           <label>
             گزارش تا تاریخ
-            <input type="date" value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} />
+            <ShamsiDatePicker value={asOfDate} onChange={setAsOfDate} showHint={false} />
           </label>
           <button type="button" onClick={refreshActiveTab} disabled={loading || saving}>
             {loading ? 'در حال بارگذاری…' : 'بروزرسانی'}
@@ -506,11 +508,11 @@ export function AccountingPage() {
               </label>
               <label>
                 تاریخ
-                <input
-                  type="date"
+                <ShamsiDatePicker
                   required
                   value={capitalForm.transactionDate}
-                  onChange={(event) => setCapitalForm({ ...capitalForm, transactionDate: event.target.value })}
+                  onChange={(transactionDate) => setCapitalForm({ ...capitalForm, transactionDate })}
+                  showHint={false}
                 />
               </label>
               <label>
@@ -533,11 +535,11 @@ export function AccountingPage() {
             <form onSubmit={handleExpenseSubmit}>
               <label>
                 تاریخ
-                <input
-                  type="date"
+                <ShamsiDatePicker
                   required
                   value={expenseForm.entryDate}
-                  onChange={(event) => setExpenseForm({ ...expenseForm, entryDate: event.target.value })}
+                  onChange={(entryDate) => setExpenseForm({ ...expenseForm, entryDate })}
+                  showHint={false}
                 />
               </label>
               <label>
@@ -630,7 +632,7 @@ export function AccountingPage() {
                   <span className="partner-chip">{entry.sourceType}</span>
                 </div>
                 <div>
-                  <span>{entry.entryDate}</span>
+                  <span>{gregorianIsoToShamsiLabel(entry.entryDate)}</span>
                   <span> — {entry.description}</span>
                 </div>
               </div>
@@ -665,7 +667,7 @@ export function AccountingPage() {
           {trialBalance ? (
             <article className="panel">
               <div className="panel-head">
-                <h3>تراز آزمایشی — {trialBalance.asOfDate}</h3>
+                <h3>تراز آزمایشی — {gregorianIsoToShamsiLabel(trialBalance.asOfDate)}</h3>
                 <p>
                   جمع بدهکار: {formatMoney(trialBalance.totalDebit)} — جمع بستانکار:{' '}
                   {formatMoney(trialBalance.totalCredit)}
@@ -734,7 +736,7 @@ export function AccountingPage() {
           {balanceSheet ? (
             <article className="panel">
               <div className="panel-head">
-                <h3>ترازنامه — {balanceSheet.asOfDate}</h3>
+                <h3>ترازنامه — {gregorianIsoToShamsiLabel(balanceSheet.asOfDate)}</h3>
                 <p>
                   دارایی: {formatMoney(balanceSheet.totalAssets)} — بدهی:{' '}
                   {formatMoney(balanceSheet.totalLiabilities)} — حقوق: {formatMoney(balanceSheet.totalEquity)}
@@ -780,7 +782,8 @@ export function AccountingPage() {
           <div className="panel-head">
             <h3>پیش‌نویس تقسیم سود</h3>
             <p>
-              دوره {profitDraft.periodStart} تا {profitDraft.periodEnd} — سود خالص:{' '}
+              دوره {gregorianIsoToShamsiLabel(profitDraft.periodStart)} تا{' '}
+              {gregorianIsoToShamsiLabel(profitDraft.periodEnd)} — سود خالص:{' '}
               {formatMoney(profitDraft.totalNetProfit)}
             </p>
           </div>

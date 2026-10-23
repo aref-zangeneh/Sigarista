@@ -1,4 +1,5 @@
 import { useAdmin } from '../context/AdminContext'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 export function SalonStatePage() {
   const {
@@ -25,6 +26,9 @@ export function SalonStatePage() {
     formatDateTime,
     formatDuration,
   } = useAdmin()
+
+  useEscapeKey(isOccupyModalOpen, closeOccupyModal)
+  useEscapeKey(isSalonTableModalOpen, closeSalonTableModal)
 
   return (
       <section className="panel-stack">
@@ -144,10 +148,16 @@ export function SalonStatePage() {
     
         {isOccupyModalOpen ? (
           <div className="modal-backdrop" role="presentation">
-            <form className="panel form-panel modal-card" onSubmit={handleOccupyTable}>
+            <form
+              className="panel form-panel modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="occupy-table-title"
+              onSubmit={handleOccupyTable}
+            >
               <div className="panel-head">
                 <div>
-                  <h3>ثبت اشغال میز</h3>
+                  <h3 id="occupy-table-title">ثبت اشغال میز</h3>
                   <p>تعداد افراد را وارد کنید تا زمان شروع حضور مشتریان ذخیره شود.</p>
                 </div>
                 <button type="button" className="ghost-button" onClick={closeOccupyModal}>
@@ -212,10 +222,16 @@ export function SalonStatePage() {
     
         {isSalonTableModalOpen ? (
           <div className="modal-backdrop" role="presentation">
-            <form className="panel form-panel modal-card" onSubmit={handleSalonTableSubmit}>
+            <form
+              className="panel form-panel modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="salon-table-title"
+              onSubmit={handleSalonTableSubmit}
+            >
             <div className="panel-head">
               <div>
-                <h3>{salonTableForm.id ? 'ویرایش میز' : 'میز جدید'}</h3>
+                <h3 id="salon-table-title">{salonTableForm.id ? 'ویرایش میز' : 'میز جدید'}</h3>
                 <p>میزها، ظرفیت سالن و نقشه عملیاتی کافه را مشخص می‌کنند.</p>
               </div>
               <button type="button" className="ghost-button" onClick={closeSalonTableModal}>

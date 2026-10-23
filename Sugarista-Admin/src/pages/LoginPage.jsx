@@ -8,7 +8,7 @@ export function LoginPage() {
       <section className="login-card">
         <p className="eyebrow">شوگریستا</p>
         <h1>ورود</h1>
-        <form className="login-form" onSubmit={handleLogin}>
+        <form className="login-form" onSubmit={handleLogin} aria-busy={saving}>
           <label>
             <span>نام کاربری</span>
             <input
@@ -36,7 +36,11 @@ export function LoginPage() {
             {saving ? 'در حال ورود...' : 'ورود'}
           </button>
         </form>
-        {error ? <p className="feedback feedback-error">{error}</p> : null}
+        {error ? (
+          <p className="feedback feedback-error" role="alert" aria-live="assertive">
+            {error}
+          </p>
+        ) : null}
       </section>
     </main>
   )

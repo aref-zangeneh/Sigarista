@@ -88,7 +88,7 @@ export function ShamsiDatePicker({
       />
       <input type="hidden" id={gregorianInputId} ref={gregorianRef} />
       {showHint ? (
-        <small className="table-subtext">روی فیلد کلیک کنید تا تقویم جلالی باز شود</small>
+        <small className="table-subtext"></small>
       ) : null}
     </div>
   )

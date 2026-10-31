@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Exports;
+using Sugarista.Application.Maintenance;
 using Sugarista.Application.Common.Options;
 using Sugarista.Infrastructure.Notifications;
 using Sugarista.Infrastructure.Auth;
@@ -36,6 +37,8 @@ public static class DependencyInjection
         services.Configure<PaymentOptions>(configuration.GetSection(PaymentOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.Configure<SmsOptions>(configuration.GetSection(SmsOptions.SectionName));
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
+        services.AddScoped<MaintenanceReminderDispatcher>();
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IExcelExporter, ClosedXmlExcelExporter>();
@@ -44,7 +47,11 @@ public static class DependencyInjection
         services.AddScoped<ExportDataBuilder>();
         services.AddHostedService<ExportJobRunnerService>();
         services.AddHttpClient<KavenegarSmsService>();
+        services.AddHttpClient<KavenegarMaintenanceSmsService>();
         services.AddScoped<LoggingSmsService>();
+        services.AddScoped<LoggingMaintenanceSmsService>();
+        services.AddScoped<LoggingMaintenanceEmailService>();
+        services.AddScoped<SmtpMaintenanceEmailService>();
         services.AddScoped<ISmsService>(provider =>
         {
             var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
@@ -56,6 +63,29 @@ public static class DependencyInjection
 
             return provider.GetRequiredService<LoggingSmsService>();
         });
+        services.AddScoped<IMaintenanceSmsSender>(provider =>
+        {
+            var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
+            if (string.Equals(smsOptions.Provider, "Kavenegar", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(smsOptions.ApiKey))
+            {
+                return provider.GetRequiredService<KavenegarMaintenanceSmsService>();
+            }
+
+            return provider.GetRequiredService<LoggingMaintenanceSmsService>();
+        });
+        services.AddScoped<IMaintenanceEmailSender>(provider =>
+        {
+            var emailOptions = provider.GetRequiredService<IOptions<EmailOptions>>().Value;
+            if (string.Equals(emailOptions.Provider, "Smtp", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(emailOptions.Host))
+            {
+                return provider.GetRequiredService<SmtpMaintenanceEmailService>();
+            }
+
+            return provider.GetRequiredService<LoggingMaintenanceEmailService>();
+        });
+        services.AddHostedService<MaintenanceReminderTickerService>();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");

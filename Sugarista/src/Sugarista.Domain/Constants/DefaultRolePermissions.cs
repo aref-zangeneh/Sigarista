@@ -74,6 +74,10 @@ public static class DefaultRolePermissions
         AdminPermissions.Assets.Create,
         AdminPermissions.Assets.Update,
         AdminPermissions.Assets.Delete,
+        AdminPermissions.Maintenance.View,
+        AdminPermissions.Maintenance.Create,
+        AdminPermissions.Maintenance.Update,
+        AdminPermissions.Maintenance.Delete,
         AdminPermissions.Accounting.View,
         AdminPermissions.Accounting.Create,
         AdminPermissions.Accounting.Update,
@@ -129,6 +133,9 @@ public static class DefaultRolePermissions
         AdminPermissions.Assets.View,
         AdminPermissions.Assets.Create,
         AdminPermissions.Assets.Update,
+        AdminPermissions.Maintenance.View,
+        AdminPermissions.Maintenance.Create,
+        AdminPermissions.Maintenance.Update,
     ];
 
     /// <summary>People: HR module plus read-only accounting (فیش‌ها روی سند حسابداری اثر می‌گذارند).</summary>

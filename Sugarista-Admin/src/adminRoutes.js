@@ -23,6 +23,7 @@ export const adminRoutes = [
   { id: 'orders', path: 'orders', label: 'سفارش‌ها' },
   { id: 'customers', path: 'customers', label: 'باشگاه مشتریان' },
   { id: 'assets', path: 'assets-registry', label: 'اموال و تجهیزات' },
+  { id: 'maintenance', path: 'equipment-maintenance', label: 'سرویس دوره‌ای تجهیزات' },
   { id: 'hr', path: 'hr', label: 'منابع انسانی' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },
   { id: 'admin-users', path: 'admin-users', label: 'مدیریت کاربران' },

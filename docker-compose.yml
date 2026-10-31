@@ -45,6 +45,14 @@ services:
       Sms__CafeName: ${Sms__CafeName:-شوگاریستا}
       Sms__ApiKey: ${Sms__ApiKey:-}
       Sms__Sender: ${Sms__Sender:-}
+      Email__Provider: ${Email__Provider:-Logging}
+      Email__Host: ${Email__Host:-}
+      Email__Port: ${Email__Port:-587}
+      Email__FromAddress: ${Email__FromAddress:-maintenance@sugarista.local}
+      Email__FromName: ${Email__FromName:-شوگاریستا}
+      Email__Username: ${Email__Username:-}
+      Email__Password: ${Email__Password:-}
+      Email__UseSsl: ${Email__UseSsl:-true}
     depends_on:
       postgres:
         condition: service_healthy

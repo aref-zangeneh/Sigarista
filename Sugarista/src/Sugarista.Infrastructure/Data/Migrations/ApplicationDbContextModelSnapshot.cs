@@ -22,6 +22,198 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.Account", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSystem")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NamePersian")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Accounts");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.AddonItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EnglishName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PersianName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.PrimitiveCollection<string[]>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AddonItems");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.AdminActivityLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("ActorDisplayName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorUsername")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ChangedFields")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("EntityLabel")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("HttpMethod")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("SectionId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("SectionTitle")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.HasIndex("ActorUsername", "OccurredAt");
+
+                    b.HasIndex("SectionId", "OccurredAt");
+
+                    b.ToTable("AdminActivityLogs");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.AdminRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -59,6 +251,102 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("AdminRoles");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.AdminRolePermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdminRoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PermissionKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminRoleId");
+
+                    b.ToTable("AdminRolePermissions", (string)null);
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.AdminUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSuperAdmin")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("AdminUsers");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.AdminUserPermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PermissionKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminUserId", "PermissionKey")
+                        .IsUnique();
+
+                    b.ToTable("AdminUserPermissions");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.CafeAsset", b =>
@@ -165,124 +453,6 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("CafeAssetPhotos");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.CafeAssetPhoto", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.CafeAsset", null)
-                        .WithMany("Photos")
-                        .HasForeignKey("AssetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.CafeAsset", b =>
-                {
-                    b.Navigation("Photos");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.AdminActivityLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("ActorDisplayName")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<Guid?>("ActorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ActorUsername")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("ChangedFields")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("EntityLabel")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("HttpMethod")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(60)
-                        .HasColumnType("character varying(60)");
-
-                    b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Path")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<string>("SectionId")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)");
-
-                    b.Property<string>("SectionTitle")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<int>("StatusCode")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("Succeeded")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OccurredAt");
-
-                    b.HasIndex("ActorUsername", "OccurredAt");
-
-                    b.HasIndex("SectionId", "OccurredAt");
-
-                    b.ToTable("AdminActivityLogs");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.AdminRolePermission", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AdminRoleId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PermissionKey")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AdminRoleId");
-
-                    b.ToTable("AdminRolePermissions");
-                });
-
             modelBuilder.Entity("Sugarista.Domain.Entities.CafeOpenHour", b =>
                 {
                     b.Property<Guid>("Id")
@@ -290,7 +460,7 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<TimeOnly>("CloseTime")
-                        .HasColumnType("time");
+                        .HasColumnType("time without time zone");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -299,7 +469,6 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasColumnType("text");
 
                     b.Property<bool>("IsOpen")
-                        .IsRequired()
                         .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("LastModifiedAt")
@@ -309,7 +478,7 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasColumnType("text");
 
                     b.Property<TimeOnly>("OpenTime")
-                        .HasColumnType("time");
+                        .HasColumnType("time without time zone");
 
                     b.Property<int>("Weekday")
                         .HasColumnType("integer");
@@ -320,281 +489,6 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("CafeOpenHours");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeeShiftPlan", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<TimeOnly>("EndTime")
-                        .HasColumnType("time");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<TimeOnly>("StartTime")
-                        .HasColumnType("time");
-
-                    b.Property<int>("Weekday")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("EmployeeId", "Weekday")
-                        .IsUnique();
-
-                    b.ToTable("EmployeeShiftPlans");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.PunchAttendance", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("PunchInAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("PunchOutAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("text");
-
-                    b.Property<DateOnly>("WorkDate")
-                        .HasColumnType("date");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId", "WorkDate");
-
-                    b.HasIndex("PunchInAt");
-
-                    b.ToTable("PunchAttendances");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.AdminRolePermission", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.AdminRole", null)
-                        .WithMany("Permissions")
-                        .HasForeignKey("AdminRoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeeShiftPlan", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.Employee", null)
-                        .WithMany("ShiftPlans")
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.PunchAttendance", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.Employee", null)
-                        .WithMany("Punches")
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.AddonItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("EnglishName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("PersianName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.PrimitiveCollection<string[]>("Tags")
-                        .IsRequired()
-                        .HasColumnType("text[]");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AddonItems");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.AdminUser", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsSuperAdmin")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Username")
-                        .IsUnique();
-
-                    b.ToTable("AdminUsers");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.AdminUserPermission", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AdminUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PermissionKey")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AdminUserId", "PermissionKey")
-                        .IsUnique();
-
-                    b.ToTable("AdminUserPermissions");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.CostControlBoard", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Json")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Version")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CostControlBoards");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.Category", b =>
@@ -639,7 +533,173 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("Categories");
                 });
 
-modelBuilder.Entity("Sugarista.Domain.Entities.Employee", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.CostControlBoard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CostControlBoards");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FirstChannel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastChannel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PersianName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhoneNumber")
+                        .IsUnique();
+
+                    b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("DeliveryFee")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EnglishName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PersianName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DeliveryMethods");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethodPackaging", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("DeliveryMethodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("QuantityPerOrder")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IngredientId");
+
+                    b.HasIndex("DeliveryMethodId", "IngredientId")
+                        .IsUnique();
+
+                    b.ToTable("DeliveryMethodPackagings");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.Employee", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -655,10 +715,6 @@ modelBuilder.Entity("Sugarista.Domain.Entities.Employee", b =>
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
-                    b.Property<string>("NationalId")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
                     b.Property<DateOnly>("HireDate")
                         .HasColumnType("date");
 
@@ -670,6 +726,10 @@ modelBuilder.Entity("Sugarista.Domain.Entities.Employee", b =>
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
+
+                    b.Property<string>("NationalId")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(800)
@@ -697,6 +757,221 @@ modelBuilder.Entity("Sugarista.Domain.Entities.Employee", b =>
                     b.HasIndex("IsActive");
 
                     b.ToTable("Employees");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeePayPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CommissionPercent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("HourlyRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(800)
+                        .HasColumnType("character varying(800)");
+
+                    b.Property<decimal>("OvertimeMultiplier")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<decimal>("SalaryAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ShiftRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("EmployeeId", "IsActive");
+
+                    b.ToTable("EmployeePayPlans");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeeShiftPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<int>("Weekday")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "Weekday")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeShiftPlans");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeeWorkLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("OvertimeHours")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<int>("ShiftCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("WorkedHours")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkDate");
+
+                    b.HasIndex("EmployeeId", "WorkDate")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeWorkLogs");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.ExportJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1020)
+                        .HasColumnType("character varying(1020)");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("FromDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<long>("RowsCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StoragePath")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
+
+                    b.Property<DateOnly?>("ToDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("ExportJobs");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.HrGlossaryTerm", b =>
@@ -735,402 +1010,7 @@ modelBuilder.Entity("Sugarista.Domain.Entities.Employee", b =>
                     b.ToTable("HrGlossaryTerms");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.PayrollPeriod", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateOnly>("EndDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("ShamsiMonth")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ShamsiYear")
-                        .HasColumnType("integer");
-
-                    b.Property<DateOnly>("StartDate")
-                        .HasColumnType("date");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ShamsiYear", "ShamsiMonth")
-                        .IsUnique();
-
-                    b.ToTable("PayrollPeriods");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeePayPlan", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("HourlyRate")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("CommissionPercent")
-                        .HasPrecision(9, 4)
-                        .HasColumnType("numeric(9,4)");
-
-                    b.Property<decimal>("OvertimeMultiplier")
-                        .HasPrecision(9, 4)
-                        .HasColumnType("numeric(9,4)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(800)
-                        .HasColumnType("character varying(800)");
-
-                    b.Property<decimal>("SalaryAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("ShiftRate")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("EmployeeId", "IsActive");
-
-                    b.ToTable("EmployeePayPlans");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeeWorkLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<decimal>("OvertimeHours")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("numeric(6,2)");
-
-                    b.Property<int>("ShiftCount")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("WorkedHours")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("numeric(6,2)");
-
-                    b.Property<DateOnly>("WorkDate")
-                        .HasColumnType("date");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("WorkDate");
-
-                    b.HasIndex("EmployeeId", "WorkDate")
-                        .IsUnique();
-
-                    b.ToTable("EmployeeWorkLogs");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.PayrollEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Advance")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("BasePay")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("Bonus")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("CommissionPay")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("CommissionPercent")
-                        .HasPrecision(9, 4)
-                        .HasColumnType("numeric(9,4)");
-
-                    b.Property<decimal>("CommissionSalesAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("EmployeeName")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<string>("EmployeePosition")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("Deductions")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid?>("JournalEntryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("PaidAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("PayPlanKind")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("PeriodId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(800)
-                        .HasColumnType("character varying(800)");
-
-                    b.Property<decimal>("OvertimePay")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("ShiftCount")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("ScheduledHours")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("numeric(6,2)");
-
-                    b.Property<decimal>("UnderworkHours")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("numeric(6,2)");
-
-                    b.Property<decimal>("UnderworkDeduction")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("OvertimeHours")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("numeric(6,2)");
-
-                    b.Property<decimal>("WorkedHours")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("numeric(6,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("PeriodId", "EmployeeId")
-                        .IsUnique();
-
-                    b.ToTable("PayrollEntries");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeePayPlan", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.Employee", null)
-                        .WithMany("PayPlans")
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeeWorkLog", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.Employee", null)
-                        .WithMany("WorkLogs")
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.PayrollEntry", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.Employee", null)
-                        .WithMany("PayrollEntries")
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Sugarista.Domain.Entities.PayrollPeriod", null)
-                        .WithMany("Entries")
-                        .HasForeignKey("PeriodId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.AdminRole", b =>
-                {
-                    b.Navigation("Permissions");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.Employee", b =>
-                {
-                    b.Navigation("PayPlans");
-
-                    b.Navigation("PayrollEntries");
-
-                    b.Navigation("Punches");
-
-                    b.Navigation("ShiftPlans");
-
-                    b.Navigation("WorkLogs");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.PayrollPeriod", b =>
-                {
-                    b.Navigation("Entries");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.ExportJob", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(1020)
-                        .HasColumnType("character varying(1020)");
-
-                    b.Property<DateOnly?>("FromDate")
-                        .HasColumnType("date");
-
-                    b.Property<long>("FileSizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("FileName")
-                        .HasMaxLength(260)
-                        .HasColumnType("character varying(260)");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("character varying(60)");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("RequestedBy")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<string>("StoragePath")
-                        .HasMaxLength(600)
-                        .HasColumnType("character varying(600)");
-
-                    b.Property<DateOnly?>("ToDate")
-                        .HasColumnType("date");
-
-                    b.Property<long>("RowsCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTimeOffset?>("StartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("ExportJobs");
-                });
-
-modelBuilder.Entity("Sugarista.Domain.Entities.Ingredient", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.Ingredient", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1207,166 +1087,7 @@ modelBuilder.Entity("Sugarista.Domain.Entities.Ingredient", b =>
                     b.ToTable("Ingredients");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.Customer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Email")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FirstChannel")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("LastChannel")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PersianName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PhoneNumber")
-                        .IsUnique();
-
-                    b.ToTable("Customers");
-                });
-modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("DeliveryFee")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("EnglishName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PersianName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DeliveryMethods");
-                });
-                modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethodPackaging", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("DeliveryMethodId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("IngredientId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("QuantityPerOrder")
-                        .HasColumnType("numeric(12,3)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeliveryMethodId", "IngredientId")
-                        .IsUnique();
-
-                    b.HasIndex("IngredientId");
-
-                    b.ToTable("DeliveryMethodPackagings");
-                b.HasOne("Sugarista.Domain.Entities.DeliveryMethod", "DeliveryMethod")
-                        .WithMany("Packagings")
-                        .HasForeignKey("DeliveryMethodId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
-                        .WithMany()
-                        .HasForeignKey("IngredientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DeliveryMethod");
-
-
-        b.HasOne("Sugarista.Domain.Entities.Customer", "Customer")
-            .WithMany()
-            .HasForeignKey("CustomerId")
-            .OnDelete(DeleteBehavior.SetNull);
-
-        b.HasIndex("CustomerId");
-
-        b.Navigation("Customer");
-
-                    b.Navigation("Ingredient");
-
-                    });
-                modelBuilder.Entity("Sugarista.Domain.Entities.IngredientSupplier", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.IngredientSupplier", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1401,57 +1122,6 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                         .IsUnique();
 
                     b.ToTable("IngredientSuppliers");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.Supplier", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContactName")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("PersianName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DisplayOrder");
-
-                    b.HasIndex("PersianName")
-                        .IsUnique();
-
-                    b.ToTable("Suppliers");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.InventoryPurchase", b =>
@@ -1578,6 +1248,316 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.ToTable("InventoryStocks");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.JournalEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateOnly>("EntryDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsPosted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("PostedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntryDate");
+
+                    b.HasIndex("ReferenceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("SourceType", "SourceId")
+                        .IsUnique();
+
+                    b.ToTable("JournalEntries");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.JournalLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Credit")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("Debit")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("JournalEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("PartnerId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("JournalEntryId");
+
+                    b.HasIndex("PartnerId");
+
+                    b.ToTable("JournalLines");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceDefaultRecipient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Channel", "Target")
+                        .IsUnique();
+
+                    b.ToTable("MaintenanceDefaultRecipients");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceEquipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BrandModel")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("OutOfServiceAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OutOfServiceNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("PersianName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateOnly?>("PurchaseDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category", "IsActive");
+
+                    b.ToTable("MaintenanceEquipments");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceRecipient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduleId", "Channel");
+
+                    b.ToTable("MaintenanceRecipients");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EquipmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("IntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateOnly?>("LastCompletedOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("NextDueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EquipmentId");
+
+                    b.HasIndex("NextDueDate", "IsActive");
+
+                    b.ToTable("MaintenanceSchedules");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceServiceLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Cost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
+
+                    b.Property<Guid>("EquipmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PerformedBy")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid?>("ScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("ServicedOn")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduleId");
+
+                    b.HasIndex("EquipmentId", "ServicedOn");
+
+                    b.ToTable("MaintenanceServiceLogs");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1649,14 +1629,15 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<decimal?>("MarkupPercent")
-                        .HasColumnType("numeric(5,2)");
-
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
+
+                    b.Property<decimal?>("MarkupPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
 
                     b.Property<decimal?>("MediumPrice")
                         .HasColumnType("numeric(18,2)");
@@ -1827,6 +1808,9 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("CustomerName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1837,19 +1821,25 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<decimal>("DeliveryFee")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("DeliveryMethodId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("FulfillmentStatus")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
-
-                    b.Property<DateTimeOffset?>("HeldAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("FulfillmentUpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("GuestCount")
                         .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("HeldAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsSplitBill")
                         .HasColumnType("boolean");
@@ -1863,6 +1853,9 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Property<string>("Note")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("PackagingDeducted")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("PaidAt")
                         .HasColumnType("timestamp with time zone");
@@ -1887,21 +1880,6 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
 
                     b.Property<Guid?>("ServedByAdminUserId")
                         .HasColumnType("uuid");
-                    b.Property<Guid?>("DeliveryMethodId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("DeliveryFee")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid?>("CustomerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("TaxTotal")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<bool>("PackagingDeducted")
-                        .HasColumnType("boolean");
-
 
                     b.Property<string>("ServiceType")
                         .HasMaxLength(20)
@@ -1917,6 +1895,12 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<Guid?>("TableSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TaxTotal")
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<decimal>("TotalAmount")
                         .HasColumnType("numeric(18,2)");
 
@@ -1925,14 +1909,15 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<Guid?>("TableSessionId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Channel");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("DeliveryMethodId");
 
                     b.HasIndex("FulfillmentStatus");
 
@@ -1973,9 +1958,6 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Property<decimal>("LineTotal")
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<decimal>("TaxPercent")
-                        .HasColumnType("numeric(5,2)");
-
                     b.Property<Guid>("MenuItemId")
                         .HasColumnType("uuid");
 
@@ -2009,6 +1991,10 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Property<string>("SizeLabel")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("TaxPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
 
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("numeric(18,2)");
@@ -2103,6 +2089,257 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.HasIndex("OrderId", "PayerKey");
 
                     b.ToTable("OrderSplitShares");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.Partner", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("OwnershipPercentage")
+                        .HasColumnType("numeric(8,4)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Partners");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.PartnerCapitalTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid?>("JournalEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("TransactionDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JournalEntryId");
+
+                    b.HasIndex("PartnerId");
+
+                    b.ToTable("PartnerCapitalTransactions");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.PayrollEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Advance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("BasePay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("Bonus")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("CommissionPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("CommissionPercent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
+                    b.Property<decimal>("CommissionSalesAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Deductions")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EmployeeName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("EmployeePosition")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<Guid?>("JournalEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(800)
+                        .HasColumnType("character varying(800)");
+
+                    b.Property<decimal>("OvertimeHours")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("OvertimePay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PayPlanKind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PeriodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ScheduledHours")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("ShiftCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("UnderworkDeduction")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("UnderworkHours")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("WorkedHours")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("PeriodId", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("PayrollEntries");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.PayrollPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("ShamsiMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ShamsiYear")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShamsiYear", "ShamsiMonth")
+                        .IsUnique();
+
+                    b.ToTable("PayrollPeriods");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.ProductWikiGuide", b =>
@@ -2244,6 +2481,124 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.HasIndex("ProducedAt");
 
                     b.ToTable("ProductionBatches");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistribution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("FinalizedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("JournalEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("TotalNetProfit")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JournalEntryId");
+
+                    b.ToTable("ProfitDistributions");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistributionLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AllocatedAmount")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("OwnershipPercentage")
+                        .HasColumnType("numeric(8,4)");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProfitDistributionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartnerId");
+
+                    b.HasIndex("ProfitDistributionId");
+
+                    b.ToTable("ProfitDistributionLines");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.PunchAttendance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("PunchInAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("PunchOutAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PunchInAt");
+
+                    b.HasIndex("EmployeeId", "WorkDate");
+
+                    b.ToTable("PunchAttendances");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.RecipeItem", b =>
@@ -2623,6 +2978,60 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.ToTable("StockMovements");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.Supplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContactName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("PersianName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DisplayOrder");
+
+                    b.HasIndex("PersianName")
+                        .IsUnique();
+
+                    b.ToTable("Suppliers");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.TableSession", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2664,316 +3073,15 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.ToTable("TableSessions");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.Account", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.AdminRolePermission", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsSystem")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("NamePersian")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("Accounts");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.Partner", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<decimal>("OwnershipPercentage")
-                        .HasColumnType("numeric(8,4)");
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Partners");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.JournalEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateOnly>("EntryDate")
-                        .HasColumnType("date");
-
-                    b.Property<bool>("IsPosted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("PostedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ReferenceNumber")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<Guid?>("SourceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SourceType")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EntryDate");
-
-                    b.HasIndex("ReferenceNumber")
-                        .IsUnique();
-
-                    b.HasIndex("SourceType", "SourceId")
-                        .IsUnique();
-
-                    b.ToTable("JournalEntries");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.JournalLine", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Credit")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("Debit")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<Guid>("JournalEntryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("PartnerId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("JournalEntryId");
-
-                    b.HasIndex("PartnerId");
-
-                    b.ToTable("JournalLines");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.PartnerCapitalTransaction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid?>("JournalEntryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("PartnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateOnly>("TransactionDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JournalEntryId");
-
-                    b.HasIndex("PartnerId");
-
-                    b.ToTable("PartnerCapitalTransactions");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistribution", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("FinalizedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("JournalEntryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateOnly>("PeriodEnd")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly>("PeriodStart")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<decimal>("TotalNetProfit")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JournalEntryId");
-
-                    b.ToTable("ProfitDistributions");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistributionLine", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("AllocatedAmount")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("OwnershipPercentage")
-                        .HasColumnType("numeric(8,4)");
-
-                    b.Property<Guid>("PartnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ProfitDistributionId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PartnerId");
-
-                    b.HasIndex("ProfitDistributionId");
-
-                    b.ToTable("ProfitDistributionLines");
+                    b.HasOne("Sugarista.Domain.Entities.AdminRole", "AdminRole")
+                        .WithMany("Permissions")
+                        .HasForeignKey("AdminRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdminRole");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.AdminUserPermission", b =>
@@ -2987,29 +3095,63 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Navigation("AdminUser");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.InventoryPurchase", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.CafeAssetPhoto", b =>
                 {
+                    b.HasOne("Sugarista.Domain.Entities.CafeAsset", "CafeAsset")
+                        .WithMany("Photos")
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CafeAsset");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethodPackaging", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.DeliveryMethod", "DeliveryMethod")
+                        .WithMany("Packagings")
+                        .HasForeignKey("DeliveryMethodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
                         .WithMany()
                         .HasForeignKey("IngredientId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sugarista.Domain.Entities.Supplier", "Supplier")
-                        .WithMany()
-                        .HasForeignKey("SupplierId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Sugarista.Domain.Entities.StockMovement", "StockMovement")
-                        .WithMany()
-                        .HasForeignKey("StockMovementId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                    b.Navigation("DeliveryMethod");
 
                     b.Navigation("Ingredient");
+                });
 
-                    b.Navigation("StockMovement");
+            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeePayPlan", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Employee", null)
+                        .WithMany("PayPlans")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
 
-                    b.Navigation("Supplier");
+            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeeShiftPlan", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Employee", "Employee")
+                        .WithMany("ShiftPlans")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.EmployeeWorkLog", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Employee", null)
+                        .WithMany("WorkLogs")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.IngredientSupplier", b =>
@@ -3029,6 +3171,42 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Navigation("Ingredient");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.InventoryPurchase", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sugarista.Domain.Entities.StockMovement", "StockMovement")
+                        .WithMany()
+                        .HasForeignKey("StockMovementId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Sugarista.Domain.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Ingredient");
+
+                    b.Navigation("StockMovement");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.InventoryStock", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
+                        .WithOne("Stock")
+                        .HasForeignKey("Sugarista.Domain.Entities.InventoryStock", "IngredientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ingredient");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.JournalLine", b =>
@@ -3057,62 +3235,44 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Navigation("Partner");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.PartnerCapitalTransaction", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceRecipient", b =>
                 {
-                    b.HasOne("Sugarista.Domain.Entities.JournalEntry", "JournalEntry")
+                    b.HasOne("Sugarista.Domain.Entities.MaintenanceSchedule", "Schedule")
+                        .WithMany("Recipients")
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Schedule");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceSchedule", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MaintenanceEquipment", "Equipment")
+                        .WithMany("Schedules")
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Equipment");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceServiceLog", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MaintenanceEquipment", "Equipment")
+                        .WithMany("ServiceLogs")
+                        .HasForeignKey("EquipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sugarista.Domain.Entities.MaintenanceSchedule", "Schedule")
                         .WithMany()
-                        .HasForeignKey("JournalEntryId")
+                        .HasForeignKey("ScheduleId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Sugarista.Domain.Entities.Partner", "Partner")
-                        .WithMany("CapitalTransactions")
-                        .HasForeignKey("PartnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Navigation("Equipment");
 
-                    b.Navigation("JournalEntry");
-
-                    b.Navigation("Partner");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistribution", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.JournalEntry", "JournalEntry")
-                        .WithMany()
-                        .HasForeignKey("JournalEntryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("JournalEntry");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistributionLine", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.Partner", "Partner")
-                        .WithMany()
-                        .HasForeignKey("PartnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Sugarista.Domain.Entities.ProfitDistribution", "ProfitDistribution")
-                        .WithMany("Lines")
-                        .HasForeignKey("ProfitDistributionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Partner");
-
-                    b.Navigation("ProfitDistribution");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.InventoryStock", b =>
-                {
-                    b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
-                        .WithOne("Stock")
-                        .HasForeignKey("Sugarista.Domain.Entities.InventoryStock", "IngredientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Ingredient");
+                    b.Navigation("Schedule");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItem", b =>
@@ -3139,6 +3299,15 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
 
             modelBuilder.Entity("Sugarista.Domain.Entities.Order", b =>
                 {
+                    b.HasOne("Sugarista.Domain.Entities.Customer", "Customer")
+                        .WithMany("Orders")
+                        .HasForeignKey("CustomerId");
+
+                    b.HasOne("Sugarista.Domain.Entities.DeliveryMethod", "DeliveryMethod")
+                        .WithMany()
+                        .HasForeignKey("DeliveryMethodId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Sugarista.Domain.Entities.SalonTable", "SalonTable")
                         .WithMany()
                         .HasForeignKey("SalonTableId")
@@ -3149,14 +3318,9 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                         .HasForeignKey("TableSessionId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-        b.HasOne("Sugarista.Domain.Entities.DeliveryMethod", "DeliveryMethod")
-            .WithMany()
-            .HasForeignKey("DeliveryMethodId")
-            .OnDelete(DeleteBehavior.SetNull);
+                    b.Navigation("Customer");
 
-        b.HasIndex("DeliveryMethodId");
-
-        b.Navigation("DeliveryMethod");
+                    b.Navigation("DeliveryMethod");
 
                     b.Navigation("SalonTable");
 
@@ -3204,6 +3368,41 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.PartnerCapitalTransaction", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.JournalEntry", "JournalEntry")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Sugarista.Domain.Entities.Partner", "Partner")
+                        .WithMany("CapitalTransactions")
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("JournalEntry");
+
+                    b.Navigation("Partner");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.PayrollEntry", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Employee", null)
+                        .WithMany("PayrollEntries")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sugarista.Domain.Entities.PayrollPeriod", "Period")
+                        .WithMany("Entries")
+                        .HasForeignKey("PeriodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Period");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.ProductWikiGuide", b =>
                 {
                     b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
@@ -3239,6 +3438,46 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                         .IsRequired();
 
                     b.Navigation("MenuItem");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistribution", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.JournalEntry", "JournalEntry")
+                        .WithMany()
+                        .HasForeignKey("JournalEntryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("JournalEntry");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistributionLine", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Partner", "Partner")
+                        .WithMany()
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sugarista.Domain.Entities.ProfitDistribution", "ProfitDistribution")
+                        .WithMany("Lines")
+                        .HasForeignKey("ProfitDistributionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Partner");
+
+                    b.Navigation("ProfitDistribution");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.PunchAttendance", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Employee", "Employee")
+                        .WithMany("Punches")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.RecipeItem", b =>
@@ -3283,19 +3522,52 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Navigation("Table");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.AdminUser", b =>
-                {
-                    b.Navigation("Permissions");
-                });
-
             modelBuilder.Entity("Sugarista.Domain.Entities.Account", b =>
                 {
                     b.Navigation("JournalLines");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.AdminRole", b =>
+                {
+                    b.Navigation("Permissions");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.AdminUser", b =>
+                {
+                    b.Navigation("Permissions");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.CafeAsset", b =>
+                {
+                    b.Navigation("Photos");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.Category", b =>
                 {
                     b.Navigation("MenuItems");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.Customer", b =>
+                {
+                    b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
+                {
+                    b.Navigation("Packagings");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.Employee", b =>
+                {
+                    b.Navigation("PayPlans");
+
+                    b.Navigation("PayrollEntries");
+
+                    b.Navigation("Punches");
+
+                    b.Navigation("ShiftPlans");
+
+                    b.Navigation("WorkLogs");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.Ingredient", b =>
@@ -3307,16 +3579,9 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Navigation("Stock");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.IngredientSupplier", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.InventoryStock", b =>
                 {
-                    b.Navigation("Ingredient");
-
-                    b.Navigation("Supplier");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.Supplier", b =>
-                {
-                    b.Navigation("IngredientSuppliers");
+                    b.Navigation("Movements");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.JournalEntry", b =>
@@ -3324,19 +3589,16 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Navigation("Lines");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.Partner", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceEquipment", b =>
                 {
-                    b.Navigation("CapitalTransactions");
+                    b.Navigation("Schedules");
+
+                    b.Navigation("ServiceLogs");
                 });
 
-            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistribution", b =>
+            modelBuilder.Entity("Sugarista.Domain.Entities.MaintenanceSchedule", b =>
                 {
-                    b.Navigation("Lines");
-                });
-
-            modelBuilder.Entity("Sugarista.Domain.Entities.InventoryStock", b =>
-                {
-                    b.Navigation("Movements");
+                    b.Navigation("Recipients");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItem", b =>
@@ -3353,14 +3615,34 @@ modelBuilder.Entity("Sugarista.Domain.Entities.DeliveryMethod", b =>
                     b.Navigation("SplitShares");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.Partner", b =>
+                {
+                    b.Navigation("CapitalTransactions");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.PayrollPeriod", b =>
+                {
+                    b.Navigation("Entries");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.ProductWikiGuide", b =>
                 {
                     b.Navigation("Steps");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.ProfitDistribution", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.SalonTable", b =>
                 {
                     b.Navigation("Sessions");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.Supplier", b =>
+                {
+                    b.Navigation("IngredientSuppliers");
                 });
 #pragma warning restore 612, 618
         }

@@ -153,6 +153,12 @@ const ROUTE_ICONS = {
       <path d="M4 12h16" />
     </>,
   ),
+  maintenance: icon(
+    <>
+      <path d="M14.7 6.3a4 4 0 0 0-5.4 5.3L4 17l3 3 5.4-5.3a4 4 0 0 0 5.3-5.4l-2.6 2.6-2.7-2.7 2.3-2.9Z" />
+      <path d="M5 20.5 4 19.5" />
+    </>,
+  ),
   'activity-log': icon(
     <>
       <path d="M9 4h6a2 2 0 0 1 2 2v1" />
@@ -173,7 +179,7 @@ const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'modifiers'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
-  { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets'] },
+  { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'منابع انسانی', routes: ['hr'] },
   { title: 'سیستم', routes: ['site-settings', 'admin-users', 'activity-log'] },

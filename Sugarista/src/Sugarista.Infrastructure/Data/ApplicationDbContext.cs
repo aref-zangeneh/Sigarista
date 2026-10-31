@@ -59,6 +59,16 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<CafeAssetPhoto> CafeAssetPhotos => Set<CafeAssetPhoto>();
 
+    public DbSet<MaintenanceEquipment> MaintenanceEquipments => Set<MaintenanceEquipment>();
+
+    public DbSet<MaintenanceSchedule> MaintenanceSchedules => Set<MaintenanceSchedule>();
+
+    public DbSet<MaintenanceRecipient> MaintenanceRecipients => Set<MaintenanceRecipient>();
+
+    public DbSet<MaintenanceDefaultRecipient> MaintenanceDefaultRecipients => Set<MaintenanceDefaultRecipient>();
+
+    public DbSet<MaintenanceServiceLog> MaintenanceServiceLogs => Set<MaintenanceServiceLog>();
+
     public DbSet<AdminActivityLog> AdminActivityLogs => Set<AdminActivityLog>();
 
     public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();

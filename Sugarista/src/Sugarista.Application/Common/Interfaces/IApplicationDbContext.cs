@@ -46,6 +46,16 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.CafeAssetPhoto> CafeAssetPhotos { get; }
 
+    DbSet<Sugarista.Domain.Entities.MaintenanceEquipment> MaintenanceEquipments { get; }
+
+    DbSet<Sugarista.Domain.Entities.MaintenanceSchedule> MaintenanceSchedules { get; }
+
+    DbSet<Sugarista.Domain.Entities.MaintenanceRecipient> MaintenanceRecipients { get; }
+
+    DbSet<Sugarista.Domain.Entities.MaintenanceDefaultRecipient> MaintenanceDefaultRecipients { get; }
+
+    DbSet<Sugarista.Domain.Entities.MaintenanceServiceLog> MaintenanceServiceLogs { get; }
+
     DbSet<Sugarista.Domain.Entities.AdminActivityLog> AdminActivityLogs { get; }
 
     DbSet<Sugarista.Domain.Entities.PayrollPeriod> PayrollPeriods { get; }

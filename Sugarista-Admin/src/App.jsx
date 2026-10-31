@@ -28,6 +28,7 @@ import { CustomersPage } from './pages/CustomersPage'
 import { ExportsPage } from './pages/ExportsPage'
 import { HrPage } from './pages/HrPage'
 import { AssetsPage } from './pages/AssetsPage'
+import { EquipmentMaintenancePage } from './pages/EquipmentMaintenancePage'
 import { ActivityLogPage } from './pages/ActivityLogPage'
 import { SiteSettingsPage } from './pages/SiteSettingsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
@@ -56,6 +57,7 @@ const pageComponents = {
   customers: CustomersPage,
   exports: ExportsPage,
   assets: AssetsPage,
+  maintenance: EquipmentMaintenancePage,
   hr: HrPage,
   'site-settings': SiteSettingsPage,
   'admin-users': AdminUsersPage,

@@ -190,11 +190,22 @@ var uploadsRoot = Path.IsPathRooted(fileStorageOptions.UploadRootPath)
     : Path.Combine(app.Environment.ContentRootPath, fileStorageOptions.UploadRootPath);
 Directory.CreateDirectory(Path.Combine(uploadsRoot, "inventory-documents"));
 Directory.CreateDirectory(Path.Combine(uploadsRoot, "asset-photos"));
+Directory.CreateDirectory(Path.Combine(uploadsRoot, "images"));
 
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsRoot),
     RequestPath = "/api/files",
+    OnPrepareResponse = static context =>
+    {
+        // Image filenames are generated GUIDs and are never rewritten in place,
+        // so the served content is immutable — cache aggressively.
+        if (context.Context.Request.Path.Value?.Contains("/images/", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            context.Context.Response.Headers.CacheControl =
+                $"public, max-age={TimeSpan.FromDays(365).TotalSeconds:0}, immutable";
+        }
+    },
 });
 
 app.UseAuthentication();

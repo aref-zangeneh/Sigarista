@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { apiRequest, getReadableError } from '../utils/adminApi'
+import { uploadImage, validateImageFile } from '../utils/imageUpload'
 import { toPersianNumber } from '../utils/adminFormatters'
 import { gregorianIsoToShamsiLabel } from '../utils/shamsiDate'
 import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import './AssetsPage.css'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 const CATEGORY_PRESETS = [
   'تجهیزات برقی',
@@ -39,23 +38,7 @@ function emptyAssetForm() {
 }
 
 async function uploadAssetPhoto(assetId, file, token) {
-  const formData = new FormData()
-  formData.append('file', file)
-  const response = await fetch(`${API_BASE_URL}/admin/assets/${assetId}/photos`, {
-    method: 'POST',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: formData,
-  })
-  if (!response.ok) {
-    let message = `آپلود عکس با خطای ${response.status} مواجه شد.`
-    try {
-      const payload = await response.json()
-      message = payload.detail || payload.title || message
-    } catch {}
-    throw new Error(message)
-  }
-  const payload = await response.json()
-  return payload
+  return uploadImage(`/admin/assets/${assetId}/photos`, file, token)
 }
 
 export function AssetsPage() {
@@ -216,8 +199,9 @@ export function AssetsPage() {
       input.onchange = async () => {
         const file = input.files?.[0]
         if (!file) return
-        if (file.size > 5 * 1024 * 1024) {
-          setError('حجم عکس نباید بیشتر از ۵ مگابایت باشد.')
+        const fileError = validateImageFile(file)
+        if (fileError) {
+          setError(fileError)
           return
         }
         try {

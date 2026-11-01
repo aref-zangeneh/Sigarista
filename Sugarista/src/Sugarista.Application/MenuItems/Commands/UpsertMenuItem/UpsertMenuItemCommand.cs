@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Common.Interfaces;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.MenuItems.Commands.UpsertMenuItem;
@@ -70,10 +71,12 @@ public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCo
 public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemCommand, Guid>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly IImageFileStore _imageStore;
 
-    public UpsertMenuItemCommandHandler(IApplicationDbContext dbContext)
+    public UpsertMenuItemCommandHandler(IApplicationDbContext dbContext, IImageFileStore imageStore)
     {
         _dbContext = dbContext;
+        _imageStore = imageStore;
     }
 
     public async Task<Guid> Handle(UpsertMenuItemCommand request, CancellationToken cancellationToken)
@@ -86,11 +89,19 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
             throw new KeyNotFoundException("Selected category was not found.");
         }
 
+        List<string> replacedImageUrls = [];
+
         if (request.Id is { } itemId)
         {
             var existingItem = await _dbContext.MenuItems
                 .FirstOrDefaultAsync(item => item.Id == itemId, cancellationToken)
                 ?? throw new KeyNotFoundException("Menu item was not found.");
+
+            replacedImageUrls = CollectReplacedImageUrls(
+                existingItem.ImageUrl,
+                existingItem.GalleryImageUrls,
+                request.ImageUrl,
+                request.GalleryImageUrls);
 
             existingItem.Update(
                 request.CategoryId,
@@ -164,6 +175,49 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        // Images are immutable files (fresh GUID every upload); any URL that
+        // was dropped from the item would become an orphan, so remove it.
+        if (replacedImageUrls.Count > 0)
+        {
+            try
+            {
+                await _imageStore.DeleteImageAsync(replacedImageUrls, cancellationToken);
+            }
+            catch (IOException)
+            {
+                // Disk housekeeping must never fail the business operation.
+            }
+        }
+
         return request.Id!.Value;
+    }
+
+    private static List<string> CollectReplacedImageUrls(
+        string? previousImageUrl,
+        IEnumerable<string> previousGallery,
+        string? newImageUrl,
+        IEnumerable<string> newGallery)
+    {
+        var kept = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(newImageUrl))
+        {
+            kept.Add(newImageUrl);
+        }
+        kept.UnionWith(newGallery.Where(url => !string.IsNullOrWhiteSpace(url)));
+
+        var replaced = new List<string>();
+        if (!string.IsNullOrWhiteSpace(previousImageUrl) && !kept.Contains(previousImageUrl))
+        {
+            replaced.Add(previousImageUrl);
+        }
+        foreach (var url in previousGallery)
+        {
+            if (!string.IsNullOrWhiteSpace(url) && !kept.Contains(url))
+            {
+                replaced.Add(url);
+            }
+        }
+
+        return replaced;
     }
 }

@@ -36,11 +36,14 @@ public static class DependencyInjection
         services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
         services.Configure<PaymentOptions>(configuration.GetSection(PaymentOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
+        services.Configure<ImageProcessingOptions>(configuration.GetSection(ImageProcessingOptions.SectionName));
         services.Configure<SmsOptions>(configuration.GetSection(SmsOptions.SectionName));
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
         services.AddScoped<MaintenanceReminderDispatcher>();
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.AddScoped<IImageProcessingService, SkiaSharpImageProcessingService>();
+        services.AddScoped<IImageFileStore, LocalImageFileStore>();
         services.AddScoped<IExcelExporter, ClosedXmlExcelExporter>();
         services.AddSingleton<IExportJobQueue, ExportJobQueue>();
         services.AddScoped<IExportFileStore, LocalFileStorageService>();

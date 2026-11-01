@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
 import { DataTable, formatMoney } from '../components/DataTable'
+import { ImageUploader } from '../components/ImageUploader'
 import { buildMenuItemPricingColumns } from '../components/adminTableColumns'
 
 export function MenuItemsPage() {
@@ -198,34 +199,35 @@ export function MenuItemsPage() {
           </label>
           <div className="form-section">
             <h4>تصاویر</h4>
-            <label>
-              <span>آدرس تصویر اصلی</span>
-              <input
-                className="ltr-input"
-                type="url"
-                value={menuItemForm.imageUrl}
-                onChange={(event) =>
-                  setMenuItemForm((currentForm) => ({
-                    ...currentForm,
-                    imageUrl: event.target.value,
-                  }))
-                }
-              />
-            </label>
-            <label>
-              <span>گالری تصاویر (هر آدرس در یک خط)</span>
-              <textarea
-                className="ltr-input"
-                rows="3"
-                value={menuItemForm.galleryImageUrls}
-                onChange={(event) =>
-                  setMenuItemForm((currentForm) => ({
-                    ...currentForm,
-                    galleryImageUrls: event.target.value,
-                  }))
-                }
-              />
-            </label>
+            <ImageUploader
+              label="تصویر اصلی"
+              hint="برای نمایش در منوی مشتری — طبق طراحی، تصویر مربعی بهترین نتیجه را می‌دهد"
+              value={menuItemForm.imageUrl ?? ''}
+              token={session?.token}
+              onChange={(url) =>
+                setMenuItemForm((currentForm) => ({
+                  ...currentForm,
+                  imageUrl: url ?? '',
+                }))
+              }
+            />
+            <ImageUploader
+              label="گالری تصاویر"
+              hint="با کشیدن فایل، هر تعداد عکس اضافه کنید؛ ترتیب با فلش‌ها قابل جابه‌جایی است"
+              multiple
+              allowUrl={false}
+              value={(menuItemForm.galleryImageUrls ?? '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean)}
+              token={session?.token}
+              onChange={(urls) =>
+                setMenuItemForm((currentForm) => ({
+                  ...currentForm,
+                  galleryImageUrls: (urls ?? []).join('\n'),
+                }))
+              }
+            />
           </div>
     
           <div className="form-section">

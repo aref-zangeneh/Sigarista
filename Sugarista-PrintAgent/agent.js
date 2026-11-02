@@ -43,7 +43,12 @@ function loadConfig() {
     printerName: String(raw.printerName || ""),
     pollSeconds: Number(raw.pollSeconds || 4),
     maxJobsPerPoll: Number(raw.maxJobsPerPoll || 10),
-    printTimeoutSeconds: Number(raw.printTimeoutSeconds || 60)
+    printTimeoutSeconds: Number(raw.printTimeoutSeconds || 60),
+    // 72 mm printable width at 203 dpi = 576 dots. Without an explicit page
+    // size CUPS may fall back to A4 and scale the bitmap into garbled output.
+    printOptions: Array.isArray(raw.printOptions) && raw.printOptions.length > 0
+      ? raw.printOptions.map(String)
+      : ["-o", "PageSize=X72MMY2000MM", "-o", "PageType=Variable", "-o", "CutType=DocCutMode"]
   };
   if (!config.apiKey) throw new Error("config.json is missing apiKey");
   return config;
@@ -90,7 +95,9 @@ async function renderReceipt(payload, copyType) {
 }
 
 async function printImage(config, imagePath) {
-  const args = ["-d", config.printerName, imagePath];
+  // Explicit options so a reset/reinstalled queue cannot fall back to A4 and
+  // scale the 576-dot bitmap (which produced stretched, garbled output).
+  const args = ["-d", config.printerName, ...config.printOptions, imagePath];
   await execFileAsync("lp", args, { timeout: config.printTimeoutSeconds * 1000 });
 }
 

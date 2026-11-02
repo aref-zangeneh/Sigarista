@@ -31,12 +31,12 @@ fi
 
 # The packages are only needed once; skip the network when they are already there
 # (so the installer still works offline / on a flaky connection).
-if venv/bin/python -c "import PIL, arabic_reshaper, bidi" >/dev/null 2>&1; then
+if venv/bin/python -c "import PIL, arabic_reshaper, bidi, fontTools" >/dev/null 2>&1; then
   echo "  ✓ python packages already installed"
 else
   venv/bin/pip install --quiet --upgrade pip || echo "  ⚠ could not upgrade pip (offline?) — continuing"
-  if ! venv/bin/pip install --quiet pillow arabic-reshaper python-bidi; then
-    echo "  ✗ could not install pillow / arabic-reshaper / python-bidi." >&2
+  if ! venv/bin/pip install --quiet pillow arabic-reshaper python-bidi fonttools; then
+    echo "  ✗ could not install pillow / arabic-reshaper / python-bidi / fonttools." >&2
     echo "    Connect to the internet and re-run ./install.sh." >&2
     exit 1
   fi

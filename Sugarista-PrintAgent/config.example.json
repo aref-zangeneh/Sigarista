@@ -4,5 +4,13 @@
   "printerName": "GA-E200I",
   "pollSeconds": 4,
   "maxJobsPerPoll": 10,
-  "printTimeoutSeconds": 60
+  "printTimeoutSeconds": 60,
+  "printOptions": [
+    "-o",
+    "PageSize=X72MMY2000MM",
+    "-o",
+    "PageType=Variable",
+    "-o",
+    "CutType=DocCutMode"
+  ]
 }

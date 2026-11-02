@@ -1,0 +1,8 @@
+{
+  "serverUrl": "https://sugarista.example.com",
+  "apiKey": "ChangeMe-PrintAgent-Key",
+  "printerName": "GA-E200I",
+  "pollSeconds": 4,
+  "maxJobsPerPoll": 10,
+  "printTimeoutSeconds": 60
+}

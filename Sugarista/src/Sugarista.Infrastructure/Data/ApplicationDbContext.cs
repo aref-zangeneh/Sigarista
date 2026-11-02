@@ -105,6 +105,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
 
+    public DbSet<PrintJob> PrintJobs => Set<PrintJob>();
+
     public DbSet<TableSession> TableSessions => Set<TableSession>();
 
     public DbSet<Account> Accounts => Set<Account>();

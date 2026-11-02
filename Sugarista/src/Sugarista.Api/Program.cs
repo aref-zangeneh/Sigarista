@@ -8,6 +8,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Sugarista.Api.Middleware;
 using Sugarista.Api.Authorization;
+using Sugarista.Api.Auth;
 using Sugarista.Application;
 using Sugarista.Infrastructure;
 using Sugarista.Application.Common.Options;
@@ -131,6 +132,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 app.UseExceptionHandling();
+app.UseMiddleware<PrintAgentKeyMiddleware>();
 
 app.Use(async (context, next) =>
 {

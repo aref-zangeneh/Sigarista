@@ -12,6 +12,7 @@ using Sugarista.Infrastructure.Auth;
 using Sugarista.Infrastructure.Data;
 using Sugarista.Infrastructure.Data.Interceptors;
 using Sugarista.Infrastructure.Payments;
+using Sugarista.Infrastructure.Printing;
 using Sugarista.Infrastructure.Settings;
 using Sugarista.Infrastructure.Services;
 
@@ -41,6 +42,7 @@ public static class DependencyInjection
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
         services.AddScoped<MaintenanceReminderDispatcher>();
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
+        services.AddScoped<IPrintJobService, ReceiptPrintJobService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IImageProcessingService, SkiaSharpImageProcessingService>();
         services.AddScoped<IImageFileStore, LocalImageFileStore>();

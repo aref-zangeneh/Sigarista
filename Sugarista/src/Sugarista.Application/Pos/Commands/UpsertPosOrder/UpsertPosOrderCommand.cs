@@ -67,13 +67,16 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IAccountingService _accountingService;
+    private readonly IPrintJobService _printJobService;
 
     public UpsertPosOrderCommandHandler(
         IApplicationDbContext dbContext,
-        IAccountingService accountingService)
+        IAccountingService accountingService,
+        IPrintJobService printJobService)
     {
         _dbContext = dbContext;
         _accountingService = accountingService;
+        _printJobService = printJobService;
     }
 
     public async Task<UpsertPosOrderResultDto> Handle(UpsertPosOrderCommand request, CancellationToken cancellationToken)
@@ -216,6 +219,9 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         {
             await _accountingService.PostOrderPaymentAsync(order, cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
+
+            // Queue the thermal receipt copies (customer + barista) for the print agent.
+            await _printJobService.EnqueueOrderReceiptsAsync(order, cancellationToken);
         }
 
         return new UpsertPosOrderResultDto(

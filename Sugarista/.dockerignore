@@ -1,0 +1,8 @@
+# Keep the build context small — local build output must never be sent to Docker.
+**/bin/
+**/obj/
+**/TestResults/
+**/.vs/
+**/*.user
+Dockerfile
+.dockerignore

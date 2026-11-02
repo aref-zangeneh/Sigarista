@@ -96,6 +96,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.SiteSettings> SiteSettings { get; }
 
+    DbSet<Sugarista.Domain.Entities.PrintJob> PrintJobs { get; }
+
     DbSet<Sugarista.Domain.Entities.TableSession> TableSessions { get; }
 
     DbSet<Sugarista.Domain.Entities.Account> Accounts { get; }

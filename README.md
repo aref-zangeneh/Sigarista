@@ -105,6 +105,28 @@ Open http://localhost:5173/admin/
 - Orders, payments, POS, inventory & purchases, assets registry, HR/payroll/scheduling
 - Maintenance (equipment service reminders, SMS/email, cost logs)
 - Site settings, loyalty, exports, activity logs, admin users/roles
+- Thermal receipt printing (customer + barista copies) via `Sugarista-PrintAgent`
+
+### Thermal Receipt Printing
+
+Every paid order — POS (cash/card), online gateway, and split-bill (on the final share) — enqueues **two print jobs**: a customer receipt (items, totals, payment method, tracking code) and a barista ticket (large order code, items with sizes/add-ons, notes, no prices).
+
+The server only queues rows in `PrintJobs`; the physical printing happens on the MacBook that is USB-connected to the printer:
+
+```
+Sugarista API ──► PrintJobs (Pending)
+                       │  GET /api/print-agent/pending   (X-Agent-Key)
+                       ▼
+             Sugarista-PrintAgent (Node.js, macOS)
+                       │  render.py → 384-dot PNG (Persian shaping + bidi)
+                       ▼
+                  lp -d GA-E200I  →  CUPS  →  printer
+```
+
+- Agent folder: [`Sugarista-PrintAgent/`](Sugarista-PrintAgent/README.md) — `./install.sh` sets up the venv and a `LaunchAgent` (`com.sugarista.printagent`) that starts at login and restarts on crash.
+- Auth: shared key in `X-Agent-Key`, configured via `PRINT_AGENT_KEY` (server `.env`) and `apiKey` (agent `config.json`).
+- Jobs are claimed on fetch (`Dispatched`); stale dispatches older than 2 minutes return to `Pending`; the agent retries 3× before the job is marked `Failed`.
+- Receipt rendering is wrapped in try/catch — a printer or agent failure never breaks checkout.
 
 ### Testing
 - `dotnet test` — Domain (xunit) + Application unit tests

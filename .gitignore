@@ -32,3 +32,7 @@ scripts/pos-print.env
 
 appsettings.*.local.json
 secrets.json
+
+# Sugarista-PrintAgent local runtime
+Sugarista-PrintAgent/venv/
+Sugarista-PrintAgent/config.json

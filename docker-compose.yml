@@ -41,6 +41,7 @@ services:
       Payment__Provider: ${Payment__Provider:-Mock}
       Payment__PublicBaseUrl: ${Payment__PublicBaseUrl:-http://localhost}
       Payment__AllowMockInProduction: ${Payment__AllowMockInProduction:-false}
+      PrintAgent__ApiKey: ${PRINT_AGENT_KEY:-Sg-printagent-4f7c2a91e8b3d605-Aa1!}
       Sms__Provider: ${Sms__Provider:-Logging}
       Sms__CafeName: ${Sms__CafeName:-شوگاریستا}
       Sms__ApiKey: ${Sms__ApiKey:-}

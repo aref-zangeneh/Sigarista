@@ -36,15 +36,18 @@ public class ConfirmSplitMockPaymentCommandHandler
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IPaymentGateway _paymentGateway;
+    private readonly IPrintJobService _printJobService;
     private readonly PaymentOptions _paymentOptions;
 
     public ConfirmSplitMockPaymentCommandHandler(
         IApplicationDbContext dbContext,
         IPaymentGateway paymentGateway,
+        IPrintJobService printJobService,
         IOptions<PaymentOptions> paymentOptions)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
+        _printJobService = printJobService;
         _paymentOptions = paymentOptions.Value;
     }
 
@@ -109,6 +112,12 @@ public class ConfirmSplitMockPaymentCommandHandler
 
         order.RecordPartialPayment(payment.Amount);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // When the final share is paid the order flips to Paid — print then, once.
+        if (order.Status == OrderStatus.Paid)
+        {
+            await _printJobService.EnqueueOrderReceiptsAsync(order, cancellationToken);
+        }
 
         return BuildResult(order, payment, order.Status == OrderStatus.Paid);
     }

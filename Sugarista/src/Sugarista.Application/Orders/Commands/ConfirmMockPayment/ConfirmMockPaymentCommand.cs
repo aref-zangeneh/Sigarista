@@ -32,17 +32,20 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
     private readonly IApplicationDbContext _dbContext;
     private readonly IPaymentGateway _paymentGateway;
     private readonly IAccountingService _accountingService;
+    private readonly IPrintJobService _printJobService;
     private readonly PaymentOptions _paymentOptions;
 
     public ConfirmMockPaymentCommandHandler(
         IApplicationDbContext dbContext,
         IPaymentGateway paymentGateway,
         IAccountingService accountingService,
+        IPrintJobService printJobService,
         IOptions<PaymentOptions> paymentOptions)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
         _accountingService = accountingService;
+        _printJobService = printJobService;
         _paymentOptions = paymentOptions.Value;
     }
 
@@ -103,6 +106,9 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
 
         await _accountingService.PostOrderPaymentAsync(order, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Queue the thermal receipt copies (customer + barista) for the print agent.
+        await _printJobService.EnqueueOrderReceiptsAsync(order, cancellationToken);
 
         return new ConfirmMockPaymentResultDto(
             order.Id,

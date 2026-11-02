@@ -77,9 +77,24 @@ document.addEventListener("alpine:init", () => {
       footerCallLabel: "تماس",
       isOnlineSalesEnabled: true,
       isOnlineOrderingAvailable: true,
-      onlineSalesNotice: ""
+      onlineSalesNotice: "",
+      themeMode: "auto",
+      timeZoneId: "Asia/Tehran",
+      lightThemeStartHour: 6,
+      darkThemeStartHour: 20,
+      allowManualThemeOverride: true
     },
+    // --- theme (light/dark by café time, manual override persisted) ---
+    themePref: null,
+    themeTimer: null,
+    themeIsDark: false,
+    // --- search box typewriter placeholder ---
+    placeholderText: "مثلا: لاته، چیزکیک، کروسان...",
+    searchTypeTimer: null,
+    searchUserTyping: false,
     async init() {
+      this.loadThemePref();
+      this.applyTheme();
       this.loadCart();
       this.handleRouteState();
       this.loading = true;
@@ -117,12 +132,198 @@ document.addEventListener("alpine:init", () => {
         this.modifiers = menuData.modifiers || [];
         this.settings = { ...this.settings, ...settingsData };
         this.applyPageMetadata();
+        this.setupTheme();
+        this.initSearchTypewriter();
         await this.loadSplitOrderFromRoute();
       } catch (error) {
         this.error = error.message || "دریافت اطلاعات با خطا مواجه شد.";
       } finally {
         this.loading = false;
       }
+    },
+    /* ── theme: light/dark by café local time, manual override persisted ── */
+    setupTheme() {
+      this.loadThemePref();
+
+      if (this.settings.allowManualThemeOverride === false && this.themePref?.mode === "manual") {
+        // The café has disabled manual overrides — clear any stale preference.
+        this.themePref = null;
+        try { localStorage.removeItem("sugarista_theme_pref"); } catch {}
+      }
+
+      this.applyTheme();
+      this.startThemeClock();
+    },
+    loadThemePref() {
+      try {
+        const raw = JSON.parse(localStorage.getItem("sugarista_theme_pref") || "null");
+        if (raw && (raw.mode === "manual" || raw.mode === "auto")) {
+          this.themePref = raw;
+        }
+      } catch {
+        this.themePref = null;
+      }
+    },
+    /** Cafe-local hour (0-23) resolved through the configured IANA time zone. */
+    cafeLocalHour() {
+      const timeZone = this.settings.timeZoneId || "Asia/Tehran";
+      try {
+        const formatted = new Intl.DateTimeFormat("en-US", {
+          timeZone,
+          hour: "numeric",
+          hourCycle: "h23"
+        }).format(new Date());
+        return Number.parseInt(formatted, 10);
+      } catch {
+        // Unknown time zone id — fall back to the visitor's own clock.
+        return new Date().getHours();
+      }
+    },
+    scheduledTheme() {
+      const hour = this.cafeLocalHour();
+      const lightStart = Number(this.settings.lightThemeStartHour ?? 6);
+      const darkStart = Number(this.settings.darkThemeStartHour ?? 20);
+
+      if (lightStart === darkStart) return "light";
+
+      const finalTheme = (hour >= darkStart || hour < lightStart) ? "dark" : "light";
+      return finalTheme;
+    },
+    /** Resolves what theme should be active right now, and applies it live. */
+    applyTheme() {
+      let next;
+      if (this.themePref?.mode === "manual" && (this.themePref.value === "light" || this.themePref.value === "dark")) {
+        next = this.themePref.value;
+      } else if (this.settings.themeMode === "light") {
+        next = "light";
+      } else if (this.settings.themeMode === "dark") {
+        next = "dark";
+      } else {
+        next = this.scheduledTheme();
+      }
+
+      const root = document.documentElement;
+      if (root.dataset.theme !== next) {
+        // Attribute swap only — CSS variables transition, no reload, no flash.
+        root.dataset.theme = next;
+        root.dataset.bsTheme = next;
+        root.style.colorScheme = next;
+      } else {
+        root.dataset.bsTheme = next;
+        root.style.colorScheme = next;
+      }
+      this.themeIsDark = next === "dark";
+      this.$nextTick?.();
+    },
+    toggleTheme() {
+      const root = document.documentElement;
+      const current = root.dataset.theme === "dark" ? "dark" : "light";
+      const next = current === "dark" ? "light" : "dark";
+
+      this.themePref = { mode: "manual", value: next };
+      try { localStorage.setItem("sugarista_theme_pref", JSON.stringify(this.themePref)); } catch {}
+      this.applyTheme();
+    },
+    resetThemeToAuto() {
+      this.themePref = { mode: "auto", value: null };
+      try {
+        localStorage.setItem("sugarista_theme_pref", JSON.stringify(this.themePref));
+      } catch {}
+      this.applyTheme();
+    },
+    // Re-check the schedule every minute so the theme moves with the clock —
+    // attribute swap only, never a reload.
+    startThemeClock() {
+      if (this.themeTimer) clearInterval(this.themeTimer);
+      this.themeTimer = setInterval(() => {
+        if (this.themePref?.mode !== "manual") {
+          this.applyTheme();
+        }
+      }, 60_000);
+    },
+    destroy() {
+      if (this.themeTimer) clearInterval(this.themeTimer);
+      if (this.searchTypeTimer) clearTimeout(this.searchTypeTimer);
+    },
+    /* ── search placeholder typewriter ──
+       Types real item names from the menu inside the search box placeholder,
+       then deletes them, word by word. Pauses (static placeholder) whenever
+       the visitor has anything typed, and resumes when the field is emptied. */
+    initSearchTypewriter() {
+      if (this.searchTypeTimer) {
+        clearTimeout(this.searchTypeTimer);
+        this.searchTypeTimer = null;
+      }
+
+      const names = (this.items || [])
+        .map((item) => (item.name || "").trim())
+        .filter((name) => name)
+        .filter((name, index, all) => all.indexOf(name) === index);
+
+      if (!names.length) {
+        this.placeholderText = this.settings.searchPlaceholder || "جستجو در منو";
+        return;
+      }
+
+      // Start from a random word so repeat visitors see variety.
+      let wordIndex = Math.floor(Math.random() * names.length);
+      let chars = 0;
+      let deleting = false;
+
+      const TICK = 90;           // typing speed per character
+      const DELETE_TICK = 45;    // deleting speed per character
+      const HOLD_FULL = 1800;    // pause once a whole word is visible
+      const HOLD_EMPTY = 400;    // pause after a word is fully erased
+
+      const schedule = (delay) => {
+        this.searchTypeTimer = setTimeout(() => {
+          // Never let one bad tick kill the loop for good.
+          try {
+            step();
+          } catch (error) {
+            console.warn("search typewriter tick failed, retrying", error);
+            schedule(500);
+          }
+        }, delay);
+      };
+
+      const step = () => {
+        // Visitor is searching — show the calm static placeholder, keep idling.
+        // searchUserTyping flips instantly on every keystroke (the x-model
+        // debounced `search` updates ~200ms later and covers resets/filters).
+        if (this.searchUserTyping || (this.search || "").trim() !== "") {
+          this.placeholderText = this.settings.searchPlaceholder || "جستجو در منو";
+          schedule(500);
+          return;
+        }
+
+        const word = names[wordIndex];
+        if (!deleting) {
+          chars += 1;
+          this.placeholderText = word.slice(0, chars);
+          if (chars >= word.length) {
+            deleting = true;
+            schedule(HOLD_FULL);
+          } else {
+            schedule(TICK);
+          }
+        } else {
+          chars -= 1;
+          this.placeholderText = chars > 0 ? word.slice(0, chars) : word.slice(0, 1);
+          if (chars <= 0) {
+            // Erased fully — move to the next word after a small beat.
+            deleting = false;
+            chars = 0;
+            this.placeholderText = "";
+            wordIndex = (wordIndex + 1) % names.length;
+            schedule(HOLD_EMPTY);
+          } else {
+            schedule(DELETE_TICK);
+          }
+        }
+      };
+
+      schedule(1200);
     },
     handleRouteState() {
       const params = new URLSearchParams(window.location.search);

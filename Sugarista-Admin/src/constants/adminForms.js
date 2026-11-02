@@ -176,6 +176,11 @@ export const emptySettings = {
   isOnlineSalesEnabled: true,
   isOnlineOrderingAvailable: true,
   onlineSalesNotice: '',
+  timeZoneId: 'Asia/Tehran',
+  lightThemeStartHour: 6,
+  darkThemeStartHour: 20,
+  themeMode: 'auto',
+  allowManualThemeOverride: true,
 }
 
 export const settingsSections = [

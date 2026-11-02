@@ -41,6 +41,12 @@ function SectionIcon({ name }) {
     contact: (
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
     ),
+    theme: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 3a9 9 0 0 0 0 18c.55 0 1-.45 1-1 0-.26-.11-.5-.29-.68a1 1 0 0 1 0-1.41c.18-.18.42-.29.68-.29h1.61A5 5 0 0 0 20 13c0-2.76-2.24-5-5-5h-3V3z" />
+      </>
+    ),
   }
 
   return (
@@ -82,6 +88,7 @@ export function SiteSettingsPage() {
 
   const navItems = [
     { id: 'settings-sales', title: 'فروش آنلاین', icon: 'cart' },
+    { id: 'settings-theme', title: 'تم و نمایش', icon: 'theme' },
     ...settingsSections.map((section) => ({
       id: `settings-${section.id}`,
       title: section.title,
@@ -186,6 +193,95 @@ export function SiteSettingsPage() {
                 />
               </label>
             )}
+          </div>
+        </section>
+
+        {/* ---------- تم و نمایش ---------- */}
+        <section id="settings-theme" className="panel settings-section">
+          <div className="panel-head">
+            <div className="settings-section-head">
+              <span className="settings-section-badge">
+                <SectionIcon name="theme" />
+              </span>
+              <div>
+                <h2>تم و نمایش</h2>
+                <p>تم روشن/تیرهٔ منوی مشتریان بر اساس ساعت محلی کافه، با امکان انتخاب دستی</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-grid">
+            <label>
+              <span>منطقه زمانی کافه</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                placeholder="Asia/Tehran"
+                value={siteSettings.timeZoneId ?? 'Asia/Tehran'}
+                onChange={(event) => updateField('timeZoneId', event.target.value)}
+              />
+              <small className="settings-hint">
+                شناسهٔ منطقه زمانی IANA (مثل Asia/Tehran یا Europe/Berlin) — مبنای محاسبهٔ ساعت تم
+              </small>
+            </label>
+            <label>
+              <span>شروع تم روشن (ساعت)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="23"
+                value={siteSettings.lightThemeStartHour ?? 6}
+                onChange={(event) => updateField('lightThemeStartHour', Number(event.target.value))}
+              />
+              <small className="settings-hint">از این ساعت محلی کافه، تم روشن فعال می‌شود (۰ تا ۲۳)</small>
+            </label>
+            <label>
+              <span>شروع تم تیره (ساعت)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="23"
+                value={siteSettings.darkThemeStartHour ?? 20}
+                onChange={(event) => updateField('darkThemeStartHour', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                از این ساعت محلی کافه، تم تیره فعال می‌شود — می‌تواند از شروع تم روشن کوچک‌تر باشد (تم تیره از شب تا صبح)
+              </small>
+            </label>
+            <label>
+              <span>حالت تم</span>
+              <select
+                value={siteSettings.themeMode ?? 'auto'}
+                onChange={(event) => updateField('themeMode', event.target.value)}
+              >
+                <option value="auto">خودکار (طبق برنامهٔ زمانی)</option>
+                <option value="light">همیشه روشن</option>
+                <option value="dark">همیشه تیره</option>
+              </select>
+              <small className="settings-hint">
+                در حالت خودکار، تم بر اساس ساعت محلی کافه بین روشن و تیره جابه‌جا می‌شود
+              </small>
+            </label>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>اجازهٔ تغییر دستی توسط کاربر</strong>
+                <p>دکمهٔ تغییر تم روی منوی مشتریان نمایش داده شود و انتخاب او در بازدیدهای بعدی هم حفظ شود.</p>
+              </div>
+              <span className={`switch ${siteSettings.allowManualThemeOverride ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.allowManualThemeOverride !== false}
+                  onChange={(event) => updateField('allowManualThemeOverride', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
           </div>
         </section>
 

@@ -58,6 +58,21 @@ Update these places first:
 
 Main design variables are at the top of `assets/css/style.css` under `:root`.
 
+## Theme (Light / Dark)
+
+The menu follows a light/dark theme that switches on the café's local clock, with a manual override.
+
+- **Schedule settings** are managed in the admin panel under **تنظیمات سایت → تم و نمایش**
+  (timezone id, light start hour, dark start hour, forced mode, allow manual override) and are served by `GET /api/site-settings`.
+- **No flash on load**: an inline script in `<head>` runs before first paint and applies the saved manual
+  choice or the default Tehran schedule (`dark 20–06`, `light 06–20`).
+- **No reload on change**: `applyTheme()` swaps `data-theme` / `data-bs-theme` / `color-scheme` attributes only.
+- **Manual override**: the floating button (top corner) saves the visitor's choice to
+  `localStorage.sugarista_theme_pref`; the "خودکار" chip returns to the automatic schedule.
+  Both are hidden when the café disables `allowManualThemeOverride`.
+- A 60-second timer re-checks the schedule so the theme follows the café clock while the phone stays parked on one screen.
+- Dark palette lives in the `:root[data-theme="dark"]` block at the bottom of `assets/css/style.css`.
+
 ## Deployment
 
 This theme is designed to work best behind the included Docker Compose and nginx reverse proxy setup so it can reach the API at `/api`.

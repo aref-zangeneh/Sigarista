@@ -93,4 +93,35 @@ public class SiteSettings : BaseAuditableEntity
     public bool IsOnlineSalesEnabled { get; set; } = true;
 
     public string OnlineSalesNotice { get; set; } = string.Empty;
+
+    /// <summary>
+    /// IANA time zone id of the café (e.g. "Asia/Tehran"). Drives the
+    /// time-of-day theme and any other local-time logic on the public menu.
+    /// </summary>
+    public string TimeZoneId { get; set; } = "Asia/Tehran";
+
+    /// <summary>
+    /// Hour (0-23, café local time) at which the light theme begins. Used when
+    /// <see cref="ThemeMode"/> is "auto".
+    /// </summary>
+    public int LightThemeStartHour { get; set; } = 6;
+
+    /// <summary>
+    /// Hour (0-23, café local time) at which the dark theme begins. Used when
+    /// <see cref="ThemeMode"/> is "auto". May be smaller than
+    /// <see cref="LightThemeStartHour"/> (dark theme then spans midnight).
+    /// </summary>
+    public int DarkThemeStartHour { get; set; } = 20;
+
+    /// <summary>
+    /// "auto" (follow the schedule), "light" or "dark" (force one theme on the
+    /// public menu regardless of the time of day).
+    /// </summary>
+    public string ThemeMode { get; set; } = "auto";
+
+    /// <summary>
+    /// Whether visitors may override the theme manually (toggle on the menu).
+    /// When false, the toggle is hidden and the schedule/mode always wins.
+    /// </summary>
+    public bool AllowManualThemeOverride { get; set; } = true;
 }

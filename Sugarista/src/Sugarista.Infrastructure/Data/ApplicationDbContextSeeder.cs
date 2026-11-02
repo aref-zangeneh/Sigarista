@@ -426,6 +426,16 @@ public class ApplicationDbContextSeeder
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "TimeZoneId" character varying(64) NOT NULL DEFAULT 'Asia/Tehran';
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "LightThemeStartHour" integer NOT NULL DEFAULT 6;
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "DarkThemeStartHour" integer NOT NULL DEFAULT 20;
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "ThemeMode" character varying(16) NOT NULL DEFAULT 'auto';
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "AllowManualThemeOverride" boolean NOT NULL DEFAULT TRUE;
+            UPDATE "SiteSettings" SET "TimeZoneId" = 'Asia/Tehran' WHERE "TimeZoneId" = '';
+            UPDATE "SiteSettings" SET "LightThemeStartHour" = 6 WHERE "LightThemeStartHour" = 0;
+            UPDATE "SiteSettings" SET "DarkThemeStartHour" = 20 WHERE "DarkThemeStartHour" = 0;
+            UPDATE "SiteSettings" SET "ThemeMode" = 'auto' WHERE "ThemeMode" = '';
+            UPDATE "SiteSettings" SET "AllowManualThemeOverride" = TRUE WHERE "AllowManualThemeOverride" = FALSE;
             CREATE TABLE IF NOT EXISTS "CostControlBoards" (
                 "Id" uuid NOT NULL,
                 "CreatedAt" timestamp with time zone NOT NULL,

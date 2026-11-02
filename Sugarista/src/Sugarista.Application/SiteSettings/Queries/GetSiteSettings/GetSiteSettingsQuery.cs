@@ -55,6 +55,11 @@ public record SiteSettingsDto
     public string FooterCallLabel { get; init; } = string.Empty;
     public bool IsOnlineSalesEnabled { get; init; } = true;
     public string OnlineSalesNotice { get; init; } = string.Empty;
+    public string TimeZoneId { get; init; } = "Asia/Tehran";
+    public int LightThemeStartHour { get; init; } = 6;
+    public int DarkThemeStartHour { get; init; } = 20;
+    public string ThemeMode { get; init; } = "auto";
+    public bool AllowManualThemeOverride { get; init; } = true;
     public bool IsOnlineOrderingAvailable { get; init; } = true;
 }
 
@@ -122,7 +127,12 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 FooterMenuLabel = settings.FooterMenuLabel,
                 FooterCallLabel = settings.FooterCallLabel,
                 IsOnlineSalesEnabled = settings.IsOnlineSalesEnabled,
-                OnlineSalesNotice = settings.OnlineSalesNotice
+                OnlineSalesNotice = settings.OnlineSalesNotice,
+                TimeZoneId = settings.TimeZoneId,
+                LightThemeStartHour = settings.LightThemeStartHour,
+                DarkThemeStartHour = settings.DarkThemeStartHour,
+                ThemeMode = settings.ThemeMode,
+                AllowManualThemeOverride = settings.AllowManualThemeOverride
             })
             .FirstOrDefaultAsync(cancellationToken);
 

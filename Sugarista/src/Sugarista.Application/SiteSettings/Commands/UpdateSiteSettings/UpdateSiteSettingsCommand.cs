@@ -49,6 +49,16 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     public string FooterCallLabel { get; init; } = string.Empty;
     public bool IsOnlineSalesEnabled { get; init; } = true;
     public string OnlineSalesNotice { get; init; } = string.Empty;
+
+    public string TimeZoneId { get; init; } = "Asia/Tehran";
+
+    public int LightThemeStartHour { get; init; } = 6;
+
+    public int DarkThemeStartHour { get; init; } = 20;
+
+    public string ThemeMode { get; init; } = "auto";
+
+    public bool AllowManualThemeOverride { get; init; } = true;
 }
 
 public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSettingsCommand>
@@ -58,9 +68,15 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
         RuleFor(command => command.CafeName).NotEmpty().MaximumLength(150);
         RuleFor(command => command.BrowserTitle).NotEmpty().MaximumLength(200);
         RuleFor(command => command.MetaDescription).NotEmpty().MaximumLength(500);
-        RuleFor(command => command.ContactPhone).NotEmpty().MaximumLength(50);
-        RuleFor(command => command.Address).NotEmpty().MaximumLength(500);
-        RuleFor(command => command.InstagramUrl).NotEmpty().MaximumLength(300);
+        RuleFor(command => command.ContactPhone).MaximumLength(50);
+        RuleFor(command => command.Address).MaximumLength(500);
+        RuleFor(command => command.InstagramUrl).MaximumLength(300);
+        RuleFor(command => command.TimeZoneId).NotEmpty().MaximumLength(64);
+        RuleFor(command => command.LightThemeStartHour).InclusiveBetween(0, 23);
+        RuleFor(command => command.DarkThemeStartHour).InclusiveBetween(0, 23);
+        RuleFor(command => command.ThemeMode)
+            .Must(mode => mode is "auto" or "light" or "dark")
+            .WithMessage("حالت تم باید یکی از auto، light یا dark باشد.");
     }
 }
 
@@ -128,6 +144,11 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.FooterCallLabel = request.FooterCallLabel.Trim();
         settings.IsOnlineSalesEnabled = request.IsOnlineSalesEnabled;
         settings.OnlineSalesNotice = request.OnlineSalesNotice.Trim();
+        settings.TimeZoneId = request.TimeZoneId.Trim();
+        settings.LightThemeStartHour = request.LightThemeStartHour;
+        settings.DarkThemeStartHour = request.DarkThemeStartHour;
+        settings.ThemeMode = request.ThemeMode.Trim().ToLowerInvariant();
+        settings.AllowManualThemeOverride = request.AllowManualThemeOverride;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

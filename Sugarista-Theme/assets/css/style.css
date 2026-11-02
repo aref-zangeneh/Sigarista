@@ -24,6 +24,7 @@
   --radius-md: 12px;
   --radius-sm: 8px;
   --sticky-nav-height: 7.5rem;
+  --sticky-shell-bg: rgba(247, 247, 245, 0.92);
 }
 
 *,
@@ -143,7 +144,7 @@ a {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(247, 247, 245, 0.92);
+  background: var(--sticky-shell-bg);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -1335,5 +1336,200 @@ textarea:focus-visible,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   Theme: light/dark — dynamic by café local time + manual override
+   Light palette keeps the original :root values; dark remaps them.
+   ============================================================ */
+
+:root[data-theme="dark"] {
+  --bg: #131315;
+  --surface: #1d1d20;
+  --text: #f2f3f5;
+  --muted: #9ca3af;
+  --line: #2c2c31;
+  --line-strong: #3d3d44;
+  --primary: #ece7df;
+  --accent: #d8a95e;
+  --accent-soft: rgba(216, 169, 94, 0.14);
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --sticky-shell-bg: rgba(19, 19, 21, 0.92);
+  --on-primary: #17171a;
+}
+
+:root {
+  --on-primary: #ffffff;
+}
+
+/* Smooth swaps wherever the palette changes — no layout thrash */
+body,
+.menu-page-header,
+.menu-sticky-nav,
+.product-card,
+.category-tab,
+.cart-bar,
+.menu-content,
+.search-box,
+.cart-drawer,
+.footer,
+.mobile-order-link,
+.modifier-chip {
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+/* Text on primary backgrounds follows the palette */
+.category-tab.active,
+.mobile-order-link--primary,
+.modifier-chip-active,
+.product-add-btn,
+.tracking-code,
+.cart-bar-count,
+.skip-link,
+.menu-page-icon-btn--primary {
+  color: var(--on-primary);
+}
+
+/* ── Text colors that were tuned for light backgrounds ── */
+
+/* Sticky shell top ring + search input focus glow need a visible tint on dark */
+:root[data-theme="dark"] .search-box .form-control:focus {
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Sale/red links: bump to a readable red on dark surfaces */
+:root[data-theme="dark"] .meta-chip-alert,
+:root[data-theme="dark"] .link-danger {
+  color: #f87171 !important;
+}
+
+/* Price-matrix chips: brighter green/red text on dark tinted backgrounds */
+:root[data-theme="dark"] .price-matrix-size--small,
+:root[data-theme="dark"] .price-matrix-row.size-small {
+  background: rgba(234, 88, 116, 0.16);
+  color: #fb7185;
+}
+
+:root[data-theme="dark"] .price-matrix-size--large,
+:root[data-theme="dark"] .price-matrix-row.size-large {
+  background: rgba(22, 163, 74, 0.16);
+  color: #4ade80;
+}
+
+/* Sales-closed notice: amber text instead of dark brown */
+:root[data-theme="dark"] .sales-notice {
+  background: #241f0d;
+  border-color: #57491a;
+  color: #fbbf24;
+}
+
+/* Product thumb fallback sits on var(--bg) — white is unreadable on dark */
+:root[data-theme="dark"] .product-thumb-fallback {
+  color: var(--muted);
+}
+
+/* Add-to-cart button focus ring goes black; give it light text on dark */
+:root[data-theme="dark"] .product-add-btn:focus-visible {
+  background: #000;
+  color: var(--primary);
+}
+
+/* Subtle dark-tinted highlights can vanish on dark — use a faint light tint */
+:root[data-theme="dark"] .size-option.active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme="dark"] .split-payer-card--paid {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+:root[data-theme="dark"] .bootstrap-select,
+:root[data-theme="dark"] .form-control,
+:root[data-theme="dark"] .form-select {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+/* ── Theme toggle (floating) ── */
+.theme-toggle {
+  position: fixed;
+  z-index: 1035;
+  inset-inline-end: 1rem;
+  inset-block-start: 1rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.05rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.25s ease, color 0.25s ease, transform 0.15s ease;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.06);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-auto-reset {
+  position: fixed;
+  z-index: 1035;
+  inset-inline-end: 4.2rem;
+  inset-block-start: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.theme-auto-reset:hover {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.theme-auto-reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media print,
+  (prefers-reduced-motion: reduce) {
+  body,
+  .menu-page-header,
+  .menu-sticky-nav,
+  .product-card,
+  .category-tab,
+  .cart-bar,
+  .menu-content,
+  .search-box,
+  .cart-drawer,
+  .footer,
+  .mobile-order-link,
+  .modifier-chip {
+    transition: none;
   }
 }

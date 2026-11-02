@@ -53,5 +53,10 @@ public class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSettings>
         builder.Property(settings => settings.FooterCallLabel).HasMaxLength(100).IsRequired();
         builder.Property(settings => settings.IsOnlineSalesEnabled).IsRequired();
         builder.Property(settings => settings.OnlineSalesNotice).HasMaxLength(500).IsRequired();
+        builder.Property(settings => settings.TimeZoneId).HasMaxLength(64).IsRequired();
+        builder.Property(settings => settings.LightThemeStartHour).IsRequired();
+        builder.Property(settings => settings.DarkThemeStartHour).IsRequired();
+        builder.Property(settings => settings.ThemeMode).HasMaxLength(16).IsRequired();
+        builder.Property(settings => settings.AllowManualThemeOverride).IsRequired();
     }
 }

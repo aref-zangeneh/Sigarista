@@ -2693,6 +2693,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<bool>("AllowManualThemeOverride")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("BrandSubtitle")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -2728,6 +2731,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
+
+                    b.Property<int>("DarkThemeStartHour")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Eyebrow")
                         .IsRequired()
@@ -2812,6 +2818,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
+
+                    b.Property<int>("LightThemeStartHour")
+                        .HasColumnType("integer");
 
                     b.Property<string>("MenuLabel")
                         .IsRequired()
@@ -2907,6 +2916,16 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
+
+                    b.Property<string>("ThemeMode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("VisitDescription")
                         .IsRequired()

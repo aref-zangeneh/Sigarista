@@ -4,6 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sugarista Cafe | Digital Menu</title>
+  <script>
+    /* Theme bootstrap (before first paint — no flash):
+       manual choice wins, otherwise the default café schedule (Tehran). */
+    (function () {
+      try {
+        var theme = null;
+        var pref = null;
+        try { pref = JSON.parse(localStorage.getItem("sugarista_theme_pref") || "null"); } catch (e) {}
+        if (pref && pref.mode === "manual" && (pref.value === "light" || pref.value === "dark")) {
+          theme = pref.value;
+        } else {
+          var hour = Number.parseInt(
+            new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Tehran", hour: "numeric", hourCycle: "h23" })
+              .format(new Date()), 10);
+          theme = (Number.isNaN(hour) || !(hour >= 20 || hour < 6)) ? "light" : "dark";
+          if (Number.isNaN(hour)) theme = "light";
+        }
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.setAttribute("data-bs-theme", theme);
+        document.documentElement.style.colorScheme = theme;
+      } catch (e) { /* keep the light default */ }
+    })();
+  </script>
   <meta
     name="description"
     content="منوی دیجیتال کافه شوگریستا؛ مرور سریع دسته‌ها، جستجوی آسان و تجربه بهتر برای مهمان‌های QR."
@@ -15,6 +38,29 @@
 </head>
 <body x-data="cafeMenu()" x-init="init()">
   <a class="skip-link" href="#menu">رفتن به منو</a>
+  <button
+    type="button"
+    class="theme-toggle"
+    x-show="settings.allowManualThemeOverride !== false"
+    x-cloak
+    @click="toggleTheme()"
+    :aria-label="themeIsDark ? 'فعال کردن تم روشن' : 'فعال کردن تم تیره'"
+    :title="themeIsDark ? 'تم روشن' : 'تم تیره'"
+  >
+    <i class="bi" :class="themeIsDark ? 'bi-sun' : 'bi-moon-stars'"></i>
+  </button>
+  <button
+    type="button"
+    class="theme-auto-reset"
+    x-show="settings.allowManualThemeOverride !== false && themePref?.mode === 'manual'"
+    x-cloak
+    @click="resetThemeToAuto()"
+    title="بازگشت به تم خودکار بر اساس ساعت کافه"
+    aria-label="بازگشت به تم خودکار"
+  >
+    <i class="bi bi-clock-history"></i>
+    خودکار
+  </button>
   <div class="page-shell">
     <header class="menu-page-header">
       <div class="container">
@@ -114,8 +160,9 @@
                   <input
                     type="search"
                     class="form-control"
-                    :placeholder="settings.searchPlaceholder"
+                    :placeholder="placeholderText"
                     x-model.debounce.200ms="search"
+                    @input="searchUserTyping = $event.target.value.length > 0"
                     aria-label="جستجو در منو"
                   >
                 </div>

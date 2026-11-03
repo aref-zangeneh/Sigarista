@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Sugarista.Application.Accounting.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Common.Options;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
@@ -32,6 +33,7 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
     private readonly IApplicationDbContext _dbContext;
     private readonly IPaymentGateway _paymentGateway;
     private readonly IAccountingService _accountingService;
+    private readonly ILoyaltyService _loyaltyService;
     private readonly IPrintJobService _printJobService;
     private readonly PaymentOptions _paymentOptions;
 
@@ -39,12 +41,14 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
         IApplicationDbContext dbContext,
         IPaymentGateway paymentGateway,
         IAccountingService accountingService,
+        ILoyaltyService loyaltyService,
         IPrintJobService printJobService,
         IOptions<PaymentOptions> paymentOptions)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
         _accountingService = accountingService;
+        _loyaltyService = loyaltyService;
         _printJobService = printJobService;
         _paymentOptions = paymentOptions.Value;
     }
@@ -109,6 +113,8 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
 
         // Queue the thermal receipt copies (customer + barista) for the print agent.
         await _printJobService.EnqueueOrderReceiptsAsync(order, cancellationToken);
+
+        await _loyaltyService.AwardForPaidOrderAsync(order, cancellationToken);
 
         return new ConfirmMockPaymentResultDto(
             order.Id,

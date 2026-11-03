@@ -61,6 +61,24 @@ public record SiteSettingsDto
     public string ThemeMode { get; init; } = "auto";
     public bool AllowManualThemeOverride { get; init; } = true;
     public bool IsOnlineOrderingAvailable { get; init; } = true;
+    public int WinBackDays { get; init; } = 30;
+    public bool LoyaltyEnabled { get; init; }
+    public decimal LoyaltyEarnTomanPerPoint { get; init; } = 10000m;
+    public decimal LoyaltyRedeemTomanPerPoint { get; init; } = 1000m;
+    public int LoyaltyPointsExpiryDays { get; init; } = 365;
+    public bool StampCardEnabled { get; init; } = true;
+    public int StampCardOrdersPerCard { get; init; } = 10;
+    public decimal StampCardRewardPercent { get; init; } = 10m;
+    public int StampCardRewardValidityDays { get; init; } = 30;
+    public bool AbandonedCartReminderEnabled { get; init; } = true;
+    public int AbandonedCartHours { get; init; } = 4;
+    public bool AbandonedCartSmsEnabled { get; init; } = true;
+    public bool AbandonedCartEmailEnabled { get; init; }
+    public decimal AbandonedCartDiscountPercent { get; init; } = 10m;
+    public int AbandonedCartCodeValidityHours { get; init; } = 48;
+    public string AbandonedCartSmsTemplate { get; init; } = string.Empty;
+    public string AbandonedCartEmailSubject { get; init; } = string.Empty;
+    public string AbandonedCartEmailTemplate { get; init; } = string.Empty;
 }
 
 public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery, SiteSettingsDto>
@@ -132,7 +150,25 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 LightThemeStartHour = settings.LightThemeStartHour,
                 DarkThemeStartHour = settings.DarkThemeStartHour,
                 ThemeMode = settings.ThemeMode,
-                AllowManualThemeOverride = settings.AllowManualThemeOverride
+                AllowManualThemeOverride = settings.AllowManualThemeOverride,
+                WinBackDays = settings.WinBackDays,
+                LoyaltyEnabled = settings.LoyaltyEnabled,
+                LoyaltyEarnTomanPerPoint = settings.LoyaltyEarnTomanPerPoint,
+                LoyaltyRedeemTomanPerPoint = settings.LoyaltyRedeemTomanPerPoint,
+                LoyaltyPointsExpiryDays = settings.LoyaltyPointsExpiryDays,
+                StampCardEnabled = settings.StampCardEnabled,
+                StampCardOrdersPerCard = settings.StampCardOrdersPerCard,
+                StampCardRewardPercent = settings.StampCardRewardPercent,
+                StampCardRewardValidityDays = settings.StampCardRewardValidityDays,
+                AbandonedCartReminderEnabled = settings.AbandonedCartReminderEnabled,
+                AbandonedCartHours = settings.AbandonedCartHours,
+                AbandonedCartSmsEnabled = settings.AbandonedCartSmsEnabled,
+                AbandonedCartEmailEnabled = settings.AbandonedCartEmailEnabled,
+                AbandonedCartDiscountPercent = settings.AbandonedCartDiscountPercent,
+                AbandonedCartCodeValidityHours = settings.AbandonedCartCodeValidityHours,
+                AbandonedCartSmsTemplate = settings.AbandonedCartSmsTemplate,
+                AbandonedCartEmailSubject = settings.AbandonedCartEmailSubject,
+                AbandonedCartEmailTemplate = settings.AbandonedCartEmailTemplate
             })
             .FirstOrDefaultAsync(cancellationToken);
 

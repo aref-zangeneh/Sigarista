@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Common.Options;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
@@ -36,17 +37,20 @@ public class ConfirmSplitMockPaymentCommandHandler
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IPaymentGateway _paymentGateway;
+    private readonly ILoyaltyService _loyaltyService;
     private readonly IPrintJobService _printJobService;
     private readonly PaymentOptions _paymentOptions;
 
     public ConfirmSplitMockPaymentCommandHandler(
         IApplicationDbContext dbContext,
         IPaymentGateway paymentGateway,
+        ILoyaltyService loyaltyService,
         IPrintJobService printJobService,
         IOptions<PaymentOptions> paymentOptions)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
+        _loyaltyService = loyaltyService;
         _printJobService = printJobService;
         _paymentOptions = paymentOptions.Value;
     }
@@ -117,6 +121,7 @@ public class ConfirmSplitMockPaymentCommandHandler
         if (order.Status == OrderStatus.Paid)
         {
             await _printJobService.EnqueueOrderReceiptsAsync(order, cancellationToken);
+            await _loyaltyService.AwardForPaidOrderAsync(order, cancellationToken);
         }
 
         return BuildResult(order, payment, order.Status == OrderStatus.Paid);

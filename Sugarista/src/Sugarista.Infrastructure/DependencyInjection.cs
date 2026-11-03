@@ -4,6 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Carts.Services;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Exports;
 using Sugarista.Application.Maintenance;
 using Sugarista.Application.Common.Options;
@@ -41,6 +43,8 @@ public static class DependencyInjection
         services.Configure<SmsOptions>(configuration.GetSection(SmsOptions.SectionName));
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
         services.AddScoped<MaintenanceReminderDispatcher>();
+        services.AddScoped<CustomerWinBackDispatcher>();
+        services.AddScoped<AbandonedCartReminderDispatcher>();
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
         services.AddScoped<IPrintJobService, ReceiptPrintJobService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
@@ -91,6 +95,8 @@ public static class DependencyInjection
             return provider.GetRequiredService<LoggingMaintenanceEmailService>();
         });
         services.AddHostedService<MaintenanceReminderTickerService>();
+        services.AddHostedService<CustomerWinBackTickerService>();
+        services.AddHostedService<AbandonedCartTickerService>();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");

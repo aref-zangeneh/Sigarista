@@ -40,6 +40,7 @@ export function AddonsPage() {
                   englishName: addonForm.englishName,
                   description: addonForm.description,
                   price: Number(addonForm.price),
+                  specialOfferPrice: addonForm.specialOfferPrice ? Number(addonForm.specialOfferPrice) : null,
                   tags: splitTags(addonForm.tags),
                   displayOrder: Number(addonForm.displayOrder),
                   isActive: addonForm.isActive,
@@ -126,6 +127,21 @@ export function AddonsPage() {
                   setAddonForm((currentForm) => ({
                     ...currentForm,
                     price: Number(event.target.value),
+                  }))
+                }
+              />
+            </label>
+            <label>
+              <span>قیمت پیشنهادی (تخفیف‌دار، خالی = بدون پیشنهاد)</span>
+              <input
+                className="ltr-input"
+                type="number"
+                min="0"
+                value={addonForm.specialOfferPrice}
+                onChange={(event) =>
+                  setAddonForm((currentForm) => ({
+                    ...currentForm,
+                    specialOfferPrice: event.target.value,
                   }))
                 }
               />

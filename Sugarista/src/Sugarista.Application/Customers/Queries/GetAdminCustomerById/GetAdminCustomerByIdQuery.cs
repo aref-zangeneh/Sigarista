@@ -21,8 +21,19 @@ public record AdminCustomerDetailDto(
     decimal AverageOrderValue,
     DateTimeOffset? FirstOrderAt,
     DateTimeOffset? LastOrderAt,
-    int LoyaltyPoints,
+    decimal LoyaltyPoints,
+    IReadOnlyCollection<AdminLoyaltyTransactionDto> LoyaltyTransactions,
     IReadOnlyCollection<AdminCustomerOrderDto> RecentOrders);
+
+public record AdminLoyaltyTransactionDto(
+    Guid Id,
+    LoyaltyTransactionType Type,
+    decimal Points,
+    decimal BalanceAfter,
+    string Description,
+    Guid? OrderId,
+    DateTimeOffset? ExpiresAt,
+    DateTimeOffset CreatedAt);
 
 public record AdminCustomerOrderDto(
     Guid OrderId,
@@ -84,6 +95,22 @@ public class GetAdminCustomerByIdQueryHandler : IRequestHandler<GetAdminCustomer
 
         var totalPaid = paidOrders.Sum(entry => entry.TotalAmount);
 
+        var loyaltyTransactions = await _dbContext.LoyaltyTransactions
+            .AsNoTracking()
+            .Where(transaction => transaction.CustomerId == customer.Id)
+            .OrderByDescending(transaction => transaction.CreatedAt)
+            .Take(50)
+            .Select(transaction => new AdminLoyaltyTransactionDto(
+                transaction.Id,
+                transaction.Type,
+                transaction.Points,
+                transaction.BalanceAfter,
+                transaction.Description,
+                transaction.OrderId,
+                transaction.ExpiresAt,
+                transaction.CreatedAt))
+            .ToListAsync(cancellationToken);
+
         return new AdminCustomerDetailDto(
             customer.Id,
             customer.PersianName,
@@ -102,7 +129,8 @@ public class GetAdminCustomerByIdQueryHandler : IRequestHandler<GetAdminCustomer
             paidOrders.Count > 0 ? totalPaid / paidOrders.Count : 0m,
             recentOrders.Count > 0 ? recentOrders[^1].CreatedAt : null,
             recentOrders.Count > 0 ? recentOrders[0].CreatedAt : null,
-            (int)(totalPaid / 10000m),
+            customer.LoyaltyPoints,
+            loyaltyTransactions,
             recentOrders);
     }
 }

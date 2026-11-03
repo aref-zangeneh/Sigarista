@@ -73,6 +73,12 @@ export const PERMISSIONS = {
     update: 'admin.addons.update',
     delete: 'admin.addons.delete',
   },
+  discounts: {
+    view: 'admin.discounts.view',
+    create: 'admin.discounts.create',
+    update: 'admin.discounts.update',
+    delete: 'admin.discounts.delete',
+  },
   modifiers: {
     view: 'admin.modifiers.view',
     create: 'admin.modifiers.create',

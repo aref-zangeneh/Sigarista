@@ -9,7 +9,7 @@ namespace Sugarista.Domain.Entities;
 /// </summary>
 public class Customer : BaseAuditableEntity
 {
-    public Customer(string persianName, string phoneNumber, string firstChannel, string? email = null, string? notes = null)
+    public Customer(string persianName, string phoneNumber, string firstChannel, string? email = null, string? notes = null, string? referralCode = null)
     {
         if (string.IsNullOrWhiteSpace(persianName))
         {
@@ -33,6 +33,7 @@ public class Customer : BaseAuditableEntity
         FirstChannel = firstChannel.Trim().ToLowerInvariant();
         LastChannel = FirstChannel;
         IsActive = true;
+        ReferralCode = string.IsNullOrWhiteSpace(referralCode) ? GenerateReferralCode() : referralCode.Trim().ToUpperInvariant();
     }
 
     public string PersianName { get; private set; } = string.Empty;
@@ -51,7 +52,52 @@ public class Customer : BaseAuditableEntity
 
     public bool IsActive { get; private set; } = true;
 
+    /// <summary>When a win-back discount SMS was last sent to this customer (drives the win-back dispatch).</summary>
+    public DateTimeOffset? WinBackSentAt { get; private set; }
+
+    /// <summary>Personal referral code of this customer (shared as an invite link/code).</summary>
+    public string? ReferralCode { get; private set; }
+
+    /// <summary>True when this customer (as referrer) earned a referral reward — set after the referred customer completed a successful first order.</summary>
+    public bool ReferralRewardEligible { get; private set; }
+
     public ICollection<Order> Orders { get; private set; } = [];
+
+    public decimal LoyaltyPoints { get; private set; }
+
+    public ICollection<LoyaltyTransaction> LoyaltyTransactions { get; private set; } = [];
+
+    public void AddLoyaltyPoints(decimal points)
+    {
+        if (points < 0)
+        {
+            throw new DomainException("Loyalty points cannot be negative.");
+        }
+
+        LoyaltyPoints += points;
+    }
+
+    public void DeductLoyaltyPoints(decimal points)
+    {
+        if (points < 0)
+        {
+            throw new DomainException("Loyalty points cannot be negative.");
+        }
+
+        if (points > LoyaltyPoints)
+        {
+            throw new DomainException("Insufficient loyalty points.");
+        }
+
+        LoyaltyPoints -= points;
+    }
+
+    public void MarkWinBackSent(DateTimeOffset sentAt) => WinBackSentAt = sentAt;
+
+    public void MarkReferralRewardEligible() => ReferralRewardEligible = true;
+
+    public static string GenerateReferralCode()
+        => $"REF-{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant()}";
 
     public void Update(string persianName, string? email, string? notes, bool isActive)
     {

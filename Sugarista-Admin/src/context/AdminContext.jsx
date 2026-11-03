@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import {
   buildAddonColumns,
   buildCategoryColumns,
+  buildDiscountColumns,
   buildIngredientColumns,
   buildInventoryColumns,
   buildInventoryConsumptionColumns,
@@ -30,6 +31,7 @@ import {
   emptyAdjustForm,
   emptyAlertForm,
   emptyCategoryForm,
+  emptyDiscountForm,
   emptyIngredientForm,
   emptyMenuItemForm,
   emptyModifierForm,
@@ -96,6 +98,7 @@ export function AdminProvider({ children }) {
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [menuItemForm, setMenuItemForm] = useState(emptyMenuItemForm)
   const [addonForm, setAddonForm] = useState(emptyAddonForm)
+  const [discountForm, setDiscountForm] = useState(emptyDiscountForm)
   const [modifierForm, setModifierForm] = useState(emptyModifierForm)
   const [salonTableForm, setSalonTableForm] = useState(emptySalonTableForm)
   const [occupyForm, setOccupyForm] = useState(emptyOccupyForm)
@@ -794,6 +797,7 @@ export function AdminProvider({ children }) {
     setCategoryForm(emptyCategoryForm)
     setMenuItemForm(emptyMenuItemForm)
     setAddonForm(emptyAddonForm)
+    setDiscountForm(emptyDiscountForm)
     setModifierForm(emptyModifierForm)
     setSalonTableForm(emptySalonTableForm)
     setOccupyForm(emptyOccupyForm)
@@ -1236,6 +1240,23 @@ export function AdminProvider({ children }) {
     [addonForm, session, tableReloadToken],
   )
 
+  const discountColumns = useMemo(
+    () =>
+      buildDiscountColumns({
+        setDiscountForm,
+        emptyDiscountForm,
+        bumpTableReload,
+        discountForm,
+        session,
+        apiRequest,
+        setSaving,
+        setError,
+        setMessage,
+        getReadableError,
+      }),
+    [discountForm, session, tableReloadToken],
+  )
+
   const modifierColumns = useMemo(
     () =>
       buildModifierColumns({
@@ -1391,6 +1412,8 @@ export function AdminProvider({ children }) {
     setMenuItemForm,
     addonForm,
     setAddonForm,
+    discountForm,
+    setDiscountForm,
     modifierForm,
     setModifierForm,
     salonTableForm,
@@ -1450,6 +1473,7 @@ export function AdminProvider({ children }) {
     categoryColumns,
     menuItemColumns,
     addonColumns,
+    discountColumns,
     modifierColumns,
     ingredientColumns,
     recipeColumns,
@@ -1472,6 +1496,7 @@ export function AdminProvider({ children }) {
     optionalNumber,
     emptyRecipeLineForm,
     emptyAddonForm,
+    emptyDiscountForm,
     emptyModifierForm,
     emptyIngredientForm,
     emptyRestockForm,

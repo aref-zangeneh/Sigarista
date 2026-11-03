@@ -23,7 +23,7 @@ public record AdminCustomerListItemDto(
     decimal AverageOrderValue,
     DateTimeOffset? FirstOrderAt,
     DateTimeOffset? LastOrderAt,
-    int LoyaltyPoints);
+    decimal LoyaltyPoints);
 
 public class GetAdminCustomersQueryHandler : IRequestHandler<GetAdminCustomersQuery, PaginatedList<AdminCustomerListItemDto>>
 {
@@ -72,7 +72,7 @@ public class GetAdminCustomersQueryHandler : IRequestHandler<GetAdminCustomersQu
                     : 0m,
                 customer.Orders.Select(order => (DateTimeOffset?)order.CreatedAt).DefaultIfEmpty().Min(),
                 customer.Orders.Select(order => (DateTimeOffset?)order.CreatedAt).DefaultIfEmpty().Max(),
-                (int)(customer.Orders.Where(order => order.Status == OrderStatus.Paid).Sum(order => order.TotalAmount) / 10000m)))
+                customer.LoyaltyPoints))
             .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

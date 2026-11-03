@@ -11,6 +11,7 @@ import { SalonStatePage } from './pages/SalonStatePage'
 import { CategoryPage } from './pages/CategoryPage'
 import { MenuItemsPage } from './pages/MenuItemsPage'
 import { AddonsPage } from './pages/AddonsPage'
+import { DiscountsPage } from './pages/DiscountsPage'
 import { ModifiersPage } from './pages/ModifiersPage'
 import { IngredientsPage } from './pages/IngredientsPage'
 import { SuppliersPage } from './pages/SuppliersPage'
@@ -25,6 +26,7 @@ import { PosPage } from './pages/PosPage'
 import { AccountingPage } from './pages/AccountingPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { CustomersPage } from './pages/CustomersPage'
+import { BadgesPage } from './pages/BadgesPage'
 import { ExportsPage } from './pages/ExportsPage'
 import { HrPage } from './pages/HrPage'
 import { AssetsPage } from './pages/AssetsPage'
@@ -41,6 +43,7 @@ const pageComponents = {
   categories: CategoryPage,
   'menu-items': MenuItemsPage,
   addons: AddonsPage,
+  discounts: DiscountsPage,
   modifiers: ModifiersPage,
   ingredients: IngredientsPage,
   recipes: RecipesPage,
@@ -55,6 +58,7 @@ const pageComponents = {
   accounting: AccountingPage,
   orders: OrdersPage,
   customers: CustomersPage,
+  badges: BadgesPage,
   exports: ExportsPage,
   assets: AssetsPage,
   maintenance: EquipmentMaintenancePage,

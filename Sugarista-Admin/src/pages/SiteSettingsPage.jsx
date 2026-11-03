@@ -47,6 +47,12 @@ function SectionIcon({ name }) {
         <path d="M12 3a9 9 0 0 0 0 18c.55 0 1-.45 1-1 0-.26-.11-.5-.29-.68a1 1 0 0 1 0-1.41c.18-.18.42-.29.68-.29h1.61A5 5 0 0 0 20 13c0-2.76-2.24-5-5-5h-3V3z" />
       </>
     ),
+    bell: (
+      <>
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </>
+    ),
   }
 
   return (
@@ -88,6 +94,8 @@ export function SiteSettingsPage() {
 
   const navItems = [
     { id: 'settings-sales', title: 'فروش آنلاین', icon: 'cart' },
+    { id: 'settings-abandoned-cart', title: 'سبد رهاشده', icon: 'bell' },
+    { id: 'settings-loyalty', title: 'باشگاه مشتریان', icon: 'brand' },
     { id: 'settings-theme', title: 'تم و نمایش', icon: 'theme' },
     ...settingsSections.map((section) => ({
       id: `settings-${section.id}`,
@@ -193,6 +201,342 @@ export function SiteSettingsPage() {
                 />
               </label>
             )}
+          </div>
+        </section>
+
+        {/* ---------- سبد رهاشده ---------- */}
+        <section id="settings-abandoned-cart" className="panel settings-section">
+          <div className="panel-head">
+            <div className="settings-section-head">
+              <span className="settings-section-badge">
+                <SectionIcon name="bell" />
+              </span>
+              <div>
+                <h2>
+                  سبد رهاشده
+                  <span
+                    className={`settings-pill ${
+                      siteSettings.abandonedCartReminderEnabled === false ? 'is-off' : 'is-on'
+                    }`}
+                  >
+                    {siteSettings.abandonedCartReminderEnabled === false ? 'غیرفعال' : 'فعال'}
+                  </span>
+                </h2>
+                <p>
+                  اگر سبد مشتری بیش از مدت تعیین‌شده بدون پرداخت بماند، پیامک یا ایمیل حاوی کد
+                  تخفیف یک‌بارمصرف برای او ارسال می‌شود.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-grid">
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>یادآوری خودکار سبد رهاشده</strong>
+                <p>
+                  با غیرفعال کردن این گزینه، هیچ پیام یادآوری و کد تخفیفی برای سبدهای رهاشده
+                  ارسال نمی‌شود.
+                </p>
+              </div>
+              <span
+                className={`switch ${
+                  siteSettings.abandonedCartReminderEnabled === false ? '' : 'switch-on'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={siteSettings.abandonedCartReminderEnabled !== false}
+                  onChange={(event) =>
+                    updateField('abandonedCartReminderEnabled', event.target.checked)
+                  }
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            <label>
+              <span>مدت رهاشدگی سبد (ساعت)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="720"
+                value={siteSettings.abandonedCartHours ?? 4}
+                onChange={(event) => updateField('abandonedCartHours', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                سبدی که بیش از این تعداد ساعت بدون پرداخت بماند یادآوری می‌گیرد — مقدار ۰
+                یادآوری را متوقف می‌کند
+              </small>
+            </label>
+            <label>
+              <span>درصد تخفیف کد بازگشت</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={siteSettings.abandonedCartDiscountPercent ?? 10}
+                onChange={(event) =>
+                  updateField('abandonedCartDiscountPercent', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">
+                کد تخفیف یک‌بارمصرفی که همراه پیام ارسال می‌شود، این درصد را از مبلغ سبد کم
+                می‌کند
+              </small>
+            </label>
+            <label>
+              <span>اعتبار کد بازگشت (ساعت)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="1"
+                max="720"
+                value={siteSettings.abandonedCartCodeValidityHours ?? 48}
+                onChange={(event) =>
+                  updateField('abandonedCartCodeValidityHours', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">
+                کد تخفیف پس از این تعداد ساعت منقضی می‌شود (۱ تا ۷۲۰ ساعت)
+              </small>
+            </label>
+
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>ارسال با پیامک</strong>
+                <p>برای سبدهایی که شماره موبایل مشتری ثبت شده است.</p>
+              </div>
+              <span
+                className={`switch ${siteSettings.abandonedCartSmsEnabled === false ? '' : 'switch-on'}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={siteSettings.abandonedCartSmsEnabled !== false}
+                  onChange={(event) => updateField('abandonedCartSmsEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>ارسال با ایمیل</strong>
+                <p>برای سبدهایی که ایمیل مشتری (اختیاری) ثبت شده است.</p>
+              </div>
+              <span
+                className={`switch ${
+                  siteSettings.abandonedCartEmailEnabled ? 'switch-on' : ''
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={siteSettings.abandonedCartEmailEnabled === true}
+                  onChange={(event) =>
+                    updateField('abandonedCartEmailEnabled', event.target.checked)
+                  }
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            <label className="full-width">
+              <span>متن پیامک یادآوری</span>
+              <textarea
+                rows="3"
+                maxLength="1000"
+                value={siteSettings.abandonedCartSmsTemplate ?? ''}
+                onChange={(event) =>
+                  updateField('abandonedCartSmsTemplate', event.target.value)
+                }
+              />
+              <small className="settings-hint">
+                جای‌نگهدارها: {'{name}'} نام مشتری، {'{cafe}'} نام کافه، {'{code}'} کد تخفیف،{' '}
+                {'{percent}'} درصد تخفیف، {'{validityHours}'} ساعت اعتبار، {'{itemCount}'} تعداد
+                اقلام، {'{itemsTotal}'} مبلغ سبد، {'{items}'} فهرست اقلام
+              </small>
+            </label>
+            <label className="full-width">
+              <span>موضوع ایمیل یادآوری</span>
+              <input
+                value={siteSettings.abandonedCartEmailSubject ?? ''}
+                onChange={(event) =>
+                  updateField('abandonedCartEmailSubject', event.target.value)
+                }
+              />
+            </label>
+            <label className="full-width">
+              <span>متن ایمیل یادآوری</span>
+              <textarea
+                rows="6"
+                maxLength="4000"
+                value={siteSettings.abandonedCartEmailTemplate ?? ''}
+                onChange={(event) =>
+                  updateField('abandonedCartEmailTemplate', event.target.value)
+                }
+              />
+              <small className="settings-hint">
+                همین جای‌نگهدارها در متن ایمیل هم قابل استفاده است؛ هر خط جدید به‌صورت خط جدید
+                در ایمیل نمایش داده می‌شود.
+              </small>
+            </label>
+          </div>
+        </section>
+
+        {/* ---------- باشگاه مشتریان ---------- */}
+        <section id="settings-loyalty" className="panel settings-section">
+          <div className="panel-head">
+            <div className="settings-section-head">
+              <span className="settings-section-badge">
+                <SectionIcon name="brand" />
+              </span>
+              <div>
+                <h2>
+                  باشگاه مشتریان
+                  <span
+                    className={`settings-pill ${
+                      siteSettings.loyaltyEnabled ? 'is-on' : 'is-off'
+                    }`}
+                  >
+                    {siteSettings.loyaltyEnabled ? 'فعال' : 'غیرفعال'}
+                  </span>
+                </h2>
+                <p>نرخ کسب و مصرف امتیاز وفاداری برای مشتریان</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-grid">
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>فعال‌سازی باشگاه مشتریان</strong>
+                <p>با غیرفعال کردن، امتیازی کسب یا مصرف نمی‌شود.</p>
+              </div>
+              <span className={`switch ${siteSettings.loyaltyEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.loyaltyEnabled === true}
+                  onChange={(event) => updateField('loyaltyEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            <label>
+              <span>هر چند تومان = ۱ امتیاز (کسب)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                value={siteSettings.loyaltyEarnTomanPerPoint ?? 10000}
+                onChange={(event) =>
+                  updateField('loyaltyEarnTomanPerPoint', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">مقدار ۰ کسب امتیاز را متوقف می‌کند</small>
+            </label>
+            <label>
+              <span>ارزش هر امتیاز (تومان) هنگام مصرف</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                value={siteSettings.loyaltyRedeemTomanPerPoint ?? 1000}
+                onChange={(event) =>
+                  updateField('loyaltyRedeemTomanPerPoint', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">مقدار ۰ مصرف امتیاز را متوقف می‌کند</small>
+            </label>
+            <label>
+              <span>مدت اعتبار امتیاز (روز)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                value={siteSettings.loyaltyPointsExpiryDays ?? 365}
+                onChange={(event) =>
+                  updateField('loyaltyPointsExpiryDays', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">مقدار ۰ = بدون انقضا</small>
+            </label>
+
+            <h3 className="settings-subheading full-width">کارت مهر</h3>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>فعال‌سازی کارت مهر</strong>
+                <p>هر مشتری با سفارش‌های پرداخت‌شده مهر می‌گیرد؛ هر کارت کامل جایزهٔ خودکار دارد.</p>
+              </div>
+              <span className={`switch ${siteSettings.stampCardEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.stampCardEnabled === true}
+                  onChange={(event) => updateField('stampCardEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+            <label>
+              <span>تعداد سفارش برای هر کارت</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="1"
+                value={siteSettings.stampCardOrdersPerCard ?? 10}
+                onChange={(event) =>
+                  updateField('stampCardOrdersPerCard', Number(event.target.value))
+                }
+              />
+            </label>
+            <label>
+              <span>درصد جایزهٔ کارت کامل</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="100"
+                value={siteSettings.stampCardRewardPercent ?? 10}
+                onChange={(event) =>
+                  updateField('stampCardRewardPercent', Number(event.target.value))
+                }
+              />
+            </label>
+            <label>
+              <span>اعتبار جایزه (روز)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                value={siteSettings.stampCardRewardValidityDays ?? 30}
+                onChange={(event) =>
+                  updateField('stampCardRewardValidityDays', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">مقدار ۰ = بدون انقضا؛ جایزه در پرداخت بعدی خودکار اعمال می‌شود</small>
+            </label>
           </div>
         </section>
 

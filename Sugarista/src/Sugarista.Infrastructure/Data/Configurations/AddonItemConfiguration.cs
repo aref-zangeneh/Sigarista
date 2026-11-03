@@ -27,6 +27,9 @@ public class AddonItemConfiguration : IEntityTypeConfiguration<AddonItem>
         builder.Property(item => item.Price)
             .HasColumnType("numeric(18,2)");
 
+        builder.Property(item => item.SpecialOfferPrice)
+            .HasColumnType("numeric(18,2)");
+
         builder.Property(item => item.Tags)
             .HasColumnType("text[]");
     }

@@ -124,4 +124,69 @@ public class SiteSettings : BaseAuditableEntity
     /// When false, the toggle is hidden and the schedule/mode always wins.
     /// </summary>
     public bool AllowManualThemeOverride { get; set; } = true;
+
+    /// <summary>Days without a paid order before the win-back SMS dispatch sends a comeback discount code (0 disables the sweep).</summary>
+    public int WinBackDays { get; set; } = 30;
+
+    /// <summary>Master switch for the loyalty points program.</summary>
+    public bool LoyaltyEnabled { get; set; }
+
+    /// <summary>How many toman of spending earn one loyalty point (0 disables earning).</summary>
+    public decimal LoyaltyEarnTomanPerPoint { get; set; } = 10000m;
+
+    /// <summary>How many toman one loyalty point is worth when redeemed (0 disables redemption).</summary>
+    public decimal LoyaltyRedeemTomanPerPoint { get; set; } = 1000m;
+
+    /// <summary>Days before earned points expire (0 = never).</summary>
+    public int LoyaltyPointsExpiryDays { get; set; } = 365;
+
+    /// <summary>Master switch for the stamp card loyalty game.</summary>
+    public bool StampCardEnabled { get; set; } = true;
+
+    /// <summary>Paid orders needed to complete one stamp card.</summary>
+    public int StampCardOrdersPerCard { get; set; } = 10;
+
+    /// <summary>Percentage discount granted when a stamp card is completed.</summary>
+    public decimal StampCardRewardPercent { get; set; } = 10m;
+
+    /// <summary>Days the completed-card reward stays valid (0 = no expiry).</summary>
+    public int StampCardRewardValidityDays { get; set; } = 30;
+
+    /// <summary>Whether the abandoned-cart reminder sweep runs at all.</summary>
+    public bool AbandonedCartReminderEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Hours of inactivity (without a paid order) before the abandoned-cart
+    /// reminder is sent. 0 disables the sweep.
+    /// </summary>
+    public int AbandonedCartHours { get; set; } = 4;
+
+    /// <summary>Deliver the abandoned-cart reminder over SMS.</summary>
+    public bool AbandonedCartSmsEnabled { get; set; } = true;
+
+    /// <summary>Deliver the abandoned-cart reminder over email (when an email is known).</summary>
+    public bool AbandonedCartEmailEnabled { get; set; }
+
+    /// <summary>Percentage off granted by the single-use abandoned-cart code.</summary>
+    public decimal AbandonedCartDiscountPercent { get; set; } = 10m;
+
+    /// <summary>How long the single-use abandoned-cart code stays valid, in hours.</summary>
+    public int AbandonedCartCodeValidityHours { get; set; } = 48;
+
+    /// <summary>
+    /// SMS text template. Placeholders: {name}, {cafe}, {code}, {percent},
+    /// {validityHours}, {itemCount}, {itemsTotal}, {items}.
+    /// </summary>
+    public string AbandonedCartSmsTemplate { get; set; } =
+        "سلام {name}، سبد خرید شما در {cafe} منتظر شماست. با کد «{code}» تا {validityHours} ساعت آینده {percent}٪ تخفیف بگیرید.";
+
+    /// <summary>Email subject template. Same placeholders as the SMS template.</summary>
+    public string AbandonedCartEmailSubject { get; set; } = "سبد خرید شما در {cafe} منتظر است";
+
+    /// <summary>
+    /// Email body template (plain text; line breaks become HTML). Same
+    /// placeholders as the SMS template.
+    /// </summary>
+    public string AbandonedCartEmailTemplate { get; set; } =
+        "سلام {name}،\nسبد خرید شما در {cafe} ذخیره شده است:\n{items}\n\nکد تخفیف یک‌بارمصرف شما: {code}\nمیزان تخفیف: {percent}٪\nاعتبار کد: {validityHours} ساعت\n\nمنتظر حضور شما هستیم.";
 }

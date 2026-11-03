@@ -98,6 +98,20 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.PrintJob> PrintJobs { get; }
 
+    DbSet<Sugarista.Domain.Entities.Discount> Discounts { get; }
+
+    DbSet<Sugarista.Domain.Entities.DiscountRedemption> DiscountRedemptions { get; }
+
+    DbSet<Sugarista.Domain.Entities.LoyaltyTransaction> LoyaltyTransactions { get; }
+
+    DbSet<Sugarista.Domain.Entities.StampCardReward> StampCardRewards { get; }
+
+    DbSet<Sugarista.Domain.Entities.Badge> Badges { get; }
+
+    DbSet<Sugarista.Domain.Entities.CustomerBadge> CustomerBadges { get; }
+
+    DbSet<Sugarista.Domain.Entities.AbandonedCart> AbandonedCarts { get; }
+
     DbSet<Sugarista.Domain.Entities.TableSession> TableSessions { get; }
 
     DbSet<Sugarista.Domain.Entities.Account> Accounts { get; }

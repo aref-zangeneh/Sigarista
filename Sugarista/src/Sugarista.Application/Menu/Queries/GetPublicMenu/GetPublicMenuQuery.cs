@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Menu.Queries.GetPublicMenu;
 
@@ -8,7 +9,13 @@ public record PublicMenuDto(
     IReadOnlyCollection<PublicMenuCategoryDto> Categories,
     IReadOnlyCollection<PublicMenuItemDto> Items,
     IReadOnlyCollection<PublicAddonItemDto> Addons,
-    IReadOnlyCollection<PublicMenuModifierDto> Modifiers);
+    IReadOnlyCollection<PublicMenuModifierDto> Modifiers,
+    PublicFlashSaleDto? FlashSale);
+
+public record PublicFlashSaleDto(
+    string Title,
+    DateTimeOffset EndsAt,
+    decimal? DiscountPercent);
 
 public record PublicMenuCategoryDto(Guid Id, string Slug, string Label, int DisplayOrder);
 
@@ -24,6 +31,8 @@ public record PublicMenuItemDto(
     string? ImageUrl,
     IReadOnlyCollection<string> GalleryImageUrls,
     decimal? SpecialOfferPrice,
+    decimal? DiscountedPrice,
+    decimal? DiscountPercent,
     decimal TaxPercent,
     bool IsOrderable,
     int? PreparingDurationMinutes,
@@ -43,6 +52,8 @@ public record PublicMenuItemVariantDto(
     string Label,
     decimal? Price,
     decimal? SpecialOfferPrice,
+    decimal? DiscountedPrice,
+    decimal? DiscountPercent,
     string? Volume);
 
 public record PublicAddonItemDto(
@@ -52,6 +63,7 @@ public record PublicAddonItemDto(
     string EnglishName,
     string Description,
     decimal Price,
+    decimal? SpecialOfferPrice,
     IReadOnlyCollection<string> Tags,
     int DisplayOrder);
 
@@ -99,6 +111,7 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 item.EnglishName,
                 Category = item.Category.Slug,
                 CategoryLabel = item.Category.Name,
+                CategoryId = item.Category.Id,
                 item.Description,
                 item.Price,
                 item.ImageUrl,
@@ -128,8 +141,73 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
             })
             .ToListAsync(cancellationToken);
 
+        var now = DateTimeOffset.UtcNow;
+
+        var activeDiscounts = await _dbContext.Discounts
+            .AsNoTracking()
+            .Include(discount => discount.MenuItems)
+            .Include(discount => discount.Categories)
+            .Include(discount => discount.Schedules)
+            .Where(discount => discount.IsActive && discount.IsAutomatic)
+            .ToListAsync(cancellationToken);
+
+        activeDiscounts = activeDiscounts
+            .Where(discount => discount.IsLive(now) && discount.MatchesSchedule(now))
+            .Where(discount => discount.CustomerGroup == DiscountCustomerGroup.All)
+            .ToList();
+
+        Func<Guid, Guid, decimal, (decimal? discountedPrice, decimal? percent)> computeDiscount = (menuItemId, categoryId, price) =>
+        {
+            if (price <= 0) return (null, null);
+
+            decimal? best = null;
+            foreach (var discount in activeDiscounts)
+            {
+                if (discount.MinCartAmount > 0 && discount.MinCartAmount > price) continue;
+
+                // scope check
+                bool inScope;
+                if (!discount.HasScopeEntries)
+                {
+                    // cart-wide discount: not a product discount
+                    continue;
+                }
+                var itemIds = discount.MenuItems.Select(m => m.MenuItemId).ToHashSet();
+                var categoryIds = discount.Categories.Select(c => c.CategoryId).ToHashSet();
+                inScope = itemIds.Contains(menuItemId) || categoryIds.Contains(categoryId);
+                if (!inScope) continue;
+
+                decimal discounted;
+                if (discount.ValueKind == DiscountValueKind.Percentage)
+                {
+                    discounted = Math.Round(price * (1 - discount.Value / 100m), 2, MidpointRounding.AwayFromZero);
+                    if (discount.MaxDiscountAmount is { } cap)
+                    {
+                        var reduction = price - discounted;
+                        if (reduction > cap) discounted = price - cap;
+                    }
+                }
+                else
+                {
+                    discounted = Math.Max(0, price - discount.Value);
+                }
+
+                if (discounted < price && (best is null || discounted < best.Value))
+                {
+                    best = discounted;
+                }
+            }
+
+            if (best is null) return (null, null);
+            var percent = Math.Round((price - best.Value) / price * 100m, 0, MidpointRounding.AwayFromZero);
+            return (best, percent);
+        };
+
         var items = menuRows
-            .Select(item => new PublicMenuItemDto(
+            .Select(item =>
+            {
+                var (dp, pct) = computeDiscount(item.Id, item.CategoryId, item.Price);
+                return new PublicMenuItemDto(
                 item.Id,
                 item.Name,
                 item.PersianName,
@@ -141,6 +219,8 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 item.ImageUrl,
                 item.GalleryImageUrls,
                 item.SpecialOfferPrice,
+                dp,
+                pct,
                 item.TaxPercent,
                 item.IsOrderable,
                 item.PreparingDurationMinutes,
@@ -149,16 +229,17 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 item.Volume,
                 new[]
                 {
-                    new PublicMenuItemVariantDto("small", "کوچک", item.SmallPrice, item.SmallSpecialOfferPrice, item.SmallVolume),
-                    new PublicMenuItemVariantDto("medium", "متوسط", item.MediumPrice, item.MediumSpecialOfferPrice, item.MediumVolume),
-                    new PublicMenuItemVariantDto("large", "بزرگ", item.LargePrice, item.LargeSpecialOfferPrice, item.LargeVolume)
+                    new PublicMenuItemVariantDto("small", "کوچک", item.SmallPrice, item.SmallSpecialOfferPrice, item.SmallPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.SmallPrice.Value).discountedPrice : null, item.SmallPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.SmallPrice.Value).percent : null, item.SmallVolume),
+                    new PublicMenuItemVariantDto("medium", "متوسط", item.MediumPrice, item.MediumSpecialOfferPrice, item.MediumPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.MediumPrice.Value).discountedPrice : null, item.MediumPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.MediumPrice.Value).percent : null, item.MediumVolume),
+                    new PublicMenuItemVariantDto("large", "بزرگ", item.LargePrice, item.LargeSpecialOfferPrice, item.LargePrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.LargePrice.Value).discountedPrice : null, item.LargePrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.LargePrice.Value).percent : null, item.LargeVolume)
                 }.Where(variant => variant.Price.HasValue).ToArray(),
                 item.Tags,
                 item.Badge,
                 item.Featured,
                 item.Accent,
                 item.Short,
-                item.DisplayOrder))
+                item.DisplayOrder);
+            })
             .ToList();
 
         List<PublicAddonItemDto> addons;
@@ -177,6 +258,7 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                     addon.EnglishName,
                     addon.Description,
                     addon.Price,
+                    addon.SpecialOfferPrice,
                     addon.Tags,
                     addon.DisplayOrder))
                 .ToListAsync(cancellationToken);
@@ -201,6 +283,29 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 modifier.DisplayOrder))
             .ToListAsync(cancellationToken);
 
-        return new PublicMenuDto(categories, items, addons, modifiers);
+        var flashSaleDiscount = await _dbContext.Discounts
+            .AsNoTracking()
+            .Where(discount => discount.IsActive && discount.IsAutomatic && discount.IsFlashSale)
+            .ToListAsync(cancellationToken);
+
+        var now2 = DateTimeOffset.UtcNow;
+        var flashSale = flashSaleDiscount
+            .Where(discount => discount.IsLive(now2) && discount.MatchesSchedule(now2))
+            .Where(discount => discount.EndsAt.HasValue)
+            .OrderByDescending(discount => discount.Priority)
+            .ThenBy(discount => discount.EndsAt)
+            .FirstOrDefault();
+
+        PublicFlashSaleDto? flashSaleDto = null;
+        if (flashSale is not null && flashSale.EndsAt.HasValue)
+        {
+            decimal? percent = flashSale.ValueKind == DiscountValueKind.Percentage ? flashSale.Value : null;
+            flashSaleDto = new PublicFlashSaleDto(
+                flashSale.Name,
+                flashSale.EndsAt.Value,
+                percent);
+        }
+
+        return new PublicMenuDto(categories, items, addons, modifiers, flashSaleDto);
     }
 }

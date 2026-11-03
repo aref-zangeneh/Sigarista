@@ -107,6 +107,20 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<PrintJob> PrintJobs => Set<PrintJob>();
 
+    public DbSet<Discount> Discounts => Set<Discount>();
+
+    public DbSet<DiscountRedemption> DiscountRedemptions => Set<DiscountRedemption>();
+
+    public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
+
+    public DbSet<StampCardReward> StampCardRewards => Set<StampCardReward>();
+
+    public DbSet<Badge> Badges => Set<Badge>();
+
+    public DbSet<CustomerBadge> CustomerBadges => Set<CustomerBadge>();
+
+    public DbSet<AbandonedCart> AbandonedCarts => Set<AbandonedCart>();
+
     public DbSet<TableSession> TableSessions => Set<TableSession>();
 
     public DbSet<Account> Accounts => Set<Account>();

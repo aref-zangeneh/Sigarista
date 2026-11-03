@@ -4,7 +4,7 @@ import { usePaginatedResource } from '../hooks/usePaginatedResource'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
-async function fetchPaginated(path, { page, pageSize, search, token }) {
+async function fetchPaginated(path, { page, pageSize, search, status, token }) {
   const params = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
@@ -12,6 +12,10 @@ async function fetchPaginated(path, { page, pageSize, search, token }) {
 
   if (search) {
     params.set('search', search)
+  }
+
+  if (status) {
+    params.set('status', status)
   }
 
   const separator = path.includes('?') ? '&' : '?'
@@ -45,16 +49,18 @@ export function PaginatedAdminTable({
   searchPlaceholder,
   reloadToken = 0,
   emptyMessage,
+  status,
+  onStatusChange,
 }) {
   const fetchPage = useCallback(
     async ({ page, pageSize, search }) => {
-      const result = await fetchPaginated(apiPath, { page, pageSize, search, token })
+      const result = await fetchPaginated(apiPath, { page, pageSize, search, status, token })
       return {
         items: result.items ?? [],
         totalCount: result.totalCount ?? 0,
       }
     },
-    [apiPath, token, reloadToken],
+    [apiPath, token, reloadToken, status],
   )
 
   const {
@@ -73,6 +79,21 @@ export function PaginatedAdminTable({
   return (
     <div className="paginated-admin-table">
       {error ? <p className="feedback feedback-error">{error}</p> : null}
+      {onStatusChange ? (
+        <label className="paginated-admin-table-status">
+          <span>وضعیت</span>
+          <select
+            value={status ?? ''}
+            onChange={(event) => onStatusChange(event.target.value)}
+          >
+            <option value="">همه</option>
+            <option value="active">فعال</option>
+            <option value="scheduled">زمان‌بندی‌شده</option>
+            <option value="expired">منقضی</option>
+            <option value="inactive">غیرفعال</option>
+          </select>
+        </label>
+      ) : null}
       <DataTable
       manualPagination
       data={data}

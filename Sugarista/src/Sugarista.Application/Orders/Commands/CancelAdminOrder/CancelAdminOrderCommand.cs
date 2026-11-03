@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Orders.Commands.UpdateAdminOrder;
 using Sugarista.Application.Orders.Services;
@@ -19,10 +20,12 @@ public class CancelAdminOrderCommandValidator : AbstractValidator<CancelAdminOrd
 public class CancelAdminOrderCommandHandler : IRequestHandler<CancelAdminOrderCommand, AdminOrderDetailDto>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly ILoyaltyService _loyaltyService;
 
-    public CancelAdminOrderCommandHandler(IApplicationDbContext dbContext)
+    public CancelAdminOrderCommandHandler(IApplicationDbContext dbContext, ILoyaltyService loyaltyService)
     {
         _dbContext = dbContext;
+        _loyaltyService = loyaltyService;
     }
 
     public async Task<AdminOrderDetailDto> Handle(CancelAdminOrderCommand request, CancellationToken cancellationToken)
@@ -52,6 +55,7 @@ public class CancelAdminOrderCommandHandler : IRequestHandler<CancelAdminOrderCo
         }
 
         order.AdminCancel();
+        await _loyaltyService.RefundForCancelledOrderAsync(order, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return AdminOrderMapper.ToDetail(order);

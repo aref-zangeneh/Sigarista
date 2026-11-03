@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Common.Options;
+using Sugarista.Application.Discounts.Engine;
 using Sugarista.Application.Orders;
 using Sugarista.Domain.Entities;
 using Sugarista.Domain.Exceptions;
@@ -31,7 +32,10 @@ public record CreateOrderCheckoutCommand(
     bool IsSplitBill = false,
     string? SplitBillMode = null,
     int? GuestCount = null,
-    IReadOnlyCollection<CheckoutSplitShareRequest>? SplitShares = null) : IRequest<CreateOrderCheckoutResultDto>;
+    IReadOnlyCollection<CheckoutSplitShareRequest>? SplitShares = null,
+    string? DiscountCode = null,
+    int RedeemPoints = 0,
+    DateTimeOffset? DeliveryAt = null) : IRequest<CreateOrderCheckoutResultDto>;
 
 public record CreateOrderCheckoutResultDto(
     Guid OrderId,
@@ -48,6 +52,7 @@ public class CreateOrderCheckoutCommandValidator : AbstractValidator<CreateOrder
         RuleFor(c => c.CustomerName).NotEmpty().MaximumLength(200);
         RuleFor(c => c.CustomerPhone).NotEmpty().MaximumLength(30);
         RuleFor(c => c.Note).MaximumLength(500);
+        RuleFor(c => c.DiscountCode).MaximumLength(64);
         RuleFor(c => c.Items).NotEmpty().WithMessage("At least one item is required.");
         RuleForEach(c => c.Items).ChildRules(item =>
         {
@@ -111,15 +116,18 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
     private readonly IApplicationDbContext _dbContext;
     private readonly IPaymentGateway _paymentGateway;
     private readonly PaymentOptions _paymentOptions;
+    private readonly IDiscountEngine _discountEngine;
 
     public CreateOrderCheckoutCommandHandler(
         IApplicationDbContext dbContext,
         IPaymentGateway paymentGateway,
-        IOptions<PaymentOptions> paymentOptions)
+        IOptions<PaymentOptions> paymentOptions,
+        IDiscountEngine discountEngine)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
         _paymentOptions = paymentOptions.Value;
+        _discountEngine = discountEngine;
     }
 
     public async Task<CreateOrderCheckoutResultDto> Handle(CreateOrderCheckoutCommand request, CancellationToken cancellationToken)
@@ -188,6 +196,71 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             }
         }
 
+        // Customer group resolution: first order ever (New) vs returning customer.
+        // A first-order code should only reach customers without prior paid orders.
+        var customerGroups = new List<DiscountCustomerGroup>();
+        if (customer is not null)
+        {
+            var hasPriorOrders = await _dbContext.Orders
+                .AnyAsync(order => order.CustomerId == customer.Id, cancellationToken);
+            customerGroups.Add(hasPriorOrders
+                ? DiscountCustomerGroup.Returning
+                : DiscountCustomerGroup.New);
+        }
+
+        // Discount evaluation happens entirely on the backend: the engine is
+        // the single source of truth for the final discounted order amount.
+        var discountTotal = 0m;
+        var discountLines = new List<DiscountLineInput>();
+        var requestedDiscountCode = string.IsNullOrWhiteSpace(request.DiscountCode)
+            ? null
+            : Discount.NormalizeCode(request.DiscountCode);
+
+        foreach (var (resolved, payerKey, payerLabel) in resolvedLines)
+        {
+            discountLines.Add(new DiscountLineInput(
+                resolved.MenuItemId,
+                resolved.CategoryId,
+                resolved.PersianName,
+                resolved.SizeKey,
+                resolved.Quantity,
+                resolved.UnitPrice,
+                payerKey));
+        }
+
+        var discountEvaluation = await _discountEngine.EvaluateAsync(
+            new DiscountEvaluationContext(
+                discountLines,
+                DeliveryFee: 0m,
+                Code: requestedDiscountCode,
+                CustomerId: customer?.Id,
+                CustomerGroups: customerGroups,
+                Now: DateTimeOffset.UtcNow,
+                Channel: "online",
+                IsOnlinePayment: true,
+                TimeZoneId: siteSettings?.TimeZoneId ?? "Asia/Tehran"),
+            cancellationToken);
+
+        discountTotal = discountEvaluation.Applications.Sum(application => application.Amount);
+
+        // A typed code that produced no application means the engine rejected it
+        // (unknown / inactive / expired / out of schedule / below minimum cart /
+        // wrong customer group / no eligible items / not stackable). Surface the
+        // domain message to the customer instead of silently creating an order
+        // without any discount.
+        if (requestedDiscountCode is not null &&
+            discountEvaluation.Applications.Count == 0 &&
+            discountEvaluation.Rejections.Count > 0)
+        {
+            throw new DomainException(
+                discountEvaluation.CodeRejection?.Message ?? "این کد تخفیف معتبر نیست.");
+        }
+
+        if (discountTotal > 0)
+        {
+            await ApplyReferralRewardAsync(customer, request.DiscountCode, cancellationToken);
+        }
+
         var trackingCode = await OrderTrackingCodeGenerator.GenerateAsync(_dbContext, cancellationToken);
         var paymentAuthority = isSplitBill ? $"SPLIT-{Guid.NewGuid():N}" : Guid.NewGuid().ToString("N");
 
@@ -220,7 +293,54 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         }
 
         order.RecalculateTotal();
+
+        if (discountTotal > 0)
+        {
+            order.ApplyDiscount(discountTotal);
+        }
+
+        // Loyalty redemption: convert points to a discount amount.
+        if (request.RedeemPoints > 0 && customer is not null && siteSettings is { LoyaltyEnabled: true } &&
+            siteSettings.LoyaltyRedeemTomanPerPoint > 0)
+        {
+            var points = Math.Min(request.RedeemPoints, customer.LoyaltyPoints);
+            if (points > 0)
+            {
+                var loyaltyDiscount = points * siteSettings.LoyaltyRedeemTomanPerPoint;
+                customer.DeductLoyaltyPoints(points);
+                _dbContext.LoyaltyTransactions.Add(new LoyaltyTransaction(
+                    customer.Id,
+                    LoyaltyTransactionType.Redeem,
+                    -points,
+                    customer.LoyaltyPoints,
+                    $"مصرف امتیاز در سفارش {order.TrackingCode}",
+                    order.Id,
+                    null));
+                order.ApplyDiscount(loyaltyDiscount);
+                discountTotal += loyaltyDiscount;
+            }
+        }
+
+        // Stamp card: automatically spend the customer's oldest valid completed-card
+        // reward when no manual discount code was entered.
+        if (string.IsNullOrWhiteSpace(request.DiscountCode) && customer is not null &&
+            siteSettings is { StampCardEnabled: true } && siteSettings.StampCardRewardPercent > 0)
+        {
+            var stampPercent = await StampCardService.SpendActiveRewardAsync(_dbContext, customer, order.Id, cancellationToken);
+            if (stampPercent > 0)
+            {
+                var stampDiscount = Math.Round(itemsTotal * stampPercent / 100m, 2);
+                if (stampDiscount > 0)
+                {
+                    order.ApplyDiscount(stampDiscount);
+                    discountTotal += stampDiscount;
+                }
+            }
+        }
+
         order.AssignCustomer(customer?.Id);
+
+        order.ApplyDeliveryTime(request.DeliveryAt);
 
         if (isSplitBill && request.SplitShares is { Count: > 0 })
         {
@@ -238,6 +358,15 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         }
 
         _dbContext.Orders.Add(order);
+
+        if (discountTotal > 0)
+        {
+            await _discountEngine.RecordRedemptionsAsync(
+                order.Id,
+                customer?.Id,
+                discountEvaluation.Applications,
+                cancellationToken);
+        }
 
         if (isSplitBill)
         {
@@ -271,6 +400,46 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             order.TotalAmount,
             false,
             order.TrackingCode);
+    }
+
+    /// <summary>
+    /// Referral reward: when a discount was applied through a personal referral
+    /// code, the invitee is ordering for the first time — the referring customer
+    /// earns the referral reward (win-back / discount unlock).
+    /// </summary>
+    private async Task ApplyReferralRewardAsync(Customer? customer, string? discountCode, CancellationToken cancellationToken)
+    {
+        if (customer is null || string.IsNullOrWhiteSpace(discountCode) || discountCode.Length > 64)
+        {
+            return;
+        }
+
+        var normalizedCode = Discount.NormalizeCode(discountCode);
+        var referrer = await _dbContext.Customers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(referrer => referrer.ReferralCode == normalizedCode, cancellationToken);
+
+        if (referrer is null || referrer.Id == customer.Id)
+        {
+            return;
+        }
+
+        var inviteeCompletedBefore = await _dbContext.Orders
+            .AnyAsync(order => order.CustomerId == customer.Id && order.Status == OrderStatus.Paid && order.PaidAt != null, cancellationToken);
+
+        if (inviteeCompletedBefore)
+        {
+            // Only the first successful order of an invitee unlocks the reward.
+            return;
+        }
+
+        var referrerEntity = await _dbContext.Customers
+            .FirstOrDefaultAsync(referrer => referrer.Id == referrer.Id, cancellationToken);
+
+        if (referrerEntity is not null)
+        {
+            referrerEntity.MarkReferralRewardEligible();
+        }
     }
 
     private static SplitBillMode ResolveSplitBillMode(CreateOrderCheckoutCommand command)

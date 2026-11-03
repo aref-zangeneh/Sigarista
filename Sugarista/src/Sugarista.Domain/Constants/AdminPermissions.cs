@@ -43,6 +43,14 @@ public static class AdminPermissions
         public const string Delete = "admin.addons.delete";
     }
 
+    public static class Discounts
+    {
+        public const string View = "admin.discounts.view";
+        public const string Create = "admin.discounts.create";
+        public const string Update = "admin.discounts.update";
+        public const string Delete = "admin.discounts.delete";
+    }
+
     public static class Modifiers
     {
         public const string View = "admin.modifiers.view";
@@ -200,6 +208,10 @@ public static class AdminPermissions
         new(Addons.Create, "addons", "create", "افزودنی‌ها", "ایجاد"),
         new(Addons.Update, "addons", "update", "افزودنی‌ها", "ویرایش"),
         new(Addons.Delete, "addons", "delete", "افزودنی‌ها", "حذف"),
+        new(Discounts.View, "discounts", "view", "تخفیف‌ها", "مشاهده"),
+        new(Discounts.Create, "discounts", "create", "تخفیف‌ها", "ایجاد"),
+        new(Discounts.Update, "discounts", "update", "تخفیف‌ها", "ویرایش"),
+        new(Discounts.Delete, "discounts", "delete", "تخفیف‌ها", "حذف"),
         new(Modifiers.View, "modifiers", "view", "تغییرات سفارش", "مشاهده"),
         new(Modifiers.Create, "modifiers", "create", "تغییرات سفارش", "ایجاد"),
         new(Modifiers.Update, "modifiers", "update", "تغییرات سفارش", "ویرایش"),

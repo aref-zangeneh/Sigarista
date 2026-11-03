@@ -14,6 +14,7 @@ public record AdminAddonItemDto(
     string EnglishName,
     string Description,
     decimal Price,
+    decimal? SpecialOfferPrice,
     IReadOnlyCollection<string> Tags,
     int DisplayOrder,
     bool IsActive);
@@ -52,6 +53,7 @@ public class GetAdminAddonItemsQueryHandler : IRequestHandler<GetAdminAddonItems
                 addon.EnglishName,
                 addon.Description,
                 addon.Price,
+                addon.SpecialOfferPrice,
                 addon.Tags,
                 addon.DisplayOrder,
                 addon.IsActive))

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Accounting.Services;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Inventory.Services;
 using Sugarista.Application.Orders.Services;
@@ -36,13 +37,16 @@ public class RegisterAdminPaymentCommandHandler : IRequestHandler<RegisterAdminP
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IAccountingService _accountingService;
+    private readonly ILoyaltyService _loyaltyService;
 
     public RegisterAdminPaymentCommandHandler(
         IApplicationDbContext dbContext,
-        IAccountingService accountingService)
+        IAccountingService accountingService,
+        ILoyaltyService loyaltyService)
     {
         _dbContext = dbContext;
         _accountingService = accountingService;
+        _loyaltyService = loyaltyService;
     }
 
     public async Task<AdminOrderDetailDto> Handle(
@@ -107,6 +111,7 @@ public class RegisterAdminPaymentCommandHandler : IRequestHandler<RegisterAdminP
         {
             await _accountingService.PostOrderPaymentAsync(order, cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await _loyaltyService.AwardForPaidOrderAsync(order, cancellationToken);
         }
 
         return AdminOrderMapper.ToDetail(order);

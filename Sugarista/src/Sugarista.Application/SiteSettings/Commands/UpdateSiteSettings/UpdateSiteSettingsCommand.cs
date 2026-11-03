@@ -59,6 +59,39 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     public string ThemeMode { get; init; } = "auto";
 
     public bool AllowManualThemeOverride { get; init; } = true;
+
+    public int WinBackDays { get; init; } = 30;
+
+    public bool LoyaltyEnabled { get; init; }
+
+    public decimal LoyaltyEarnTomanPerPoint { get; init; } = 10000m;
+
+    public decimal LoyaltyRedeemTomanPerPoint { get; init; } = 1000m;
+
+    public int LoyaltyPointsExpiryDays { get; init; } = 365;
+
+    public bool StampCardEnabled { get; init; } = true;
+    public int StampCardOrdersPerCard { get; init; } = 10;
+    public decimal StampCardRewardPercent { get; init; } = 10m;
+    public int StampCardRewardValidityDays { get; init; } = 30;
+
+    public bool AbandonedCartReminderEnabled { get; init; } = true;
+
+    public int AbandonedCartHours { get; init; } = 4;
+
+    public bool AbandonedCartSmsEnabled { get; init; } = true;
+
+    public bool AbandonedCartEmailEnabled { get; init; }
+
+    public decimal AbandonedCartDiscountPercent { get; init; } = 10m;
+
+    public int AbandonedCartCodeValidityHours { get; init; } = 48;
+
+    public string AbandonedCartSmsTemplate { get; init; } = string.Empty;
+
+    public string AbandonedCartEmailSubject { get; init; } = string.Empty;
+
+    public string AbandonedCartEmailTemplate { get; init; } = string.Empty;
 }
 
 public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSettingsCommand>
@@ -77,6 +110,19 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
         RuleFor(command => command.ThemeMode)
             .Must(mode => mode is "auto" or "light" or "dark")
             .WithMessage("حالت تم باید یکی از auto، light یا dark باشد.");
+        RuleFor(command => command.WinBackDays).InclusiveBetween(0, 365);
+        RuleFor(command => command.LoyaltyEarnTomanPerPoint).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.LoyaltyRedeemTomanPerPoint).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.LoyaltyPointsExpiryDays).InclusiveBetween(0, 3650);
+        RuleFor(command => command.StampCardOrdersPerCard).InclusiveBetween(1, 1000);
+        RuleFor(command => command.StampCardRewardPercent).InclusiveBetween(0, 100);
+        RuleFor(command => command.StampCardRewardValidityDays).InclusiveBetween(0, 3650);
+        RuleFor(command => command.AbandonedCartHours).InclusiveBetween(0, 720);
+        RuleFor(command => command.AbandonedCartDiscountPercent).InclusiveBetween(0, 100);
+        RuleFor(command => command.AbandonedCartCodeValidityHours).InclusiveBetween(1, 720);
+        RuleFor(command => command.AbandonedCartSmsTemplate).MaximumLength(1000);
+        RuleFor(command => command.AbandonedCartEmailSubject).MaximumLength(200);
+        RuleFor(command => command.AbandonedCartEmailTemplate).MaximumLength(4000);
     }
 }
 
@@ -149,6 +195,24 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.DarkThemeStartHour = request.DarkThemeStartHour;
         settings.ThemeMode = request.ThemeMode.Trim().ToLowerInvariant();
         settings.AllowManualThemeOverride = request.AllowManualThemeOverride;
+        settings.WinBackDays = request.WinBackDays;
+        settings.LoyaltyEnabled = request.LoyaltyEnabled;
+        settings.LoyaltyEarnTomanPerPoint = request.LoyaltyEarnTomanPerPoint;
+        settings.LoyaltyRedeemTomanPerPoint = request.LoyaltyRedeemTomanPerPoint;
+        settings.LoyaltyPointsExpiryDays = request.LoyaltyPointsExpiryDays;
+        settings.StampCardEnabled = request.StampCardEnabled;
+        settings.StampCardOrdersPerCard = request.StampCardOrdersPerCard;
+        settings.StampCardRewardPercent = request.StampCardRewardPercent;
+        settings.StampCardRewardValidityDays = request.StampCardRewardValidityDays;
+        settings.AbandonedCartReminderEnabled = request.AbandonedCartReminderEnabled;
+        settings.AbandonedCartHours = request.AbandonedCartHours;
+        settings.AbandonedCartSmsEnabled = request.AbandonedCartSmsEnabled;
+        settings.AbandonedCartEmailEnabled = request.AbandonedCartEmailEnabled;
+        settings.AbandonedCartDiscountPercent = request.AbandonedCartDiscountPercent;
+        settings.AbandonedCartCodeValidityHours = request.AbandonedCartCodeValidityHours;
+        settings.AbandonedCartSmsTemplate = request.AbandonedCartSmsTemplate.Trim();
+        settings.AbandonedCartEmailSubject = request.AbandonedCartEmailSubject.Trim();
+        settings.AbandonedCartEmailTemplate = request.AbandonedCartEmailTemplate.Trim();
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

@@ -1,5 +1,8 @@
 document.addEventListener("alpine:init", () => {
   const CART_STORAGE_KEY = "sugarista_cart";
+  const CART_TOKEN_STORAGE_KEY = "sugarista_cart_token";
+  const CART_TRACK_DEBOUNCE_MS = 1200;
+  const PROFILE_STORAGE_KEY = "sugarista_profile_phone";
 
   Alpine.data("cafeMenu", () => ({
     apiBaseUrl: window.SUGARISTA_API_BASE_URL || "/api",
@@ -14,10 +17,16 @@ document.addEventListener("alpine:init", () => {
     cart: [],
     cartDrawerOpen: false,
     cartView: "cart",
+    cartTrackTimer: null,
+    cartProgressTimer: null,
+    cartTokenValue: null,
     checkoutForm: {
       customerName: "",
       customerPhone: "",
+      email: "",
       note: "",
+      discountCode: "",
+      redeemPoints: "",
       isSplitBill: false,
       splitBillMode: "ByItem",
       guestCount: 2,
@@ -25,6 +34,20 @@ document.addEventListener("alpine:init", () => {
     },
     checkoutLoading: false,
     checkoutError: "",
+    appliedDiscount: null,
+    cartProgress: null,
+    cartProgressTimer: null,
+    deliverySlots: [],
+    deliverySlotsLoading: false,
+    selectedDeliverySlot: null,
+    profileOpen: false,
+    profileLoading: false,
+    profileError: "",
+    profilePhoneInput: "",
+    profilePhone: null,
+    profile: null,
+    flashSaleTimer: null,
+    flashSaleRemaining: "",
     addToCartModal: null,
     mockPayment: null,
     splitOrder: null,
@@ -96,6 +119,7 @@ document.addEventListener("alpine:init", () => {
       this.loadThemePref();
       this.applyTheme();
       this.loadCart();
+      this.restoreProfilePhone();
       this.handleRouteState();
       this.loading = true;
       this.error = "";
@@ -135,6 +159,14 @@ document.addEventListener("alpine:init", () => {
         this.setupTheme();
         this.initSearchTypewriter();
         await this.loadSplitOrderFromRoute();
+        this.flashSale = menuData.flashSale || null;
+        if (this.flashSale) {
+          this.startFlashSaleCountdown();
+        }
+        if (this.cart.length) {
+          this.refreshCartProgress();
+          this.loadDeliverySlots();
+        }
       } catch (error) {
         this.error = error.message || "دریافت اطلاعات با خطا مواجه شد.";
       } finally {
@@ -330,7 +362,11 @@ document.addEventListener("alpine:init", () => {
 
       const successCode = params.get("code");
       if (params.get("order") === "success" && successCode) {
-        this.orderSuccess = { trackingCode: successCode };
+        const discountCode = params.get("discount");
+        const discountAmount = Number(params.get("discountAmount")) || 0;
+        this.orderSuccess = discountCode && discountAmount > 0
+          ? { trackingCode: successCode, discountCode, discountAmount }
+          : { trackingCode: successCode };
         return;
       }
 
@@ -343,6 +379,7 @@ document.addEventListener("alpine:init", () => {
           paymentId: splitPaymentId,
           authority
         };
+        this.restorePendingPayment();
         return;
       }
 
@@ -352,6 +389,20 @@ document.addEventListener("alpine:init", () => {
           orderId: payOrderId,
           authority
         };
+        this.restorePendingPayment();
+      }
+    },
+    restorePendingPayment() {
+      try {
+        const raw = window.sessionStorage.getItem("sugarista_pending_payment");
+        if (!raw) {
+          return;
+        }
+
+        this.pendingPayment = JSON.parse(raw);
+        window.sessionStorage.removeItem("sugarista_pending_payment");
+      } catch {
+        this.pendingPayment = null;
       }
     },
     async loadSplitOrderFromRoute() {
@@ -385,8 +436,61 @@ document.addEventListener("alpine:init", () => {
       const count = Number(this.checkoutForm.guestCount) || 2;
       return Array.from({ length: count }, (_, index) => index + 1);
     },
-    get cartTotal() {
+    cartTotal() {
       return this.cart.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
+    },
+    get automaticDiscountAmount() {
+      return Number(this.cartProgress?.automaticDiscountTotal) || 0;
+    },
+    get tierProgress() {
+      return this.cartProgress?.tier || null;
+    },
+    get discountedAddons() {
+      return (this.addons || []).filter((addon) => Number(addon.specialOfferPrice) > 0);
+    },
+    get tierProgressPercent() {
+      return Math.max(0, Math.min(100, Number(this.tierProgress?.progressPercent) || 0));
+    },
+    get tierProgressMessage() {
+      const tier = this.tierProgress;
+      if (!tier) {
+        return "";
+      }
+
+      if (tier.nextThresholdAmount != null) {
+        const reward =
+          tier.nextValueKind === "Percentage"
+            ? `${this.toPersianNumber(tier.nextValue)}٪ تخفیف`
+            : `${this.formatPrice(tier.nextValue)} تخفیف`;
+        return `${this.formatPrice(tier.remainingAmount)} دیگر بخرید تا ${reward} بگیرید`;
+      }
+
+      if (tier.appliedThresholdAmount != null) {
+        const reward =
+          tier.appliedValueKind === "Percentage"
+            ? `${this.toPersianNumber(tier.appliedValue)}٪ تخفیف`
+            : `${this.formatPrice(tier.appliedValue)} تخفیف`;
+        return `تبریک! تخفیف پلکانی ${reward} فعال شد`;
+      }
+
+      return "";
+    },
+    get finalAmount() {
+      const discount = Math.max(
+        Number(this.appliedDiscount?.amount) || 0,
+        this.automaticDiscountAmount
+      );
+      const final = this.cartTotal - discount;
+      return Math.max(0, Math.round(final * 100) / 100);
+    },
+    get paymentAmount() {
+      return this.pendingPayment?.amount ?? this.finalAmount;
+    },
+    get paymentDiscount() {
+      if (this.pendingPayment?.discountAmount > 0) {
+        return { code: this.pendingPayment.code, amount: this.pendingPayment.discountAmount };
+      }
+      return this.appliedDiscount;
     },
     get splitPercentageTotal() {
       return this.checkoutForm.splitShares.reduce(
@@ -536,6 +640,334 @@ document.addEventListener("alpine:init", () => {
     saveCart() {
       window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(this.cart));
     },
+    cartToken() {
+      if (this.cartTokenValue) {
+        return this.cartTokenValue;
+      }
+
+      try {
+        let token = window.localStorage.getItem(CART_TOKEN_STORAGE_KEY);
+        if (!token) {
+          token = this.generateCartToken();
+          window.localStorage.setItem(CART_TOKEN_STORAGE_KEY, token);
+        }
+        this.cartTokenValue = token;
+      } catch {
+        // Private mode or storage disabled: keep one token for this page view,
+        // which is enough for a single reminder.
+        this.cartTokenValue = this.generateCartToken();
+      }
+
+      return this.cartTokenValue;
+    },
+    generateCartToken() {
+      if (window.crypto?.randomUUID) {
+        return window.crypto.randomUUID();
+      }
+      return `cart-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    },
+    // ── کارت مهر / پروفایل مشتری ─────────────────────────────────────────
+    restoreProfilePhone() {
+      try {
+        const phone = window.localStorage.getItem(PROFILE_STORAGE_KEY) || "";
+        if (phone) {
+          this.profilePhone = phone;
+          this.profilePhoneInput = phone;
+          if (!this.checkoutForm.customerPhone.trim()) {
+            this.checkoutForm.customerPhone = phone;
+          }
+        }
+      } catch {
+        // Private mode: اعضا فقط در همین بازدید فعال هستند.
+      }
+    },
+    openProfile() {
+      this.profileError = "";
+      this.profileOpen = true;
+      if (this.profilePhone) {
+        this.loadProfile();
+      }
+    },
+    closeProfile() {
+      this.profileOpen = false;
+    },
+    profileStatusChip() {
+      if (this.profile?.activeReward) {
+        return "جایزهٔ آماده دارد";
+      }
+      if (this.profile?.loyaltyPoints > 0) {
+        return `${this.toPersianNumber(this.profile.loyaltyPoints)} امتیاز`;
+      }
+      return "";
+    },
+    profileStampSlots() {
+      const total = this.profile?.ordersPerCard || 0;
+      const filled = Math.min(this.profile?.currentCardStamps ?? 0, total);
+      return Array.from({ length: total }, (_, index) => index < filled);
+    },
+    async submitProfilePhone() {
+      const digits = (this.profilePhoneInput || "").replace(/\D/g, "");
+      if (digits.length < 8) {
+        this.profileError = "شماره موبایل معتبر وارد کنید.";
+        return;
+      }
+      this.profilePhone = digits;
+      try {
+        window.localStorage.setItem(PROFILE_STORAGE_KEY, digits);
+      } catch {
+        // Private mode
+      }
+      if (!this.checkoutForm.customerPhone.trim()) {
+        this.checkoutForm.customerPhone = digits;
+      }
+      await this.loadProfile();
+    },
+    async loadProfile() {
+      if (!this.profilePhone) {
+        return;
+      }
+      this.profileLoading = true;
+      this.profileError = "";
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/customers/profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber: this.profilePhone })
+        });
+        if (!response.ok) {
+          throw new Error("خطا در دریافت پروفایل.");
+        }
+        this.profile = await response.json();
+      } catch (error) {
+        this.profile = null;
+        this.profileError = error.message || "خطا در دریافت پروفایل.";
+      } finally {
+        this.profileLoading = false;
+      }
+    },
+    forgetProfile() {
+      this.profileOpen = false;
+      this.profile = null;
+      this.profilePhone = null;
+      this.profilePhoneInput = "";
+      try {
+        window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+      } catch {
+        // Private mode
+      }
+    },
+    scheduleCartTracking() {
+      window.clearTimeout(this.cartTrackTimer);
+      this.cartTrackTimer = window.setTimeout(() => {
+        this.trackCart();
+      }, CART_TRACK_DEBOUNCE_MS);
+    },
+    async trackCart() {
+      if (this.salesClosed) {
+        return;
+      }
+
+      window.clearTimeout(this.cartTrackTimer);
+
+      try {
+        await fetch(`${this.apiBaseUrl}/carts/track`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          keepalive: true,
+          body: JSON.stringify({
+            cartToken: this.cartToken(),
+            customerName: this.checkoutForm.customerName.trim() || null,
+            phoneNumber: this.checkoutForm.customerPhone.trim() || null,
+            email: (this.checkoutForm.email || "").trim() || null,
+            items: this.cart.map((line) => ({
+              menuItemId: line.menuItemId,
+              sizeKey: line.sizeKey,
+              quantity: line.quantity,
+              modifierIds: line.modifierIds || []
+            }))
+          })
+        });
+      } catch {
+        // Tracking is best-effort; a failed heartbeat must never block the
+        // customer's shopping or checkout flow.
+      }
+    },
+    scheduleCartProgress() {
+      window.clearTimeout(this.cartProgressTimer);
+      this.cartProgressTimer = window.setTimeout(() => {
+        this.refreshCartProgress();
+      }, CART_TRACK_DEBOUNCE_MS);
+    },
+    async refreshCartProgress() {
+      if (this.salesClosed) {
+        this.cartProgress = null;
+        return;
+      }
+
+      if (!this.cart.length) {
+        this.cartProgress = null;
+        return;
+      }
+
+      window.clearTimeout(this.cartProgressTimer);
+
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/discounts/cart-progress`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          keepalive: true,
+          body: JSON.stringify({
+            lines: this.cart.map((line) => ({
+              menuItemId: line.menuItemId,
+              categoryId: null,
+              persianName: line.persianName,
+              sizeKey: line.sizeKey,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice
+            }))
+          })
+        });
+
+        if (!response.ok) {
+          this.cartProgress = null;
+          return;
+        }
+
+        this.cartProgress = await response.json();
+      } catch {
+        this.cartProgress = null;
+      }
+    },
+    async loadDeliverySlots() {
+      this.deliverySlotsLoading = true;
+      try {
+        const now = new Date();
+        const slots = [];
+        const startHour = 9;
+        const endHour = 21;
+        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+          const base = new Date(now);
+          base.setDate(base.getDate() + dayOffset);
+          base.setHours(startHour, 0, 0, 0);
+          const end = new Date(base);
+          end.setHours(endHour, 0, 0, 0);
+          let cursor = new Date(base);
+          while (cursor < end) {
+            if (cursor > now) {
+              slots.push(new Date(cursor));
+            }
+            cursor = new Date(cursor.getTime() + 30 * 60000);
+          }
+          if (slots.length >= 6) break;
+        }
+
+        if (!slots.length) {
+          this.deliverySlots = [];
+          return;
+        }
+
+        const response = await fetch(`${this.apiBaseUrl}/discounts/delivery-slots`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lines: this.cart.map((line) => ({
+              menuItemId: line.menuItemId,
+              categoryId: null,
+              persianName: line.persianName,
+              sizeKey: line.sizeKey,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice
+            })),
+            slots: slots.map((slot) => slot.toISOString()),
+            timeZoneId: this.settings.timeZoneId || "Asia/Tehran"
+          })
+        });
+
+        if (!response.ok) {
+          this.deliverySlots = slots.map((slot) => ({
+            time: slot.toISOString(),
+            hasDiscount: false,
+            discountPercent: null,
+            discountName: null
+          }));
+          return;
+        }
+
+        const data = await response.json();
+        this.deliverySlots = (data || []).map((slot) => ({
+          ...slot,
+          date: new Date(slot.time)
+        }));
+
+        if (!this.selectedDeliverySlot && this.deliverySlots.length) {
+          this.selectedDeliverySlot = this.deliverySlots[0].time;
+        }
+      } catch {
+        this.deliverySlots = [];
+      } finally {
+        this.deliverySlotsLoading = false;
+      }
+    },
+    startFlashSaleCountdown() {
+      window.clearInterval(this.flashSaleTimer);
+      const tick = () => {
+        if (!this.flashSale?.endsAt) {
+          window.clearInterval(this.flashSaleTimer);
+          return;
+        }
+        const end = new Date(this.flashSale.endsAt).getTime();
+        const now = Date.now();
+        const diff = end - now;
+        if (diff <= 0) {
+          window.clearInterval(this.flashSaleTimer);
+          this.flashSale = null;
+          this.flashSaleRemaining = "";
+          // Re-fetch menu so discounted prices revert automatically.
+          this.refreshMenu();
+          return;
+        }
+        const hours = Math.floor(diff / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        this.flashSaleRemaining = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      };
+      tick();
+      this.flashSaleTimer = window.setInterval(tick, 1000);
+    },
+    async refreshMenu() {
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/menu`);
+        if (!response.ok) return;
+        const menuData = await response.json();
+        this.categories = (menuData.categories || []).map((category) => ({
+          id: category.slug,
+          label: category.label,
+          order: category.displayOrder
+        }));
+        this.items = (menuData.items || []).map((item) => ({
+          ...item,
+          tags: item.tags || [],
+          allergens: item.allergens || [],
+          variants: item.variants || [],
+          galleryImageUrls: item.galleryImageUrls || []
+        }));
+        this.addons = (menuData.addons || []).map((addon) => ({
+          ...addon,
+          tags: addon.tags || []
+        }));
+        this.modifiers = menuData.modifiers || [];
+        this.flashSale = menuData.flashSale || null;
+        if (this.flashSale) {
+          this.startFlashSaleCountdown();
+        }
+        if (this.cart.length) {
+          this.refreshCartProgress();
+          this.loadDeliverySlots();
+        }
+      } catch {
+        // ignore
+      }
+    },
     get cartCount() {
       return this.cart.reduce((total, line) => total + line.quantity, 0);
     },
@@ -629,6 +1061,11 @@ document.addEventListener("alpine:init", () => {
       this.cartView = view;
       this.cartDrawerOpen = true;
       this.checkoutError = "";
+      if (view === "checkout") {
+        this.trackCart();
+        this.refreshCartProgress();
+        this.loadDeliverySlots();
+      }
       if (view === "checkout" && this.checkoutForm.isSplitBill) {
         if (this.checkoutForm.splitBillMode === "ByItem") {
           this.ensureCartPayerAssignments();
@@ -641,6 +1078,14 @@ document.addEventListener("alpine:init", () => {
       this.cartDrawerOpen = false;
       this.cartView = "cart";
       this.checkoutError = "";
+    },
+    scrollToAddonSection() {
+      this.$nextTick(() => {
+        const target = document.querySelector(".addons-section");
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
     },
     openAddToCartModal(item) {
       if (!item.isOrderable || this.salesClosed) {
@@ -776,6 +1221,10 @@ document.addEventListener("alpine:init", () => {
       }
 
       this.saveCart();
+      this.scheduleCartTracking();
+      this.appliedDiscount = null;
+      this.scheduleCartProgress();
+      this.loadDeliverySlots();
       this.closeAddToCartModal();
       this.openCartDrawer("cart");
     },
@@ -792,10 +1241,18 @@ document.addEventListener("alpine:init", () => {
       }
 
       this.saveCart();
+      this.scheduleCartTracking();
+      this.appliedDiscount = null;
+      this.scheduleCartProgress();
+      this.loadDeliverySlots();
     },
     removeFromCart(cartKey) {
       this.cart = this.cart.filter((line) => line.cartKey !== cartKey);
       this.saveCart();
+      this.scheduleCartTracking();
+      this.appliedDiscount = null;
+      this.scheduleCartProgress();
+      this.loadDeliverySlots();
     },
     clearCart() {
       this.cart = [];
@@ -813,10 +1270,57 @@ document.addEventListener("alpine:init", () => {
 
       this.checkoutLoading = true;
       this.checkoutError = "";
+      this.appliedDiscount = null;
 
       try {
         if (this.checkoutForm.isSplitBill && this.checkoutForm.splitBillMode === "ByItem") {
           this.ensureCartPayerAssignments();
+        }
+
+        // Persist the contact details + cart snapshot before the order is
+        // created, so an abandoned checkout can still be reminded about.
+        await this.trackCart();
+
+        const discountCode = this.checkoutForm.discountCode.trim();
+        let discountAmount = 0;
+
+        if (discountCode) {
+          const previewResponse = await fetch(`${this.apiBaseUrl}/discounts/preview`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code: discountCode,
+              deliveryFee: 0,
+              channel: "online",
+              isOnlinePayment: true,
+              lines: this.cart.map((line) => ({
+                menuItemId: line.menuItemId,
+                categoryId: null,
+                persianName: line.persianName,
+                sizeKey: line.sizeKey,
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+                payerKey: line.payerKey || null
+              }))
+            })
+          });
+
+          const previewPayload = await previewResponse.json().catch(() => null);
+
+          if (!previewResponse.ok) {
+            throw new Error(previewPayload?.detail || previewPayload?.title || "این کد تخفیف معتبر نیست.");
+          }
+
+          const rejections = previewPayload?.rejections || [];
+          if (rejections.length) {
+            throw new Error(rejections[0]?.message || "این کد تخفیف معتبر نیست.");
+          }
+
+          discountAmount = Number(previewPayload?.discountTotal) || 0;
+
+          if (discountAmount > 0) {
+            this.appliedDiscount = { code: discountCode, amount: discountAmount };
+          }
         }
 
         const splitShares =
@@ -843,6 +1347,9 @@ document.addEventListener("alpine:init", () => {
             customerName: this.checkoutForm.customerName.trim(),
             customerPhone: this.checkoutForm.customerPhone.trim(),
             note: this.checkoutForm.note.trim() || null,
+            discountCode: this.checkoutForm.discountCode.trim() || null,
+            redeemPoints: Number(this.checkoutForm.redeemPoints) || 0,
+            deliveryAt: this.selectedDeliverySlot || null,
             isSplitBill: this.checkoutForm.isSplitBill,
             splitBillMode: this.checkoutForm.isSplitBill ? this.checkoutForm.splitBillMode : null,
             guestCount: this.checkoutForm.isSplitBill ? Number(this.checkoutForm.guestCount) : null,
@@ -870,6 +1377,21 @@ document.addEventListener("alpine:init", () => {
         }
 
         const result = await response.json();
+
+        // Carry the server-computed final amount and the applied discount into
+        // the payment page. The redirect reloads the app, so in-memory state is
+        // gone by then; sessionStorage keeps the two screens in sync.
+        try {
+          window.sessionStorage.setItem("sugarista_pending_payment", JSON.stringify({
+            amount: Number(result.totalAmount) || this.finalAmount,
+            code: this.appliedDiscount?.code || null,
+            discountAmount: this.appliedDiscount?.amount || 0
+          }));
+        } catch {
+          // Storage may be unavailable (private mode) — the payment page then
+          // falls back to the in-memory values.
+        }
+
         this.clearCart();
         this.closeCartDrawer();
         window.location.href = result.redirectUrl;
@@ -907,7 +1429,13 @@ document.addEventListener("alpine:init", () => {
         }
 
         const result = await response.json();
-        window.location.href = `/?order=success&code=${encodeURIComponent(result.trackingCode)}`;
+        const successDiscount = this.pendingPayment?.discountAmount > 0
+          ? { code: this.pendingPayment.code, amount: this.pendingPayment.discountAmount }
+          : this.appliedDiscount;
+        const successDiscountQuery = successDiscount?.amount > 0
+          ? `&discount=${encodeURIComponent(successDiscount.code)}&discountAmount=${successDiscount.amount}`
+          : "";
+        window.location.href = `/?order=success&code=${encodeURIComponent(result.trackingCode)}${successDiscountQuery}`;
       } catch (error) {
         this.checkoutError = error.message || "تأیید پرداخت با خطا مواجه شد.";
       } finally {
@@ -977,7 +1505,13 @@ document.addEventListener("alpine:init", () => {
 
         const result = await response.json();
         if (result.isFullyPaid) {
-          window.location.href = `/?order=success&code=${encodeURIComponent(result.trackingCode)}`;
+          const successDiscount = this.pendingPayment?.discountAmount > 0
+            ? { code: this.pendingPayment.code, amount: this.pendingPayment.discountAmount }
+            : this.appliedDiscount;
+          const successDiscountQuery = successDiscount?.amount > 0
+            ? `&discount=${encodeURIComponent(successDiscount.code)}&discountAmount=${successDiscount.amount}`
+            : "";
+          window.location.href = `/?order=success&code=${encodeURIComponent(result.trackingCode)}${successDiscountQuery}`;
           return;
         }
 
@@ -1013,10 +1547,27 @@ document.addEventListener("alpine:init", () => {
       }).format(Number(value) || 0);
     },
     displayPrice(item) {
-      return item.specialOfferPrice || item.price;
+      const candidates = [item.specialOfferPrice, item.discountedPrice].filter((v) => v != null);
+      return candidates.length ? Math.min(...candidates) : item.price;
     },
     hasOffer(item) {
-      return Boolean(item.specialOfferPrice && item.specialOfferPrice < item.price);
+      return (
+        (item.specialOfferPrice && item.specialOfferPrice < item.price) ||
+        (item.discountedPrice && item.discountedPrice < item.price)
+      );
+    },
+    discountPercent(item) {
+      return item.discountPercent || null;
+    },
+    variantDisplayPrice(variant) {
+      const candidates = [variant.specialOfferPrice, variant.discountedPrice].filter((v) => v != null);
+      return candidates.length ? Math.min(...candidates) : variant.price;
+    },
+    variantHasOffer(variant) {
+      return (
+        (variant.specialOfferPrice && variant.specialOfferPrice < variant.price) ||
+        (variant.discountedPrice && variant.discountedPrice < variant.price)
+      );
     },
     itemMeta(item) {
       return [

@@ -85,6 +85,14 @@ public class Order : BaseAuditableEntity
 
     public decimal DeliveryFee { get; private set; }
 
+    /// <summary>Scheduled delivery time chosen by the customer (null = as soon as possible).</summary>
+    public DateTimeOffset? DeliveryAt { get; private set; }
+
+    public void ApplyDeliveryTime(DateTimeOffset? deliveryAt)
+    {
+        DeliveryAt = deliveryAt;
+    }
+
     /// <summary>Unified customer profile linked by channel (POS / online) for the customer club.</summary>
     public Guid? CustomerId { get; private set; }
 
@@ -143,6 +151,21 @@ public class Order : BaseAuditableEntity
     public void AssignCustomer(Guid? customerId)
     {
         CustomerId = customerId;
+    }
+
+    /// <summary>
+    /// Applies a server-computed discount (from the discount engine) to the
+    /// final order total. Runs only inside the backend domain — the frontend
+    /// can never set or override the final amount.
+    /// </summary>
+    public void ApplyDiscount(decimal amount)
+    {
+        if (amount < 0)
+        {
+            throw new DomainException("Discount amount cannot be negative.");
+        }
+
+        TotalAmount = Math.Max(0, TotalAmount - amount);
     }
 
     /// <summary>

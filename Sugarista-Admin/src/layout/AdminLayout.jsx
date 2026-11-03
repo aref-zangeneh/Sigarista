@@ -62,6 +62,12 @@ const ROUTE_ICONS = {
       <path d="M12 8v8M8 12h8" />
     </>,
   ),
+  discounts: icon(
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v10M7 12h10" />
+    </>,
+  ),
   modifiers: icon(
     <>
       <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
@@ -177,7 +183,7 @@ const ROUTE_ICONS = {
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
 const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
-  { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'modifiers'] },
+  { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'discounts', 'modifiers'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },

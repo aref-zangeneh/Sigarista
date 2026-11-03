@@ -8,6 +8,7 @@ public record UpsertAddonItemCommand(
     string EnglishName,
     string Description,
     decimal Price,
+    decimal? SpecialOfferPrice,
     IReadOnlyCollection<string> Tags,
     int DisplayOrder,
     bool IsActive) : IRequest<Guid>;
@@ -20,6 +21,10 @@ public class UpsertAddonItemCommandValidator : AbstractValidator<UpsertAddonItem
         RuleFor(command => command.EnglishName).NotEmpty().MaximumLength(200);
         RuleFor(command => command.Description).NotEmpty().MaximumLength(500);
         RuleFor(command => command.Price).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.SpecialOfferPrice).GreaterThanOrEqualTo(0).When(command => command.SpecialOfferPrice.HasValue);
+        RuleFor(command => command.SpecialOfferPrice)
+            .LessThanOrEqualTo(command => command.Price)
+            .When(command => command.SpecialOfferPrice.HasValue);
         RuleFor(command => command.DisplayOrder).GreaterThanOrEqualTo(0);
     }
 }
@@ -48,7 +53,8 @@ public class UpsertAddonItemCommandHandler : IRequestHandler<UpsertAddonItemComm
                 request.Price,
                 request.Tags,
                 request.DisplayOrder,
-                request.IsActive);
+                request.IsActive,
+                request.SpecialOfferPrice);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             return existing.Id;
@@ -61,7 +67,8 @@ public class UpsertAddonItemCommandHandler : IRequestHandler<UpsertAddonItemComm
             request.Price,
             request.Tags,
             request.DisplayOrder,
-            request.IsActive);
+            request.IsActive,
+            request.SpecialOfferPrice);
 
         _dbContext.AddonItems.Add(addonItem);
         await _dbContext.SaveChangesAsync(cancellationToken);

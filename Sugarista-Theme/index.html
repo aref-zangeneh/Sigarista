@@ -75,6 +75,15 @@
             </p>
           </div>
           <div class="menu-page-actions">
+            <button
+              type="button"
+              class="menu-page-icon-btn profile-trigger"
+              aria-label="کارت مهر و پروفایل من"
+              @click="openProfile()"
+            >
+              <i class="bi bi-person-badge"></i>
+              <span class="profile-trigger-dot" x-show="profile?.activeReward" x-cloak></span>
+            </button>
             <a
               x-show="settings.instagramUrl"
               :href="instagramHref()"
@@ -117,6 +126,23 @@
     </div>
 
     <main>
+      <section
+        class="flash-sale-banner"
+        x-show="flashSale && flashSaleRemaining"
+        x-cloak
+      >
+        <div class="flash-sale-banner-inner">
+          <div class="flash-sale-banner-text">
+            <span class="flash-sale-badge">فروش فوری</span>
+            <strong x-text="flashSale?.title"></strong>
+            <span x-show="flashSale?.discountPercent" x-text="'— ' + toPersianNumber(flashSale?.discountPercent) + '٪ تخفیف'"></span>
+          </div>
+          <div class="flash-sale-countdown">
+            <span>پایان در</span>
+            <strong x-text="flashSaleRemaining"></strong>
+          </div>
+        </div>
+      </section>
       <section id="menu" class="menu-section" tabindex="-1">
         <div class="menu-sticky-shell">
           <div class="container">
@@ -234,7 +260,7 @@
                             <template x-for="variant in item.variants" :key="`${item.id}-${variant.key}`">
                               <div class="price-matrix-row">
                                 <span class="price-matrix-size" x-text="variant.label"></span>
-                                <span class="price-matrix-value" x-text="formatPriceCompact(variant.specialOfferPrice || variant.price)"></span>
+                                <span class="price-matrix-value" x-text="formatPriceCompact(variantDisplayPrice(variant))"></span>
                               </div>
                             </template>
                           </div>
@@ -243,6 +269,7 @@
                             <span class="price-single-value" x-text="formatPriceCompact(displayPrice(item))"></span>
                             <span class="price-single-old" x-show="hasOffer(item)" x-text="formatPriceCompact(item.price)"></span>
                           </div>
+                          <span class="product-discount-badge" x-show="discountPercent(item)" x-text="toPersianNumber(discountPercent(item)) + '٪'"></span>
 
                           <p class="product-contents" x-show="item.description">
                             <span class="product-contents-label">محتویات:</span>
@@ -298,7 +325,13 @@
                       <p class="product-contents" x-show="addon.description" x-text="addon.description"></p>
                       <div class="price-single">
                         <span class="price-single-value" x-text="formatPriceCompact(addon.price)"></span>
+                        <template x-if="addon.specialOfferPrice">
+                          <span class="price-single-offer" x-text="formatPriceCompact(addon.specialOfferPrice)"></span>
+                        </template>
                       </div>
+                      <template x-if="addon.specialOfferPrice">
+                        <span class="addon-offer-badge">پیشنهاد تخفیف‌دار</span>
+                      </template>
                     </div>
                   </div>
                 </article>
@@ -383,8 +416,10 @@
         <div class="cart-bar-summary">
           <span class="cart-bar-count" x-text="toPersianNumber(cartCount)"></span>
           <div>
-            <strong x-text="formatPrice(cartTotal)"></strong>
-            <small>جمع سبد خرید</small>
+            <strong x-text="formatPrice(finalAmount)"></strong>
+            <small x-show="appliedDiscount && appliedDiscount.amount > 0" x-text="'با تخفیف ' + appliedDiscount.code + ' — ' + formatPrice(appliedDiscount.amount)"></small>
+              <small x-show="(!appliedDiscount || !appliedDiscount.amount) && automaticDiscountAmount > 0" x-text="'تخفیف پلکانی سبد — ' + formatPrice(automaticDiscountAmount)"></small>
+            <small x-show="!appliedDiscount || !appliedDiscount.amount">جمع سبد خرید</small>
           </div>
         </div>
         <button type="button" class="btn btn-dark rounded-pill px-4" @click="openCartDrawer('cart')">
@@ -427,6 +462,27 @@
         </div>
 
         <div class="cart-drawer-body" x-show="cartView === 'cart'">
+           <div class="cart-tier-progress" x-show="cart.length && tierProgressMessage" x-cloak>
+             <div class="cart-tier-progress-head">
+               <span x-text="tierProgressMessage"></span>
+             </div>
+             <div class="cart-tier-progress-track" role="progressbar" :aria-valuenow="tierProgressPercent" aria-valuemin="0" aria-valuemax="100">
+               <div class="cart-tier-progress-fill" :style="`width: ${tierProgressPercent}%`"></div>
+             </div>
+           </div>
+           <div class="cart-addon-suggestion" x-show="cart.length && discountedAddons.length" x-cloak>
+             <div class="cart-addon-suggestion-head">
+               <strong>پیشنهاد افزودنی با تخفیف</strong>
+               <span x-text="discountedAddons[0]?.persianName"></span>
+             </div>
+             <div class="cart-addon-suggestion-meta">
+               <span class="cart-addon-suggestion-price" x-text="formatPrice(discountedAddons[0]?.specialOfferPrice || discountedAddons[0]?.price)"></span>
+               <small x-show="discountedAddons[0]?.specialOfferPrice" x-text="'به‌جای ' + formatPrice(discountedAddons[0]?.price)"></small>
+             </div>
+             <button type="button" class="btn btn-outline-dark btn-sm rounded-pill" @click="closeCartDrawer(); scrollToAddonSection()">
+               مشاهده افزودنی‌ها
+             </button>
+           </div>
           <template x-if="!cart.length">
             <div class="cart-empty">
               <i class="bi bi-basket"></i>
@@ -579,6 +635,20 @@
             </div>
           </template>
           <div class="mb-3">
+            <label class="form-label" for="checkout-discount-code">کد تخفیف (اختیاری)</label>
+            <input
+              id="checkout-discount-code"
+              type="text"
+              class="form-control ltr-text"
+              x-model="checkoutForm.discountCode"
+              placeholder="مثلاً SAVE10"
+              autocomplete="off"
+            >
+            <small class="form-text text-muted" x-show="checkoutForm.discountCode.trim()" for="checkout-discount-code">
+              کد وارد شده در سفارش نهایی اعمال می‌شود.
+            </small>
+          </div>
+          <div class="mb-3">
             <label class="form-label" for="checkout-customer-name">نام و نام خانوادگی (مسئول سفارش)</label>
             <input
               id="checkout-customer-name"
@@ -598,16 +668,61 @@
               x-model="checkoutForm.customerPhone"
               autocomplete="tel"
               inputmode="tel"
+              @blur="trackCart()"
               required
             >
           </div>
           <div class="mb-3">
+            <label class="form-label" for="checkout-customer-email">ایمیل (اختیاری)</label>
+            <input
+              id="checkout-customer-email"
+              type="email"
+              class="form-control ltr-text"
+              x-model="checkoutForm.email"
+              autocomplete="email"
+              inputmode="email"
+              @blur="trackCart()"
+            >
+            <small class="form-text">اگر سبد خرید ناتمام بماند، کد تخفیف یادآوری به این ایمیل هم ارسال می‌شود.</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">زمان تحویل (اختیاری)</label>
+            <div class="delivery-slot-list" x-show="deliverySlots.length">
+              <template x-for="slot in deliverySlots" :key="slot.time">
+                <button
+                  type="button"
+                  class="delivery-slot-chip"
+                  :class="{ 'delivery-slot-chip-active': selectedDeliverySlot === slot.time }"
+                  @click="selectedDeliverySlot = slot.time"
+                >
+                  <span x-text="new Date(slot.time).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })"></span>
+                  <span x-show="slot.hasDiscount" class="delivery-slot-badge" x-text="(slot.discountPercent ? toPersianNumber(slot.discountPercent) + '٪' : 'تخفیف')"></span>
+                </button>
+              </template>
+            </div>
+            <small class="form-text" x-show="!deliverySlots.length && !deliverySlotsLoading">بازهٔ تحویلی برای امروز موجود نیست.</small>
+          </div>
+            <div class="mb-3">
+              <label class="form-label" for="checkout-redeem-points">استفاده از امتیاز وفاداری (اختیاری)</label>
+              <input
+                id="checkout-redeem-points"
+                type="number"
+                min="0"
+                class="form-control ltr-text"
+                x-model="checkoutForm.redeemPoints"
+                placeholder="تعداد امتیاز"
+              >
+            </div>
             <label class="form-label" for="checkout-note">توضیحات (اختیاری)</label>
             <textarea id="checkout-note" class="form-control" rows="3" x-model="checkoutForm.note"></textarea>
           </div>
           <div class="checkout-summary">
             <span>مبلغ قابل پرداخت</span>
-            <strong x-text="formatPrice(cartTotal)"></strong>
+            <div class="d-flex align-items-center gap-2">
+              <strong x-text="formatPrice(finalAmount)"></strong>
+              <small x-show="appliedDiscount && appliedDiscount.amount > 0" x-text="'با تخفیف ' + appliedDiscount.code + ' — ' + formatPrice(appliedDiscount.amount)"></small>
+              <small x-show="(!appliedDiscount || !appliedDiscount.amount) && automaticDiscountAmount > 0" x-text="'تخفیف پلکانی سبد — ' + formatPrice(automaticDiscountAmount)"></small>
+            </div>
           </div>
         </div>
 
@@ -616,7 +731,7 @@
             <div class="cart-drawer-foot-inner">
               <div>
                 <small>جمع کل</small>
-                <strong x-text="formatPrice(cartTotal)"></strong>
+                <strong x-text="formatPrice(finalAmount)"></strong>
               </div>
               <button type="button" class="btn btn-dark rounded-pill px-4" @click="cartView = 'checkout'">
                 ادامه و پرداخت
@@ -740,6 +855,133 @@
     </div>
 
     <div
+      class="profile-overlay"
+      x-show="profileOpen"
+      x-cloak
+      @click.self="closeProfile()"
+      @keydown.escape.window="closeProfile()"
+    >
+      <div class="profile-card" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+        <button type="button" class="profile-close" @click="closeProfile()" aria-label="بستن">
+          <i class="bi bi-x-lg"></i>
+        </button>
+        <span class="profile-badge-icon"><i class="bi bi-person-badge"></i></span>
+        <h2 id="profile-title" class="h5 mb-1">کارت مهر مشتری</h2>
+
+        <!-- مرحلهٔ شناسایی: فقط شماره موبایل، بدون ثبت‌نام و لاگین -->
+        <template x-if="!profilePhone">
+          <div class="profile-identify">
+            <p class="text-secondary mb-3">
+              شماره موبایلت رو وارد کن تا پروفایل و کارت مهرت رو ببینی — بدون نیاز به ثبت‌نام.
+            </p>
+            <div class="mb-3">
+              <input
+                type="tel"
+                inputmode="numeric"
+                class="form-control ltr-text"
+                placeholder="09xxxxxxxxx"
+                x-model="profilePhoneInput"
+                @keydown.enter.prevent="submitProfilePhone()"
+              />
+            </div>
+            <button type="button" class="btn btn-accent w-100 profile-submit" @click="submitProfilePhone()">
+              <i class="bi bi-person-check"></i>
+              شناسایی من
+            </button>
+            <p class="profile-error" x-show="profileError" x-text="profileError" x-cloak></p>
+          </div>
+        </template>
+
+        <template x-if="profilePhone">
+          <div>
+            <div class="profile-loading" x-show="profileLoading">در حال دریافت پروفایل...</div>
+            <div class="profile-error" x-show="profileError && !profileLoading" x-text="profileError" x-cloak></div>
+
+            <template x-if="profile">
+              <div>
+                <p class="profile-greeting">
+                  سلام <strong x-text="profile.persianName"></strong>
+                  <em class="profile-greeting-note">مشتری عزیز — این‌جا مال توئه</em>
+                </p>
+
+                <div class="profile-stats">
+                  <div class="profile-stat">
+                    <strong x-text="toPersianNumber(profile.paidOrders)"></strong>
+                    <span>سفارش پرداخت‌شده</span>
+                  </div>
+                  <div class="profile-stat">
+                    <strong x-text="toPersianNumber(profile.loyaltyPoints)"></strong>
+                    <span>امتیاز وفاداری</span>
+                  </div>
+                  <div class="profile-stat">
+                    <strong x-text="toPersianNumber(profile.completedCards)"></strong>
+                    <span>کارت کامل</span>
+                  </div>
+                </div>
+
+                <!-- کارت مهر جاری -->
+                <div class="profile-stamps-box">
+                  <h3>
+                    کارت مهر فعلی
+                    <span class="profile-stamps-count" x-show="profile.stampCardEnabled"
+                      x-text="`${toPersianNumber(profile.currentCardStamps)} از ${toPersianNumber(profile.ordersPerCard)} مهر`"></span>
+                  </h3>
+                  <div class="profile-stamps" x-show="profile.stampCardEnabled && profile.ordersPerCard > 0">
+                    <template x-for="(filled, index) in profileStampSlots()" :key="index">
+                      <span class="profile-stamp" :class="{ 'is-filled': filled }">
+                        <i class="bi" :class="filled ? 'bi-stamp-fill' : 'bi-stamp'"></i>
+                      </span>
+                    </template>
+                  </div>
+                  <p class="profile-stamps-hint" x-show="profile.stampCardEnabled"
+                     x-text="`هر ${toPersianNumber(profile.ordersPerCard)} سفارش پرداخت‌شده = یک مهر جدید`"></p>
+                  <p class="profile-stamps-hint" x-show="!profile.stampCardEnabled">کارت مهر در حال حاضر غیرفعال است.</p>
+                </div>
+
+                <!-- جایزهٔ آماده -->
+                <div class="profile-reward" x-show="profile.activeReward">
+                  <i class="bi bi-gift"></i>
+                  <div>
+                    <strong>جایزهٔ آماده: <span x-text="toPersianNumber(profile.activeReward.percent)"></span>٪ تخفیف</strong>
+                    <p>در پرداخت بعدی به‌صورت خودکار اعمال می‌شود</p>
+                  </div>
+                </div>
+
+                <!-- بج‌ها -->
+                <div class="profile-badges-box">
+                  <h3>بج‌های شمام</h3>
+                  <div class="profile-badge-row">
+                    <template x-for="badge in profile.badges" :key="badge.id">
+                      <div
+                        class="profile-badge-chip"
+                        :class="{ 'is-earned': badge.earned }"
+                        :title="badge.description || badge.title"
+                      >
+                        <img
+                          class="profile-badge-img"
+                          x-show="badge.imageUrl"
+                          :src="badge.imageUrl"
+                          :alt="badge.title"
+                        />
+                        <i x-show="!badge.imageUrl" class="bi bi-person-badge"></i>
+                        <span x-text="badge.title"></span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <button type="button" class="btn btn-link profile-forget" @click="forgetProfile()">
+                  <i class="bi bi-box-arrow-right"></i>
+                  مشاهده‌ی پروفایل دیگری
+                </button>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div
       class="payment-overlay"
       x-show="mockPayment || splitMockPayment"
       x-cloak
@@ -763,6 +1005,11 @@
           role="alert"
           aria-live="assertive"
         ></div>
+        <div class="payment-amount" x-show="paymentAmount">
+          <small>مبلغ قابل پرداخت</small>
+          <strong x-text="formatPrice(paymentAmount)"></strong>
+          <small x-show="paymentDiscount && paymentDiscount.amount > 0" x-text="'با تخفیف ' + paymentDiscount.code + ' — ' + formatPrice(paymentDiscount.amount)"></small>
+        </div>
         <div class="payment-actions">
           <button
             type="button"
@@ -856,6 +1103,11 @@
         <h2 id="success-title" class="h4 mb-2">سفارش با موفقیت ثبت شد</h2>
         <p class="text-secondary mb-3">لطفاً با کد پیگیری زیر به پیشخوان مراجعه کنید.</p>
         <div class="tracking-code" x-text="orderSuccess?.trackingCode"></div>
+        <div
+          class="success-discount"
+          x-show="orderSuccess && orderSuccess.discountCode"
+          x-text="'با کد تخفیف ' + orderSuccess.discountCode + ' — ' + formatPrice(orderSuccess.discountAmount || 0)"
+        ></div>
         <button
           type="button"
           class="btn btn-dark rounded-pill px-4 mt-4"

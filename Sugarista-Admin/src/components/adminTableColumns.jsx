@@ -132,7 +132,14 @@ export function buildAddonColumns({ joinTags, setAddonForm, emptyAddonForm, bump
     {
       accessorKey: 'price',
       header: 'قیمت',
-      cell: ({ getValue }) => formatMoney(getValue()),
+      cell: ({ row }) => (
+        <>
+          {formatMoney(row.original.price)}
+          {row.original.specialOfferPrice ? (
+            <div className="table-subtext">پیشنهاد: {formatMoney(row.original.specialOfferPrice)}</div>
+          ) : null}
+        </>
+      ),
     },
     {
       accessorKey: 'tags',
@@ -163,6 +170,7 @@ export function buildAddonColumns({ joinTags, setAddonForm, emptyAddonForm, bump
                   englishName: addon.englishName,
                   description: addon.description,
                   price: addon.price,
+                  specialOfferPrice: addon.specialOfferPrice ?? '',
                   tags: joinTags(addon.tags),
                   displayOrder: addon.displayOrder,
                   isActive: addon.isActive,
@@ -184,6 +192,224 @@ export function buildAddonColumns({ joinTags, setAddonForm, emptyAddonForm, bump
                   if (addonForm.id === addon.id) setAddonForm(emptyAddonForm)
                   bumpTableReload()
                   setMessage('افزودنی حذف شد.')
+                } catch (requestError) {
+                  setError(getReadableError(requestError))
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              حذف
+            </button>
+          </div>
+        )
+      },
+    },
+  ]
+}
+
+function discountStatusLabel(discount) {
+  if (!discount.isActive) {
+    return 'غیرفعال'
+  }
+
+  const startsAt = discount.startsAt ? new Date(discount.startsAt) : null
+  const endsAt = discount.endsAt ? new Date(discount.endsAt) : null
+
+  if (startsAt && startsAt.toISOString() > new Date().toISOString()) {
+    return 'زمان‌بندی‌شده'
+  }
+
+  if (endsAt && endsAt.toISOString() < new Date().toISOString()) {
+    return 'منقضی'
+  }
+
+  return 'فعال'
+}
+
+export function buildDiscountColumns({ setDiscountForm, emptyDiscountForm, bumpTableReload, discountForm, session, apiRequest, setSaving, setError, setMessage, getReadableError }) {
+  return [
+    {
+      accessorKey: 'name',
+      header: 'نام',
+      cell: ({ row }) => <strong>{row.original.name}</strong>,
+    },
+    {
+      accessorKey: 'code',
+      header: 'کد',
+      cell: ({ getValue }) => getValue() || 'خودکار',
+      enableSorting: false,
+    },
+    {
+      accessorKey: 'value',
+      header: 'مقدار تخفیف',
+      enableSorting: false,
+      cell: ({ row }) => {
+        const discount = row.original
+        if (discount.type === 'TieredCart') {
+          const tiers = discount.tiers || []
+          return <span className="ltr-text">{`پلکانی (${tiers.length} پله)`}</span>
+        }
+        if (discount.type === 'BuyXGetY') {
+          return <span className="ltr-text">{`خرید ${discount.buyQuantity} بگیر ${discount.getQuantity}`}</span>
+        }
+        const isPercent = discount.valueKind === 'Percentage' || discount.valueKind === 'percentage'
+        const amount = isPercent ? `${discount.value}٪` : formatMoney(discount.value)
+        return <span className="ltr-text">{amount}</span>
+      },
+    },
+    {
+      accessorKey: 'isStackable',
+      header: 'قابل ترکیب',
+      enableSorting: false,
+      cell: ({ getValue }) => (getValue() ? 'بله' : 'خیر'),
+    },
+    {
+      accessorKey: 'isActive',
+      header: 'وضعیت',
+      enableSorting: false,
+      cell: ({ row }) => discountStatusLabel(row.original),
+    },
+    {
+      id: 'actions',
+      header: 'عملیات',
+      enableSorting: false,
+      cell: ({ row }) => {
+        const discount = row.original
+        return (
+          <div className="table-actions">
+            <button
+              type="button"
+              className="link-button"
+              onClick={() =>
+                setDiscountForm({
+                  id: discount.id,
+                  type: discount.type === 'TieredCart' ? 'TieredCart' : 'AmountOff',
+                  name: discount.name,
+                  description: discount.description ?? '',
+                  code: discount.code ?? '',
+                  valueKind: discount.valueKind === 'FixedAmount' ? 'fixed' : 'percent',
+                  value: discount.value,
+                  maxDiscountAmount: discount.maxDiscountAmount ?? '',
+                  minCartAmount: discount.minCartAmount,
+                  startsAt: discount.startsAt ? discount.startsAt.slice(0, 10) : '',
+                  endsAt: discount.endsAt ? discount.endsAt.slice(0, 10) : '',
+                  priority: discount.priority,
+                  isStackable: discount.isStackable,
+                  maxTotalUses: discount.maxTotalUses ?? '',
+                  maxUsesPerCustomer: discount.maxUsesPerCustomer ?? '',
+                  customerGroup: discount.customerGroup ? String(discount.customerGroup) : 'all',
+                  appliesTo: discount.appliesTo ? String(discount.appliesTo) : 'order',
+                  tiers: (discount.tiers || []).map((tier) => ({
+                    thresholdAmount: tier.thresholdAmount,
+                    valueKind: tier.valueKind === 'FixedAmount' ? 'fixed' : 'percent',
+                    value: tier.value,
+                  })),
+                  buyQuantity: discount.buyQuantity ?? 1,
+                  getQuantity: discount.getQuantity ?? 1,
+                  freeItemSelection: discount.freeItemSelection || 'Cheapest',
+                  maxApplications: discount.maxApplications ?? '',
+                  isFlashSale: discount.isFlashSale === true,
+                  startTime: discount.schedules?.[0]?.startTime ? String(discount.schedules[0].startTime).slice(0, 5) : '',
+                  endTime: discount.schedules?.[0]?.endTime ? String(discount.schedules[0].endTime).slice(0, 5) : '',
+                  scheduleDay: discount.schedules?.[0]?.dayOfWeek != null ? String(discount.schedules[0].dayOfWeek) : '',
+                  menuItemIds: [],
+                  categoryIds: [],
+                  isActive: discount.isActive,
+                })
+              }
+            >
+              ویرایش
+            </button>
+            <button
+              type="button"
+              className="link-button"
+              onClick={async () => {
+                if (!window.confirm('آیا از غیرفعال کردن این تخفیف مطمئن هستید؟')) {
+                  return
+                }
+
+                setSaving(true)
+                setError('')
+                setMessage('')
+
+                try {
+                  await apiRequest(`/admin/discounts/${discount.id}`, {
+                    method: 'PUT',
+                    token: session.token,
+                    body: {
+                      id: discount.id,
+                      name: discount.name,
+                      description: discount.description ?? '',
+                      code: discount.code ?? '',
+                      type: discount.type === 'TieredCart' ? 'TieredCart' : 'AmountOff',
+                      valueKind: discount.valueKind === 'FixedAmount' ? 'FixedAmount' : 'Percentage',
+                      value: discount.value,
+                      maxDiscountAmount: discount.maxDiscountAmount ?? null,
+                      minCartAmount: discount.minCartAmount,
+                      startsAt: discount.startsAt ? new Date(discount.startsAt).toISOString() : null,
+                      endsAt: discount.endsAt ? new Date(discount.endsAt).toISOString() : null,
+                      isActive: !discount.isActive,
+                      priority: discount.priority,
+                      isStackable: discount.isStackable,
+                      maxTotalUses: discount.maxTotalUses ?? null,
+                      maxUsesPerCustomer: discount.maxUsesPerCustomer ?? null,
+                      appliesTo: discount.appliesTo ? discount.appliesTo : 'Order',
+                      customerGroup: discount.customerGroup ? discount.customerGroup : 'All',
+                      menuItemIds: [],
+                      categoryIds: [],
+                      schedules: (discount.schedules || []).map((schedule) => ({
+                        dayOfWeek: schedule.dayOfWeek ?? null,
+                        startTime: schedule.startTime ? String(schedule.startTime).slice(0, 5) : null,
+                        endTime: schedule.endTime ? String(schedule.endTime).slice(0, 5) : null,
+                      })),
+                      tiers: (discount.tiers || []).map((tier) => ({
+                        thresholdAmount: tier.thresholdAmount,
+                        valueKind: tier.valueKind === 'FixedAmount' ? 'FixedAmount' : 'Percentage',
+                        value: tier.value,
+                      })),
+                      buyQuantity: discount.buyQuantity ?? 1,
+                      getQuantity: discount.getQuantity ?? 1,
+                      freeItemSelection: discount.freeItemSelection || 'Cheapest',
+                      maxApplications: discount.maxApplications ?? null,
+                      isFlashSale: discount.isFlashSale === true,
+                    },
+                  })
+
+                  if (discountForm.id === discount.id) {
+                    setDiscountForm(emptyDiscountForm)
+                  }
+
+                  setMessage(discount.isActive ? 'تخفیف غیرفعال شد.' : 'تخفیف فعال شد.')
+                  bumpTableReload()
+                } catch (requestError) {
+                  setError(getReadableError(requestError))
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              {discount.isActive ? 'غیرفعال‌سازی' : 'فعال‌سازی'}
+            </button>
+            <button
+              type="button"
+              className="link-button link-danger"
+              onClick={async () => {
+                if (!window.confirm('از حذف این تخفیف مطمئن هستید؟')) {
+                  return
+                }
+
+                setSaving(true)
+                setError('')
+                setMessage('')
+
+                try {
+                  await apiRequest(`/admin/discounts/${discount.id}`, { method: 'DELETE', token: session.token })
+                  if (discountForm.id === discount.id) {
+                    setDiscountForm(emptyDiscountForm)
+                  }
+                  bumpTableReload()
+                  setMessage('تخفیف حذف شد.')
                 } catch (requestError) {
                   setError(getReadableError(requestError))
                 } finally {

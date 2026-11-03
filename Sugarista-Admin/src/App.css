@@ -474,6 +474,18 @@
   gap: 14px;
 }
 
+.paginated-admin-table-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.paginated-admin-table-status select {
+  max-width: 220px;
+}
+
 .snapshot-grid,
 .settings-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1538,6 +1550,78 @@ tbody tr:last-child td {
 
 .full-width {
   grid-column: 1 / -1;
+}
+
+.settings-subheading {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink-strong, #1c2530);
+}
+
+/* ── Badges page (بج‌های باشگاه) ── */
+.badge-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.badge-cell-image,
+.badge-cell-fallback {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--tint, #f4f5f7);
+  border: 1px solid var(--border-soft);
+  object-fit: contain;
+  padding: 4px;
+}
+
+.badge-cell-fallback {
+  color: var(--accent, #aa3171);
+  font-size: 1.2rem;
+}
+
+.row-muted {
+  opacity: 0.55;
+}
+
+.badge-image-editor {
+  display: grid;
+  gap: 6px;
+}
+
+.badge-image-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.badge-image-preview,
+.badge-image-placeholder {
+  display: inline-grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  border-radius: 14px;
+  background: var(--tint, #f4f5f7);
+  border: 1px solid var(--border-soft);
+  object-fit: contain;
+  padding: 6px;
+  flex-shrink: 0;
+}
+
+.badge-image-placeholder {
+  color: var(--muted-soft, #98a2b3);
+  font-size: 1.6rem;
+}
+
+.badge-image-actions {
+  display: grid;
+  gap: 4px;
 }
 
 code {

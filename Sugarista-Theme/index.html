@@ -919,6 +919,32 @@
                   </div>
                 </div>
 
+                <!-- سطح عضویت -->
+                <div class="profile-tier-box" x-show="profile.membership">
+                  <div class="profile-tier-head">
+                    <h3>سطح عضویت</h3>
+                    <span class="profile-tier-name" x-text="profile.membership?.tierName || 'مشتری پایه'"></span>
+                  </div>
+                  <p class="profile-tier-percent" x-show="profile.membership?.tierDiscountPercent > 0">
+                    <i class="bi bi-stars"></i>
+                    <span
+                      x-text="`${toPersianNumber(profile.membership.tierDiscountPercent)}٪ تخفیف دائمی در همهٔ سفارش‌ها`"></span>
+                  </p>
+                  <p class="profile-tier-spent">
+                    <span
+                      x-text="profile.membership?.windowDays > 0 ? 'مجموع خرید در بازهٔ ارزیابی: ' : 'مجموع کل خرید: '"
+                    ></span>
+                    <strong x-text="formatPrice(profile.membership?.windowSpent ?? 0)"></strong>
+                    <span>تومان</span>
+                  </p>
+                  <div class="profile-tier-next" x-show="profile.membership?.nextTierName">
+                    <i class="bi bi-arrow-up-circle"></i>
+                    <span
+                      x-text="`${formatPrice(profile.membership.nextTierRemainingAmount)} تومان دیگر تا سطح ${profile.membership.nextTierName}`"
+                    ></span>
+                  </div>
+                </div>
+
                 <!-- کارت مهر جاری -->
                 <div class="profile-stamps-box">
                   <h3>

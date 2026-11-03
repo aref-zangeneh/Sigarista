@@ -730,6 +730,12 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<decimal>("LoyaltyPoints")
                         .HasColumnType("numeric");
 
+                    b.Property<DateTimeOffset?>("MembershipTierAssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("MembershipTierId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
@@ -753,6 +759,8 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MembershipTierId");
 
                     b.HasIndex("PhoneNumber")
                         .IsUnique();
@@ -2027,6 +2035,56 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.HasIndex("EquipmentId", "ServicedOn");
 
                     b.ToTable("MaintenanceServiceLogs");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MembershipTier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("MinTotalPaidSpent")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DisplayOrder");
+
+                    b.HasIndex("IsEnabled");
+
+                    b.ToTable("MembershipTiers", (string)null);
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItem", b =>
@@ -3396,6 +3454,12 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<decimal>("LoyaltyRedeemTomanPerPoint")
                         .HasColumnType("numeric");
 
+                    b.Property<bool>("MembershipTiersEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MembershipWindowDays")
+                        .HasColumnType("integer");
+
                     b.Property<string>("MenuLabel")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -3769,6 +3833,15 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("CafeAsset");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.Customer", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MembershipTier", "MembershipTier")
+                        .WithMany()
+                        .HasForeignKey("MembershipTierId");
+
+                    b.Navigation("MembershipTier");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.CustomerBadge", b =>

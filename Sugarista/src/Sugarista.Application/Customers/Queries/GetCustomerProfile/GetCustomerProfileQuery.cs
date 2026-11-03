@@ -25,7 +25,17 @@ public record CustomerProfileDto(
     int CurrentCardStamps,
     int CompletedCards,
     CustomerProfileRewardDto? ActiveReward,
+    CustomerProfileMembershipDto? Membership,
     IReadOnlyCollection<CustomerProfileBadgeDto> Badges);
+
+public record CustomerProfileMembershipDto(
+    string? TierName,
+    string? TierDescription,
+    decimal TierDiscountPercent,
+    int WindowDays,
+    decimal WindowSpent,
+    string? NextTierName,
+    decimal NextTierRemainingAmount);
 
 public record CustomerProfileRewardDto(
     int CardNumber,
@@ -86,6 +96,39 @@ public class GetCustomerProfileQueryHandler : IRequestHandler<GetCustomerProfile
         // Catch-up sweep: customers who already satisfy a newly created badge
         // earn it the next time their profile is viewed.
         await BadgeService.EvaluateForCustomerAsync(_dbContext, customer, cancellationToken);
+        await MembershipTierService.EvaluateForCustomerAsync(_dbContext, customer, cancellationToken);
+
+        var membershipWindowDays = settings.MembershipTiersEnabled ? settings.MembershipWindowDays : 0;
+        CustomerProfileMembershipDto? membership = null;
+        if (settings.MembershipTiersEnabled)
+        {
+            var tier = await _dbContext.MembershipTiers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(tierEntry => tierEntry.Id == customer.MembershipTierId, cancellationToken);
+
+            var windowSpent = paidOrders.Sum();
+            if (membershipWindowDays > 0)
+            {
+                windowSpent = await MembershipTierService.GetWindowSpentAsync(
+                    _dbContext, customer.Id, membershipWindowDays, cancellationToken);
+            }
+
+            var nextTier = await _dbContext.MembershipTiers
+                .AsNoTracking()
+                .Where(tier => tier.IsEnabled && tier.MinTotalPaidSpent > windowSpent)
+                .OrderBy(tier => tier.MinTotalPaidSpent)
+                .Select(tier => new { tier.Name, tier.MinTotalPaidSpent })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            membership = new CustomerProfileMembershipDto(
+                tier?.Name,
+                tier?.Description,
+                tier?.DiscountPercent ?? 0m,
+                membershipWindowDays,
+                windowSpent,
+                nextTier?.Name,
+                nextTier is null ? 0m : nextTier.MinTotalPaidSpent - windowSpent);
+        }
 
         var completedCards = settings.StampCardOrdersPerCard > 0
             ? paidOrderCount / settings.StampCardOrdersPerCard
@@ -154,6 +197,7 @@ public class GetCustomerProfileQueryHandler : IRequestHandler<GetCustomerProfile
             currentCardStamps,
             completedCards,
             activeReward,
+            membership,
             badgeDtos);
     }
 }

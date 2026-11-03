@@ -338,6 +338,26 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             }
         }
 
+        // Membership level: the standing permanent discount of the customer's
+        // current level applies automatically, on top of manual codes.
+        if (customer is not null &&
+            siteSettings is { MembershipTiersEnabled: true } &&
+            customer.MembershipTierId is not null)
+        {
+            var tier = await _dbContext.MembershipTiers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(entry => entry.Id == customer.MembershipTierId, cancellationToken);
+            if (tier is { IsEnabled: true } && tier.DiscountPercent > 0)
+            {
+                var tierDiscount = Math.Round(itemsTotal * tier.DiscountPercent / 100m, 2);
+                if (tierDiscount > 0)
+                {
+                    order.ApplyDiscount(tierDiscount);
+                    discountTotal += tierDiscount;
+                }
+            }
+        }
+
         order.AssignCustomer(customer?.Id);
 
         order.ApplyDeliveryTime(request.DeliveryAt);

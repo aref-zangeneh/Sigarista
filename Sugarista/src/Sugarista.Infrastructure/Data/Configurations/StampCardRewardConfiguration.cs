@@ -26,3 +26,21 @@ public class StampCardRewardConfiguration : IEntityTypeConfiguration<StampCardRe
         builder.ToTable("StampCardRewards");
     }
 }
+
+public class MembershipTierConfiguration : IEntityTypeConfiguration<MembershipTier>
+{
+    public void Configure(EntityTypeBuilder<MembershipTier> builder)
+    {
+        builder.HasKey(entry => entry.Id);
+
+        builder.Property(entry => entry.Name).HasMaxLength(100);
+        builder.Property(entry => entry.Description).HasMaxLength(500);
+        builder.Property(entry => entry.MinTotalPaidSpent).HasPrecision(18, 2);
+        builder.Property(entry => entry.DiscountPercent).HasPrecision(5, 2);
+
+        builder.HasIndex(entry => entry.IsEnabled);
+        builder.HasIndex(entry => entry.DisplayOrder);
+
+        builder.ToTable("MembershipTiers");
+    }
+}

@@ -70,6 +70,8 @@ public record SiteSettingsDto
     public int StampCardOrdersPerCard { get; init; } = 10;
     public decimal StampCardRewardPercent { get; init; } = 10m;
     public int StampCardRewardValidityDays { get; init; } = 30;
+    public bool MembershipTiersEnabled { get; init; } = true;
+    public int MembershipWindowDays { get; init; } = 365;
     public bool AbandonedCartReminderEnabled { get; init; } = true;
     public int AbandonedCartHours { get; init; } = 4;
     public bool AbandonedCartSmsEnabled { get; init; } = true;
@@ -160,6 +162,8 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 StampCardOrdersPerCard = settings.StampCardOrdersPerCard,
                 StampCardRewardPercent = settings.StampCardRewardPercent,
                 StampCardRewardValidityDays = settings.StampCardRewardValidityDays,
+                MembershipTiersEnabled = settings.MembershipTiersEnabled,
+                MembershipWindowDays = settings.MembershipWindowDays,
                 AbandonedCartReminderEnabled = settings.AbandonedCartReminderEnabled,
                 AbandonedCartHours = settings.AbandonedCartHours,
                 AbandonedCartSmsEnabled = settings.AbandonedCartSmsEnabled,

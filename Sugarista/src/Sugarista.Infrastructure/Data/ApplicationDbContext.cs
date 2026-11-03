@@ -119,6 +119,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<CustomerBadge> CustomerBadges => Set<CustomerBadge>();
 
+    public DbSet<MembershipTier> MembershipTiers => Set<MembershipTier>();
+
     public DbSet<AbandonedCart> AbandonedCarts => Set<AbandonedCart>();
 
     public DbSet<TableSession> TableSessions => Set<TableSession>();

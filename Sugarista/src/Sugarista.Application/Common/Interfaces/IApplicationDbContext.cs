@@ -110,6 +110,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.CustomerBadge> CustomerBadges { get; }
 
+    DbSet<Sugarista.Domain.Entities.MembershipTier> MembershipTiers { get; }
+
     DbSet<Sugarista.Domain.Entities.AbandonedCart> AbandonedCarts { get; }
 
     DbSet<Sugarista.Domain.Entities.TableSession> TableSessions { get; }

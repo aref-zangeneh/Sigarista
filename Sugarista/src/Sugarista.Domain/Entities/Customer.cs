@@ -67,6 +67,20 @@ public class Customer : BaseAuditableEntity
 
     public ICollection<LoyaltyTransaction> LoyaltyTransactions { get; private set; } = [];
 
+    /// <summary>Current membership level — reassigned automatically by the tier evaluation.</summary>
+    public Guid? MembershipTierId { get; private set; }
+
+    public MembershipTier? MembershipTier { get; private set; }
+
+    /// <summary>When the membership level was last (re)assigned.</summary>
+    public DateTimeOffset? MembershipTierAssignedAt { get; private set; }
+
+    public void SetMembershipTier(Guid? tierId)
+    {
+        MembershipTierId = tierId;
+        MembershipTierAssignedAt = tierId is null ? null : DateTimeOffset.UtcNow;
+    }
+
     public void AddLoyaltyPoints(decimal points)
     {
         if (points < 0)

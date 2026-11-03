@@ -37,6 +37,7 @@ public class LoyaltyService : ILoyaltyService
         await AwardLoyaltyPointsAsync(settings, order, customer, cancellationToken);
         await StampCardService.AwardCardsAsync(_dbContext, settings, order, customer, cancellationToken);
         await BadgeService.EvaluateForCustomerAsync(_dbContext, customer, cancellationToken);
+        await MembershipTierService.EvaluateForCustomerAsync(_dbContext, customer, cancellationToken);
     }
 
     private async Task AwardLoyaltyPointsAsync(

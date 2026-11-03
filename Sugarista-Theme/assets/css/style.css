@@ -904,9 +904,63 @@ a {
   color: var(--muted);
 }
 
+.profile-tier-box {
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.8rem;
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+}
+
+.profile-tier-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.profile-tier-head h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.profile-tier-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  background: var(--surface);
+}
+
+.profile-tier-percent,
+.profile-tier-spent,
+.profile-tier-next {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.profile-tier-percent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.profile-tier-spent strong {
+  color: var(--muted);
+}
+
+.profile-tier-next {
+  color: var(--accent);
+}
+
 .profile-stamps-box,
-.profile-badges-box {
-  border: 1px solid var(--line);
+.profile-badges-box {  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 0.9rem 1rem;
   margin-bottom: 0.8rem;

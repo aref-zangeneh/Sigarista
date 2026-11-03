@@ -152,6 +152,12 @@ public class SiteSettings : BaseAuditableEntity
     /// <summary>Days the completed-card reward stays valid (0 = no expiry).</summary>
     public int StampCardRewardValidityDays { get; set; } = 30;
 
+    /// <summary>Master switch for membership level auto-upgrades.</summary>
+    public bool MembershipTiersEnabled { get; set; } = true;
+
+    /// <summary>Rolling window (days) for evaluating membership level spending (0 = lifetime).</summary>
+    public int MembershipWindowDays { get; set; } = 365;
+
     /// <summary>Whether the abandoned-cart reminder sweep runs at all.</summary>
     public bool AbandonedCartReminderEnabled { get; set; } = true;
 

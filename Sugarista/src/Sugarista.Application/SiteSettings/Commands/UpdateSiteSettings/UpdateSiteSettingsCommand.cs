@@ -75,6 +75,9 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     public decimal StampCardRewardPercent { get; init; } = 10m;
     public int StampCardRewardValidityDays { get; init; } = 30;
 
+    public bool MembershipTiersEnabled { get; init; } = true;
+    public int MembershipWindowDays { get; init; } = 365;
+
     public bool AbandonedCartReminderEnabled { get; init; } = true;
 
     public int AbandonedCartHours { get; init; } = 4;
@@ -117,6 +120,7 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
         RuleFor(command => command.StampCardOrdersPerCard).InclusiveBetween(1, 1000);
         RuleFor(command => command.StampCardRewardPercent).InclusiveBetween(0, 100);
         RuleFor(command => command.StampCardRewardValidityDays).InclusiveBetween(0, 3650);
+        RuleFor(command => command.MembershipWindowDays).InclusiveBetween(0, 3650);
         RuleFor(command => command.AbandonedCartHours).InclusiveBetween(0, 720);
         RuleFor(command => command.AbandonedCartDiscountPercent).InclusiveBetween(0, 100);
         RuleFor(command => command.AbandonedCartCodeValidityHours).InclusiveBetween(1, 720);
@@ -204,6 +208,8 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.StampCardOrdersPerCard = request.StampCardOrdersPerCard;
         settings.StampCardRewardPercent = request.StampCardRewardPercent;
         settings.StampCardRewardValidityDays = request.StampCardRewardValidityDays;
+        settings.MembershipTiersEnabled = request.MembershipTiersEnabled;
+        settings.MembershipWindowDays = request.MembershipWindowDays;
         settings.AbandonedCartReminderEnabled = request.AbandonedCartReminderEnabled;
         settings.AbandonedCartHours = request.AbandonedCartHours;
         settings.AbandonedCartSmsEnabled = request.AbandonedCartSmsEnabled;

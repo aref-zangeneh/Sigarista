@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { settingsSections } from '../constants/adminForms'
 
@@ -91,6 +92,91 @@ export function SiteSettingsPage() {
     }))
 
   const salesPaused = siteSettings.isOnlineSalesEnabled === false
+
+  // ── سطح‌بندی عضویت ──────────────────────────────────────
+  const [tierRows, setTierRows] = useState([])
+  const [originalTierIds, setOriginalTierIds] = useState([])
+  const [tierMessage, setTierMessage] = useState('')
+  const [tierError, setTierError] = useState('')
+  const [tiersSaving, setTiersSaving] = useState(false)
+
+  const { session, apiRequest, getReadableError } = useAdmin()
+
+  const loadTiers = async () => {
+    if (!session?.token) return
+    try {
+      const data = await apiRequest('/admin/membership-tiers', { token: session.token })
+      const rows = Array.isArray(data) ? data : []
+      setTierRows(rows.map((row) => ({
+        id: row.id,
+        name: row.name ?? '',
+        description: row.description ?? '',
+        minTotalPaidSpent: row.minTotalPaidSpent ?? 0,
+        discountPercent: row.discountPercent ?? 0,
+        displayOrder: row.displayOrder ?? 0,
+        isEnabled: row.isEnabled !== false,
+      })))
+      setOriginalTierIds(rows.map((row) => row.id))
+    } catch (requestError) {
+      setTierError(getReadableError(requestError))
+    }
+  }
+
+  useEffect(() => {
+    loadTiers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.token])
+
+  const updateTierRow = (index, field, value) =>
+    setTierRows((current) => current.map((row, position) => (position === index ? { ...row, [field]: value } : row)))
+
+  const addTierRow = () =>
+    setTierRows((current) => [
+      ...current,
+      { id: '', name: '', description: '', minTotalPaidSpent: 0, discountPercent: 0, displayOrder: current.length, isEnabled: true },
+    ])
+
+  const removeTierRow = (index) =>
+    setTierRows((current) => current.filter((_, position) => position !== index))
+
+  const saveTiers = async () => {
+    setTierError('')
+    setTierMessage('')
+    if (tierRows.some((row) => !row.name.trim())) {
+      setTierError('نام همهٔ سطح‌ها را وارد کنید.')
+      return
+    }
+    setTiersSaving(true)
+    try {
+      for (const row of tierRows) {
+        const payload = {
+          id: row.id || '00000000-0000-0000-0000-000000000000',
+          name: row.name.trim(),
+          description: row.description?.trim() || null,
+          minTotalPaidSpent: Number(row.minTotalPaidSpent) || 0,
+          discountPercent: Number(row.discountPercent) || 0,
+          displayOrder: Number(row.displayOrder) || 0,
+          isEnabled: row.isEnabled,
+        }
+        if (row.id) {
+          await apiRequest(`/admin/membership-tiers/${row.id}`, { method: 'PUT', body: payload, token: session.token })
+        } else {
+          await apiRequest('/admin/membership-tiers', { method: 'POST', body: payload, token: session.token })
+        }
+      }
+      for (const originalId of originalTierIds) {
+        if (!tierRows.some((row) => row.id === originalId)) {
+          await apiRequest(`/admin/membership-tiers/${originalId}`, { method: 'DELETE', token: session.token })
+        }
+      }
+      await loadTiers()
+      setTierMessage('سطح‌های عضویت ذخیره شد.')
+    } catch (requestError) {
+      setTierError(getReadableError(requestError))
+    } finally {
+      setTiersSaving(false)
+    }
+  }
 
   const navItems = [
     { id: 'settings-sales', title: 'فروش آنلاین', icon: 'cart' },
@@ -537,6 +623,113 @@ export function SiteSettingsPage() {
               />
               <small className="settings-hint">مقدار ۰ = بدون انقضا؛ جایزه در پرداخت بعدی خودکار اعمال می‌شود</small>
             </label>
+
+            <h3 className="settings-subheading full-width">سطح‌بندی عضویت</h3>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>ارتقای خودکار سطح</strong>
+                <p>مشتری بر اساس مجموع خرید در بازهٔ زیر ارتقا می‌گیرد و تخفیف دائمی سطحش خودکار اعمال می‌شود.</p>
+              </div>
+              <span className={`switch ${siteSettings.membershipTiersEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.membershipTiersEnabled === true}
+                  onChange={(event) => updateField('membershipTiersEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+            <label>
+              <span>بازهٔ ارزیابی خرید (روز)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                value={siteSettings.membershipWindowDays ?? 365}
+                onChange={(event) =>
+                  updateField('membershipWindowDays', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">مثلاً ۳۶۵ = مجموع خرید یک سال گذشته؛ مقدار ۰ = کل عمر مشتری</small>
+            </label>
+
+            <div className="full-width tiers-editor">
+              {tierRows.map((row, index) => (
+                <div key={row.id || `new-${index}`} className="tier-row">
+                  <label>
+                    <span>نام سطح</span>
+                    <input
+                      maxLength={100}
+                      placeholder="مثلاً: نقره‌ای"
+                      value={row.name}
+                      onChange={(event) => updateTierRow(index, 'name', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>حداقل خرید در بازه (تومان)</span>
+                    <input
+                      className="ltr-input"
+                      dir="ltr"
+                      type="number"
+                      min="0"
+                      step="10000"
+                      value={row.minTotalPaidSpent}
+                      onChange={(event) => updateTierRow(index, 'minTotalPaidSpent', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>تخفیف دائمی (٪)</span>
+                    <input
+                      className="ltr-input"
+                      dir="ltr"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={row.discountPercent}
+                      onChange={(event) => updateTierRow(index, 'discountPercent', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>ترتیب</span>
+                    <input
+                      className="ltr-input"
+                      dir="ltr"
+                      type="number"
+                      min="0"
+                      value={row.displayOrder}
+                      onChange={(event) => updateTierRow(index, 'displayOrder', event.target.value)}
+                    />
+                  </label>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={row.isEnabled}
+                      onChange={(event) => updateTierRow(index, 'isEnabled', event.target.checked)}
+                    />
+                    <span>فعال</span>
+                  </label>
+                  <button type="button" className="link-button link-danger" onClick={() => removeTierRow(index)}>
+                    حذف
+                  </button>
+                </div>
+              ))}
+              <div className="tier-editor-actions">
+                <button type="button" className="ghost-button" onClick={addTierRow}>
+                  افزودن سطح
+                </button>
+                <button type="button" disabled={tiersSaving} onClick={saveTiers}>
+                  {tiersSaving ? 'در حال ذخیره...' : 'ذخیره سطح‌ها'}
+                </button>
+              </div>
+              {tierError ? <p className="feedback feedback-error">{tierError}</p> : null}
+              {tierMessage ? <p className="feedback feedback-success">{tierMessage}</p> : null}
+              <p className="table-subtext">
+                بالاترین سطحی که مجموع خرید مشتری به آن رسیده باشد به‌صورت خودکار به او اختصاص می‌یابد (پایین‌رفتنی هم هست). سطح پایه = مشتری بدون سطح.
+              </p>
+            </div>
           </div>
         </section>
 

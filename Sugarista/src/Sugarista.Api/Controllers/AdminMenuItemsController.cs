@@ -49,7 +49,8 @@ public class AdminMenuItemsController : ApiControllerBase
         AdminPermissions.Recipes.View,
         AdminPermissions.Production.View,
         AdminPermissions.RecordSale.View,
-        AdminPermissions.ProductWiki.View)]
+        AdminPermissions.ProductWiki.View,
+        AdminPermissions.DrinkBuilder.View)]
     public async Task<ActionResult<IReadOnlyCollection<AdminMenuItemOptionDto>>> GetOptions(CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new GetAdminMenuItemOptionsQuery(), cancellationToken));

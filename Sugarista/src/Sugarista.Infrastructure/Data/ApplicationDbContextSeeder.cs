@@ -627,6 +627,55 @@ public class ApplicationDbContextSeeder
             WHERE NOT EXISTS (
                 SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260722120000_AddAccountingModule'
             );
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "CustomDrinkBuilderEnabled" boolean NOT NULL DEFAULT TRUE;
+            ALTER TABLE "OrderLines" ADD COLUMN IF NOT EXISTS "CustomDrinkSummary" text[] NOT NULL DEFAULT ARRAY[]::text[];
+            ALTER TABLE "OrderLines" ADD COLUMN IF NOT EXISTS "CustomizationJson" text;
+            CREATE TABLE IF NOT EXISTS "DrinkBuilderProfiles" (
+                "Id" uuid NOT NULL,
+                "MenuItemId" uuid NOT NULL,
+                "Name" character varying(150) NOT NULL,
+                "IsEnabled" boolean NOT NULL,
+                "DisplayOrder" integer NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "CreatedBy" text,
+                "LastModifiedAt" timestamp with time zone,
+                "LastModifiedBy" text,
+                CONSTRAINT "PK_DrinkBuilderProfiles" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_DrinkBuilderProfiles_MenuItems_MenuItemId" FOREIGN KEY ("MenuItemId") REFERENCES "MenuItems" ("Id") ON DELETE CASCADE
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_DrinkBuilderProfiles_MenuItemId" ON "DrinkBuilderProfiles" ("MenuItemId");
+            CREATE TABLE IF NOT EXISTS "DrinkBuilderGroups" (
+                "Id" uuid NOT NULL,
+                "ProfileId" uuid NOT NULL,
+                "Name" character varying(150) NOT NULL,
+                "InputType" character varying(20) NOT NULL,
+                "SelectionMode" character varying(20) NOT NULL,
+                "MinSelections" integer NOT NULL,
+                "MaxSelections" integer NOT NULL,
+                "IsRequired" boolean NOT NULL,
+                "DisplayOrder" integer NOT NULL,
+                CONSTRAINT "PK_DrinkBuilderGroups" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_DrinkBuilderGroups_DrinkBuilderProfiles_ProfileId" FOREIGN KEY ("ProfileId") REFERENCES "DrinkBuilderProfiles" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_DrinkBuilderGroups_ProfileId_DisplayOrder" ON "DrinkBuilderGroups" ("ProfileId", "DisplayOrder");
+            CREATE TABLE IF NOT EXISTS "DrinkBuilderOptions" (
+                "Id" uuid NOT NULL,
+                "GroupId" uuid NOT NULL,
+                "Name" character varying(150) NOT NULL,
+                "EnglishName" character varying(150),
+                "Unit" character varying(20) NOT NULL,
+                "PricePerUnit" numeric(18,2) NOT NULL,
+                "MinAmount" numeric(18,3) NOT NULL,
+                "MaxAmount" numeric(18,3) NOT NULL,
+                "Step" numeric(18,3) NOT NULL,
+                "DefaultAmount" numeric(18,3) NOT NULL,
+                "IsDefault" boolean NOT NULL,
+                "IsActive" boolean NOT NULL,
+                "DisplayOrder" integer NOT NULL,
+                CONSTRAINT "PK_DrinkBuilderOptions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_DrinkBuilderOptions_DrinkBuilderGroups_GroupId" FOREIGN KEY ("GroupId") REFERENCES "DrinkBuilderGroups" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_DrinkBuilderOptions_GroupId_DisplayOrder" ON "DrinkBuilderOptions" ("GroupId", "DisplayOrder");
             """,
             cancellationToken);
     }

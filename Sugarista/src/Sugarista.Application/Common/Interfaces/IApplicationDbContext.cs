@@ -112,6 +112,34 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.MembershipTier> MembershipTiers { get; }
 
+    DbSet<Sugarista.Domain.Entities.CustomerWallet> CustomerWallets { get; }
+
+    DbSet<Sugarista.Domain.Entities.WalletTransaction> WalletTransactions { get; }
+
+    DbSet<Sugarista.Domain.Entities.WalletTopUpPackage> WalletTopUpPackages { get; }
+
+    DbSet<Sugarista.Domain.Entities.CustomerGroup> CustomerGroups { get; }
+
+    DbSet<Sugarista.Domain.Entities.CustomerGroupMembership> CustomerGroupMemberships { get; }
+
+    DbSet<Sugarista.Domain.Entities.SubscriptionPackage> SubscriptionPackages { get; }
+
+    DbSet<Sugarista.Domain.Entities.CustomerSubscription> CustomerSubscriptions { get; }
+
+    DbSet<Sugarista.Domain.Entities.OrderDiscount> OrderDiscounts { get; }
+
+    DbSet<Sugarista.Domain.Entities.DiscountAttempt> DiscountAttempts { get; }
+
+    DbSet<Sugarista.Domain.Entities.BlacklistEntry> BlacklistEntries { get; }
+
+    DbSet<Sugarista.Domain.Entities.ReportSchedule> ReportSchedules { get; }
+
+    DbSet<Sugarista.Domain.Entities.DrinkBuilderProfile> DrinkBuilderProfiles { get; }
+
+    DbSet<Sugarista.Domain.Entities.DrinkBuilderGroup> DrinkBuilderGroups { get; }
+
+    DbSet<Sugarista.Domain.Entities.DrinkBuilderOption> DrinkBuilderOptions { get; }
+
     DbSet<Sugarista.Domain.Entities.AbandonedCart> AbandonedCarts { get; }
 
     DbSet<Sugarista.Domain.Entities.TableSession> TableSessions { get; }

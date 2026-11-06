@@ -22,7 +22,9 @@ public class OrderLine : BaseEntity
         string? payerKey = null,
         string? payerLabel = null,
         string? baristaNote = null,
-        decimal taxPercent = 0m)
+        decimal taxPercent = 0m,
+        string? customizationJson = null,
+        IReadOnlyCollection<string>? customDrinkSummary = null)
     {
         if (orderId == Guid.Empty)
         {
@@ -59,6 +61,8 @@ public class OrderLine : BaseEntity
         UnitPrice = unitPrice;
         LineTotal = unitPrice * quantity;
         ModifierLabels = NormalizeList(modifierLabels);
+        CustomDrinkSummary = NormalizeList(customDrinkSummary ?? []);
+        CustomizationJson = string.IsNullOrWhiteSpace(customizationJson) ? null : customizationJson;
         AssignPayer(payerKey, payerLabel);
         BaristaNote = string.IsNullOrWhiteSpace(baristaNote) ? null : baristaNote.Trim();
         TaxPercent = taxPercent < 0 ? 0m : taxPercent;
@@ -91,6 +95,15 @@ public class OrderLine : BaseEntity
     public decimal TaxPercent { get; private set; }
 
     public string[] ModifierLabels { get; private set; } = [];
+
+    /// <summary>Short human readable labels of a custom drink (shown in carts and receipts).</summary>
+    public string[] CustomDrinkSummary { get; private set; } = [];
+
+    /// <summary>
+    /// Immutable JSON snapshot of a validated custom drink (profile, components,
+    /// amounts and prices). Null for regular lines.
+    /// </summary>
+    public string? CustomizationJson { get; private set; }
 
     public string? PayerKey { get; private set; }
 

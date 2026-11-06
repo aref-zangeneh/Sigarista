@@ -22,6 +22,7 @@ public record AdminCustomerDetailDto(
     DateTimeOffset? FirstOrderAt,
     DateTimeOffset? LastOrderAt,
     decimal LoyaltyPoints,
+    string? DateOfBirth,
     IReadOnlyCollection<AdminLoyaltyTransactionDto> LoyaltyTransactions,
     IReadOnlyCollection<AdminCustomerOrderDto> RecentOrders);
 
@@ -130,6 +131,7 @@ public class GetAdminCustomerByIdQueryHandler : IRequestHandler<GetAdminCustomer
             recentOrders.Count > 0 ? recentOrders[^1].CreatedAt : null,
             recentOrders.Count > 0 ? recentOrders[0].CreatedAt : null,
             customer.LoyaltyPoints,
+            customer.DateOfBirth?.ToString("yyyy-MM-dd"),
             loyaltyTransactions,
             recentOrders);
     }

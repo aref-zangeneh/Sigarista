@@ -18,7 +18,12 @@ public class OrdersController : ApiControllerBase
         [FromBody] CreateOrderCheckoutCommand command,
         CancellationToken cancellationToken)
     {
-        return Ok(await Mediator.Send(command, cancellationToken));
+        var enriched = command with
+        {
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString()
+        };
+
+        return Ok(await Mediator.Send(enriched, cancellationToken));
     }
 
     [HttpPost("{id:guid}/confirm-mock")]

@@ -26,7 +26,65 @@ public record CustomerProfileDto(
     int CompletedCards,
     CustomerProfileRewardDto? ActiveReward,
     CustomerProfileMembershipDto? Membership,
+    CustomerProfileWalletDto? Wallet,
+    CustomerProfileBirthdayDto? Birthday,
+    CustomerProfileGroupDto? Group,
+    CustomerProfileSubscriptionDto? Subscription,
+    CustomerProfilePersonalCupDto? PersonalCup,
     IReadOnlyCollection<CustomerProfileBadgeDto> Badges);
+
+public record CustomerProfileWalletDto(
+    decimal Balance,
+    decimal CashbackPercent,
+    int WindowDays,
+    int ExpiryDays,
+    int PaymentMaxPercent,
+    IReadOnlyCollection<CustomerProfileTopUpPackageDto> TopUpPackages,
+    IReadOnlyCollection<CustomerProfileWalletMovementDto> RecentMovements);
+
+public record CustomerProfileTopUpPackageDto(
+    decimal Amount,
+    decimal BonusAmount);
+
+public record CustomerProfileWalletMovementDto(
+    WalletTransactionType Type,
+    decimal Amount,
+    decimal BalanceAfter,
+    string Description,
+    DateTimeOffset CreatedAt);
+
+public record CustomerProfileBirthdayDto(
+    bool Eligible,
+    BirthdayDiscountMode Mode,
+    decimal DiscountPercent,
+    int WindowDays,
+    string Message,
+    string? PersonalCode,
+    string? DateOfBirth,
+    bool EditableByCustomer);
+
+public record CustomerProfileGroupDto(
+    string GroupName,
+    string? Description,
+    decimal DiscountPercent,
+    DateTimeOffset? ExpiresAt);
+
+public record CustomerProfileSubscriptionDto(
+    string PackageName,
+    int TotalUseCount,
+    int RemainingUses,
+    int AvailableToday,
+    int DailyUseLimit,
+    DateTimeOffset ExpiresAt,
+    string RenewalPolicy,
+    string CancelRefundPolicy,
+    IReadOnlyCollection<Guid> AllowedCategoryIds);
+
+public record CustomerProfilePersonalCupDto(
+    bool Enabled,
+    decimal DiscountAmount,
+    string DeliveryNote,
+    IReadOnlyCollection<Guid> CategoryIds);
 
 public record CustomerProfileMembershipDto(
     string? TierName,
@@ -130,6 +188,67 @@ public class GetCustomerProfileQueryHandler : IRequestHandler<GetCustomerProfile
                 nextTier is null ? 0m : nextTier.MinTotalPaidSpent - windowSpent);
         }
 
+        CustomerProfileWalletDto? wallet = null;
+        if (settings.WalletEnabled)
+        {
+            var walletEntity = await _dbContext.CustomerWallets
+                .FirstOrDefaultAsync(walletEntry => walletEntry.CustomerId == customer.Id, cancellationToken);
+
+            if (walletEntity is not null)
+            {
+                // Expire due cashback before reporting/spending the balance,
+                // with a fully logged expiry transaction of its own.
+                await WalletService.ExpireDueCashbackAsync(_dbContext, walletEntity, cancellationToken);
+            }
+
+            // Tier-specific cashback percent: the customer's level may
+            // override (or drop to zero) the global percent.
+            var cashbackPercent = settings.WalletCashbackPercent;
+            if (customer.MembershipTierId is not null)
+            {
+                var tierCashback = await _dbContext.MembershipTiers
+                    .AsNoTracking()
+                    .Where(tierEntry => tierEntry.Id == customer.MembershipTierId)
+                    .Select(tierEntry => (decimal?)tierEntry.CashbackPercent)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (tierCashback.HasValue)
+                {
+                    cashbackPercent = tierCashback.Value;
+                }
+            }
+
+            var topUpPackages = await _dbContext.WalletTopUpPackages
+                .AsNoTracking()
+                .Where(packageEntry => packageEntry.IsEnabled)
+                .OrderBy(packageEntry => packageEntry.DisplayOrder)
+                .Select(packageEntry => new CustomerProfileTopUpPackageDto(
+                    packageEntry.Amount,
+                    packageEntry.BonusAmount))
+                .ToListAsync(cancellationToken);
+
+            var recentMovements = await _dbContext.WalletTransactions
+                .AsNoTracking()
+                .Where(transaction => walletEntity != null && transaction.WalletId == walletEntity.Id)
+                .OrderByDescending(transaction => transaction.CreatedAt)
+                .Take(10)
+                .Select(transaction => new CustomerProfileWalletMovementDto(
+                    transaction.Type,
+                    transaction.Amount,
+                    transaction.BalanceAfter,
+                    transaction.Description,
+                    transaction.CreatedAt))
+                .ToListAsync(cancellationToken);
+
+            wallet = new CustomerProfileWalletDto(
+                walletEntity?.Balance ?? 0m,
+                cashbackPercent,
+                settings.MembershipWindowDays,
+                settings.WalletCashbackExpiryDays,
+                settings.WalletPaymentMaxPercent,
+                topUpPackages,
+                recentMovements);
+        }
+
         var completedCards = settings.StampCardOrdersPerCard > 0
             ? paidOrderCount / settings.StampCardOrdersPerCard
             : 0;
@@ -186,6 +305,70 @@ public class GetCustomerProfileQueryHandler : IRequestHandler<GetCustomerProfile
                 earned);
         }).ToList();
 
+        CustomerProfileBirthdayDto? birthday = null;
+        if (settings.BirthdayDiscountEnabled)
+        {
+            var birthdayEligible = customer.DateOfBirth is not null && BirthdayDiscountService.IsBirthdayActive(
+                customer.DateOfBirth.Value, settings.BirthdayDiscountWindowDays);
+
+            string? personalCode = null;
+            if (birthdayEligible && settings.BirthdayDiscountMode == BirthdayDiscountMode.Code)
+            {
+                var issuedCode = await BirthdayCodeService.EnsurePersonalCodeAsync(
+                    _dbContext, customer, settings, cancellationToken);
+                personalCode = issuedCode?.Code;
+            }
+
+            birthday = new CustomerProfileBirthdayDto(
+                birthdayEligible,
+                settings.BirthdayDiscountMode,
+                settings.BirthdayDiscountPercent,
+                settings.BirthdayDiscountWindowDays,
+                settings.BirthdayGreetingMessage,
+                personalCode,
+                customer.DateOfBirth?.ToString("yyyy-MM-dd"),
+                settings.BirthdayEditableByCustomer);
+        }
+
+        CustomerProfileGroupDto? group = null;
+        var groupMembership = await CustomerGroupService.GetActiveMembershipAsync(
+            _dbContext, customer.Id, cancellationToken);
+        if (groupMembership is { } activeGroup)
+        {
+            group = new CustomerProfileGroupDto(
+                activeGroup.Group.Name,
+                activeGroup.Group.Description,
+                activeGroup.Group.DiscountPercent,
+                activeGroup.Membership.ExpiresAt);
+        }
+
+        CustomerProfileSubscriptionDto? subscriptionDto = null;
+        var subscription = await SubscriptionService.GetActiveAsync(
+            _dbContext, customer.Id, cancellationToken);
+        if (subscription is not null)
+        {
+            subscriptionDto = new CustomerProfileSubscriptionDto(
+                subscription.PackageName,
+                subscription.TotalUseCount,
+                subscription.RemainingUses,
+                subscription.AvailableToday(DateOnly.FromDateTime(DateTime.UtcNow)),
+                subscription.DailyUseLimit,
+                subscription.ExpiresAt,
+                settings.SubscriptionRenewalPolicy,
+                settings.SubscriptionCancelRefundPolicy,
+                SubscriptionService.ParseCategoryIds(subscription.AllowedCategoryIds));
+        }
+
+        CustomerProfilePersonalCupDto? personalCup = null;
+        if (settings.PersonalCupDiscountEnabled && settings.PersonalCupDiscountAmount > 0)
+        {
+            personalCup = new CustomerProfilePersonalCupDto(
+                true,
+                settings.PersonalCupDiscountAmount,
+                settings.PersonalCupDeliveryNote,
+                SubscriptionService.ParseCategoryIds(settings.PersonalCupCategoryIds));
+        }
+
         return new CustomerProfileDto(
             customer.Id,
             customer.PersianName,
@@ -198,6 +381,11 @@ public class GetCustomerProfileQueryHandler : IRequestHandler<GetCustomerProfile
             completedCards,
             activeReward,
             membership,
+            wallet,
+            birthday,
+            group,
+            subscriptionDto,
+            personalCup,
             badgeDtos);
     }
 }

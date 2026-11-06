@@ -158,6 +158,93 @@ public class SiteSettings : BaseAuditableEntity
     /// <summary>Rolling window (days) for evaluating membership level spending (0 = lifetime).</summary>
     public int MembershipWindowDays { get; set; } = 365;
 
+    /// <summary>
+    /// Whether customers whose window activity drops below their level's
+    /// thresholds are demoted automatically. false = levels only ever go up.
+    /// </summary>
+    public bool MembershipDowngradeEnabled { get; set; } = true;
+
+    /// <summary>Master switch for the customer wallet and cashback program.</summary>
+    public bool WalletEnabled { get; set; } = true;
+
+    /// <summary>Percent of each paid order granted back into the customer wallet (0 disables cashback).</summary>
+    public decimal WalletCashbackPercent { get; set; } = 2m;
+
+    /// <summary>Minimum order total for cashback to be granted (0 = no minimum).</summary>
+    public decimal WalletCashbackMinOrderAmount { get; set; }
+
+    /// <summary>Maximum cashback (toman) granted per single order (0 = no cap).</summary>
+    public decimal WalletCashbackMaxPerOrderAmount { get; set; }
+
+    /// <summary>Days before granted cashback expires out of the wallet (0 = never expires).</summary>
+    public int WalletCashbackExpiryDays { get; set; }
+
+    /// <summary>
+    /// Maximum share (percent) of a single order that may be paid from the
+    /// wallet (100 = the wallet may cover the whole order).
+    /// </summary>
+    public int WalletPaymentMaxPercent { get; set; } = 100;
+
+    /// <summary>Master switch for the birthday discount program.</summary>
+    public bool BirthdayDiscountEnabled { get; set; }
+
+    /// <summary>Whether the birthday benefit is auto-applied at checkout or redeemed through a code.</summary>
+    public BirthdayDiscountMode BirthdayDiscountMode { get; set; } = BirthdayDiscountMode.Automatic;
+
+    /// <summary>Birthday discount percent off the order items (0-100).</summary>
+    public decimal BirthdayDiscountPercent { get; set; }
+
+    /// <summary>
+    /// How many days around the birthday the benefit is valid
+    /// (0 = birthday itself only, e.g. 7 = birthday week, 30 = birthday month-ish).
+    /// </summary>
+    public int BirthdayDiscountWindowDays { get; set; }
+
+    /// <summary>Persian greeting shown to the customer while the birthday benefit is active.</summary>
+    public string BirthdayGreetingMessage { get; set; } = "تولدت مبارک! 🎉 هدیهٔ کافه به مناسبت تولدت فعال شد.";
+
+    /// <summary>Whether customers may set or change their own birth date in the digital menu.</summary>
+    public bool BirthdayEditableByCustomer { get; set; } = true;
+
+    /// <summary>Master switch for the personal-cup (لیوان شخصی) discount.</summary>
+    public bool PersonalCupDiscountEnabled { get; set; }
+
+    /// <summary>Fixed discount (toman) granted when the customer brings a personal cup.</summary>
+    public decimal PersonalCupDiscountAmount { get; set; }
+
+    /// <summary>Comma-separated category ids the cup discount applies to (empty = all products).</summary>
+    public string? PersonalCupCategoryIds { get; set; }
+
+    /// <summary>Delivery/redemption guidance shown to the customer and the barista.</summary>
+    public string PersonalCupDeliveryNote { get; set; } =
+        "لیوان شخصی را هنگام تحویل به باریستا نشان دهید.";
+
+    /// <summary>Renewal policy text shown to the customer for monthly subscriptions.</summary>
+    public string SubscriptionRenewalPolicy { get; set; } =
+        "تمدید اشتراک از طریق پیشخوان کافه یا پنل مشتری انجام می‌شود؛ باقی‌ماندهٔ استفاده‌ها به دورهٔ بعد منتقل نمی‌شود مگر با تایید مدیریت.";
+
+    /// <summary>Cancellation & refund policy text for subscriptions.</summary>
+    public string SubscriptionCancelRefundPolicy { get; set; } =
+        "لغو اشتراک با درخواست مشتری انجام می‌شود؛ معادل استفاده‌های باقی‌مانده به کیف پول مشتری برگشت می‌خورد.";
+
+    /// <summary>Master switch for the custom drink builder in the digital menu.</summary>
+    public bool CustomDrinkBuilderEnabled { get; set; } = true;
+
+    /// <summary>Master switch for discount abuse protection (lockout, blacklist, daily cap).</summary>
+    public bool DiscountAbuseProtectionEnabled { get; set; } = true;
+
+    /// <summary>Failed code attempts allowed inside the lockout window before a temporary lock.</summary>
+    public int DiscountMaxFailedAttempts { get; set; } = 5;
+
+    /// <summary>How long a phone/identity stays locked after too many failed attempts (minutes).</summary>
+    public int DiscountLockoutMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Maximum total discount (toman) a single customer may receive per day
+    /// across all discounts. 0 = unlimited.
+    /// </summary>
+    public decimal DiscountDailyCapPerCustomer { get; set; }
+
     /// <summary>Whether the abandoned-cart reminder sweep runs at all.</summary>
     public bool AbandonedCartReminderEnabled { get; set; } = true;
 

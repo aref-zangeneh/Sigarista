@@ -45,6 +45,8 @@ export function buildUpsertPayload({
   splitBillMode,
   guestCount,
   splitShares,
+  personalCup,
+  useSubscription,
 }) {
   return {
     orderId: orderId ?? null,
@@ -68,6 +70,8 @@ export function buildUpsertPayload({
     splitBillMode: splitBill ? splitBillMode : null,
     guestCount: splitBill ? guestCount : null,
     splitShares: splitBill ? splitShares : null,
+    personalCup: personalCup === true,
+    useSubscription: useSubscription === true,
   }
 }
 

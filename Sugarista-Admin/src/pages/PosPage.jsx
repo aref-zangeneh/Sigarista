@@ -163,6 +163,8 @@ export function PosPage() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [orderNote, setOrderNote] = useState('')
+  const [personalCup, setPersonalCup] = useState(false)
+  const [useSubscription, setUseSubscription] = useState(false)
   const [salonTableId, setSalonTableId] = useState(null)
   const [deliveryMethodId, setDeliveryMethodId] = useState('')
   const [deliveryOptions, setDeliveryOptions] = useState([])
@@ -271,6 +273,8 @@ export function PosPage() {
     setCustomerName('')
     setCustomerPhone('')
     setOrderNote('')
+    setPersonalCup(false)
+    setUseSubscription(false)
     setSalonTableId(null)
     setDeliveryMethodId('')
     setSplitBill(EMPTY_SPLIT)
@@ -377,6 +381,8 @@ export function PosPage() {
       splitBillMode: splitBill.splitBillMode,
       guestCount: splitBill.guestCount,
       splitShares: splitBill.splitShares,
+      personalCup,
+      useSubscription,
     })
 
     try {
@@ -658,6 +664,22 @@ export function PosPage() {
                 value={orderNote}
                 onChange={(event) => setOrderNote(event.target.value)}
               />
+              <label className="pos-benefit-check">
+                <input
+                  type="checkbox"
+                  checked={personalCup}
+                  onChange={(event) => setPersonalCup(event.target.checked)}
+                />{' '}
+                لیوان شخصی مشتری (تخفیف لیوان)
+              </label>
+              <label className="pos-benefit-check">
+                <input
+                  type="checkbox"
+                  checked={useSubscription}
+                  onChange={(event) => setUseSubscription(event.target.checked)}
+                />{' '}
+                استفاده از اشتراک ماهانه
+              </label>
               <label>
                 <input
                   type="checkbox"

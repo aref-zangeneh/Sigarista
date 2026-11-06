@@ -1,3 +1,4 @@
+using Sugarista.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Sugarista.Application.SiteSettings.Commands.UpdateSiteSettings;
@@ -77,6 +78,36 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
 
     public bool MembershipTiersEnabled { get; init; } = true;
     public int MembershipWindowDays { get; init; } = 365;
+    public bool MembershipDowngradeEnabled { get; init; } = true;
+
+    public bool WalletEnabled { get; init; } = true;
+    public decimal WalletCashbackPercent { get; init; } = 2m;
+    public decimal WalletCashbackMinOrderAmount { get; init; }
+    public decimal WalletCashbackMaxPerOrderAmount { get; init; }
+    public int WalletCashbackExpiryDays { get; init; }
+    public int WalletPaymentMaxPercent { get; init; } = 100;
+
+    public bool BirthdayDiscountEnabled { get; init; }
+    public BirthdayDiscountMode BirthdayDiscountMode { get; init; } = BirthdayDiscountMode.Automatic;
+    public decimal BirthdayDiscountPercent { get; init; }
+    public int BirthdayDiscountWindowDays { get; init; }
+    public string BirthdayGreetingMessage { get; init; } = string.Empty;
+    public bool BirthdayEditableByCustomer { get; init; } = true;
+
+    public bool PersonalCupDiscountEnabled { get; init; }
+    public decimal PersonalCupDiscountAmount { get; init; }
+    public string? PersonalCupCategoryIds { get; init; }
+    public string PersonalCupDeliveryNote { get; init; } = string.Empty;
+
+    public string SubscriptionRenewalPolicy { get; init; } = string.Empty;
+    public string SubscriptionCancelRefundPolicy { get; init; } = string.Empty;
+
+    public bool CustomDrinkBuilderEnabled { get; init; } = true;
+
+    public bool DiscountAbuseProtectionEnabled { get; init; } = true;
+    public int DiscountMaxFailedAttempts { get; init; } = 5;
+    public int DiscountLockoutMinutes { get; init; } = 15;
+    public decimal DiscountDailyCapPerCustomer { get; init; }
 
     public bool AbandonedCartReminderEnabled { get; init; } = true;
 
@@ -121,6 +152,22 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
         RuleFor(command => command.StampCardRewardPercent).InclusiveBetween(0, 100);
         RuleFor(command => command.StampCardRewardValidityDays).InclusiveBetween(0, 3650);
         RuleFor(command => command.MembershipWindowDays).InclusiveBetween(0, 3650);
+        RuleFor(command => command.WalletCashbackPercent).InclusiveBetween(0, 100);
+        RuleFor(command => command.WalletCashbackMinOrderAmount).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.WalletCashbackMaxPerOrderAmount).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.WalletCashbackExpiryDays).InclusiveBetween(0, 3650);
+        RuleFor(command => command.WalletPaymentMaxPercent).InclusiveBetween(1, 100);
+        RuleFor(command => command.BirthdayDiscountPercent).InclusiveBetween(0, 100);
+        RuleFor(command => command.BirthdayDiscountWindowDays).InclusiveBetween(0, 60);
+        RuleFor(command => command.BirthdayGreetingMessage).MaximumLength(500);
+        RuleFor(command => command.PersonalCupDiscountAmount).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.PersonalCupCategoryIds).MaximumLength(2000);
+        RuleFor(command => command.PersonalCupDeliveryNote).MaximumLength(500);
+        RuleFor(command => command.SubscriptionRenewalPolicy).MaximumLength(1000);
+        RuleFor(command => command.SubscriptionCancelRefundPolicy).MaximumLength(1000);
+        RuleFor(command => command.DiscountMaxFailedAttempts).InclusiveBetween(1, 100);
+        RuleFor(command => command.DiscountLockoutMinutes).InclusiveBetween(1, 10080);
+        RuleFor(command => command.DiscountDailyCapPerCustomer).GreaterThanOrEqualTo(0);
         RuleFor(command => command.AbandonedCartHours).InclusiveBetween(0, 720);
         RuleFor(command => command.AbandonedCartDiscountPercent).InclusiveBetween(0, 100);
         RuleFor(command => command.AbandonedCartCodeValidityHours).InclusiveBetween(1, 720);
@@ -210,6 +257,40 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.StampCardRewardValidityDays = request.StampCardRewardValidityDays;
         settings.MembershipTiersEnabled = request.MembershipTiersEnabled;
         settings.MembershipWindowDays = request.MembershipWindowDays;
+        settings.MembershipDowngradeEnabled = request.MembershipDowngradeEnabled;
+        settings.WalletEnabled = request.WalletEnabled;
+        settings.WalletCashbackPercent = request.WalletCashbackPercent;
+        settings.WalletCashbackMinOrderAmount = request.WalletCashbackMinOrderAmount;
+        settings.WalletCashbackMaxPerOrderAmount = request.WalletCashbackMaxPerOrderAmount;
+        settings.WalletCashbackExpiryDays = request.WalletCashbackExpiryDays;
+        settings.WalletPaymentMaxPercent = request.WalletPaymentMaxPercent;
+        settings.BirthdayDiscountEnabled = request.BirthdayDiscountEnabled;
+        settings.BirthdayDiscountMode = request.BirthdayDiscountMode;
+        settings.BirthdayDiscountPercent = request.BirthdayDiscountPercent;
+        settings.BirthdayDiscountWindowDays = request.BirthdayDiscountWindowDays;
+        settings.BirthdayGreetingMessage = string.IsNullOrWhiteSpace(request.BirthdayGreetingMessage)
+            ? "تولدت مبارک! 🎉 هدیهٔ کافه به مناسبت تولدت فعال شد."
+            : request.BirthdayGreetingMessage.Trim();
+        settings.BirthdayEditableByCustomer = request.BirthdayEditableByCustomer;
+        settings.PersonalCupDiscountEnabled = request.PersonalCupDiscountEnabled;
+        settings.PersonalCupDiscountAmount = request.PersonalCupDiscountAmount;
+        settings.PersonalCupCategoryIds = string.IsNullOrWhiteSpace(request.PersonalCupCategoryIds)
+            ? null
+            : request.PersonalCupCategoryIds.Trim();
+        settings.PersonalCupDeliveryNote = string.IsNullOrWhiteSpace(request.PersonalCupDeliveryNote)
+            ? "لیوان شخصی را هنگام تحویل به باریستا نشان دهید."
+            : request.PersonalCupDeliveryNote.Trim();
+        settings.SubscriptionRenewalPolicy = string.IsNullOrWhiteSpace(request.SubscriptionRenewalPolicy)
+            ? settings.SubscriptionRenewalPolicy
+            : request.SubscriptionRenewalPolicy.Trim();
+        settings.SubscriptionCancelRefundPolicy = string.IsNullOrWhiteSpace(request.SubscriptionCancelRefundPolicy)
+            ? settings.SubscriptionCancelRefundPolicy
+            : request.SubscriptionCancelRefundPolicy.Trim();
+        settings.CustomDrinkBuilderEnabled = request.CustomDrinkBuilderEnabled;
+        settings.DiscountAbuseProtectionEnabled = request.DiscountAbuseProtectionEnabled;
+        settings.DiscountMaxFailedAttempts = request.DiscountMaxFailedAttempts;
+        settings.DiscountLockoutMinutes = request.DiscountLockoutMinutes;
+        settings.DiscountDailyCapPerCustomer = request.DiscountDailyCapPerCustomer;
         settings.AbandonedCartReminderEnabled = request.AbandonedCartReminderEnabled;
         settings.AbandonedCartHours = request.AbandonedCartHours;
         settings.AbandonedCartSmsEnabled = request.AbandonedCartSmsEnabled;

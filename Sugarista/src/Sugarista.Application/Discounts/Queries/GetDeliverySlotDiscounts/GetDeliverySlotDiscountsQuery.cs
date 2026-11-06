@@ -54,7 +54,9 @@ public class GetDeliverySlotDiscountsQueryHandler : IRequestHandler<GetDeliveryS
             .Include(discount => discount.MenuItems)
             .Include(discount => discount.Categories)
             .Include(discount => discount.Schedules)
-            .Where(discount => discount.IsActive && discount.IsAutomatic)
+            // IsAutomatic is an unmapped computed property, so the equivalent
+            // "no code" test is written out for EF to translate.
+            .Where(discount => discount.IsActive && string.IsNullOrEmpty(discount.Code))
             .ToListAsync(cancellationToken);
 
         discounts = discounts

@@ -3,10 +3,13 @@ using Sugarista.Application.Accounting.Services;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Discounts.Security;
+using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Commands.CreateOrderCheckout;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
+using Sugarista.Domain.Exceptions;
 
 namespace Sugarista.Application.Pos.Commands.UpsertPosOrder;
 
@@ -24,7 +27,8 @@ public record PosOrderLineRequest(
     IReadOnlyCollection<Guid> ModifierIds,
     string? BaristaNote = null,
     string? PayerKey = null,
-    string? PayerLabel = null);
+    string? PayerLabel = null,
+    DrinkBuilderLineRequest? CustomDrink = null);
 
 public record UpsertPosOrderCommand(
     Guid? OrderId,
@@ -40,7 +44,9 @@ public record UpsertPosOrderCommand(
     int? GuestCount = null,
     IReadOnlyCollection<CheckoutSplitShareRequest>? SplitShares = null,
     Guid? ServedByAdminUserId = null,
-    Guid? DeliveryMethodId = null) : IRequest<UpsertPosOrderResultDto>;
+    Guid? DeliveryMethodId = null,
+    bool PersonalCup = false,
+    bool UseSubscription = false) : IRequest<UpsertPosOrderResultDto>;
 
 public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCommand>
 {
@@ -164,9 +170,9 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 splitBillMode,
                 request.GuestCount);
 
-            foreach (var (resolved, lineRequest) in resolvedLines)
+            foreach (var (resolved, lineRequest, snapshot) in resolvedLines)
             {
-                order.AddLine(CreateLine(order.Id, resolved, lineRequest));
+                order.AddLine(CreateLine(order.Id, resolved, lineRequest, snapshot));
             }
 
             if (isSplitBill && request.SplitShares is { Count: > 0 })
@@ -187,6 +193,158 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 
         order.ApplyDeliveryMethod(deliveryMethod?.Id, deliveryFee);
         order.AssignCustomer(customer?.Id);
+
+        // Loyalty-style benefits for the POS channel: customer-group standing
+        // discount and the personal-cup fixed discount are recomputed on every
+        // upsert (the total is recalculated first, so they never stack twice).
+        var siteSettings = await _dbContext.SiteSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Recomputing an existing order replaces its discount rows; the daily
+        // allowance is calculated excluding this order so an edit cannot spend
+        // the customer's cap twice.
+        if (request.OrderId.HasValue)
+        {
+            var existingDiscounts = await _dbContext.OrderDiscounts
+                .Where(discount => discount.OrderId == order.Id)
+                .ToListAsync(cancellationToken);
+
+            foreach (var existingDiscount in existingDiscounts)
+            {
+                order.Discounts.Remove(existingDiscount);
+            }
+
+            if (existingDiscounts.Count > 0)
+            {
+                _dbContext.OrderDiscounts.RemoveRange(existingDiscounts);
+            }
+        }
+
+        var remainingDailyCap = await DiscountDailyCapService.GetRemainingAllowanceAsync(
+            _dbContext,
+            siteSettings,
+            customer?.Id,
+            siteSettings?.TimeZoneId,
+            DateTimeOffset.UtcNow,
+            request.OrderId,
+            cancellationToken);
+
+        var discountTracker = new OrderDiscountTracker(
+            order,
+            customer?.Id,
+            remainingDailyCap,
+            _dbContext.OrderDiscounts);
+
+        if (customer is not null)
+        {
+            var groupMembership = await CustomerGroupService.GetActiveMembershipAsync(
+                _dbContext, customer.Id, cancellationToken);
+            if (groupMembership is { } membership && membership.Group.DiscountPercent > 0)
+            {
+                var groupDiscount = Math.Round(itemsTotal * membership.Group.DiscountPercent / 100m, 2);
+                if (groupDiscount > 0)
+                {
+                    discountTracker.Apply(
+                        OrderDiscountKind.Group,
+                        membership.Group.Name,
+                        groupDiscount);
+                }
+            }
+        }
+
+        if (request.PersonalCup && customer is not null &&
+            siteSettings is { PersonalCupDiscountEnabled: true } &&
+            siteSettings.PersonalCupDiscountAmount > 0)
+        {
+            var cupCategories = SubscriptionService.ParseCategoryIds(siteSettings.PersonalCupCategoryIds);
+            var eligibleLines = resolvedLines
+                .Where(line => cupCategories.Count == 0 || cupCategories.Contains(line.resolved.CategoryId))
+                .ToList();
+            var eligibleAmount = eligibleLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
+            var cupDiscount = Math.Min(siteSettings.PersonalCupDiscountAmount, eligibleAmount);
+            if (cupDiscount > 0)
+            {
+                var cupScopes = eligibleLines
+                    .GroupBy(line => line.resolved.CategoryId)
+                    .Select(group => new DiscountScopeAmount(
+                        group.Key,
+                        group.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity)))
+                    .ToList();
+
+                discountTracker.Apply(
+                    OrderDiscountKind.Cup,
+                    "لیوان شخصی",
+                    cupDiscount,
+                    scopes: cupScopes);
+            }
+        }
+
+        // Monthly subscription: consumed exactly once, at the moment the order
+        // is actually paid (holding an order must not burn the customer's uses).
+        // A fully-discounted order must not burn uses for no benefit.
+        if (request.UseSubscription && customer is not null && order.TotalAmount > 0 &&
+            action is PosOrderAction.PayCash or PosOrderAction.PayCard)
+        {
+            var subscription = await SubscriptionService.GetActiveAsync(
+                _dbContext, customer.Id, cancellationToken);
+            if (subscription is not null)
+            {
+                var plan = SubscriptionService.PlanRedemption(
+                    subscription,
+                    resolvedLines.Select(line => (
+                        line.resolved.MenuItemId,
+                        line.resolved.Quantity,
+                        line.resolved.UnitPrice,
+                        (IReadOnlyCollection<Guid>)new[] { line.resolved.CategoryId })));
+
+                var categoryByMenuItem = resolvedLines
+                    .GroupBy(line => line.resolved.MenuItemId)
+                    .ToDictionary(group => group.Key, group => (Guid?)group.First().resolved.CategoryId);
+
+                var unitsToConsume = 0;
+                foreach (var unit in plan.Units)
+                {
+                    var quantity = unit.Quantity;
+
+                    if (discountTracker.RemainingCap is { } unitCap && unit.UnitPrice > 0)
+                    {
+                        quantity = Math.Min(
+                            quantity,
+                            (int)Math.Floor(unitCap / unit.UnitPrice));
+                    }
+
+                    if (quantity <= 0)
+                    {
+                        continue;
+                    }
+
+                    var unitAmount = unit.UnitPrice * quantity;
+                    var applied = discountTracker.Apply(
+                        OrderDiscountKind.Subscription,
+                        "اشتراک ماهانه",
+                        unitAmount,
+                        scopes:
+                        [
+                            new DiscountScopeAmount(
+                                categoryByMenuItem.GetValueOrDefault(unit.MenuItemId),
+                                unitAmount)
+                        ]);
+
+                    if (applied <= 0)
+                    {
+                        continue;
+                    }
+
+                    unitsToConsume += quantity;
+                }
+
+                if (unitsToConsume > 0)
+                {
+                    subscription.Consume(unitsToConsume, DateOnly.FromDateTime(DateTime.UtcNow));
+                }
+            }
+        }
 
         switch (action)
         {
@@ -234,7 +392,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 
     private async Task ReplaceLinesAsync(
         Order order,
-        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request)> resolvedLines,
+        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot)> resolvedLines,
         CancellationToken cancellationToken)
     {
         foreach (var existingLine in order.Lines.ToList())
@@ -253,9 +411,9 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 
         order.Lines.Clear();
 
-        foreach (var (resolved, lineRequest) in resolvedLines)
+        foreach (var (resolved, lineRequest, snapshot) in resolvedLines)
         {
-            var line = CreateLine(order.Id, resolved, lineRequest);
+            var line = CreateLine(order.Id, resolved, lineRequest, snapshot);
             order.AddLine(line);
             _dbContext.OrderLines.Add(line);
         }
@@ -264,7 +422,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
     private static OrderLine CreateLine(
         Guid orderId,
         OrderPricing.ResolvedLine resolved,
-        PosOrderLineRequest lineRequest) =>
+        PosOrderLineRequest lineRequest,
+        DrinkBuilderSnapshot? snapshot) =>
         new(
             orderId,
             resolved.MenuItemId,
@@ -278,9 +437,11 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             lineRequest.PayerKey,
             lineRequest.PayerLabel,
             lineRequest.BaristaNote,
-            resolved.TaxPercent);
+            resolved.TaxPercent,
+            snapshot is null ? null : DrinkBuilderPricing.Serialize(snapshot),
+            snapshot?.SummaryLabels);
 
-    private async Task<IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request)>> ResolveLinesAsync(
+    private async Task<IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot)>> ResolveLinesAsync(
         IReadOnlyCollection<PosOrderLineRequest> items,
         CancellationToken cancellationToken)
     {
@@ -304,6 +465,42 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 
         var modifiersById = modifiers.ToDictionary(modifier => modifier.Id);
 
+        var customDrinkItems = items
+            .Where(item => item.CustomDrink is not null)
+            .ToList();
+
+        var builderProfilesById = new Dictionary<Guid, DrinkBuilderProfile>();
+        if (customDrinkItems.Count > 0)
+        {
+            var builderEnabled = await _dbContext.SiteSettings
+                .AsNoTracking()
+                .Select(settings => (bool?)settings.CustomDrinkBuilderEnabled)
+                .FirstOrDefaultAsync(cancellationToken) ?? true;
+
+            if (!builderEnabled)
+            {
+                throw new DomainException("ساخت نوشیدنی سفارشی در حال حاضر غیرفعال است.");
+            }
+
+            var profileIds = customDrinkItems
+                .Select(item => item.CustomDrink!.ProfileId)
+                .Distinct()
+                .ToList();
+
+            var profiles = await _dbContext.DrinkBuilderProfiles
+                .Include(profile => profile.Groups)
+                .ThenInclude(group => group.Options)
+                .Where(profile => profileIds.Contains(profile.Id) && profile.IsEnabled)
+                .ToListAsync(cancellationToken);
+
+            if (profiles.Count != profileIds.Count)
+            {
+                throw new DomainException("پروفایل نوشیدنی انتخاب‌شده در دسترس نیست.");
+            }
+
+            builderProfilesById = profiles.ToDictionary(profile => profile.Id);
+        }
+
         return items
             .Select(item =>
             {
@@ -314,7 +511,29 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     item.Quantity,
                     modifiersById,
                     item.ModifierIds);
-                return (resolved, item);
+
+                DrinkBuilderSnapshot? snapshot = null;
+                if (item.CustomDrink is not null)
+                {
+                    var profile = builderProfilesById[item.CustomDrink.ProfileId];
+
+                    if (profile.MenuItemId != item.MenuItemId)
+                    {
+                        throw new DomainException("نوشیدنی سفارشی انتخاب‌شده با آیتم منو هم‌خوانی ندارد.");
+                    }
+
+                    snapshot = DrinkBuilderPricing.Resolve(profile, resolved.UnitPrice, item.CustomDrink.Selections);
+
+                    resolved = resolved with
+                    {
+                        UnitPrice = snapshot.UnitPrice,
+                        ModifierLabels = resolved.ModifierLabels
+                            .Concat(snapshot.SummaryLabels)
+                            .ToArray(),
+                    };
+                }
+
+                return (resolved, item, snapshot);
             })
             .ToArray();
     }

@@ -121,6 +121,34 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MembershipTier> MembershipTiers => Set<MembershipTier>();
 
+    public DbSet<CustomerWallet> CustomerWallets => Set<CustomerWallet>();
+
+    public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+
+    public DbSet<WalletTopUpPackage> WalletTopUpPackages => Set<WalletTopUpPackage>();
+
+    public DbSet<CustomerGroup> CustomerGroups => Set<CustomerGroup>();
+
+    public DbSet<CustomerGroupMembership> CustomerGroupMemberships => Set<CustomerGroupMembership>();
+
+    public DbSet<SubscriptionPackage> SubscriptionPackages => Set<SubscriptionPackage>();
+
+    public DbSet<CustomerSubscription> CustomerSubscriptions => Set<CustomerSubscription>();
+
+    public DbSet<OrderDiscount> OrderDiscounts => Set<OrderDiscount>();
+
+    public DbSet<DiscountAttempt> DiscountAttempts => Set<DiscountAttempt>();
+
+    public DbSet<BlacklistEntry> BlacklistEntries => Set<BlacklistEntry>();
+
+    public DbSet<ReportSchedule> ReportSchedules => Set<ReportSchedule>();
+
+    public DbSet<DrinkBuilderProfile> DrinkBuilderProfiles => Set<DrinkBuilderProfile>();
+
+    public DbSet<DrinkBuilderGroup> DrinkBuilderGroups => Set<DrinkBuilderGroup>();
+
+    public DbSet<DrinkBuilderOption> DrinkBuilderOptions => Set<DrinkBuilderOption>();
+
     public DbSet<AbandonedCart> AbandonedCarts => Set<AbandonedCart>();
 
     public DbSet<TableSession> TableSessions => Set<TableSession>();

@@ -75,6 +75,13 @@ const ROUTE_ICONS = {
       <circle cx="10" cy="17" r="2" />
     </>,
   ),
+  'drink-builder': icon(
+    <>
+      <path d="M7 3h10l-1 5H8z" />
+      <path d="M8 8c0 6 1 13 4 13s4-7 4-13" />
+      <path d="M9 13h6" />
+    </>,
+  ),
   ingredients: icon(
     <>
       <path d="M12 3 4 7v10l8 4 8-4V7z" />
@@ -183,7 +190,7 @@ const ROUTE_ICONS = {
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
 const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
-  { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'discounts', 'modifiers'] },
+  { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'drink-builder', 'discounts', 'modifiers'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },

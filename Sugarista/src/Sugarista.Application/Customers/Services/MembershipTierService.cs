@@ -34,13 +34,46 @@ public static class MembershipTierService
                                  orderEntry.CreatedAt >= windowStart)
             .SumAsync(orderEntry => (decimal?)orderEntry.TotalAmount, cancellationToken) ?? 0m;
 
-        var bestTierId = await dbContext.MembershipTiers
+        var windowPaidOrders = await dbContext.Orders
+            .Where(orderEntry => orderEntry.CustomerId == customer.Id &&
+                                 orderEntry.Status == OrderStatus.Paid &&
+                                 orderEntry.CreatedAt >= windowStart)
+            .CountAsync(cancellationToken);
+
+        var candidates = await dbContext.MembershipTiers
             .AsNoTracking()
-            .Where(tier => tier.IsEnabled &&
-                           tier.MinTotalPaidSpent <= windowSpent)
+            .Where(tier => tier.IsEnabled)
             .OrderByDescending(tier => tier.MinTotalPaidSpent)
-            .Select(tier => (Guid?)tier.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+            .ThenByDescending(tier => tier.MinPaidOrders)
+            .ThenBy(tier => tier.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        // Upgrade condition: reach the spending OR the paid-orders threshold
+        // inside the window (each level defines them optionally).
+        static bool Qualifies(Sugarista.Domain.Entities.MembershipTier tier, decimal spent, int paidOrders) =>
+            (tier.MinTotalPaidSpent > 0 && spent >= tier.MinTotalPaidSpent) ||
+            (tier.MinPaidOrders > 0 && paidOrders >= tier.MinPaidOrders);
+
+        var bestTierId = candidates.FirstOrDefault(tier => Qualifies(tier, windowSpent, windowPaidOrders))?.Id;
+
+        // قوانین تنزل: evaluation runs on every paid order/profil view, so a
+        // customer who falls below their level's thresholds inside the window
+        // is demoted — unless the admin switched demotion off.
+        var demote = settings is null || settings.MembershipDowngradeEnabled;
+        if (!demote && bestTierId is null)
+        {
+            return;
+        }
+        if (!demote && customer.MembershipTierId is not null)
+        {
+            // Levels only ever go up: keep the better of current vs candidate.
+            var currentRank = candidates.FindIndex(tier => tier.Id == customer.MembershipTierId);
+            var bestRank = candidates.FindIndex(tier => tier.Id == bestTierId);
+            if (currentRank >= 0 && (bestRank < 0 || currentRank <= bestRank))
+            {
+                return;
+            }
+        }
 
         if (customer.MembershipTierId == bestTierId)
         {

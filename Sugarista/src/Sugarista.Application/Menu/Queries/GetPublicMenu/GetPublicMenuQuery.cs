@@ -10,7 +10,8 @@ public record PublicMenuDto(
     IReadOnlyCollection<PublicMenuItemDto> Items,
     IReadOnlyCollection<PublicAddonItemDto> Addons,
     IReadOnlyCollection<PublicMenuModifierDto> Modifiers,
-    PublicFlashSaleDto? FlashSale);
+    PublicFlashSaleDto? FlashSale,
+    IReadOnlyCollection<PublicDrinkBuilderProfileDto> DrinkBuilders);
 
 public record PublicFlashSaleDto(
     string Title,
@@ -72,6 +73,36 @@ public record PublicMenuModifierDto(
     string Name,
     string PersianName,
     string EnglishName,
+    int DisplayOrder);
+
+public record PublicDrinkBuilderProfileDto(
+    Guid Id,
+    Guid MenuItemId,
+    string Name,
+    IReadOnlyCollection<PublicDrinkBuilderGroupDto> Groups);
+
+public record PublicDrinkBuilderGroupDto(
+    Guid Id,
+    string Name,
+    string InputType,
+    string SelectionMode,
+    int MinSelections,
+    int MaxSelections,
+    bool IsRequired,
+    int DisplayOrder,
+    IReadOnlyCollection<PublicDrinkBuilderOptionDto> Options);
+
+public record PublicDrinkBuilderOptionDto(
+    Guid Id,
+    string Name,
+    string? EnglishName,
+    string Unit,
+    decimal PricePerUnit,
+    decimal MinAmount,
+    decimal MaxAmount,
+    decimal Step,
+    decimal DefaultAmount,
+    bool IsDefault,
     int DisplayOrder);
 
 public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, PublicMenuDto>
@@ -148,7 +179,9 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
             .Include(discount => discount.MenuItems)
             .Include(discount => discount.Categories)
             .Include(discount => discount.Schedules)
-            .Where(discount => discount.IsActive && discount.IsAutomatic)
+            // IsAutomatic is an unmapped computed property, so the equivalent
+            // "no code" test is written out for EF to translate.
+            .Where(discount => discount.IsActive && string.IsNullOrEmpty(discount.Code))
             .ToListAsync(cancellationToken);
 
         activeDiscounts = activeDiscounts
@@ -283,9 +316,82 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 modifier.DisplayOrder))
             .ToListAsync(cancellationToken);
 
+        // The custom drink builder is entirely optional: when the global feature
+        // flag is off (or no profile exists) the theme receives an empty list and
+        // hides every related control.
+        List<PublicDrinkBuilderProfileDto> drinkBuilders;
+
+        try
+        {
+            var builderEnabled = await _dbContext.SiteSettings
+                .AsNoTracking()
+                .Select(settings => (bool?)settings.CustomDrinkBuilderEnabled)
+                .FirstOrDefaultAsync(cancellationToken) ?? true;
+
+            if (builderEnabled)
+            {
+                var profiles = await _dbContext.DrinkBuilderProfiles
+                    .AsNoTracking()
+                    .Include(profile => profile.Groups)
+                    .ThenInclude(group => group.Options)
+                    .Where(profile => profile.IsEnabled)
+                    .OrderBy(profile => profile.DisplayOrder)
+                    .ThenBy(profile => profile.Name)
+                    .ToListAsync(cancellationToken);
+
+                drinkBuilders = profiles
+                    .Where(profile => profile.Groups.Any(group => group.Options.Any(option => option.IsActive)))
+                    .Select(profile => new PublicDrinkBuilderProfileDto(
+                        profile.Id,
+                        profile.MenuItemId,
+                        profile.Name,
+                        profile.Groups
+                            .OrderBy(group => group.DisplayOrder)
+                            .ThenBy(group => group.Name)
+                            .Select(group => new PublicDrinkBuilderGroupDto(
+                                group.Id,
+                                group.Name,
+                                group.InputType.ToString(),
+                                group.SelectionMode.ToString(),
+                                group.MinSelections,
+                                group.MaxSelections,
+                                group.IsRequired,
+                                group.DisplayOrder,
+                                group.Options
+                                    .Where(option => option.IsActive)
+                                    .OrderBy(option => option.DisplayOrder)
+                                    .ThenBy(option => option.Name)
+                                    .Select(option => new PublicDrinkBuilderOptionDto(
+                                        option.Id,
+                                        option.Name,
+                                        option.EnglishName,
+                                        option.Unit.ToString(),
+                                        option.PricePerUnit,
+                                        option.MinAmount,
+                                        option.MaxAmount,
+                                        option.Step,
+                                        option.DefaultAmount,
+                                        option.IsDefault,
+                                        option.DisplayOrder))
+                                    .ToList()))
+                            .ToList()))
+                    .ToList();
+            }
+            else
+            {
+                drinkBuilders = [];
+            }
+        }
+        catch (Exception)
+        {
+            // Keep /api/menu working on databases that have not received the
+            // Drink Builder migration yet.
+            drinkBuilders = [];
+        }
+
         var flashSaleDiscount = await _dbContext.Discounts
             .AsNoTracking()
-            .Where(discount => discount.IsActive && discount.IsAutomatic && discount.IsFlashSale)
+            .Where(discount => discount.IsActive && string.IsNullOrEmpty(discount.Code) && discount.IsFlashSale)
             .ToListAsync(cancellationToken);
 
         var now2 = DateTimeOffset.UtcNow;
@@ -306,6 +412,6 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 percent);
         }
 
-        return new PublicMenuDto(categories, items, addons, modifiers, flashSaleDto);
+        return new PublicMenuDto(categories, items, addons, modifiers, flashSaleDto, drinkBuilders);
     }
 }

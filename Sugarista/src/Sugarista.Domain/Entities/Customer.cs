@@ -133,4 +133,30 @@ public class Customer : BaseAuditableEntity
             LastChannel = channel.Trim().ToLowerInvariant();
         }
     }
+
+    /// <summary>
+    /// Customer birth date (used by the birthday discount program). Null until
+    /// the customer tells us — from the digital menu or the admin panel.
+    /// </summary>
+    public DateOnly? DateOfBirth { get; private set; }
+
+    public void SetDateOfBirth(DateOnly? dateOfBirth)
+    {
+        if (dateOfBirth.HasValue)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var ageDays = today.DayNumber - dateOfBirth.Value.DayNumber;
+            if (ageDays < 366)
+            {
+                throw new DomainException("تاریخ تولد باید بیش از یک سال گذشته باشد.");
+            }
+
+            if (ageDays > 120 * 366)
+            {
+                throw new DomainException("تاریخ تولد معتبر نیست.");
+            }
+        }
+
+        DateOfBirth = dateOfBirth;
+    }
 }

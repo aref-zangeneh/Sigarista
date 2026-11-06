@@ -13,7 +13,9 @@ public record UpsertMembershipTierCommand(
     decimal MinTotalPaidSpent,
     decimal DiscountPercent,
     int DisplayOrder = 0,
-    bool IsEnabled = true) : IRequest<AdminMembershipTierDto>;
+    bool IsEnabled = true,
+    int MinPaidOrders = 0,
+    decimal? CashbackPercent = null) : IRequest<AdminMembershipTierDto>;
 
 public record AdminMembershipTierDto(
     Guid Id,
@@ -22,7 +24,9 @@ public record AdminMembershipTierDto(
     decimal MinTotalPaidSpent,
     decimal DiscountPercent,
     int DisplayOrder,
-    bool IsEnabled);
+    bool IsEnabled,
+    int MinPaidOrders,
+    decimal? CashbackPercent);
 
 public class UpsertMembershipTierCommandValidator : AbstractValidator<UpsertMembershipTierCommand>
 {
@@ -32,6 +36,10 @@ public class UpsertMembershipTierCommandValidator : AbstractValidator<UpsertMemb
         RuleFor(command => command.Description).MaximumLength(500);
         RuleFor(command => command.MinTotalPaidSpent).GreaterThanOrEqualTo(0);
         RuleFor(command => command.DiscountPercent).InclusiveBetween(0, 100);
+        RuleFor(command => command.MinPaidOrders).InclusiveBetween(0, 1_000_000);
+        RuleFor(command => command.CashbackPercent)
+            .InclusiveBetween(0, 100)
+            .When(command => command.CashbackPercent.HasValue);
         RuleFor(command => command.DisplayOrder).InclusiveBetween(-9999, 9999);
     }
 }
@@ -47,7 +55,9 @@ public static class AdminMembershipTierMapper
             tier.MinTotalPaidSpent,
             tier.DiscountPercent,
             tier.DisplayOrder,
-            tier.IsEnabled);
+            tier.IsEnabled,
+            tier.MinPaidOrders,
+            tier.CashbackPercent);
     }
 }
 
@@ -70,7 +80,9 @@ public class UpsertMembershipTierCommandHandler : IRequestHandler<UpsertMembersh
                 request.MinTotalPaidSpent,
                 request.DiscountPercent,
                 request.DisplayOrder,
-                request.IsEnabled);
+                request.IsEnabled,
+                request.MinPaidOrders,
+                request.CashbackPercent);
             _dbContext.MembershipTiers.Add(tier);
             await _dbContext.SaveChangesAsync(cancellationToken);
             return AdminMembershipTierMapper.ToDto(tier);
@@ -86,7 +98,9 @@ public class UpsertMembershipTierCommandHandler : IRequestHandler<UpsertMembersh
             request.MinTotalPaidSpent,
             request.DiscountPercent,
             request.DisplayOrder,
-            request.IsEnabled);
+            request.IsEnabled,
+            request.MinPaidOrders,
+            request.CashbackPercent);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return AdminMembershipTierMapper.ToDto(existing);

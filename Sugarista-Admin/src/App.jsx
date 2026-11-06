@@ -12,7 +12,10 @@ import { CategoryPage } from './pages/CategoryPage'
 import { MenuItemsPage } from './pages/MenuItemsPage'
 import { AddonsPage } from './pages/AddonsPage'
 import { DiscountsPage } from './pages/DiscountsPage'
+import { DiscountReportsPage } from './pages/DiscountReportsPage'
+import { DiscountSecurityPage } from './pages/DiscountSecurityPage'
 import { ModifiersPage } from './pages/ModifiersPage'
+import { DrinkBuilderPage } from './pages/DrinkBuilderPage'
 import { IngredientsPage } from './pages/IngredientsPage'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { DeliveryMethodsPage } from './pages/DeliveryMethodsPage'
@@ -26,6 +29,8 @@ import { PosPage } from './pages/PosPage'
 import { AccountingPage } from './pages/AccountingPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { CustomersPage } from './pages/CustomersPage'
+import { CustomerGroupsPage } from './pages/CustomerGroupsPage'
+import { SubscriptionPackagesPage } from './pages/SubscriptionPackagesPage'
 import { BadgesPage } from './pages/BadgesPage'
 import { ExportsPage } from './pages/ExportsPage'
 import { HrPage } from './pages/HrPage'
@@ -44,7 +49,10 @@ const pageComponents = {
   'menu-items': MenuItemsPage,
   addons: AddonsPage,
   discounts: DiscountsPage,
+  'discount-reports': DiscountReportsPage,
+  'discount-security': DiscountSecurityPage,
   modifiers: ModifiersPage,
+  'drink-builder': DrinkBuilderPage,
   ingredients: IngredientsPage,
   recipes: RecipesPage,
   'product-wiki': ProductWikiPage,
@@ -58,6 +66,8 @@ const pageComponents = {
   accounting: AccountingPage,
   orders: OrdersPage,
   customers: CustomersPage,
+  'customer-groups': CustomerGroupsPage,
+  'subscription-packages': SubscriptionPackagesPage,
   badges: BadgesPage,
   exports: ExportsPage,
   assets: AssetsPage,

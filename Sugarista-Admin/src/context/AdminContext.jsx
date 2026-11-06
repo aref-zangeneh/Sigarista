@@ -454,6 +454,8 @@ export function AdminProvider({ children }) {
           payerLabel: line.payerLabel,
           inventoryDeductedQuantity: line.inventoryDeductedQuantity,
           modifierLabels: line.modifierLabels ?? [],
+          customDrinkSummary: line.customDrinkSummary ?? [],
+          customDrink: line.customDrink ?? null,
           remove: false,
         })),
       })

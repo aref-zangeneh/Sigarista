@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Discounts.Engine;
+using Sugarista.Application.Discounts.Security;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Discounts.Queries.GetDiscountPreview;
@@ -14,7 +16,9 @@ public record GetDiscountPreviewQuery(
     DateTimeOffset? Now = null,
     string Channel = "online",
     bool IsOnlinePayment = false,
-    string TimeZoneId = "Asia/Tehran") : IRequest<DiscountEvaluationResult>;
+    string TimeZoneId = "Asia/Tehran",
+    string? PhoneNumber = null,
+    string? IpAddress = null) : IRequest<DiscountEvaluationResult>;
 
 /// <summary>
 /// Evaluates the discounts a cart would receive — without creating an order.
@@ -63,11 +67,29 @@ public class GetDiscountPreviewQueryHandler : IRequestHandler<GetDiscountPreview
                 .ToList();
         }
 
-        return await _discountEngine.EvaluateAsync(
+        var settings = await _dbContext.SiteSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var normalizedCode = Discount.NormalizeCode(request.Code);
+
+        // Abuse protection is enforced here too, so a locked or blacklisted
+        // customer gets the clear Persian message before submitting an order.
+        if (normalizedCode is not null)
+        {
+            await DiscountAbuseGuard.EnsureAllowedAsync(
+                _dbContext,
+                settings,
+                request.PhoneNumber,
+                request.IpAddress,
+                cancellationToken);
+        }
+
+        var result = await _discountEngine.EvaluateAsync(
             new DiscountEvaluationContext(
                 lines,
                 request.DeliveryFee,
-                Discount.NormalizeCode(request.Code),
+                normalizedCode,
                 request.CustomerId,
                 request.CustomerGroups,
                 request.Now ?? DateTimeOffset.UtcNow,
@@ -75,5 +97,80 @@ public class GetDiscountPreviewQueryHandler : IRequestHandler<GetDiscountPreview
                 request.IsOnlinePayment,
                 request.TimeZoneId),
             cancellationToken);
+
+        if (normalizedCode is not null)
+        {
+            if (result.Applications.Count == 0 && result.Rejections.Count > 0)
+            {
+                await DiscountAbuseGuard.RecordFailureAsync(
+                    _dbContext,
+                    settings,
+                    request.PhoneNumber,
+                    normalizedCode,
+                    request.IpAddress,
+                    cancellationToken);
+            }
+            else if (result.Applications.Count > 0)
+            {
+                await DiscountAbuseGuard.RecordSuccessAsync(
+                    _dbContext,
+                    settings,
+                    request.PhoneNumber,
+                    normalizedCode,
+                    request.IpAddress,
+                    cancellationToken);
+            }
+        }
+
+        // Show the capped amount in the cart exactly as checkout will charge it.
+        var customerId = request.CustomerId;
+        if (customerId is null && !string.IsNullOrWhiteSpace(request.PhoneNumber))
+        {
+            var phone = CustomerDirectoryService.NormalizePhone(request.PhoneNumber);
+            customerId = await _dbContext.Customers
+                .AsNoTracking()
+                .Where(customer => customer.PhoneNumber == phone)
+                .Select(customer => (Guid?)customer.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        var remainingCap = await DiscountDailyCapService.GetRemainingAllowanceAsync(
+            _dbContext,
+            settings,
+            customerId,
+            request.TimeZoneId,
+            request.Now ?? DateTimeOffset.UtcNow,
+            cancellationToken: cancellationToken);
+
+        if (remainingCap is { } allowance)
+        {
+            var adjustedApplications = new List<DiscountApplication>();
+            var left = allowance;
+
+            foreach (var application in result.Applications)
+            {
+                if (left <= 0)
+                {
+                    break;
+                }
+
+                var amount = Math.Min(application.Amount, left);
+                if (amount <= 0)
+                {
+                    continue;
+                }
+
+                adjustedApplications.Add(application with { Amount = amount });
+                left -= amount;
+            }
+
+            result = result with
+            {
+                Applications = adjustedApplications,
+                DiscountTotal = adjustedApplications.Sum(application => application.Amount)
+            };
+        }
+
+        return result;
     }
 }

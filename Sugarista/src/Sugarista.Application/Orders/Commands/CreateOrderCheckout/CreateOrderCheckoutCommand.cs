@@ -4,7 +4,10 @@ using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Common.Options;
 using Sugarista.Application.Discounts.Engine;
+using Sugarista.Application.Discounts.Security;
+using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.Orders;
+using Sugarista.Application.Orders.Commands.ConfirmMockPayment;
 using Sugarista.Domain.Entities;
 using Sugarista.Domain.Exceptions;
 
@@ -16,7 +19,8 @@ public record CheckoutLineRequest(
     int Quantity,
     IReadOnlyCollection<Guid> ModifierIds,
     string? PayerKey = null,
-    string? PayerLabel = null);
+    string? PayerLabel = null,
+    DrinkBuilderLineRequest? CustomDrink = null);
 
 public record CheckoutSplitShareRequest(
     string PayerKey,
@@ -35,7 +39,11 @@ public record CreateOrderCheckoutCommand(
     IReadOnlyCollection<CheckoutSplitShareRequest>? SplitShares = null,
     string? DiscountCode = null,
     int RedeemPoints = 0,
-    DateTimeOffset? DeliveryAt = null) : IRequest<CreateOrderCheckoutResultDto>;
+    bool UseWallet = false,
+    bool PersonalCup = false,
+    bool UseSubscription = false,
+    DateTimeOffset? DeliveryAt = null,
+    string? IpAddress = null) : IRequest<CreateOrderCheckoutResultDto>;
 
 public record CreateOrderCheckoutResultDto(
     Guid OrderId,
@@ -43,7 +51,9 @@ public record CreateOrderCheckoutResultDto(
     string PaymentAuthority,
     decimal TotalAmount,
     bool IsSplitBill,
-    string TrackingCode);
+    string TrackingCode,
+    bool RequiresPayment = true,
+    decimal WalletSpend = 0);
 
 public class CreateOrderCheckoutCommandValidator : AbstractValidator<CreateOrderCheckoutCommand>
 {
@@ -117,17 +127,20 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
     private readonly IPaymentGateway _paymentGateway;
     private readonly PaymentOptions _paymentOptions;
     private readonly IDiscountEngine _discountEngine;
+    private readonly IOrderPaymentFinalizer _orderPaymentFinalizer;
 
     public CreateOrderCheckoutCommandHandler(
         IApplicationDbContext dbContext,
         IPaymentGateway paymentGateway,
         IOptions<PaymentOptions> paymentOptions,
-        IDiscountEngine discountEngine)
+        IDiscountEngine discountEngine,
+        IOrderPaymentFinalizer orderPaymentFinalizer)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
         _paymentOptions = paymentOptions.Value;
         _discountEngine = discountEngine;
+        _orderPaymentFinalizer = orderPaymentFinalizer;
     }
 
     public async Task<CreateOrderCheckoutResultDto> Handle(CreateOrderCheckoutCommand request, CancellationToken cancellationToken)
@@ -166,12 +179,67 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
 
         var modifiersById = modifiers.ToDictionary(m => m.Id);
 
+        var customDrinkItems = request.Items
+            .Where(item => item.CustomDrink is not null)
+            .ToList();
+
+        var builderProfilesById = new Dictionary<Guid, DrinkBuilderProfile>();
+        if (customDrinkItems.Count > 0)
+        {
+            if (siteSettings is { CustomDrinkBuilderEnabled: false })
+            {
+                throw new DomainException("ساخت نوشیدنی سفارشی در حال حاضر غیرفعال است.");
+            }
+
+            var profileIds = customDrinkItems
+                .Select(item => item.CustomDrink!.ProfileId)
+                .Distinct()
+                .ToList();
+
+            var profiles = await _dbContext.DrinkBuilderProfiles
+                .Include(profile => profile.Groups)
+                .ThenInclude(group => group.Options)
+                .Where(profile => profileIds.Contains(profile.Id) && profile.IsEnabled)
+                .ToListAsync(cancellationToken);
+
+            if (profiles.Count != profileIds.Count)
+            {
+                throw new DomainException("پروفایل نوشیدنی انتخاب‌شده در دسترس نیست.");
+            }
+
+            builderProfilesById = profiles.ToDictionary(profile => profile.Id);
+        }
+
         var resolvedLines = request.Items
             .Select(item =>
             {
                 var menuItem = menuItems.First(m => m.Id == item.MenuItemId);
                 var resolved = OrderPricing.ResolveLine(menuItem, item.SizeKey, item.Quantity, modifiersById, item.ModifierIds);
-                return (resolved, item.PayerKey, item.PayerLabel);
+
+                DrinkBuilderSnapshot? snapshot = null;
+                if (item.CustomDrink is not null)
+                {
+                    var profile = builderProfilesById[item.CustomDrink.ProfileId];
+
+                    if (profile.MenuItemId != item.MenuItemId)
+                    {
+                        throw new DomainException("نوشیدنی سفارشی انتخاب‌شده با آیتم منو هم‌خوانی ندارد.");
+                    }
+
+                    snapshot = DrinkBuilderPricing.Resolve(profile, resolved.UnitPrice, item.CustomDrink.Selections);
+
+                    // The final price is always the server-computed component total
+                    // added to the base size price. Client prices are display-only.
+                    resolved = resolved with
+                    {
+                        UnitPrice = snapshot.UnitPrice,
+                        ModifierLabels = resolved.ModifierLabels
+                            .Concat(snapshot.SummaryLabels)
+                            .ToArray(),
+                    };
+                }
+
+                return (resolved, item.PayerKey, item.PayerLabel, snapshot);
             })
             .ToList();
 
@@ -210,13 +278,22 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
 
         // Discount evaluation happens entirely on the backend: the engine is
         // the single source of truth for the final discounted order amount.
-        var discountTotal = 0m;
         var discountLines = new List<DiscountLineInput>();
         var requestedDiscountCode = string.IsNullOrWhiteSpace(request.DiscountCode)
             ? null
             : Discount.NormalizeCode(request.DiscountCode);
 
-        foreach (var (resolved, payerKey, payerLabel) in resolvedLines)
+        // Abuse protection: a blacklisted phone or a temporarily locked identity
+        // is rejected before the code is even evaluated, so brute-forcing is
+        // stopped early. Thresholds come from live site settings.
+        await DiscountAbuseGuard.EnsureAllowedAsync(
+            _dbContext,
+            siteSettings,
+            request.CustomerPhone,
+            request.IpAddress,
+            cancellationToken);
+
+        foreach (var (resolved, payerKey, payerLabel, _) in resolvedLines)
         {
             discountLines.Add(new DiscountLineInput(
                 resolved.MenuItemId,
@@ -241,7 +318,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 TimeZoneId: siteSettings?.TimeZoneId ?? "Asia/Tehran"),
             cancellationToken);
 
-        discountTotal = discountEvaluation.Applications.Sum(application => application.Amount);
+        var discountTotal = discountEvaluation.Applications.Sum(application => application.Amount);
 
         // A typed code that produced no application means the engine rejected it
         // (unknown / inactive / expired / out of schedule / below minimum cart /
@@ -252,14 +329,27 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             discountEvaluation.Applications.Count == 0 &&
             discountEvaluation.Rejections.Count > 0)
         {
+            await DiscountAbuseGuard.RecordFailureAsync(
+                _dbContext,
+                siteSettings,
+                request.CustomerPhone,
+                requestedDiscountCode,
+                request.IpAddress,
+                cancellationToken);
+
             throw new DomainException(
                 discountEvaluation.CodeRejection?.Message ?? "این کد تخفیف معتبر نیست.");
         }
 
-        if (discountTotal > 0)
-        {
-            await ApplyReferralRewardAsync(customer, request.DiscountCode, cancellationToken);
-        }
+        // Daily per-customer cap: only paid orders consume it, so this is the
+        // allowance left before this order's benefits are applied.
+        var remainingDailyCap = await DiscountDailyCapService.GetRemainingAllowanceAsync(
+            _dbContext,
+            siteSettings,
+            customer?.Id,
+            siteSettings?.TimeZoneId,
+            DateTimeOffset.UtcNow,
+            cancellationToken: cancellationToken);
 
         var trackingCode = await OrderTrackingCodeGenerator.GenerateAsync(_dbContext, cancellationToken);
         var paymentAuthority = isSplitBill ? $"SPLIT-{Guid.NewGuid():N}" : Guid.NewGuid().ToString("N");
@@ -274,7 +364,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             splitBillMode,
             request.GuestCount);
 
-        foreach (var (resolved, payerKey, payerLabel) in resolvedLines)
+        foreach (var (resolved, payerKey, payerLabel, snapshot) in resolvedLines)
         {
             order.AddLine(new OrderLine(
                 order.Id,
@@ -289,35 +379,106 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 payerKey,
                 payerLabel,
                 null,
-                resolved.TaxPercent));
+                resolved.TaxPercent,
+                snapshot is null ? null : DrinkBuilderPricing.Serialize(snapshot),
+                snapshot?.SummaryLabels));
         }
 
         order.RecalculateTotal();
 
-        if (discountTotal > 0)
+        // Every benefit below flows through the tracker: it clamps the amount to
+        // the remaining daily allowance, applies it to the order and records the
+        // discount rows (split by category) used by reports and the cap.
+        var discountTracker = new OrderDiscountTracker(
+            order,
+            customer?.Id,
+            remainingDailyCap,
+            _dbContext.OrderDiscounts);
+        var categoryByMenuItem = resolvedLines
+            .GroupBy(line => line.resolved.MenuItemId)
+            .ToDictionary(group => group.Key, group => (Guid?)group.First().resolved.CategoryId);
+
+        var adjustedApplications = new List<DiscountApplication>();
+        foreach (var application in discountEvaluation.Applications)
         {
-            order.ApplyDiscount(discountTotal);
+            var scopes = application.LineShares
+                .GroupBy(share => categoryByMenuItem.GetValueOrDefault(share.MenuItemId))
+                .Select(group => new DiscountScopeAmount(group.Key, group.Sum(share => share.Amount)))
+                .ToList();
+
+            var applied = discountTracker.Apply(
+                OrderDiscountKind.Code,
+                application.Name,
+                application.Amount,
+                application.DiscountId,
+                application.Code,
+                scopes);
+
+            if (applied > 0)
+            {
+                adjustedApplications.Add(application with { Amount = applied });
+            }
         }
 
-        // Loyalty redemption: convert points to a discount amount.
+        // The code was valid but the customer already used their daily discount
+        // allowance: fail clearly instead of creating a full-price order.
+        if (requestedDiscountCode is not null &&
+            discountEvaluation.Applications.Count > 0 &&
+            adjustedApplications.Count == 0)
+        {
+            throw new DomainException(
+                "سقف تخفیف روزانهٔ شما تکمیل شده است؛ لطفاً فردا دوباره تلاش کنید.");
+        }
+
+        if (requestedDiscountCode is not null && adjustedApplications.Count > 0)
+        {
+            await DiscountAbuseGuard.RecordSuccessAsync(
+                _dbContext,
+                siteSettings,
+                request.CustomerPhone,
+                requestedDiscountCode,
+                request.IpAddress,
+                cancellationToken);
+        }
+
+        discountTotal = discountTracker.AppliedTotal;
+
+        if (discountTotal > 0)
+        {
+            await ApplyReferralRewardAsync(customer, request.DiscountCode, cancellationToken);
+        }
         if (request.RedeemPoints > 0 && customer is not null && siteSettings is { LoyaltyEnabled: true } &&
             siteSettings.LoyaltyRedeemTomanPerPoint > 0)
         {
             var points = Math.Min(request.RedeemPoints, customer.LoyaltyPoints);
+            var maxPointsByOrder = (int)Math.Floor(order.TotalAmount / siteSettings.LoyaltyRedeemTomanPerPoint);
+            points = Math.Min(points, maxPointsByOrder);
+            if (discountTracker.RemainingCap is { } loyaltyCap)
+            {
+                var maxPointsByCap = (int)Math.Floor(loyaltyCap / siteSettings.LoyaltyRedeemTomanPerPoint);
+                points = Math.Min(points, maxPointsByCap);
+            }
+
             if (points > 0)
             {
                 var loyaltyDiscount = points * siteSettings.LoyaltyRedeemTomanPerPoint;
-                customer.DeductLoyaltyPoints(points);
-                _dbContext.LoyaltyTransactions.Add(new LoyaltyTransaction(
-                    customer.Id,
-                    LoyaltyTransactionType.Redeem,
-                    -points,
-                    customer.LoyaltyPoints,
-                    $"مصرف امتیاز در سفارش {order.TrackingCode}",
-                    order.Id,
-                    null));
-                order.ApplyDiscount(loyaltyDiscount);
-                discountTotal += loyaltyDiscount;
+                var appliedLoyalty = discountTracker.Apply(
+                    OrderDiscountKind.LoyaltyPoints,
+                    "امتیاز باشگاه مشتریان",
+                    loyaltyDiscount);
+
+                if (appliedLoyalty > 0)
+                {
+                    customer.DeductLoyaltyPoints(points);
+                    _dbContext.LoyaltyTransactions.Add(new LoyaltyTransaction(
+                        customer.Id,
+                        LoyaltyTransactionType.Redeem,
+                        -points,
+                        customer.LoyaltyPoints,
+                        $"مصرف امتیاز در سفارش {order.TrackingCode}",
+                        order.Id,
+                        null));
+                }
             }
         }
 
@@ -332,8 +493,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 var stampDiscount = Math.Round(itemsTotal * stampPercent / 100m, 2);
                 if (stampDiscount > 0)
                 {
-                    order.ApplyDiscount(stampDiscount);
-                    discountTotal += stampDiscount;
+                    discountTracker.Apply(OrderDiscountKind.StampCard, "پاداش کارت مهر", stampDiscount);
                 }
             }
         }
@@ -352,8 +512,137 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 var tierDiscount = Math.Round(itemsTotal * tier.DiscountPercent / 100m, 2);
                 if (tierDiscount > 0)
                 {
-                    order.ApplyDiscount(tierDiscount);
-                    discountTotal += tierDiscount;
+                    discountTracker.Apply(OrderDiscountKind.Tier, tier.Name, tierDiscount);
+                }
+            }
+        }
+
+        // Birthday benefit (auto mode): while the customer is inside their
+        // birthday window the percent drops in automatically — on top of
+        // standing and manual discounts. Code-mode birthdays instead rely on
+        // a personal code issued through the regular discount engine.
+        if (customer is not null &&
+            siteSettings is { BirthdayDiscountEnabled: true, BirthdayDiscountMode: BirthdayDiscountMode.Automatic } &&
+            siteSettings.BirthdayDiscountPercent > 0 &&
+            customer.DateOfBirth is not null &&
+            BirthdayDiscountService.IsBirthdayActive(
+                customer.DateOfBirth.Value, siteSettings.BirthdayDiscountWindowDays))
+        {
+            var birthdayDiscount = Math.Round(itemsTotal * siteSettings.BirthdayDiscountPercent / 100m, 2);
+            if (birthdayDiscount > 0)
+            {
+                discountTracker.Apply(OrderDiscountKind.Birthday, "هدیهٔ تولد", birthdayDiscount);
+            }
+        }
+
+        // Customer group: the standing discount of the customer's best active
+        // membership applies automatically (highest-percent group wins).
+        if (customer is not null)
+        {
+            var groupMembership = await CustomerGroupService.GetActiveMembershipAsync(
+                _dbContext, customer.Id, cancellationToken);
+            if (groupMembership is { } membership && membership.Group.DiscountPercent > 0)
+            {
+                var groupDiscount = Math.Round(itemsTotal * membership.Group.DiscountPercent / 100m, 2);
+                if (groupDiscount > 0)
+                {
+                    discountTracker.Apply(OrderDiscountKind.Group, membership.Group.Name, groupDiscount);
+                }
+            }
+        }
+
+        // Personal cup (لیوان شخصی): a fixed discount on the covered categories
+        // only, capped at the value of the eligible items.
+        if (request.PersonalCup && customer is not null &&
+            siteSettings is { PersonalCupDiscountEnabled: true } &&
+            siteSettings.PersonalCupDiscountAmount > 0)
+        {
+            var cupCategories = SubscriptionService.ParseCategoryIds(siteSettings.PersonalCupCategoryIds);
+            var eligibleLines = resolvedLines
+                .Where(line => cupCategories.Count == 0 || cupCategories.Contains(line.resolved.CategoryId))
+                .ToList();
+            var eligibleAmount = eligibleLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
+            var cupDiscount = Math.Min(siteSettings.PersonalCupDiscountAmount, eligibleAmount);
+            if (cupDiscount > 0)
+            {
+                var cupScopes = eligibleLines
+                    .GroupBy(line => line.resolved.CategoryId)
+                    .Select(group => new DiscountScopeAmount(
+                        group.Key,
+                        group.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity)))
+                    .ToList();
+
+                discountTracker.Apply(
+                    OrderDiscountKind.Cup,
+                    "لیوان شخصی",
+                    cupDiscount,
+                    scopes: cupScopes);
+            }
+        }
+
+        // Monthly subscription: redeem eligible units (cheapest first, bounded
+        // by the remaining count and the daily cap) and subtract their value.
+        // A fully-discounted order must not burn uses for no benefit.
+        if (request.UseSubscription && customer is not null && order.TotalAmount > 0)
+        {
+            var subscription = await SubscriptionService.GetActiveAsync(
+                _dbContext, customer.Id, cancellationToken);
+            if (subscription is not null)
+            {
+                var plan = SubscriptionService.PlanRedemption(
+                    subscription,
+                    resolvedLines.Select(line => (
+                        line.resolved.MenuItemId,
+                        line.resolved.Quantity,
+                        line.resolved.UnitPrice,
+                        (IReadOnlyCollection<Guid>)new[] { line.resolved.CategoryId })));
+
+                if (plan.TotalUnits > 0)
+                {
+                    var unitsToConsume = 0;
+                    foreach (var unit in plan.Units)
+                    {
+                        var quantity = unit.Quantity;
+
+                        // Only whole units that fit inside the remaining daily
+                        // allowance are redeemed — never a partial unit.
+                        if (discountTracker.RemainingCap is { } unitCap && unit.UnitPrice > 0)
+                        {
+                            quantity = Math.Min(
+                                quantity,
+                                (int)Math.Floor(unitCap / unit.UnitPrice));
+                        }
+
+                        if (quantity <= 0)
+                        {
+                            continue;
+                        }
+
+                        var unitAmount = unit.UnitPrice * quantity;
+                        var applied = discountTracker.Apply(
+                            OrderDiscountKind.Subscription,
+                            "اشتراک ماهانه",
+                            unitAmount,
+                            scopes:
+                            [
+                                new DiscountScopeAmount(
+                                    categoryByMenuItem.GetValueOrDefault(unit.MenuItemId),
+                                    unitAmount)
+                            ]);
+
+                        if (applied <= 0)
+                        {
+                            continue;
+                        }
+
+                        unitsToConsume += quantity;
+                    }
+
+                    if (unitsToConsume > 0)
+                    {
+                        subscription.Consume(unitsToConsume, DateOnly.FromDateTime(DateTime.UtcNow));
+                        await _dbContext.SaveChangesAsync(cancellationToken);
+                    }
                 }
             }
         }
@@ -384,7 +673,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             await _discountEngine.RecordRedemptionsAsync(
                 order.Id,
                 customer?.Id,
-                discountEvaluation.Applications,
+                adjustedApplications,
                 cancellationToken);
         }
 
@@ -400,6 +689,50 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 order.TotalAmount,
                 true,
                 order.TrackingCode);
+        }
+
+        // Wallet payment: spend the customer's balance against the remaining
+        // payable before further payment is requested. Money leaves the wallet
+        // exactly once — logged as one Purchase transaction on the order.
+        var walletSpend = 0m;
+        if (request.UseWallet && customer is not null && siteSettings is { WalletEnabled: true })
+        {
+            var wallet = await WalletService.GetOrCreateAsync(_dbContext, customer.Id, cancellationToken);
+
+            // Enforce cashback expiry first, so the spend works against the
+            // genuinely available (non-expired) balance.
+            await WalletService.ExpireDueCashbackAsync(_dbContext, wallet, cancellationToken);
+
+            walletSpend = await WalletService.SpendForOrderAsync(
+                _dbContext,
+                wallet,
+                order,
+                order.TotalAmount,
+                siteSettings.WalletPaymentMaxPercent,
+                cancellationToken);
+            if (walletSpend > 0)
+            {
+                order.ApplyWalletPayment(walletSpend);
+            }
+        }
+
+        if (walletSpend > 0 && order.TotalAmount <= 0)
+        {
+            // Fully covered by the wallet: finalize immediately through the
+            // shared pipeline (inventory, accounting, receipts, loyalty chain).
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _orderPaymentFinalizer.FinalizePaidOrderAsync(order, cancellationToken);
+
+            var walletSuccessUrl = $"{_paymentOptions.PublicBaseUrl.TrimEnd('/')}/?order=success&code={order.TrackingCode}";
+            return new CreateOrderCheckoutResultDto(
+                order.Id,
+                walletSuccessUrl,
+                string.Empty,
+                0m,
+                false,
+                order.TrackingCode,
+                RequiresPayment: false,
+                walletSpend);
         }
 
         var callbackUrl = $"{_paymentOptions.PublicBaseUrl.TrimEnd('/')}/?pay={order.Id}";
@@ -419,7 +752,9 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             payment.Authority,
             order.TotalAmount,
             false,
-            order.TrackingCode);
+            order.TrackingCode,
+            RequiresPayment: true,
+            walletSpend);
     }
 
     /// <summary>

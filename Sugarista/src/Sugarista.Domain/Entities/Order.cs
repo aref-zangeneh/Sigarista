@@ -112,6 +112,16 @@ public class Order : BaseAuditableEntity
 
     public ICollection<OrderSplitShare> SplitShares { get; private set; } = [];
 
+    /// <summary>Every benefit applied to this order (code, tier, group, cup, …).</summary>
+    public ICollection<OrderDiscount> Discounts { get; private set; } = [];
+
+    /// <summary>
+    /// Sum of all discounts actually applied to this order. Kept separate from
+    /// <see cref="TotalAmount"/> so reports and the daily per-customer cap can
+    /// read the discount value directly.
+    /// </summary>
+    public decimal DiscountTotal { get; private set; }
+
     public void AddLine(OrderLine line) => Lines.Add(line);
 
     public void AddPayment(OrderPayment payment) => Payments.Add(payment);
@@ -146,6 +156,9 @@ public class Order : BaseAuditableEntity
         var taxTotal = Lines.Sum(line => Math.Round(line.LineTotal * line.TaxPercent / 100m, 2));
         TaxTotal = taxTotal;
         TotalAmount = itemsTotal + DeliveryFee + taxTotal;
+        // A fresh total starts with no discounts; POS upserts and delivery
+        // changes recompute from scratch so benefits never stack twice.
+        DiscountTotal = 0m;
     }
 
     public void AssignCustomer(Guid? customerId)
@@ -158,14 +171,15 @@ public class Order : BaseAuditableEntity
     /// final order total. Runs only inside the backend domain — the frontend
     /// can never set or override the final amount.
     /// </summary>
-    public void ApplyDiscount(decimal amount)
-    {
+    public void ApplyDiscount(decimal amount)    {
         if (amount < 0)
         {
             throw new DomainException("Discount amount cannot be negative.");
         }
 
-        TotalAmount = Math.Max(0, TotalAmount - amount);
+        var applied = Math.Min(amount, TotalAmount);
+        TotalAmount -= applied;
+        DiscountTotal += applied;
     }
 
     /// <summary>
@@ -189,6 +203,21 @@ public class Order : BaseAuditableEntity
     }
 
     public void SetPackagingDeducted(bool deducted) => PackagingDeducted = deducted;
+
+    /// <summary>
+    /// Reduces the outstanding payable by the amount the customer just paid
+    /// from their wallet (server-side only). Distinct from discounts: the
+    /// money was pre-charged, so it is payment, not a price reduction.
+    /// </summary>
+    public void ApplyWalletPayment(decimal amount)
+    {
+        if (amount < 0)
+        {
+            throw new DomainException("Wallet payment amount cannot be negative.");
+        }
+
+        TotalAmount = Math.Max(0, TotalAmount - amount);
+    }
 
     public void MarkPaid()
     {

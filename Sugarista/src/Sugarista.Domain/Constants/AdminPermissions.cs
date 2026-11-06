@@ -59,6 +59,14 @@ public static class AdminPermissions
         public const string Delete = "admin.modifiers.delete";
     }
 
+    public static class DrinkBuilder
+    {
+        public const string View = "admin.drink-builder.view";
+        public const string Create = "admin.drink-builder.create";
+        public const string Update = "admin.drink-builder.update";
+        public const string Delete = "admin.drink-builder.delete";
+    }
+
     public static class Ingredients
     {
         public const string View = "admin.ingredients.view";
@@ -216,6 +224,10 @@ public static class AdminPermissions
         new(Modifiers.Create, "modifiers", "create", "تغییرات سفارش", "ایجاد"),
         new(Modifiers.Update, "modifiers", "update", "تغییرات سفارش", "ویرایش"),
         new(Modifiers.Delete, "modifiers", "delete", "تغییرات سفارش", "حذف"),
+        new(DrinkBuilder.View, "drink-builder", "view", "سازندهٔ نوشیدنی", "مشاهده"),
+        new(DrinkBuilder.Create, "drink-builder", "create", "سازندهٔ نوشیدنی", "ایجاد"),
+        new(DrinkBuilder.Update, "drink-builder", "update", "سازندهٔ نوشیدنی", "ویرایش"),
+        new(DrinkBuilder.Delete, "drink-builder", "delete", "سازندهٔ نوشیدنی", "حذف"),
         new(Ingredients.View, "ingredients", "view", "مواد اولیه", "مشاهده"),
         new(Ingredients.Create, "ingredients", "create", "مواد اولیه", "ایجاد"),
         new(Ingredients.Update, "ingredients", "update", "مواد اولیه", "ویرایش"),

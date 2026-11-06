@@ -14,6 +14,7 @@ document.addEventListener("alpine:init", () => {
     items: [],
     addons: [],
     modifiers: [],
+    drinkBuilders: [],
     cart: [],
     cartDrawerOpen: false,
     cartView: "cart",
@@ -27,6 +28,9 @@ document.addEventListener("alpine:init", () => {
       note: "",
       discountCode: "",
       redeemPoints: "",
+      useWallet: false,
+      personalCup: false,
+      useSubscription: false,
       isSplitBill: false,
       splitBillMode: "ByItem",
       guestCount: 2,
@@ -35,6 +39,10 @@ document.addEventListener("alpine:init", () => {
     checkoutLoading: false,
     checkoutError: "",
     appliedDiscount: null,
+    checkoutWallet: null,
+    checkoutWalletLoading: false,
+    birthdayDraft: "",
+    birthdaySaving: false,
     cartProgress: null,
     cartProgressTimer: null,
     deliverySlots: [],
@@ -46,6 +54,7 @@ document.addEventListener("alpine:init", () => {
     profilePhoneInput: "",
     profilePhone: null,
     profile: null,
+    flashSale: null,
     flashSaleTimer: null,
     flashSaleRemaining: "",
     addToCartModal: null,
@@ -154,6 +163,9 @@ document.addEventListener("alpine:init", () => {
           tags: addon.tags || []
         }));
         this.modifiers = menuData.modifiers || [];
+        // Empty when the admin has switched the whole feature off — the theme
+        // then renders no customisation controls at all.
+        this.drinkBuilders = menuData.drinkBuilders || [];
         this.settings = { ...this.settings, ...settingsData };
         this.applyPageMetadata();
         this.setupTheme();
@@ -483,6 +495,56 @@ document.addEventListener("alpine:init", () => {
       const final = this.cartTotal - discount;
       return Math.max(0, Math.round(final * 100) / 100);
     },
+    get walletBalance() {
+      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      if (this.checkoutWallet?.phone === digits) {
+        return Math.max(0, Number(this.checkoutWallet.wallet?.balance) || 0);
+      }
+      return 0;
+    },
+    get walletPayable() {
+      return this.cart.length > 0 && !this.checkoutForm.isSplitBill && this.walletBalance > 0;
+    },
+    get walletPaymentMaxPercent() {
+      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      if (this.checkoutWallet?.phone === digits) {
+        const percent = Number(this.checkoutWallet.wallet?.paymentMaxPercent);
+        return percent > 0 && percent <= 100 ? percent : 100;
+      }
+      return 100;
+    },
+    get walletSpendAmount() {
+      if (!this.checkoutForm.useWallet || !this.walletPayable) {
+        return 0;
+      }
+      const capped = Math.floor(this.finalAmount * this.walletPaymentMaxPercent / 100);
+      return Math.min(this.walletBalance, this.finalAmount, capped);
+    },
+    get checkoutPersonalCup() {
+      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      if (this.checkoutWallet?.phone === digits && this.checkoutWallet.personalCup?.enabled) {
+        return this.checkoutWallet.personalCup;
+      }
+      return null;
+    },
+    get checkoutSubscription() {
+      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      if (this.checkoutWallet?.phone === digits && this.checkoutWallet.subscription) {
+        return this.checkoutWallet.subscription;
+      }
+      return null;
+    },
+    get checkoutGroup() {
+      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      if (this.checkoutWallet?.phone === digits && this.checkoutWallet.group) {
+        return this.checkoutWallet.group;
+      }
+      return null;
+    },
+    get payableAfterWallet() {
+      const final = this.finalAmount - this.walletSpendAmount;
+      return Math.max(0, Math.round(final * 100) / 100);
+    },
     get paymentAmount() {
       return this.pendingPayment?.amount ?? this.finalAmount;
     },
@@ -722,6 +784,39 @@ document.addEventListener("alpine:init", () => {
       }
       await this.loadProfile();
     },
+    // ثبت/تغییر تاریخ تولد (خود-سرویس، فقط شمارهٔ موبایل). ادمین می‌تواند
+    // این حق را از تنظیمات قفل کند؛ آنگاه پیام خطای «قفل توسط مدیریت» می‌آید.
+    async saveBirthday() {
+      if (!this.profilePhone || !this.birthdayDraft) {
+        return;
+      }
+      this.birthdaySaving = true;
+      this.profileError = "";
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/customers/profile/birthday`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phoneNumber: this.profilePhone,
+            dateOfBirth: this.birthdayDraft
+          })
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.detail || payload.title || "ثبت تاریخ تولد انجام نشد.");
+        }
+        if (this.profile?.birthday) {
+          this.profile = {
+            ...this.profile,
+            birthday: { ...this.profile.birthday, dateOfBirth: this.birthdayDraft }
+          };
+        }
+      } catch (error) {
+        this.profileError = error.message || "ثبت تاریخ تولد انجام نشد.";
+      } finally {
+        this.birthdaySaving = false;
+      }
+    },
     async loadProfile() {
       if (!this.profilePhone) {
         return;
@@ -743,6 +838,8 @@ document.addEventListener("alpine:init", () => {
         this.profileError = error.message || "خطا در دریافت پروفایل.";
       } finally {
         this.profileLoading = false;
+      // وقتی پروفایل تازه می‌آید، تاریخ تولد ثبت‌شده را در ادیتور پیش‌فرض بگذار.
+      this.birthdayDraft = this.profile?.birthday?.dateOfBirth || "";
       }
     },
     forgetProfile() {
@@ -979,10 +1076,12 @@ document.addEventListener("alpine:init", () => {
     },
     get salesNoticeText() {
       if (this.settings.isOnlineOrderingAvailable === false) {
-        return "سفارش آنلاین هنوز فعال نشده است؛ لطفاً حضوری سفارش دهید.";
+        // return "سفارش آنلاین هنوز فعال نشده است؛ لطفاً حضوری سفارش دهید.";
+        return "";
       }
 
       const notice = (this.settings.onlineSalesNotice || "").trim();
+      // return notice || "";
       return notice || "فروش آنلاین موقتاً غیرفعال است؛ می‌توانید حضوری سفارش دهید.";
     },
     get featuredItems() {
@@ -1065,6 +1164,7 @@ document.addEventListener("alpine:init", () => {
         this.trackCart();
         this.refreshCartProgress();
         this.loadDeliverySlots();
+        this.loadCheckoutWallet();
       }
       if (view === "checkout" && this.checkoutForm.isSplitBill) {
         if (this.checkoutForm.splitBillMode === "ByItem") {
@@ -1078,6 +1178,51 @@ document.addEventListener("alpine:init", () => {
       this.cartDrawerOpen = false;
       this.cartView = "cart";
       this.checkoutError = "";
+    },
+    // ── کیف پول در تسویه حساب ─────────────────────────────────────
+    // شناسایی مشتری فقط با شماره موبایل است: موجودی کیف پول همان‌جا که شماره
+    // تایپ/تغییر می‌کند بی‌صدا از پروفایل گرفته می‌شود (بدون رمز و کد تایید).
+    async loadCheckoutWallet() {
+      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      if (digits.length < 8) {
+        this.checkoutWallet = null;
+        this.checkoutForm.useWallet = false;
+        return;
+      }
+
+      this.checkoutWalletLoading = true;
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/customers/profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber: digits })
+        });
+        const payload = response.ok ? await response.json() : null;
+        // باکس به شماره‌ای که درخواست با آن ساخته شده قفل است تا اگر کاربر
+        // شماره را عوض کرد، موجودی کسی دیگر نمایش داده نشود.
+        this.checkoutWallet = payload
+          ? {
+              phone: digits,
+              wallet: payload.wallet ?? null,
+              group: payload.group ?? null,
+              subscription: payload.subscription ?? null,
+              personalCup: payload.personalCup ?? null
+            }
+          : null;
+      } catch {
+        this.checkoutWallet = null;
+      } finally {
+        this.checkoutWalletLoading = false;
+        if (!this.walletPayable) {
+          this.checkoutForm.useWallet = false;
+        }
+        if (!this.checkoutPersonalCup) {
+          this.checkoutForm.personalCup = false;
+        }
+        if (!this.checkoutSubscription) {
+          this.checkoutForm.useSubscription = false;
+        }
+      }
     },
     scrollToAddonSection() {
       this.$nextTick(() => {
@@ -1093,11 +1238,30 @@ document.addEventListener("alpine:init", () => {
       }
 
       const defaultVariant = this.defaultVariantForItem(item);
+      const builderProfile = this.builderProfileForItem(item.id);
+      const builderAmounts = {};
+      const builderSelected = [];
+
+      if (builderProfile) {
+        builderProfile.groups.forEach((group) => {
+          group.options.forEach((option) => {
+            if (group.inputType === "Slider") {
+              builderAmounts[option.id] = Number(option.defaultAmount) || 0;
+            } else if (option.isDefault) {
+              builderSelected.push(option.id);
+            }
+          });
+        });
+      }
+
       this.addToCartModal = {
         item,
         selectedSizeKey: defaultVariant?.key || null,
         selectedModifierIds: [],
-        quantity: 1
+        quantity: 1,
+        builderAmounts,
+        builderSelected,
+        builderError: ""
       };
     },
     closeAddToCartModal() {
@@ -1148,9 +1312,10 @@ document.addEventListener("alpine:init", () => {
       );
     },
     modalUnitPrice() {
+      const componentsTotal = this.modalBuilderComponentsTotal();
       const variant = this.modalSelectedVariant();
       if (variant) {
-        return variant.specialOfferPrice || variant.price || 0;
+        return (variant.specialOfferPrice || variant.price || 0) + componentsTotal;
       }
 
       const item = this.addToCartModal?.item;
@@ -1158,7 +1323,7 @@ document.addEventListener("alpine:init", () => {
         return 0;
       }
 
-      return item.specialOfferPrice || item.price || 0;
+      return (item.specialOfferPrice || item.price || 0) + componentsTotal;
     },
     modalSizeLabel() {
       return this.modalSelectedVariant()?.label || null;
@@ -1179,12 +1344,261 @@ document.addEventListener("alpine:init", () => {
     isModalModifierSelected(modifierId) {
       return this.addToCartModal?.selectedModifierIds.includes(modifierId);
     },
-    buildCartKey(menuItemId, sizeKey, modifierIds) {
+    builderProfileForItem(menuItemId) {
+      return (this.drinkBuilders || []).find(
+        (profile) => profile.menuItemId === menuItemId
+      ) || null;
+    },
+    modalBuilderProfile() {
+      const itemId = this.addToCartModal?.item?.id;
+      return itemId ? this.builderProfileForItem(itemId) : null;
+    },
+    unitLabel(unit) {
+      const labels = {
+        Gram: "گرم",
+        Milliliter: "میلی‌لیتر",
+        Piece: "عدد",
+        Shot: "شات",
+        Pump: "پمپ"
+      };
+      return labels[unit] || "";
+    },
+    builderAmount(optionId) {
+      return Number(this.addToCartModal?.builderAmounts?.[optionId]) || 0;
+    },
+    setBuilderAmount(option, rawValue) {
+      if (!this.addToCartModal) {
+        return;
+      }
+
+      let next = Number(rawValue) || 0;
+      const min = Number(option.minAmount) || 0;
+      const max = Number(option.maxAmount) || 0;
+      const step = Number(option.step) || 0;
+
+      if (next > 0) {
+        if (next < min) {
+          next = min;
+        }
+
+        if (step > 0) {
+          const steps = Math.round((next - min) / step);
+          next = min + steps * step;
+        }
+
+        if (next > max) {
+          next = max;
+        }
+      } else {
+        next = 0;
+      }
+
+      this.addToCartModal.builderAmounts = {
+        ...this.addToCartModal.builderAmounts,
+        [option.id]: next
+      };
+      this.addToCartModal.builderError = "";
+    },
+    toggleBuilderAmount(option) {
+      if (!this.addToCartModal) {
+        return;
+      }
+
+      const current = this.builderAmount(option.id);
+      const fallback = Number(option.defaultAmount) > 0
+        ? Number(option.defaultAmount)
+        : Number(option.minAmount) || Number(option.step) || 1;
+
+      this.setBuilderAmount(option, current > 0 ? 0 : fallback);
+    },
+    isBuilderChoiceSelected(optionId) {
+      return Boolean(this.addToCartModal?.builderSelected?.includes(optionId));
+    },
+    builderGroupSelectedCount(group) {
+      const selected = this.addToCartModal?.builderSelected || [];
+      return (group.options || []).filter((option) => selected.includes(option.id)).length;
+    },
+    canSelectBuilderChoice(group) {
+      if (!this.addToCartModal) {
+        return false;
+      }
+
+      if (group.selectionMode === "Single") {
+        return true;
+      }
+
+      return this.builderGroupSelectedCount(group) < Math.max(1, Number(group.maxSelections) || 1);
+    },
+    toggleBuilderChoice(group, option) {
+      if (!this.addToCartModal) {
+        return;
+      }
+
+      const selected = this.addToCartModal.builderSelected || [];
+      if (selected.includes(option.id)) {
+        this.addToCartModal.builderSelected = selected.filter((id) => id !== option.id);
+        this.addToCartModal.builderError = "";
+        return;
+      }
+
+      if (group.selectionMode === "Single") {
+        const groupOptionIds = (group.options || []).map((entry) => entry.id);
+        this.addToCartModal.builderSelected = [
+          ...selected.filter((id) => !groupOptionIds.includes(id)),
+          option.id
+        ];
+        this.addToCartModal.builderError = "";
+        return;
+      }
+
+      if (!this.canSelectBuilderChoice(group)) {
+        this.addToCartModal.builderError =
+          `حداکثر ${this.toPersianNumber(group.maxSelections)} گزینه از «${group.name}» قابل انتخاب است.`;
+        return;
+      }
+
+      this.addToCartModal.builderSelected = [...selected, option.id];
+      this.addToCartModal.builderError = "";
+    },
+    modalBuilderComponentsTotal() {
+      const profile = this.modalBuilderProfile();
+      if (!profile) {
+        return 0;
+      }
+
+      let total = 0;
+      profile.groups.forEach((group) => {
+        group.options.forEach((option) => {
+          if (group.inputType === "Slider") {
+            total += this.builderAmount(option.id) * (Number(option.pricePerUnit) || 0);
+            return;
+          }
+
+          if (this.isBuilderChoiceSelected(option.id)) {
+            total += Number(option.pricePerUnit) || 0;
+          }
+        });
+      });
+
+      return Math.round(total * 100) / 100;
+    },
+    modalBuilderSummary() {
+      const profile = this.modalBuilderProfile();
+      if (!profile) {
+        return [];
+      }
+
+      const labels = [];
+      profile.groups.forEach((group) => {
+        group.options.forEach((option) => {
+          if (group.inputType === "Slider") {
+            const amount = this.builderAmount(option.id);
+            if (amount > 0) {
+              labels.push(
+                `${option.name} ${this.toPersianNumber(amount)} ${this.unitLabel(option.unit)}`
+              );
+            }
+            return;
+          }
+
+          if (this.isBuilderChoiceSelected(option.id)) {
+            labels.push(option.name);
+          }
+        });
+      });
+
+      return labels;
+    },
+    builderSelectionPayload() {
+      const profile = this.modalBuilderProfile();
+      if (!profile) {
+        return null;
+      }
+
+      // Send every option explicitly, including zeros. This makes the submitted
+      // composition authoritative so the server never re-adds a default the
+      // customer deliberately removed.
+      const selections = [];
+      profile.groups.forEach((group) => {
+        group.options.forEach((option) => {
+          if (group.inputType === "Slider") {
+            selections.push({ optionId: option.id, amount: this.builderAmount(option.id) });
+            return;
+          }
+
+          selections.push({
+            optionId: option.id,
+            amount: this.isBuilderChoiceSelected(option.id) ? 1 : 0
+          });
+        });
+      });
+
+      return { profileId: profile.id, selections };
+    },
+    builderSignature() {
+      const payload = this.builderSelectionPayload();
+      if (!payload) {
+        return "";
+      }
+
+      return payload.selections
+        .map((selection) => `${selection.optionId}:${selection.amount}`)
+        .sort()
+        .join("_");
+    },
+    builderValidationError() {
+      const profile = this.modalBuilderProfile();
+      if (!profile) {
+        return "";
+      }
+
+      for (const group of profile.groups) {
+        const selectedCount = group.inputType === "Slider"
+          ? group.options.filter((option) => this.builderAmount(option.id) > 0).length
+          : this.builderGroupSelectedCount(group);
+        const minimum = Math.max(group.isRequired ? 1 : 0, Number(group.minSelections) || 0);
+
+        if (selectedCount < minimum) {
+          return minimum <= 1
+            ? `انتخاب حداقل یک گزینه از «${group.name}» الزامی است.`
+            : `حداقل ${this.toPersianNumber(minimum)} گزینه از «${group.name}» را انتخاب کنید.`;
+        }
+
+        if (selectedCount > (Number(group.maxSelections) || 1)) {
+          return `حداکثر ${this.toPersianNumber(group.maxSelections)} گزینه از «${group.name}» قابل انتخاب است.`;
+        }
+
+        if (group.inputType !== "Slider") {
+          continue;
+        }
+
+        for (const option of group.options) {
+          const amount = this.builderAmount(option.id);
+          if (amount === 0) {
+            continue;
+          }
+
+          if (amount < Number(option.minAmount) || amount > Number(option.maxAmount)) {
+            return `مقدار «${option.name}» باید بین ${this.toPersianNumber(option.minAmount)} و ${this.toPersianNumber(option.maxAmount)} ${this.unitLabel(option.unit)} باشد.`;
+          }
+        }
+      }
+
+      return "";
+    },
+    buildCartKey(menuItemId, sizeKey, modifierIds, builderSignature = "") {
       const sortedModifiers = [...modifierIds].sort().join("-");
-      return `${menuItemId}-${sizeKey || "default"}-${sortedModifiers}`;
+      const builderPart = builderSignature ? `-builder-${builderSignature}` : "";
+      return `${menuItemId}-${sizeKey || "default"}-${sortedModifiers}${builderPart}`;
     },
     confirmAddToCart() {
       if (!this.addToCartModal || this.salesClosed) {
+        return;
+      }
+
+      const validationError = this.builderValidationError();
+      if (validationError) {
+        this.addToCartModal.builderError = validationError;
         return;
       }
 
@@ -1192,13 +1606,28 @@ document.addEventListener("alpine:init", () => {
       const variant = item.variants?.length
         ? item.variants.find((entry) => entry.key === selectedSizeKey) || item.variants[0]
         : null;
-      const unitPrice = variant
+      const basePrice = variant
         ? variant.specialOfferPrice || variant.price
         : item.specialOfferPrice || item.price;
-      const modifierLabels = this.modifiers
-        .filter((modifier) => selectedModifierIds.includes(modifier.id))
-        .map((modifier) => modifier.persianName);
-      const cartKey = this.buildCartKey(item.id, variant?.key || null, selectedModifierIds);
+      const componentsTotal = this.modalBuilderComponentsTotal();
+      const unitPrice = Math.round((basePrice + componentsTotal) * 100) / 100;
+      const builderSummary = this.modalBuilderSummary();
+      const customDrink = this.builderSelectionPayload();
+      const builderSignature = this.builderSignature();
+      const modifierLabels = [
+        ...new Set([
+          ...this.modifiers
+            .filter((modifier) => selectedModifierIds.includes(modifier.id))
+            .map((modifier) => modifier.persianName),
+          ...builderSummary
+        ])
+      ];
+      const cartKey = this.buildCartKey(
+        item.id,
+        variant?.key || null,
+        selectedModifierIds,
+        builderSignature
+      );
       const existingLine = this.cart.find((line) => line.cartKey === cartKey);
 
       if (existingLine) {
@@ -1215,6 +1644,9 @@ document.addEventListener("alpine:init", () => {
           quantity,
           modifierIds: [...selectedModifierIds],
           modifierLabels,
+          customDrink,
+          customDrinkSummary: builderSummary,
+          builderSignature,
           payerKey: null,
           payerLabel: null
         });
@@ -1293,6 +1725,7 @@ document.addEventListener("alpine:init", () => {
               deliveryFee: 0,
               channel: "online",
               isOnlinePayment: true,
+              phoneNumber: this.checkoutForm.customerPhone.trim() || null,
               lines: this.cart.map((line) => ({
                 menuItemId: line.menuItemId,
                 categoryId: null,
@@ -1349,6 +1782,9 @@ document.addEventListener("alpine:init", () => {
             note: this.checkoutForm.note.trim() || null,
             discountCode: this.checkoutForm.discountCode.trim() || null,
             redeemPoints: Number(this.checkoutForm.redeemPoints) || 0,
+            useWallet: this.checkoutForm.useWallet && this.walletPayable,
+            personalCup: this.checkoutForm.personalCup && !!this.checkoutPersonalCup,
+            useSubscription: this.checkoutForm.useSubscription && !!this.checkoutSubscription,
             deliveryAt: this.selectedDeliverySlot || null,
             isSplitBill: this.checkoutForm.isSplitBill,
             splitBillMode: this.checkoutForm.isSplitBill ? this.checkoutForm.splitBillMode : null,
@@ -1366,7 +1802,8 @@ document.addEventListener("alpine:init", () => {
               payerLabel:
                 this.checkoutForm.isSplitBill && this.checkoutForm.splitBillMode === "ByItem"
                   ? line.payerLabel
-                  : null
+                  : null,
+              customDrink: line.customDrink || null
             }))
           })
         });
@@ -1377,6 +1814,15 @@ document.addEventListener("alpine:init", () => {
         }
 
         const result = await response.json();
+
+        // Wallet covered the whole order: no gateway step — redirect to the
+        // success screen (?order=success&code=...) directly.
+        if (result.requiresPayment === false) {
+          this.clearCart();
+          this.closeCartDrawer();
+          window.location.href = result.redirectUrl;
+          return;
+        }
 
         // Carry the server-computed final amount and the applied discount into
         // the payment page. The redirect reloads the app, so in-memory state is
@@ -1545,6 +1991,28 @@ document.addEventListener("alpine:init", () => {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
       }).format(Number(value) || 0);
+    },
+    walletMoveLabel(type) {
+      const labels = {
+        TopUp: "شارژ",
+        Cashback: "کش‌بک",
+        Purchase: "پرداخت سفارش",
+        Refund: "برگشت وجه",
+        Adjustment: "اصلاح"
+      };
+      return labels[type] || type;
+    },
+    formatShamsi(value) {
+      if (!value) {
+        return "";
+      }
+      try {
+        return new Date(value).toLocaleDateString("fa-IR", {
+          year: "numeric", month: "short", day: "numeric"
+        });
+      } catch {
+        return "";
+      }
     },
     displayPrice(item) {
       const candidates = [item.specialOfferPrice, item.discountedPrice].filter((v) => v != null);

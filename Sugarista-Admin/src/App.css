@@ -1652,6 +1652,74 @@ tbody tr:last-child td {
   align-items: center;
 }
 
+/* ── Wallet (کیف پول) ── */
+.wallet-panel-head {
+  margin-top: 18px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+}
+
+.wallet-adjust-row {
+  display: grid;
+  grid-template-columns: 140px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 14px;
+}
+
+.wallet-in {
+  color: var(--ok, #1b8a5a);
+  font-weight: 600;
+}
+
+.wallet-out {
+  color: var(--brand-error, #d1435b);
+  font-weight: 600;
+}
+
+/* ── تولد + بسته‌های شارژ ── */
+.birthday-edit-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 4px;
+}
+
+.wallet-package-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.wallet-package-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.wallet-package-chip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.wallet-package-chip strong {
+  font-size: 0.9rem;
+}
+
+.wallet-package-chip span {
+  font-size: 0.72rem;
+  color: var(--ok, #1b8a5a);
+  font-weight: 700;
+}
+
 code {
   padding: 2px 8px;
   border-radius: 999px;
@@ -2233,5 +2301,149 @@ select:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   Drink builder
+   ============================================================ */
+.builder-master-switch {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  white-space: nowrap;
+}
+
+.builder-hint {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--brand-accent-soft);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.9;
+}
+
+.builder-list {
+  display: grid;
+  gap: 10px;
+}
+
+.builder-list-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  color: var(--heading);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.builder-list-item:hover {
+  border-color: var(--brand-accent);
+}
+
+.builder-list-item.is-active {
+  border-color: var(--brand-accent);
+  background: var(--brand-accent-soft);
+}
+
+.builder-list-title {
+  font-weight: 700;
+}
+
+.builder-list-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.builder-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.builder-badge.is-on {
+  background: rgba(16, 145, 96, 0.12);
+  color: #0b7a50;
+}
+
+.builder-badge.is-off {
+  background: rgba(209, 67, 91, 0.12);
+  color: var(--brand-error);
+}
+
+.builder-add-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.builder-group {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.builder-group-head,
+.builder-option-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.builder-options {
+  display: grid;
+  gap: 12px;
+}
+
+.builder-option {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+}
+
+.builder-option-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.builder-danger {
+  color: var(--brand-error);
+  border-color: rgba(209, 67, 91, 0.35);
+}
+
+@media (max-width: 1100px) {
+  .builder-option-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .builder-option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-master-switch {
+    white-space: normal;
   }
 }

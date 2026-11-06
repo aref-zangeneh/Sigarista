@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Customers.Services;
+using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
@@ -60,7 +61,9 @@ public record AdminOrderLineDto(
     string? PayerLabel,
     int InventoryDeductedQuantity,
     IReadOnlyCollection<string> ModifierLabels,
-    decimal TaxPercent);
+    decimal TaxPercent,
+    IReadOnlyCollection<string> CustomDrinkSummary,
+    DrinkBuilderSnapshot? CustomDrink);
 
 public record AdminOrderPaymentDto(
     Guid Id,
@@ -204,7 +207,9 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
                     lineRequest.ModifierIds);
 
                 existingLine.UpdateQuantity(resolved.Quantity);
-                existingLine.UpdateUnitPrice(resolved.UnitPrice);
+                existingLine.UpdateUnitPrice(DrinkBuilderPricing.ResolveEditedUnitPrice(
+                    resolved.UnitPrice,
+                    existingLine.CustomizationJson));
                 existingLine.AssignPayer(lineRequest.PayerKey, lineRequest.PayerLabel);
 
                 await OrderInventoryService.ApplyLineQuantityChangeAsync(
@@ -296,7 +301,9 @@ internal static class AdminOrderMapper
                     line.PayerLabel,
                     line.InventoryDeductedQuantity,
                     line.ModifierLabels,
-                    line.TaxPercent))
+                    line.TaxPercent,
+                    line.CustomDrinkSummary,
+                    DrinkBuilderPricing.Deserialize(line.CustomizationJson)))
                 .ToArray(),
             order.Payments
                 .Select(payment => new AdminOrderPaymentDto(

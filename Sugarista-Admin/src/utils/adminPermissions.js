@@ -17,6 +17,18 @@ export const PERMISSIONS = {
     update: 'admin.orders.update',
     delete: 'admin.orders.delete',
   },
+  'customer-groups': {
+    view: 'admin.orders.view',
+    create: 'admin.orders.update',
+    update: 'admin.orders.update',
+    delete: 'admin.orders.delete',
+  },
+  'subscription-packages': {
+    view: 'admin.orders.view',
+    create: 'admin.orders.update',
+    update: 'admin.orders.update',
+    delete: 'admin.orders.delete',
+  },
   'delivery-methods': {
     view: 'admin.orders.view',
     create: 'admin.orders.update',
@@ -84,6 +96,12 @@ export const PERMISSIONS = {
     create: 'admin.modifiers.create',
     update: 'admin.modifiers.update',
     delete: 'admin.modifiers.delete',
+  },
+  'drink-builder': {
+    view: 'admin.drink-builder.view',
+    create: 'admin.drink-builder.create',
+    update: 'admin.drink-builder.update',
+    delete: 'admin.drink-builder.delete',
   },
   ingredients: {
     view: 'admin.ingredients.view',
@@ -160,6 +178,10 @@ export function viewPermissionForRoute(routeId) {
 
   if (routeId === 'overview') {
     return PERMISSIONS.dashboard.view
+  }
+
+  if (routeId === 'discount-reports' || routeId === 'discount-security') {
+    return PERMISSIONS.discounts.view
   }
 
   return PERMISSIONS[routeId]?.view ?? null

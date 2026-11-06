@@ -1,8 +1,10 @@
 using Sugarista.Application.Common.Behaviours;
 using Sugarista.Application.Accounting.Services;
 using Sugarista.Application.Customers.Services;
+using Sugarista.Application.Orders.Commands.ConfirmMockPayment;
 using Sugarista.Application.Discounts.Engine;
 using Sugarista.Application.Discounts.Engine.Evaluators;
+using Sugarista.Application.Discounts.Reports;
 
 namespace Sugarista.Application;
 
@@ -13,10 +15,13 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
         services.AddScoped<IAccountingService, AccountingService>();
         services.AddScoped<ILoyaltyService, LoyaltyService>();
+        services.AddScoped<IOrderPaymentFinalizer, OrderPaymentFinalizer>();
         services.AddScoped<IDiscountEngine, DiscountEngine>();
         services.AddScoped<IDiscountEvaluator, AmountOffDiscountEvaluator>();
         services.AddScoped<IDiscountEvaluator, TieredCartDiscountEvaluator>();
         services.AddScoped<IDiscountEvaluator, BuyXGetYDiscountEvaluator>();
+        services.AddScoped<DiscountReportBuilder>();
+        services.AddScoped<ReportScheduleDispatcher>();
 
         services.AddMediatR(cfg =>
         {

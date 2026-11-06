@@ -47,6 +47,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.AmountPaid)
             .HasColumnType("numeric(18,2)");
 
+        builder.Property(o => o.DiscountTotal)
+            .HasColumnType("numeric(18,2)");
+
         builder.Property(o => o.SplitBillMode)
             .HasConversion<string>()
             .HasMaxLength(30)

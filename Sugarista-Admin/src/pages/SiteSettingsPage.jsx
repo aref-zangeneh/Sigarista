@@ -93,6 +93,82 @@ export function SiteSettingsPage() {
 
   const salesPaused = siteSettings.isOnlineSalesEnabled === false
 
+  // ── بسته‌های شارژ کیف پول ────────────────────────────────
+  const [walletPackages, setWalletPackages] = useState([])
+  const [packagesSaving, setPackagesSaving] = useState(false)
+  const [packagesMessage, setPackagesMessage] = useState('')
+  const [packagesError, setPackagesError] = useState('')
+  const [removedPackageIds, setRemovedPackageIds] = useState([])
+  const [cupCategoryOptions, setCupCategoryOptions] = useState([])
+
+  const loadPackages = async () => {
+    if (!session?.token) return
+    try {
+      const data = await apiRequest('/admin/wallet-packages', { token: session.token })
+      setWalletPackages((Array.isArray(data) ? data : []).map((row) => ({
+        id: row.id,
+        amount: row.amount ?? 0,
+        bonusAmount: row.bonusAmount ?? 0,
+        displayOrder: row.displayOrder ?? 0,
+        isEnabled: row.isEnabled !== false,
+      })))
+    } catch (requestError) {
+      setPackagesError(getReadableError(requestError))
+    }
+  }
+
+  const updatePackageRow = (index, field, value) =>
+    setWalletPackages((current) => current.map((row, position) => (position === index ? { ...row, [field]: value } : row)))
+
+  const addPackageRow = () =>
+    setWalletPackages((current) => [
+      ...current,
+      { id: '', amount: 0, bonusAmount: 0, displayOrder: current.length, isEnabled: true },
+    ])
+
+  const removePackageRow = (index) => {
+    const target = walletPackages[index]
+    if (target?.id) {
+      setRemovedPackageIds((existing) => (existing.includes(target.id) ? existing : [...existing, target.id]))
+    }
+    setWalletPackages((current) => current.filter((_, position) => position !== index))
+  }
+
+  const savePackages = async () => {
+    setPackagesError('')
+    setPackagesMessage('')
+    if (walletPackages.some((row) => !(Number(row.amount) > 0))) {
+      setPackagesError('مبلغ همهٔ بسته‌ها را مثبت وارد کنید.')
+      return
+    }
+    setPackagesSaving(true)
+    try {
+      for (const row of walletPackages) {
+        const payload = {
+          id: row.id || '00000000-0000-0000-0000-000000000000',
+          amount: Number(row.amount) || 0,
+          bonusAmount: Number(row.bonusAmount) || 0,
+          displayOrder: Number(row.displayOrder) || 0,
+          isEnabled: row.isEnabled,
+        }
+        await apiRequest('/admin/wallet-packages', { method: 'POST', body: payload, token: session.token })
+      }
+      const loadedNow = await apiRequest('/admin/wallet-packages', { token: session.token })
+      const keepIds = new Set((Array.isArray(loadedNow) ? loadedNow : []).map((row) => row.id))
+      const removedIds = removedPackageIds.filter((id) => !keepIds.has(id))
+      for (const id of removedIds) {
+        await apiRequest(`/admin/wallet-packages/${id}`, { method: 'DELETE', token: session.token })
+      }
+      await loadPackages()
+      setRemovedPackageIds([])
+      setPackagesMessage('بسته‌های شارژ ذخیره شد.')
+    } catch (requestError) {
+      setPackagesError(getReadableError(requestError))
+    } finally {
+      setPackagesSaving(false)
+    }
+  }
+
   // ── سطح‌بندی عضویت ──────────────────────────────────────
   const [tierRows, setTierRows] = useState([])
   const [originalTierIds, setOriginalTierIds] = useState([])
@@ -112,7 +188,9 @@ export function SiteSettingsPage() {
         name: row.name ?? '',
         description: row.description ?? '',
         minTotalPaidSpent: row.minTotalPaidSpent ?? 0,
+        minPaidOrders: row.minPaidOrders ?? 0,
         discountPercent: row.discountPercent ?? 0,
+        cashbackPercent: row.cashbackPercent ?? '',
         displayOrder: row.displayOrder ?? 0,
         isEnabled: row.isEnabled !== false,
       })))
@@ -124,6 +202,18 @@ export function SiteSettingsPage() {
 
   useEffect(() => {
     loadTiers()
+    loadPackages()
+
+    const loadCupCategories = async () => {
+      if (!session?.token) return
+      try {
+        const data = await apiRequest('/admin/categories/options', { token: session.token })
+        setCupCategoryOptions(Array.isArray(data) ? data : [])
+      } catch {
+        setCupCategoryOptions([])
+      }
+    }
+    loadCupCategories()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.token])
 
@@ -133,7 +223,7 @@ export function SiteSettingsPage() {
   const addTierRow = () =>
     setTierRows((current) => [
       ...current,
-      { id: '', name: '', description: '', minTotalPaidSpent: 0, discountPercent: 0, displayOrder: current.length, isEnabled: true },
+      { id: '', name: '', description: '', minTotalPaidSpent: 0, minPaidOrders: 0, discountPercent: 0, cashbackPercent: '', displayOrder: current.length, isEnabled: true },
     ])
 
   const removeTierRow = (index) =>
@@ -154,7 +244,12 @@ export function SiteSettingsPage() {
           name: row.name.trim(),
           description: row.description?.trim() || null,
           minTotalPaidSpent: Number(row.minTotalPaidSpent) || 0,
+          minPaidOrders: Number(row.minPaidOrders) || 0,
           discountPercent: Number(row.discountPercent) || 0,
+          cashbackPercent:
+            row.cashbackPercent === '' || row.cashbackPercent === null || row.cashbackPercent === undefined
+              ? null
+              : Number(row.cashbackPercent),
           displayOrder: Number(row.displayOrder) || 0,
           isEnabled: row.isEnabled,
         }
@@ -655,6 +750,22 @@ export function SiteSettingsPage() {
               />
               <small className="settings-hint">مثلاً ۳۶۵ = مجموع خرید یک سال گذشته؛ مقدار ۰ = کل عمر مشتری</small>
             </label>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>اجازهٔ تنزل سطح</strong>
+                <p>اگر فعالیت مشتری در بازهٔ ارزیابی زیر شرط سطحش برود، سطحش به‌طور خودکار پایین می‌آید. خاموش کنید تا سطح‌ها فقط بالا بروند.</p>
+              </div>
+              <span className={`switch ${siteSettings.membershipDowngradeEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.membershipDowngradeEnabled !== false}
+                  onChange={(event) => updateField('membershipDowngradeEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
 
             <div className="full-width tiers-editor">
               {tierRows.map((row, index) => (
@@ -693,6 +804,31 @@ export function SiteSettingsPage() {
                     />
                   </label>
                   <label>
+                    <span>حداقل سفارش در بازه</span>
+                    <input
+                      className="ltr-input"
+                      dir="ltr"
+                      type="number"
+                      min="0"
+                      value={row.minPaidOrders}
+                      onChange={(event) => updateTierRow(index, 'minPaidOrders', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>کش‌بک اختصاصی (٪)</span>
+                    <input
+                      className="ltr-input"
+                      dir="ltr"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="کلی"
+                      value={row.cashbackPercent}
+                      onChange={(event) => updateTierRow(index, 'cashbackPercent', event.target.value)}
+                    />
+                    <small className="settings-hint">خالی = درصد کلی کش‌بک</small>
+                  </label>
+                  <label>
                     <span>ترتیب</span>
                     <input
                       className="ltr-input"
@@ -727,9 +863,410 @@ export function SiteSettingsPage() {
               {tierError ? <p className="feedback feedback-error">{tierError}</p> : null}
               {tierMessage ? <p className="feedback feedback-success">{tierMessage}</p> : null}
               <p className="table-subtext">
-                بالاترین سطحی که مجموع خرید مشتری به آن رسیده باشد به‌صورت خودکار به او اختصاص می‌یابد (پایین‌رفتنی هم هست). سطح پایه = مشتری بدون سطح.
+                بالاترین سطحی که مشتری شرط ارتقای آن (مبلغ خرید یا تعداد سفارش در بازهٔ ارزیابی) را رد کرده باشد، خودکار به او اختصاص می‌یابد. کش‌بک اختصاصی سطح، درصد کلی را جایگزین می‌کند. سطح پایه = مشتری بدون سطح.
               </p>
             </div>
+            <h3 className="settings-subheading full-width">کیف پول و کش‌بک</h3>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>فعال‌سازی کیف پول</strong>
+                <p>مشتری می‌تواند موجودی خود را شارژ کند، کش‌بک بگیرد و سفارش را با کیف پول پرداخت کند.</p>
+              </div>
+              <span className={`switch ${siteSettings.walletEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.walletEnabled === true}
+                  onChange={(event) => updateField('walletEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+            <label>
+              <span>درصد کش‌بک هر سفارش</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={siteSettings.walletCashbackPercent ?? 2}
+                onChange={(event) =>
+                  updateField('walletCashbackPercent', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">بعد از پذیرش سفارش، این درصد به‌صورت اعتبار (تومان) به کیف پول برمی‌گردد؛ صفر = غیرفعال</small>
+            </label>
+            <label>
+              <span>حداقل مبلغ سفارش برای کش‌بک (تومان)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                step="10000"
+                value={siteSettings.walletCashbackMinOrderAmount ?? 0}
+                onChange={(event) =>
+                  updateField('walletCashbackMinOrderAmount', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">مقدار ۰ = بدون حداقل</small>
+            </label>
+            <label>
+              <span>سقف کش‌بک هر سفارش (تومان)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                step="5000"
+                value={siteSettings.walletCashbackMaxPerOrderAmount ?? 0}
+                onChange={(event) =>
+                  updateField('walletCashbackMaxPerOrderAmount', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">کش‌بک هر سفارش بیشتر از این مبلغ نمی‌شود؛ مقدار ۰ = بدون سقف</small>
+            </label>
+            <label>
+              <span>انقضای کش‌بک (روز)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                value={siteSettings.walletCashbackExpiryDays ?? 0}
+                onChange={(event) =>
+                  updateField('walletCashbackExpiryDays', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">پس از این روزها کش‌بک‌های مصرف‌نشده از کیف پول حذف می‌شوند؛ مقدار ۰ = بدون انقضا</small>
+            </label>
+            <label>
+              <span>سقف پرداخت از کیف پول (٪ سفارش)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="1"
+                max="100"
+                value={siteSettings.walletPaymentMaxPercent ?? 100}
+                onChange={(event) =>
+                  updateField('walletPaymentMaxPercent', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">مثلاً ۵۰ = حداکثر نصف هر سفارش با کیف پول پرداخت می‌شود؛ ۱۰۰ = بدون محدودیت</small>
+            </label>
+
+            <h3 className="settings-subheading full-width">بسته‌های شارژ با پاداش</h3>
+            <div className="full-width tiers-editor">
+              {(walletPackages ?? []).map((row, index) => (
+                <div key={row.id || `pkg-${index}`} className="tier-row">
+                  <label>
+                    <span>مبلغ شارژ (تومان)</span>
+                    <input
+                      className="ltr-input"
+                      dir="ltr"
+                      type="number"
+                      min="0"
+                      step="10000"
+                      value={row.amount}
+                      onChange={(event) => updatePackageRow(index, 'amount', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>هدیه (تومان)</span>
+                    <input
+                      className="ltr-input"
+                      dir="ltr"
+                      type="number"
+                      min="0"
+                      step="10000"
+                      value={row.bonusAmount}
+                      onChange={(event) => updatePackageRow(index, 'bonusAmount', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>ترتیب</span>
+                    <input
+                      className="ltr-input"
+                      dir="ltr"
+                      type="number"
+                      min="0"
+                      value={row.displayOrder}
+                      onChange={(event) => updatePackageRow(index, 'displayOrder', event.target.value)}
+                    />
+                  </label>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={row.isEnabled}
+                      onChange={(event) => updatePackageRow(index, 'isEnabled', event.target.checked)}
+                    />
+                    <span>فعال</span>
+                  </label>
+                  <button type="button" className="link-button link-danger" onClick={() => removePackageRow(index)}>
+                    حذف
+                  </button>
+                </div>
+              ))}
+              <div className="tier-editor-actions">
+                <button type="button" className="ghost-button" onClick={addPackageRow}>
+                  افزودن بسته
+                </button>
+                <button type="button" disabled={packagesSaving} onClick={savePackages}>
+                  {packagesSaving ? 'در حال ذخیره...' : 'ذخیره بسته‌ها'}
+                </button>
+              </div>
+              {packagesError ? <p className="feedback feedback-error">{packagesError}</p> : null}
+              {packagesMessage ? <p className="feedback feedback-success">{packagesMessage}</p> : null}
+              <p className="table-subtext">
+                این بسته‌ها در دکمه‌های شارژ سریع (پنل مشتری و پیشخوان ادمین) پیشنهاد می‌شوند؛ هدیه به‌طور خودکار وارد کیف پول مشتری می‌شود.
+              </p>
+            </div>
+
+            <h3 className="settings-subheading full-width">تخفیف تولد</h3>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>فعال‌سازی تخفیف تولد</strong>
+                <p>در روز تولد (یا بازهٔ دلخواه اطراف آن) مشتری هدیهٔ تخفیف می‌گیرد. تاریخ تولد کاربر را خودش یا شما در پرونده مشتری ثبت می‌کند.</p>
+              </div>
+              <span className={`switch ${siteSettings.birthdayDiscountEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.birthdayDiscountEnabled === true}
+                  onChange={(event) => updateField('birthdayDiscountEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+            <label>
+              <span>درصد تخفیف تولد (٪)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={siteSettings.birthdayDiscountPercent ?? 0}
+                onChange={(event) =>
+                  updateField('birthdayDiscountPercent', Number(event.target.value))
+                }
+              />
+            </label>
+            <label>
+              <span>بازهٔ اعتبار اطراف تولد (روز)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="60"
+                value={siteSettings.birthdayDiscountWindowDays ?? 0}
+                onChange={(event) =>
+                  updateField('birthdayDiscountWindowDays', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">۰ = فقط روز تولد؛ ۷ = هفتهٔ تولد</small>
+            </label>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>نحوهٔ اعطا</strong>
+                <p>خودکار = تخفیف در تسویه‌حساب بی‌درنگ اعمال می‌شود. کد = کد تخفیف شخصیِ یک‌مصرف به مشتری داده می‌شود تا هنگام سفارش وارد کند.</p>
+              </div>
+              <span className={`switch ${(siteSettings.birthdayDiscountMode ?? 0) === 0 ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={(siteSettings.birthdayDiscountMode ?? 0) === 0}
+                  onChange={(event) => updateField('birthdayDiscountMode', event.target.checked ? 0 : 1)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+              <span className="settings-switch-text">
+                <strong>{(siteSettings.birthdayDiscountMode ?? 0) === 0 ? 'خودکار' : 'کد تخفیف شخصی'}</strong>
+              </span>
+            </label>
+            <label className="full-width">
+              <span>متن پیام تبریک تولد</span>
+              <textarea
+                rows="2"
+                maxLength={500}
+                value={siteSettings.birthdayGreetingMessage ?? ''}
+                onChange={(event) => updateField('birthdayGreetingMessage', event.target.value)}
+                placeholder="تولدت مبارک! 🎉"
+              />
+            </label>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>امکان تغییر تاریخ تولد توسط کاربر</strong>
+                <p>روشن = مشتری می‌تواند در منوی دیجیتال تاریخ تولدش را ثبت یا تغییر دهد. خاموش = تاریخ تولد فقط توسط شما در پنل ثبت/اصلاح می‌شود.</p>
+              </div>
+              <span className={`switch ${siteSettings.birthdayEditableByCustomer ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.birthdayEditableByCustomer !== false}
+                  onChange={(event) => updateField('birthdayEditableByCustomer', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            <h3 className="settings-subheading full-width">تخفیف لیوان شخصی</h3>
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>فعال‌سازی تخفیف لیوان شخصی</strong>
+                <p>اگر مشتری لیوان شخصی بیاورد، هنگام سفارش (آنلاین و صندوق) می‌تواند این تخفیف را انتخاب کند.</p>
+              </div>
+              <span className={`switch ${siteSettings.personalCupDiscountEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.personalCupDiscountEnabled === true}
+                  onChange={(event) => updateField('personalCupDiscountEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+            <label>
+              <span>مبلغ تخفیف لیوان شخصی (تومان)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                step="1000"
+                value={siteSettings.personalCupDiscountAmount ?? 0}
+                onChange={(event) => updateField('personalCupDiscountAmount', Number(event.target.value))}
+              />
+            </label>
+            <label className="full-width">
+              <span>متن راهنمای تحویل</span>
+              <textarea
+                rows="2"
+                maxLength={500}
+                value={siteSettings.personalCupDeliveryNote ?? ''}
+                onChange={(event) => updateField('personalCupDeliveryNote', event.target.value)}
+                placeholder="لیوان شخصی را هنگام تحویل به باریستا نشان دهید."
+              />
+            </label>
+            <div className="full-width">
+              <span className="field-label">دسته‌های مشمول تخفیف لیوان</span>
+              <div className="checkbox-grid">
+                {cupCategoryOptions.map((category) => {
+                  const selected = (siteSettings.personalCupCategoryIds ?? '')
+                    .split(',')
+                    .map((value) => value.trim())
+                    .filter(Boolean)
+                    .includes(category.id)
+                  return (
+                    <label key={category.id} className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => {
+                          const current = (siteSettings.personalCupCategoryIds ?? '')
+                            .split(',')
+                            .map((value) => value.trim())
+                            .filter(Boolean)
+                          const next = selected
+                            ? current.filter((id) => id !== category.id)
+                            : [...current, category.id]
+                          updateField('personalCupCategoryIds', next.join(','))
+                        }}
+                      />
+                      <span>{category.name}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              <small className="settings-hint">اگر هیچ دسته‌ای انتخاب نشود، تخفیف روی همهٔ محصولات اعمال می‌شود.</small>
+            </div>
+
+            <h3 className="settings-subheading full-width">شرایط اشتراک ماهانه</h3>
+            <label className="full-width">
+              <span>سیاست تمدید</span>
+              <textarea
+                rows="2"
+                maxLength={1000}
+                value={siteSettings.subscriptionRenewalPolicy ?? ''}
+                onChange={(event) => updateField('subscriptionRenewalPolicy', event.target.value)}
+              />
+              <small className="settings-hint">این متن در پنل مشتری نمایش داده می‌شود.</small>
+            </label>
+            <label className="full-width">
+              <span>شرایط لغو و بازپرداخت</span>
+              <textarea
+                rows="2"
+                maxLength={1000}
+                value={siteSettings.subscriptionCancelRefundPolicy ?? ''}
+                onChange={(event) => updateField('subscriptionCancelRefundPolicy', event.target.value)}
+              />
+              <small className="settings-hint">مشتری هنگام لغو، معادل استفاده‌های باقی‌مانده را به کیف پول دریافت می‌کند.</small>
+            </label>
+
+            <h3 className="settings-subheading full-width">امنیت تخفیف و سقف روزانه</h3>
+            <label>
+              <span>محافظت از سوءاستفاده</span>
+              <span className={`switch ${siteSettings.discountAbuseProtectionEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={siteSettings.discountAbuseProtectionEnabled !== false}
+                  onChange={(event) => updateField('discountAbuseProtectionEnabled', event.target.checked)}
+                />
+              </span>
+              <small className="settings-hint">
+                قفل موقت پس از تلاش‌های ناموفق، لیست سیاه و سقف روزانه را فعال می‌کند.
+              </small>
+            </label>
+            <label>
+              <span>حداکثر تلاش ناموفق برای کد</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="1"
+                max="100"
+                value={siteSettings.discountMaxFailedAttempts ?? 5}
+                onChange={(event) => updateField('discountMaxFailedAttempts', Number(event.target.value))}
+              />
+              <small className="settings-hint">بعد از این تعداد کد اشتباه، استفاده از تخفیف موقتاً قفل می‌شود.</small>
+            </label>
+            <label>
+              <span>مدت قفل موقت (دقیقه)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="1"
+                max="10080"
+                value={siteSettings.discountLockoutMinutes ?? 15}
+                onChange={(event) => updateField('discountLockoutMinutes', Number(event.target.value))}
+              />
+              <small className="settings-hint">پس از این مدت، کاربر می‌تواند دوباره کد وارد کند.</small>
+            </label>
+            <label>
+              <span>سقف کل تخفیف روزانه هر کاربر (تومان)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                value={siteSettings.discountDailyCapPerCustomer ?? 0}
+                onChange={(event) => updateField('discountDailyCapPerCustomer', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                مجموع همهٔ تخفیف‌ها (کد، گروه، سطح، لیوان، اشتراک و…) در یک روز. مقدار ۰ یعنی بدون محدودیت.
+              </small>
+            </label>
           </div>
         </section>
 

@@ -27,4 +27,25 @@ public class LoggingMaintenanceEmailService : IMaintenanceEmailSender
 
         return Task.CompletedTask;
     }
+
+    public Task SendAsync(
+        string toAddress,
+        string subject,
+        string htmlBody,
+        IReadOnlyCollection<EmailAttachment> attachments,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation(
+            "Maintenance email (dev/log, provider {Provider}) to {To}: {Subject} — attachments: {Attachments}\n{Body}",
+            _options.Provider,
+            toAddress,
+            subject,
+            attachments.Count == 0
+                ? "none"
+                : string.Join(", ", attachments.Select(attachment =>
+                    $"{attachment.FileName} ({attachment.Content.Length:N0} bytes)")),
+            htmlBody);
+
+        return Task.CompletedTask;
+    }
 }

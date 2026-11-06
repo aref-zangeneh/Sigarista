@@ -24,7 +24,12 @@ public class DiscountsController : ApiControllerBase
         [FromBody] GetDiscountPreviewQuery request,
         CancellationToken cancellationToken = default)
     {
-        var result = await Mediator.Send(request, cancellationToken);
+        var enriched = request with
+        {
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString()
+        };
+
+        var result = await Mediator.Send(enriched, cancellationToken);
         return Ok(result);
     }
 

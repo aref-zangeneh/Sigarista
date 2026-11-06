@@ -56,6 +56,7 @@ public class CancelAdminOrderCommandHandler : IRequestHandler<CancelAdminOrderCo
 
         order.AdminCancel();
         await _loyaltyService.RefundForCancelledOrderAsync(order, cancellationToken);
+        await WalletService.RefundCancelledOrderAsync(_dbContext, order, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return AdminOrderMapper.ToDetail(order);

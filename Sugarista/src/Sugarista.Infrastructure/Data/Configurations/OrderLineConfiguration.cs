@@ -25,6 +25,12 @@ public class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
         builder.Property(l => l.ModifierLabels)
             .HasColumnType("text[]");
 
+        builder.Property(l => l.CustomDrinkSummary)
+            .HasColumnType("text[]");
+
+        builder.Property(l => l.CustomizationJson)
+            .HasColumnType("text");
+
         builder.Property(l => l.PayerKey)
             .HasMaxLength(50);
 

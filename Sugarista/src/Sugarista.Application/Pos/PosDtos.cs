@@ -1,3 +1,4 @@
+using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.Menu.Queries.GetPublicMenu;
 
 namespace Sugarista.Application.Pos;
@@ -75,7 +76,9 @@ public record PosOrderLineDto(
     string? PayerKey,
     string? PayerLabel,
     IReadOnlyCollection<string> ModifierLabels,
-    IReadOnlyCollection<Guid> ModifierIds);
+    IReadOnlyCollection<Guid> ModifierIds,
+    IReadOnlyCollection<string> CustomDrinkSummary,
+    DrinkBuilderSnapshot? CustomDrink);
 
 public record PosSplitShareDto(
     string PayerKey,

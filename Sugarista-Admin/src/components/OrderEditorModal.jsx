@@ -120,6 +120,17 @@ export function OrderEditorModal() {
                     <strong>{line.persianName}</strong>
                     <div className="table-subtext ltr-text">{line.englishName}</div>
                     {line.sizeLabel ? <div className="table-subtext">{line.sizeLabel}</div> : null}
+                    {line.customDrinkSummary?.length ? (
+                      <div className="table-subtext">
+                        ترکیب سفارشی: {line.customDrinkSummary.join('، ')}
+                      </div>
+                    ) : null}
+                    {line.customDrink ? (
+                      <div className="table-subtext">
+                        قیمت پایه: {toPersianNumber(line.customDrink.basePrice)} تومان + اجزا:{' '}
+                        {toPersianNumber(line.customDrink.componentsTotal)} تومان
+                      </div>
+                    ) : null}
                     {line.payerLabel ? <div className="table-subtext">مهمان: {line.payerLabel}</div> : null}
                     {line.inventoryDeductedQuantity > 0 ? (
                       <div className="table-subtext">

@@ -97,6 +97,7 @@ public static class DependencyInjection
         services.AddHostedService<MaintenanceReminderTickerService>();
         services.AddHostedService<CustomerWinBackTickerService>();
         services.AddHostedService<AbandonedCartTickerService>();
+        services.AddHostedService<ReportScheduleRunnerService>();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");

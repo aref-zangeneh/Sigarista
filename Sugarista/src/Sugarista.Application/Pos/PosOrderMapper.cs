@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.DrinkBuilder;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Pos;
@@ -60,7 +61,9 @@ internal static class PosOrderMapper
             line.PayerKey,
             line.PayerLabel,
             line.ModifierLabels,
-            []);
+            [],
+            line.CustomDrinkSummary,
+            DrinkBuilderPricing.Deserialize(line.CustomizationJson));
 
     internal static PosOrderSummaryDto ToSummary(Order order, IReadOnlyDictionary<Guid, string>? tableNames = null)
     {

@@ -1,3 +1,4 @@
+using Sugarista.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Options;
@@ -72,6 +73,34 @@ public record SiteSettingsDto
     public int StampCardRewardValidityDays { get; init; } = 30;
     public bool MembershipTiersEnabled { get; init; } = true;
     public int MembershipWindowDays { get; init; } = 365;
+    public bool MembershipDowngradeEnabled { get; init; } = true;
+
+    public bool WalletEnabled { get; init; } = true;
+    public decimal WalletCashbackPercent { get; init; } = 2m;
+    public decimal WalletCashbackMinOrderAmount { get; init; }
+    public decimal WalletCashbackMaxPerOrderAmount { get; init; }
+    public int WalletCashbackExpiryDays { get; init; }
+    public int WalletPaymentMaxPercent { get; init; } = 100;
+
+    public bool BirthdayDiscountEnabled { get; init; }
+    public BirthdayDiscountMode BirthdayDiscountMode { get; init; } = BirthdayDiscountMode.Automatic;
+    public decimal BirthdayDiscountPercent { get; init; }
+    public int BirthdayDiscountWindowDays { get; init; }
+    public string BirthdayGreetingMessage { get; init; } = string.Empty;
+    public bool BirthdayEditableByCustomer { get; init; } = true;
+
+    public bool PersonalCupDiscountEnabled { get; init; }
+    public decimal PersonalCupDiscountAmount { get; init; }
+    public string? PersonalCupCategoryIds { get; init; }
+    public string PersonalCupDeliveryNote { get; init; } = string.Empty;
+
+    public string SubscriptionRenewalPolicy { get; init; } = string.Empty;
+    public string SubscriptionCancelRefundPolicy { get; init; } = string.Empty;
+    public bool CustomDrinkBuilderEnabled { get; init; } = true;
+    public bool DiscountAbuseProtectionEnabled { get; init; } = true;
+    public int DiscountMaxFailedAttempts { get; init; } = 5;
+    public int DiscountLockoutMinutes { get; init; } = 15;
+    public decimal DiscountDailyCapPerCustomer { get; init; }
     public bool AbandonedCartReminderEnabled { get; init; } = true;
     public int AbandonedCartHours { get; init; } = 4;
     public bool AbandonedCartSmsEnabled { get; init; } = true;
@@ -164,6 +193,30 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 StampCardRewardValidityDays = settings.StampCardRewardValidityDays,
                 MembershipTiersEnabled = settings.MembershipTiersEnabled,
                 MembershipWindowDays = settings.MembershipWindowDays,
+                MembershipDowngradeEnabled = settings.MembershipDowngradeEnabled,
+                WalletEnabled = settings.WalletEnabled,
+                WalletCashbackPercent = settings.WalletCashbackPercent,
+                WalletCashbackMinOrderAmount = settings.WalletCashbackMinOrderAmount,
+                WalletCashbackMaxPerOrderAmount = settings.WalletCashbackMaxPerOrderAmount,
+                WalletCashbackExpiryDays = settings.WalletCashbackExpiryDays,
+                WalletPaymentMaxPercent = settings.WalletPaymentMaxPercent,
+                BirthdayDiscountEnabled = settings.BirthdayDiscountEnabled,
+                BirthdayDiscountMode = settings.BirthdayDiscountMode,
+                BirthdayDiscountPercent = settings.BirthdayDiscountPercent,
+                BirthdayDiscountWindowDays = settings.BirthdayDiscountWindowDays,
+                BirthdayGreetingMessage = settings.BirthdayGreetingMessage,
+                BirthdayEditableByCustomer = settings.BirthdayEditableByCustomer,
+                PersonalCupDiscountEnabled = settings.PersonalCupDiscountEnabled,
+                PersonalCupDiscountAmount = settings.PersonalCupDiscountAmount,
+                PersonalCupCategoryIds = settings.PersonalCupCategoryIds,
+                PersonalCupDeliveryNote = settings.PersonalCupDeliveryNote,
+                SubscriptionRenewalPolicy = settings.SubscriptionRenewalPolicy,
+                SubscriptionCancelRefundPolicy = settings.SubscriptionCancelRefundPolicy,
+                CustomDrinkBuilderEnabled = settings.CustomDrinkBuilderEnabled,
+                DiscountAbuseProtectionEnabled = settings.DiscountAbuseProtectionEnabled,
+                DiscountMaxFailedAttempts = settings.DiscountMaxFailedAttempts,
+                DiscountLockoutMinutes = settings.DiscountLockoutMinutes,
+                DiscountDailyCapPerCustomer = settings.DiscountDailyCapPerCustomer,
                 AbandonedCartReminderEnabled = settings.AbandonedCartReminderEnabled,
                 AbandonedCartHours = settings.AbandonedCartHours,
                 AbandonedCartSmsEnabled = settings.AbandonedCartSmsEnabled,

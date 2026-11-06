@@ -20,6 +20,16 @@ public class SmtpMaintenanceEmailService : IMaintenanceEmailSender
 
     public async Task SendAsync(string toAddress, string subject, string htmlBody, CancellationToken cancellationToken = default)
     {
+        await SendAsync(toAddress, subject, htmlBody, [], cancellationToken);
+    }
+
+    public async Task SendAsync(
+        string toAddress,
+        string subject,
+        string htmlBody,
+        IReadOnlyCollection<EmailAttachment> attachments,
+        CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(_options.Host))
         {
             throw new InvalidOperationException("SMTP host is not configured (Email:Host).");
@@ -40,6 +50,12 @@ public class SmtpMaintenanceEmailService : IMaintenanceEmailSender
         };
         message.To.Add(new MailAddress(toAddress.Trim()));
 
+        foreach (var attachment in attachments)
+        {
+            var stream = new MemoryStream(attachment.Content);
+            message.Attachments.Add(new Attachment(stream, attachment.FileName, attachment.ContentType));
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         using var client = new SmtpClient(_options.Host, _options.Port)
@@ -54,7 +70,12 @@ public class SmtpMaintenanceEmailService : IMaintenanceEmailSender
 
         await client.SendMailAsync(message, cancellationToken);
 
-        _logger.LogInformation("Maintenance email sent to {To} via {Host}:{Port}.", toAddress, _options.Host, _options.Port);
+        _logger.LogInformation(
+            "Maintenance email sent to {To} via {Host}:{Port} with {AttachmentCount} attachment(s).",
+            toAddress,
+            _options.Host,
+            _options.Port,
+            attachments.Count);
     }
 
     private static string MailAddressOrThrow(string? candidate)

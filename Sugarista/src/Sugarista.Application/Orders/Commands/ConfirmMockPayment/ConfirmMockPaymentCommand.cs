@@ -32,24 +32,18 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IPaymentGateway _paymentGateway;
-    private readonly IAccountingService _accountingService;
-    private readonly ILoyaltyService _loyaltyService;
-    private readonly IPrintJobService _printJobService;
+    private readonly IOrderPaymentFinalizer _paymentFinalizer;
     private readonly PaymentOptions _paymentOptions;
 
     public ConfirmMockPaymentCommandHandler(
         IApplicationDbContext dbContext,
         IPaymentGateway paymentGateway,
-        IAccountingService accountingService,
-        ILoyaltyService loyaltyService,
-        IPrintJobService printJobService,
+        IOrderPaymentFinalizer paymentFinalizer,
         IOptions<PaymentOptions> paymentOptions)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
-        _accountingService = accountingService;
-        _loyaltyService = loyaltyService;
-        _printJobService = printJobService;
+        _paymentFinalizer = paymentFinalizer;
         _paymentOptions = paymentOptions.Value;
     }
 
@@ -87,6 +81,8 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
             throw new InvalidOperationException($"Order cannot be paid while in status '{order.Status}'.");
         }
 
+        // Verify first, then run the shared finalize pipeline. Verification
+        // failure keeps the order in its payment-pending state.
         var verification = await _paymentGateway.VerifyPaymentAsync(
             request.Authority,
             order.TotalAmount,
@@ -99,22 +95,7 @@ public class ConfirmMockPaymentCommandHandler : IRequestHandler<ConfirmMockPayme
             throw new InvalidOperationException(verification.Message ?? "Payment verification failed.");
         }
 
-        order.MarkPaid();
-        await OrderInventoryService.DeductInventoryForOrderLinesAsync(
-            _dbContext,
-            order,
-            order.Lines.ToList(),
-            cancellationToken);
-        await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        await _accountingService.PostOrderPaymentAsync(order, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        // Queue the thermal receipt copies (customer + barista) for the print agent.
-        await _printJobService.EnqueueOrderReceiptsAsync(order, cancellationToken);
-
-        await _loyaltyService.AwardForPaidOrderAsync(order, cancellationToken);
+        await _paymentFinalizer.FinalizePaidOrderAsync(order, cancellationToken);
 
         return new ConfirmMockPaymentResultDto(
             order.Id,

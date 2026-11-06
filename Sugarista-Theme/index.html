@@ -255,6 +255,10 @@
                             </div>
                             <span class="product-badge" x-show="item.badge" x-text="item.badge"></span>
                           </div>
+                          <span class="product-builder-badge" x-show="builderProfileForItem(item.id)" x-cloak>
+                            <i class="bi bi-sliders" aria-hidden="true"></i>
+                            قابل سفارشی‌سازی
+                          </span>
 
                           <div class="price-matrix" x-show="item.variants && item.variants.length">
                             <template x-for="variant in item.variants" :key="`${item.id}-${variant.key}`">
@@ -293,7 +297,7 @@
                               @click="openAddToCartModal(item)"
                             >
                               <i class="bi bi-bag-plus"></i>
-                              <span>افزودن به سبد</span>
+                              <span x-text="builderProfileForItem(item.id) ? 'سفارشی‌سازی و افزودن' : 'افزودن به سبد'"></span>
                             </button>
                             <span class="product-unavailable" x-show="!item.isOrderable">فعلاً موجود نیست</span>
                           </div>
@@ -417,7 +421,7 @@
           <span class="cart-bar-count" x-text="toPersianNumber(cartCount)"></span>
           <div>
             <strong x-text="formatPrice(finalAmount)"></strong>
-            <small x-show="appliedDiscount && appliedDiscount.amount > 0" x-text="'با تخفیف ' + appliedDiscount.code + ' — ' + formatPrice(appliedDiscount.amount)"></small>
+            <small x-show="appliedDiscount && appliedDiscount.amount > 0" x-text="appliedDiscount ? 'با تخفیف ' + appliedDiscount.code + ' — ' + formatPrice(appliedDiscount.amount) : ''"></small>
               <small x-show="(!appliedDiscount || !appliedDiscount.amount) && automaticDiscountAmount > 0" x-text="'تخفیف پلکانی سبد — ' + formatPrice(automaticDiscountAmount)"></small>
             <small x-show="!appliedDiscount || !appliedDiscount.amount">جمع سبد خرید</small>
           </div>
@@ -668,7 +672,7 @@
               x-model="checkoutForm.customerPhone"
               autocomplete="tel"
               inputmode="tel"
-              @blur="trackCart()"
+              @blur="trackCart(); loadCheckoutWallet()"
               required
             >
           </div>
@@ -716,12 +720,87 @@
             <label class="form-label" for="checkout-note">توضیحات (اختیاری)</label>
             <textarea id="checkout-note" class="form-control" rows="3" x-model="checkoutForm.note"></textarea>
           </div>
+
+          <!-- کیف پول: شناسایی با شماره موبایل، بدون رمز و کد تایید -->
+          <div class="checkout-wallet-box" x-show="!checkoutForm.isSplitBill && walletBalance > 0" x-cloak>
+            <div class="checkout-wallet-head">
+              <label class="checkout-wallet-toggle" for="checkout-use-wallet">
+                <input
+                  id="checkout-use-wallet"
+                  type="checkbox"
+                  class="form-check-input mt-0"
+                  x-model="checkoutForm.useWallet"
+                >
+                <strong>پرداخت با کیف پول</strong>
+              </label>
+              <span class="checkout-wallet-balance">
+                <span>موجودی: </span><strong x-text="formatPrice(walletBalance)"></strong>
+              </span>
+            </div>
+            <p class="checkout-wallet-note" x-show="checkoutForm.useWallet && walletSpendAmount > 0 && payableAfterWallet > 0">
+              <span x-text="formatPrice(walletSpendAmount)"></span> از کیف پول کسر می‌شود — باقی مبلغ در درگاه پرداخت.
+            </p>
+            <p class="checkout-wallet-note" x-show="checkoutForm.useWallet && walletSpendAmount > 0 && payableAfterWallet === 0">
+              کل مبلغ سفارش با کیف پول پرداخت می‌شود. 🎉
+            </p>
+          </div>
+
+          <!-- گروه مشتری: تخفیف دائمی گروه به‌صورت خودکار در سرور اعمال می‌شود -->
+          <div class="checkout-benefit-box" x-show="checkoutGroup" x-cloak>
+            <i class="bi bi-people-fill"></i>
+            <span>
+              عضو گروه <strong x-text="checkoutGroup?.groupName"></strong> هستی —
+              <span x-text="`${toPersianNumber(checkoutGroup?.discountPercent ?? 0)}٪ تخفیف دائمی گروه`"></span>
+              به‌صورت خودکار اعمال می‌شود.
+            </span>
+          </div>
+
+          <!-- تخفیف لیوان شخصی -->
+          <div class="checkout-benefit-box" x-show="checkoutPersonalCup" x-cloak>
+            <label class="checkout-wallet-toggle" for="checkout-personal-cup">
+              <input
+                id="checkout-personal-cup"
+                type="checkbox"
+                class="form-check-input mt-0"
+                x-model="checkoutForm.personalCup"
+              >
+              <strong>
+                لیوان شخصی آورده‌ام
+                (<span x-text="formatPrice(checkoutPersonalCup?.discountAmount ?? 0)"></span> تخفیف)
+              </strong>
+            </label>
+            <p class="checkout-wallet-note" x-text="checkoutPersonalCup?.deliveryNote"></p>
+          </div>
+
+          <!-- اشتراک ماهانه -->
+          <div class="checkout-benefit-box" x-show="checkoutSubscription" x-cloak>
+            <label class="checkout-wallet-toggle" for="checkout-use-subscription">
+              <input
+                id="checkout-use-subscription"
+                type="checkbox"
+                class="form-check-input mt-0"
+                x-model="checkoutForm.useSubscription"
+              >
+              <strong>
+                استفاده از اشتراک
+                (<span x-text="checkoutSubscription?.packageName"></span>)
+              </strong>
+            </label>
+            <p class="checkout-wallet-note">
+              <span x-text="`${toPersianNumber(checkoutSubscription?.remainingUses ?? 0)} استفاده باقی‌مانده`"></span>
+              — امروز حداکثر
+              <span x-text="toPersianNumber(checkoutSubscription?.availableToday ?? 0)"></span>
+              استفاده.
+            </p>
+          </div>
+
           <div class="checkout-summary">
             <span>مبلغ قابل پرداخت</span>
             <div class="d-flex align-items-center gap-2">
-              <strong x-text="formatPrice(finalAmount)"></strong>
-              <small x-show="appliedDiscount && appliedDiscount.amount > 0" x-text="'با تخفیف ' + appliedDiscount.code + ' — ' + formatPrice(appliedDiscount.amount)"></small>
-              <small x-show="(!appliedDiscount || !appliedDiscount.amount) && automaticDiscountAmount > 0" x-text="'تخفیف پلکانی سبد — ' + formatPrice(automaticDiscountAmount)"></small>
+              <strong x-text="formatPrice(payableAfterWallet)"></strong>
+              <small x-show="checkoutForm.useWallet && walletSpendAmount > 0" x-text="'با کیف پول — ' + formatPrice(walletSpendAmount)"></small>
+              <small x-show="(!checkoutForm.useWallet || !walletSpendAmount) && appliedDiscount && appliedDiscount.amount > 0" x-text="appliedDiscount ? 'با تخفیف ' + appliedDiscount.code + ' — ' + formatPrice(appliedDiscount.amount) : ''"></small>
+              <small x-show="(!checkoutForm.useWallet || !walletSpendAmount) && (!appliedDiscount || !appliedDiscount.amount) && automaticDiscountAmount > 0" x-text="'تخفیف پلکانی سبد — ' + formatPrice(automaticDiscountAmount)"></small>
             </div>
           </div>
         </div>
@@ -807,6 +886,97 @@
               </template>
             </div>
           </div>
+
+          <template x-if="modalBuilderProfile()">
+            <div class="drink-builder">
+              <div class="drink-builder-head">
+                <strong x-text="modalBuilderProfile()?.name || 'نوشیدنی سفارشی'"></strong>
+                <small>ترکیب دلخواه خود را بسازید؛ قیمت بلافاصله به‌روز می‌شود.</small>
+              </div>
+
+              <template x-for="group in (modalBuilderProfile()?.groups || [])" :key="`builder-group-${group.id}`">
+                <div class="builder-group">
+                  <div class="builder-group-head">
+                    <span x-text="group.name"></span>
+                    <small x-show="group.inputType === 'Choice' && group.isRequired" class="builder-required">الزامی</small>
+                  </div>
+
+                  <template x-if="group.inputType === 'Slider'">
+                    <div class="builder-sliders">
+                      <template x-for="option in group.options" :key="`builder-slider-${option.id}`">
+                        <div class="builder-slider-row">
+                          <div class="builder-slider-head">
+                            <span x-text="option.name"></span>
+                            <span class="builder-slider-value">
+                              <template x-if="builderAmount(option.id) > 0">
+                                <span x-text="`${toPersianNumber(builderAmount(option.id))} ${unitLabel(option.unit)}`"></span>
+                              </template>
+                              <template x-if="!(builderAmount(option.id) > 0)">
+                                <span>بدون</span>
+                              </template>
+                            </span>
+                          </div>
+
+                          <label class="builder-include" x-show="option.minAmount > 0">
+                            <input
+                              type="checkbox"
+                              :checked="builderAmount(option.id) > 0"
+                              @change="toggleBuilderAmount(option)"
+                            >
+                            <span>افزودن</span>
+                          </label>
+
+                          <input
+                            type="range"
+                            dir="ltr"
+                            class="builder-range"
+                            :min="option.minAmount > 0 && builderAmount(option.id) > 0 ? option.minAmount : 0"
+                            :max="option.maxAmount"
+                            :step="option.step || 1"
+                            :value="builderAmount(option.id)"
+                            :disabled="option.minAmount > 0 && !(builderAmount(option.id) > 0)"
+                            @input="setBuilderAmount(option, $event.target.value)"
+                          >
+
+                          <div class="builder-slider-foot">
+                            <small x-text="option.pricePerUnit > 0 ? `${formatPrice(option.pricePerUnit)} هر ${unitLabel(option.unit)}` : 'بدون هزینه'"></small>
+                            <small x-show="builderAmount(option.id) > 0" x-text="formatPrice(builderAmount(option.id) * option.pricePerUnit)"></small>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+
+                  <template x-if="group.inputType === 'Choice'">
+                    <div class="modifier-list">
+                      <template x-for="option in group.options" :key="`builder-choice-${option.id}`">
+                        <button
+                          type="button"
+                          :class="isBuilderChoiceSelected(option.id) ? 'modifier-chip modifier-chip-active' : 'modifier-chip'"
+                          :disabled="!isBuilderChoiceSelected(option.id) && !canSelectBuilderChoice(group)"
+                          @click="toggleBuilderChoice(group, option)"
+                        >
+                          <span x-text="option.name"></span>
+                          <small x-show="option.pricePerUnit > 0" x-text="`+ ${formatPrice(option.pricePerUnit)}`"></small>
+                        </button>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <div class="builder-summary" x-show="modalBuilderSummary().length">
+                <strong>خلاصه ترکیب</strong>
+                <ul>
+                  <template x-for="label in modalBuilderSummary()" :key="`builder-summary-${label}`">
+                    <li x-text="label"></li>
+                  </template>
+                </ul>
+              </div>
+
+              <p class="builder-error" x-show="addToCartModal?.builderError" x-text="addToCartModal?.builderError"></p>
+            </div>
+          </template>
 
           <div class="mb-3" x-show="modifiers.length">
             <label class="form-label">تغییرات سفارش</label>
@@ -945,6 +1115,137 @@
                   </div>
                 </div>
 
+                <!-- گروه مشتری -->
+                <div class="profile-group-box" x-show="profile.group" x-cloak>
+                  <div class="profile-tier-head">
+                    <h3><i class="bi bi-people-fill"></i> گروه مشتری</h3>
+                    <span class="profile-tier-name" x-text="profile.group?.groupName"></span>
+                  </div>
+                  <p class="profile-tier-percent" x-show="profile.group?.discountPercent > 0">
+                    <i class="bi bi-tag-fill"></i>
+                    <span x-text="`${toPersianNumber(profile.group?.discountPercent ?? 0)}٪ تخفیف دائمی گروه`"></span>
+                  </p>
+                  <p class="profile-tier-spent" x-show="profile.group?.expiresAt">
+                    <span>اعتبار عضویت تا: </span>
+                    <strong x-text="formatShamsi(profile.group.expiresAt)"></strong>
+                  </p>
+                </div>
+
+                <!-- اشتراک ماهانه -->
+                <div class="profile-subscription-box" x-show="profile.subscription" x-cloak>
+                  <div class="profile-tier-head">
+                    <h3><i class="bi bi-cup-hot-fill"></i> اشتراک ماهانه</h3>
+                    <span class="profile-tier-name" x-text="profile.subscription?.packageName"></span>
+                  </div>
+                  <p class="profile-tier-spent">
+                    <span>باقی‌مانده: </span>
+                    <strong x-text="toPersianNumber(profile.subscription?.remainingUses ?? 0)"></strong>
+                    <span>
+                      از
+                      <span x-text="toPersianNumber(profile.subscription?.totalUseCount ?? 0)"></span>
+                      استفاده
+                    </span>
+                  </p>
+                  <p class="profile-tier-spent">
+                    <span>سقف امروز: </span>
+                    <strong x-text="toPersianNumber(profile.subscription?.availableToday ?? 0)"></strong>
+                    <span x-text="profile.subscription?.dailyUseLimit > 0 ? `از ${toPersianNumber(profile.subscription.dailyUseLimit)}` : ''"></span>
+                  </p>
+                  <p class="profile-tier-spent">
+                    <span>اعتبار تا: </span>
+                    <strong x-text="formatShamsi(profile.subscription?.expiresAt)"></strong>
+                  </p>
+                  <p class="profile-tier-spent" x-show="profile.subscription?.renewalPolicy">
+                    <span x-text="profile.subscription?.renewalPolicy"></span>
+                  </p>
+                  <p class="profile-tier-spent" x-show="profile.subscription?.cancelRefundPolicy">
+                    <span x-text="profile.subscription?.cancelRefundPolicy"></span>
+                  </p>
+                </div>
+
+                <!-- کیف پول و کش‌بک -->
+                <div class="profile-wallet-box" x-show="profile.wallet" x-cloak>
+                  <div class="profile-wallet-head">
+                    <h3><i class="bi bi-wallet2"></i> کیف پول</h3>
+                    <span class="profile-wallet-balance" x-text="formatPrice(profile.wallet?.balance ?? 0)"></span>
+                  </div>
+                  <p class="profile-wallet-note" x-show="profile.wallet?.cashbackPercent > 0">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    <span
+                      x-text="`${toPersianNumber(profile.wallet.cashbackPercent)}٪ کش‌بک هر سفارش به کیف پولت برمی‌گردد`"
+                    ></span>
+                  </p>
+                  <ul class="profile-wallet-moves" x-show="(profile.wallet?.recentMovements ?? []).length">
+                    <template x-for="(move, index) in (profile.wallet?.recentMovements ?? [])" :key="index">
+                      <li>
+                        <span class="profile-wallet-move-type" x-text="walletMoveLabel(move.type)"></span>
+                        <span
+                          class="profile-wallet-move-amount"
+                          :class="move.amount > 0 ? 'is-in' : 'is-out'"
+                          x-text="(move.amount > 0 ? '+' : '−') + formatPriceCompact(Math.abs(move.amount))"
+                        ></span>
+                        <span class="profile-wallet-move-desc" x-text="move.description"></span>
+                        <span class="profile-wallet-move-date" x-text="formatShamsi(move.createdAt)"></span>
+                      </li>
+                    </template>
+                  </ul>
+                  <p class="profile-wallet-empty" x-show="!(profile.wallet?.recentMovements ?? []).length">
+                    همین حالا کیف پولت را در کافه شارژ کن و از کش‌بک بهره‌مند شو.
+                  </p>
+                  <p class="profile-wallet-hint" x-show="profile.wallet?.expiryDays > 0">
+                    <i class="bi bi-hourglass-split"></i>
+                    <span x-text="`کش‌بک‌های مصرف‌نشده پس از ${toPersianNumber(profile.wallet.expiryDays)} روز منقضی می‌شوند`"></span>
+                  </p>
+                  <p class="profile-wallet-hint" x-show="profile.wallet?.paymentMaxPercent > 0 && profile.wallet?.paymentMaxPercent < 100">
+                    <i class="bi bi-percent"></i>
+                    <span x-text="`حداکثر ${toPersianNumber(profile.wallet.paymentMaxPercent)}٪ هر سفارش با کیف پول پرداختنی است`"></span>
+                  </p>
+                  <div class="profile-topup-packages" x-show="(profile.wallet?.topUpPackages ?? []).length">
+                    <strong>بسته‌های شارژ:</strong>
+                    <template x-for="(pack, index) in (profile.wallet?.topUpPackages ?? [])" :key="index">
+                      <span class="profile-topup-chip">
+                        <span x-text="formatPriceCompact(pack.amount)"></span>
+                        <em x-show="pack.bonusAmount > 0" x-text="`+${formatPriceCompact(pack.bonusAmount)} هدیه`"></em>
+                      </span>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- تخفیف تولد -->
+                <div class="profile-birthday-box" x-show="profile.birthday" x-cloak>
+                  <div class="profile-birthday-head">
+                    <h3><i class="bi bi-cake2"></i> تولد</h3>
+                    <span class="profile-birthday-date" x-show="profile.birthday?.dateOfBirth"
+                      x-text="profile.birthday?.dateOfBirth"></span>
+                  </div>
+                  <p class="profile-birthday-active" x-show="profile.birthday?.eligible">
+                    <i class="bi bi-balloon-heart"></i>
+                    <span x-text="`${profile.birthday?.message || ''} (${toPersianNumber(profile.birthday?.discountPercent ?? 0)}٪ تخفیف${profile.birthday?.windowDays > 0 ? ` تا ${toPersianNumber(profile.birthday.windowDays)} روز` : ' امروز'})`"></span>
+                  </p>
+                  <p class="profile-birthday-code" x-show="profile.birthday?.eligible && profile.birthday?.mode === 1 && profile.birthday?.personalCode">
+                    <i class="bi bi-ticket-perforated"></i>
+                    <span>کد هدیهٔ شخصی شما: </span>
+                    <strong class="bio-code" dir="ltr" x-text="profile.birthday.personalCode"></strong>
+                    <em>یک‌مصرف — هنگام سفارش وارد کنید</em>
+                  </p>
+                  <div class="profile-birthday-edit" x-show="profile.birthday?.editableByCustomer">
+                    <label for="profile-birthday-date">تاریخ تولد (میلادی):</label>
+                    <input
+                      id="profile-birthday-date"
+                      type="date"
+                      dir="ltr"
+                      x-model="birthdayDraft"
+                    >
+                    <button type="button" class="profile-birthday-save" @click="saveBirthday()">
+                      <span x-show="!birthdaySaving">ثبت</span>
+                      <span x-show="birthdaySaving">...</span>
+                    </button>
+                  </div>
+                  <p class="profile-birthday-locked" x-show="!profile.birthday?.editableByCustomer">
+                    تغییر تاریخ تولد در این کافه در اختیار مدیریت است — اگر اشتباهی ثبت شده، به کادر بگویید.
+                  </p>
+                </div>
+
                 <!-- کارت مهر جاری -->
                 <div class="profile-stamps-box">
                   <h3>
@@ -1034,7 +1335,7 @@
         <div class="payment-amount" x-show="paymentAmount">
           <small>مبلغ قابل پرداخت</small>
           <strong x-text="formatPrice(paymentAmount)"></strong>
-          <small x-show="paymentDiscount && paymentDiscount.amount > 0" x-text="'با تخفیف ' + paymentDiscount.code + ' — ' + formatPrice(paymentDiscount.amount)"></small>
+          <small x-show="paymentDiscount && paymentDiscount.amount > 0" x-text="paymentDiscount ? 'با تخفیف ' + paymentDiscount.code + ' — ' + formatPrice(paymentDiscount.amount) : ''"></small>
         </div>
         <div class="payment-actions">
           <button
@@ -1132,7 +1433,7 @@
         <div
           class="success-discount"
           x-show="orderSuccess && orderSuccess.discountCode"
-          x-text="'با کد تخفیف ' + orderSuccess.discountCode + ' — ' + formatPrice(orderSuccess.discountAmount || 0)"
+          x-text="orderSuccess?.discountCode ? 'با کد تخفیف ' + orderSuccess.discountCode + ' — ' + formatPrice(orderSuccess.discountAmount || 0) : ''"
         ></div>
         <button
           type="button"

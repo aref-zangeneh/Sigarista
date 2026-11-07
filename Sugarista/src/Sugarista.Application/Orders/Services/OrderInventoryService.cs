@@ -22,6 +22,12 @@ internal static class OrderInventoryService
             }
 
             await DeductLineQuantityAsync(dbContext, order.Id, line, remainingQuantity, cancellationToken);
+            await MenuItemOptionInventoryService.DeductForOrderLineAsync(
+                dbContext,
+                order.Id,
+                line,
+                remainingQuantity,
+                cancellationToken);
             line.MarkInventoryDeducted(line.InventoryDeductedQuantity + remainingQuantity);
         }
     }
@@ -40,6 +46,12 @@ internal static class OrderInventoryService
             }
 
             await RestoreLineQuantityAsync(
+                dbContext,
+                order.Id,
+                line,
+                line.InventoryDeductedQuantity,
+                cancellationToken);
+            await MenuItemOptionInventoryService.RestoreForOrderLineAsync(
                 dbContext,
                 order.Id,
                 line,
@@ -67,6 +79,12 @@ internal static class OrderInventoryService
             {
                 var extraQuantity = line.Quantity - previousQuantity;
                 await DeductLineQuantityAsync(dbContext, order.Id, line, extraQuantity, cancellationToken);
+                await MenuItemOptionInventoryService.DeductForOrderLineAsync(
+                    dbContext,
+                    order.Id,
+                    line,
+                    extraQuantity,
+                    cancellationToken);
                 line.MarkInventoryDeducted(line.InventoryDeductedQuantity + extraQuantity);
             }
 
@@ -81,6 +99,12 @@ internal static class OrderInventoryService
         }
 
         await RestoreLineQuantityAsync(dbContext, order.Id, line, restoreQuantity, cancellationToken);
+        await MenuItemOptionInventoryService.RestoreForOrderLineAsync(
+            dbContext,
+            order.Id,
+            line,
+            restoreQuantity,
+            cancellationToken);
         line.MarkInventoryDeducted(line.InventoryDeductedQuantity - restoreQuantity);
     }
 

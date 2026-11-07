@@ -2667,6 +2667,112 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("MenuItems");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EnglishName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PersianName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<decimal>("PriceDelta")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId", "DisplayOrder");
+
+                    b.ToTable("MenuItemOptions");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOptionGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EnglishName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxSelections")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("MenuItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("MinSelections")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PersianName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("SelectionMode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MenuItemId", "DisplayOrder");
+
+                    b.ToTable("MenuItemOptionGroups");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOptionIngredient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IngredientId");
+
+                    b.HasIndex("OptionId", "IngredientId");
+
+                    b.ToTable("MenuItemOptionIngredients");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemStock", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3003,6 +3109,13 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.PrimitiveCollection<string[]>("ModifierLabels")
                         .IsRequired()
                         .HasColumnType("text[]");
+
+                    b.PrimitiveCollection<string[]>("OptionLabels")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("OptionsJson")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid");
@@ -5060,6 +5173,47 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOption", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MenuItemOptionGroup", "Group")
+                        .WithMany("Options")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOptionGroup", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOptionIngredient", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sugarista.Domain.Entities.MenuItemOption", "Option")
+                        .WithMany("Ingredients")
+                        .HasForeignKey("OptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ingredient");
+
+                    b.Navigation("Option");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemStock", b =>
                 {
                     b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
@@ -5460,6 +5614,16 @@ namespace Sugarista.Infrastructure.Data.Migrations
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItem", b =>
                 {
                     b.Navigation("RecipeItems");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOption", b =>
+                {
+                    b.Navigation("Ingredients");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOptionGroup", b =>
+                {
+                    b.Navigation("Options");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.Order", b =>

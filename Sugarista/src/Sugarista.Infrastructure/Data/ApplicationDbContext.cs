@@ -25,6 +25,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MenuModifier> MenuModifiers => Set<MenuModifier>();
 
+    public DbSet<MenuItemOptionGroup> MenuItemOptionGroups => Set<MenuItemOptionGroup>();
+
+    public DbSet<MenuItemOption> MenuItemOptions => Set<MenuItemOption>();
+
+    public DbSet<MenuItemOptionIngredient> MenuItemOptionIngredients => Set<MenuItemOptionIngredient>();
+
     public DbSet<Ingredient> Ingredients => Set<Ingredient>();
 
     public DbSet<Supplier> Suppliers => Set<Supplier>();

@@ -2559,3 +2559,214 @@ select:focus-visible {
     white-space: normal;
   }
 }
+
+/* ── Menu item option groups panel (TASK-013) ── */
+.option-groups-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+}
+
+.option-groups-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.option-groups-toolbar > label {
+  display: grid;
+  gap: 4px;
+  min-width: 260px;
+}
+
+.option-groups-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-groups-list {
+  display: grid;
+  gap: 14px;
+}
+
+.option-group-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  background: var(--background, #fff);
+}
+
+.option-group-card.is-required {
+  border-color: rgba(170, 49, 113, 0.45);
+  box-shadow: inset 3px 0 0 var(--accent, #aa3171);
+}
+
+.option-group-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.option-group-index span {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent, #aa3171);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.option-group-title {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.option-group-title .option-group-name {
+  flex: 2;
+}
+
+.option-group-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.ghost-button.tiny {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.ghost-button.tiny.danger {
+  color: var(--brand-error, #d1435b);
+  border-color: rgba(209, 67, 91, 0.35);
+}
+
+.option-group-settings {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md, 12px);
+  background: rgba(170, 49, 113, 0.03);
+}
+
+.option-group-settings > label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.78rem;
+}
+
+.option-group-settings .checkbox-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.option-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.option-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+}
+
+.option-row-main {
+  display: grid;
+  grid-template-columns: minmax(160px, 2fr) minmax(110px, 1fr) minmax(120px, 1fr) auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-price-input {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--muted, #6b7280);
+}
+
+.option-price-input input {
+  width: 110px;
+}
+
+.option-ingredients {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--background, #fbfaf8);
+  border: 1px dashed var(--border);
+}
+
+.option-ingredients-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-ingredients-hint {
+  font-size: 0.75rem;
+  color: var(--muted, #6b7280);
+}
+
+.option-ingredient-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) 110px 1fr 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-ingredient-unit {
+  font-size: 0.74rem;
+  color: var(--muted, #6b7280);
+}
+
+.add-option-button {
+  justify-self: start;
+}
+
+@media (max-width: 1100px) {
+  .option-group-settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .option-row-main {
+    grid-template-columns: 1fr;
+  }
+
+  .option-ingredient-row {
+    grid-template-columns: 1fr 110px 32px;
+  }
+
+  .option-ingredient-unit {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .option-group-title {
+    flex-direction: column;
+  }
+
+  .option-groups-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

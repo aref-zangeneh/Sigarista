@@ -4,6 +4,8 @@ using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Common.Options;
 using Sugarista.Application.Discounts.Engine;
+using Sugarista.Application.Inventory.Services;
+using Sugarista.Application.MenuItems.OptionGroups;
 using Sugarista.Application.Discounts.Security;
 using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.Orders;
@@ -22,7 +24,8 @@ public record CheckoutLineRequest(
     string? PayerKey = null,
     string? PayerLabel = null,
     DrinkBuilderLineRequest? CustomDrink = null,
-    string? ClientLineKey = null);
+    string? ClientLineKey = null,
+    IReadOnlyCollection<Guid>? OptionIds = null);
 
 public record CheckoutPriceSnapshot(
     string? ClientLineKey,
@@ -294,11 +297,57 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             builderProfilesById = profiles.ToDictionary(profile => profile.Id);
         }
 
+        // Per-item option groups (TASK-013): definitions are loaded for every
+        // item in the cart — not only for lines that sent option ids — so that
+        // required groups are enforced even when the client sends nothing.
+        var optionMenuItemIds = request.Items
+            .Select(item => item.MenuItemId)
+            .Distinct()
+            .ToList();
+
+        var optionGroupsByItem = new Dictionary<Guid, IReadOnlyList<MenuItemOptionGroup>>();
+        if (optionMenuItemIds.Count > 0)
+        {
+            var optionGroups = await _dbContext.MenuItemOptionGroups
+                .AsNoTracking()
+                .Include(group => group.Options)
+                .ThenInclude(option => option.Ingredients)
+                .ThenInclude(ingredientRow => ingredientRow.Ingredient)
+                .Where(group => optionMenuItemIds.Contains(group.MenuItemId) && group.IsActive)
+                .OrderBy(group => group.DisplayOrder)
+                .ToListAsync(cancellationToken);
+
+            optionGroupsByItem = optionGroups
+                .GroupBy(group => group.MenuItemId)
+                .ToDictionary(group => group.Key, group => (IReadOnlyList<MenuItemOptionGroup>)group.ToList());
+        }
+
         var resolvedLines = request.Items
             .Select(item =>
             {
                 var menuItem = menuItems.First(m => m.Id == item.MenuItemId);
                 var resolved = OrderPricing.ResolveLine(menuItem, item.SizeKey, item.Quantity, modifiersById, item.ModifierIds);
+
+                MenuItemOptionSnapshot? optionSnapshot = null;
+                if (item.OptionIds is { Count: > 0 } || optionGroupsByItem.ContainsKey(item.MenuItemId))
+                {
+                    optionSnapshot = MenuItemOptionPricing.Resolve(
+                        optionGroupsByItem.GetValueOrDefault(item.MenuItemId),
+                        item.OptionIds?
+                            .Select(optionId => new MenuItemOptionSelectionRequest(optionId))
+                            .ToList());
+
+                    if (optionSnapshot.Components.Count > 0)
+                    {
+                        // Options always ride on the server-computed price: the
+                        // customer pays base size + exact option deltas.
+                        resolved = resolved with
+                        {
+                            UnitPrice = Math.Round(resolved.UnitPrice + optionSnapshot.OptionsTotal, 2, MidpointRounding.AwayFromZero),
+                            OptionLabels = optionSnapshot.Labels,
+                        };
+                    }
+                }
 
                 DrinkBuilderSnapshot? snapshot = null;
                 if (item.CustomDrink is not null)
@@ -313,7 +362,8 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                     snapshot = DrinkBuilderPricing.Resolve(profile, resolved.UnitPrice, item.CustomDrink.Selections);
 
                     // The final price is always the server-computed component total
-                    // added to the base size price. Client prices are display-only.
+                    // added to the base size price (options already included).
+                    // Client prices are display-only.
                     resolved = resolved with
                     {
                         UnitPrice = snapshot.UnitPrice,
@@ -323,7 +373,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                     };
                 }
 
-                return (resolved: resolved, payerKey: item.PayerKey, payerLabel: item.PayerLabel, snapshot: snapshot, clientLineKey: item.ClientLineKey);
+                return (resolved: resolved, payerKey: item.PayerKey, payerLabel: item.PayerLabel, snapshot: snapshot, optionSnapshot: optionSnapshot, clientLineKey: item.ClientLineKey);
             })
             .ToList();
 
@@ -337,7 +387,9 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         // stock change between the cart and the final click must never be
         // accepted silently.
         await EnsureLinesAreAvailableAsync(
-            resolvedLines.Select(line => line.resolved).ToList(),
+            resolvedLines
+                .Select(line => (line.resolved, line.optionSnapshot))
+                .ToList(),
             cancellationToken);
         EnsurePricesHaveNotChanged(
             request,
@@ -390,7 +442,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             request.IpAddress,
             cancellationToken);
 
-        foreach (var (resolved, payerKey, payerLabel, _, _) in resolvedLines)
+        foreach (var (resolved, payerKey, payerLabel, _, optionSnapshot, _) in resolvedLines)
         {
             discountLines.Add(new DiscountLineInput(
                 resolved.MenuItemId,
@@ -461,7 +513,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             splitBillMode,
             request.GuestCount);
 
-        foreach (var (resolved, payerKey, payerLabel, snapshot, _) in resolvedLines)
+        foreach (var (resolved, payerKey, payerLabel, snapshot, optionSnapshot, _) in resolvedLines)
         {
             order.AddLine(new OrderLine(
                 order.Id,
@@ -478,7 +530,9 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 null,
                 resolved.TaxPercent,
                 snapshot is null ? null : DrinkBuilderPricing.Serialize(snapshot),
-                snapshot?.SummaryLabels));
+                snapshot?.SummaryLabels,
+                optionSnapshot is { Components.Count: > 0 } ? optionSnapshot.Labels : null,
+                optionSnapshot is { Components.Count: > 0 } ? MenuItemOptionPricing.Serialize(optionSnapshot) : null));
         }
 
         order.RecalculateTotal();
@@ -928,27 +982,28 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
     /// <summary>
     /// Stock re-check before the order is accepted. A product that sold out
     /// between the cart and the final click is reported by name so the theme
-    /// can offer "remove" / "replace" instead of a generic failure.
+    /// can offer "remove" / "replace" instead of a generic failure. The exact
+    /// ingredient usage of the chosen per-item options is checked here too.
     /// </summary>
     private async Task EnsureLinesAreAvailableAsync(
-        IReadOnlyCollection<OrderPricing.ResolvedLine> lines,
+        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, MenuItemOptionSnapshot? options)> lines,
         CancellationToken cancellationToken)
     {
-        var menuItemIds = lines.Select(line => line.MenuItemId).Distinct().ToList();
+        var menuItemIds = lines.Select(line => line.resolved.MenuItemId).Distinct().ToList();
         var stockByMenuItem = await _dbContext.MenuItemStocks
             .AsNoTracking()
             .Where(stock => menuItemIds.Contains(stock.MenuItemId))
             .ToDictionaryAsync(stock => stock.MenuItemId, cancellationToken);
 
         var requestedByMenuItem = lines
-            .GroupBy(line => line.MenuItemId)
-            .ToDictionary(group => group.Key, group => group.Sum(line => line.Quantity));
+            .GroupBy(line => line.resolved.MenuItemId)
+            .ToDictionary(group => group.Key, group => group.Sum(line => line.resolved.Quantity));
 
         var unavailable = new List<Dictionary<string, object?>>();
         foreach (var line in lines)
         {
-            var requested = requestedByMenuItem.GetValueOrDefault(line.MenuItemId);
-            if (!stockByMenuItem.TryGetValue(line.MenuItemId, out var stock))
+            var requested = requestedByMenuItem.GetValueOrDefault(line.resolved.MenuItemId);
+            if (!stockByMenuItem.TryGetValue(line.resolved.MenuItemId, out var stock))
             {
                 continue;
             }
@@ -957,14 +1012,16 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             {
                 unavailable.Add(new Dictionary<string, object?>
                 {
-                    ["menuItemId"] = line.MenuItemId,
-                    ["persianName"] = line.PersianName,
+                    ["menuItemId"] = line.resolved.MenuItemId,
+                    ["persianName"] = line.resolved.PersianName,
                     ["reason"] = "insufficient_stock",
                     ["available"] = stock.CurrentQuantity,
                     ["requested"] = requested
                 });
             }
         }
+
+        await EnsureOptionIngredientsAreAvailableAsync(lines, unavailable, cancellationToken);
 
         if (unavailable.Count > 0)
         {
@@ -973,8 +1030,76 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 "موجودی بعضی از محصولات سبد خرید کافی نیست؛ لطفاً آن‌ها را حذف یا جایگزین کنید.",
                 new Dictionary<string, object?>
                 {
-                    ["items"] = unavailable.DistinctBy(item => item["menuItemId"]).ToArray()
+                    ["items"] = unavailable.ToArray()
                 });
+        }
+    }
+
+    /// <summary>
+    /// Verifies every selected option's ingredient demand (usage × quantity,
+    /// aggregated across the whole cart) against current stock; unlike the base
+    /// recipes, options can run out individually so the customer is told which
+    /// option is the problem.
+    /// </summary>
+    private async Task EnsureOptionIngredientsAreAvailableAsync(
+        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, MenuItemOptionSnapshot? options)> lines,
+        List<Dictionary<string, object?>> unavailable,
+        CancellationToken cancellationToken)
+    {
+        var demandByIngredient = new Dictionary<Guid, decimal>();
+        foreach (var (resolved, options) in lines)
+        {
+            if (options is null)
+            {
+                continue;
+            }
+
+            foreach (var usage in options.Ingredients)
+            {
+                demandByIngredient[usage.IngredientId] =
+                    demandByIngredient.GetValueOrDefault(usage.IngredientId)
+                    + usage.Quantity * resolved.Quantity;
+            }
+        }
+
+        if (demandByIngredient.Count == 0)
+        {
+            return;
+        }
+
+        var optionStocks = await _dbContext.InventoryStocks
+            .AsNoTracking()
+            .Where(stock => demandByIngredient.Keys.Contains(stock.IngredientId))
+            .ToDictionaryAsync(stock => stock.IngredientId, cancellationToken);
+
+        foreach (var (resolved, options) in lines)
+        {
+            if (options is null)
+            {
+                continue;
+            }
+
+            foreach (var usage in options.Ingredients)
+            {
+                var requested = usage.Quantity * resolved.Quantity;
+                var stock = optionStocks.GetValueOrDefault(usage.IngredientId);
+                if (stock is not null && stock.CurrentQuantity >= requested)
+                {
+                    continue;
+                }
+
+                var optionNames = string.Join("، ", options.Labels);
+                unavailable.Add(new Dictionary<string, object?>
+                {
+                    ["menuItemId"] = resolved.MenuItemId,
+                    ["persianName"] = resolved.PersianName,
+                    ["reason"] = "insufficient_option_ingredient",
+                    ["option"] = usage.IngredientPersianName,
+                    ["selectedOptions"] = optionNames,
+                    ["available"] = stock?.CurrentQuantity ?? 0,
+                    ["requested"] = requested
+                });
+            }
         }
     }
 

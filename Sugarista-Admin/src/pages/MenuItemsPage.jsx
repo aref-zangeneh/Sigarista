@@ -3,6 +3,7 @@ import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
 import { DataTable, formatMoney } from '../components/DataTable'
 import { ImageUploader } from '../components/ImageUploader'
+import { MenuItemOptionGroupsPanel } from '../components/MenuItemOptionGroupsPanel'
 import { buildMenuItemPricingColumns } from '../components/adminTableColumns'
 
 export function MenuItemsPage() {
@@ -23,6 +24,8 @@ export function MenuItemsPage() {
     saving: sharedSaving,
     setSaving,
     toPersianNumber,
+    ingredientOptions,
+    menuItemOptions,
   } = useAdmin()
 
   const [pricingItems, setPricingItems] = useState([])
@@ -545,6 +548,19 @@ export function MenuItemsPage() {
             />
           )}
         </section>
+
+        <MenuItemOptionGroupsPanel
+          session={session}
+          apiRequest={apiRequest}
+          menuItemOptions={menuItemOptions}
+          ingredientOptions={ingredientOptions}
+          getReadableError={getReadableError}
+          setMessage={setMessage}
+          setError={setError}
+          setSaving={setSaving}
+          toPersianNumber={toPersianNumber}
+          formatMoney={formatMoney}
+        />
       </section>
   )
 }

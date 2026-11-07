@@ -64,7 +64,8 @@ public record AdminOrderLineDto(
     IReadOnlyCollection<string> ModifierLabels,
     decimal TaxPercent,
     IReadOnlyCollection<string> CustomDrinkSummary,
-    DrinkBuilderSnapshot? CustomDrink);
+    DrinkBuilderSnapshot? CustomDrink,
+    IReadOnlyCollection<string> OptionLabels);
 
 public record AdminOrderPaymentDto(
     Guid Id,
@@ -305,7 +306,8 @@ internal static class AdminOrderMapper
                     line.ModifierLabels,
                     line.TaxPercent,
                     line.CustomDrinkSummary,
-                    DrinkBuilderPricing.Deserialize(line.CustomizationJson)))
+                    DrinkBuilderPricing.Deserialize(line.CustomizationJson),
+                    line.OptionLabels))
                 .ToArray(),
             order.Payments
                 .Select(payment => new AdminOrderPaymentDto(

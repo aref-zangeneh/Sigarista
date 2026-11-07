@@ -14,14 +14,16 @@ internal static class OrderPricing
         decimal UnitPrice,
         IReadOnlyCollection<string> ModifierLabels,
         Guid CategoryId,
-        decimal TaxPercent);
+        decimal TaxPercent,
+        IReadOnlyCollection<string> OptionLabels);
 
     internal static ResolvedLine ResolveLine(
         MenuItem menuItem,
         string? sizeKey,
         int quantity,
         IReadOnlyDictionary<Guid, MenuModifier> modifiersById,
-        IReadOnlyCollection<Guid> modifierIds)
+        IReadOnlyCollection<Guid> modifierIds,
+        IReadOnlyCollection<string>? optionLabels = null)
     {
         if (!menuItem.IsOrderable || !menuItem.IsActive)
         {
@@ -44,7 +46,8 @@ internal static class OrderPricing
             unitPrice,
             modifierLabels,
             menuItem.CategoryId,
-            menuItem.TaxPercent);
+            menuItem.TaxPercent,
+            optionLabels ?? []);
     }
 
     private static (string? SizeKey, string? SizeLabel, decimal UnitPrice) ResolveUnitPrice(MenuItem menuItem, string? sizeKey)

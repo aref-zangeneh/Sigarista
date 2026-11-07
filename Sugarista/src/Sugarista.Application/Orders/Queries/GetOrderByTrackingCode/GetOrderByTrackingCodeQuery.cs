@@ -38,7 +38,8 @@ public record OrderStatusLineDto(
     string? SizeLabel,
     int Quantity,
     decimal LineTotal,
-    IReadOnlyCollection<string> ModifierLabels);
+    IReadOnlyCollection<string> ModifierLabels,
+    IReadOnlyCollection<string> OptionLabels);
 
 public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrackingCodeQuery, OrderStatusDto?>
 {
@@ -106,7 +107,8 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
                     line.SizeLabel,
                     line.Quantity,
                     line.LineTotal,
-                    line.ModifierLabels))
+                    line.ModifierLabels,
+                    line.OptionLabels))
                 .ToArray(),
             order.Id,
             order.DeliveryAt,

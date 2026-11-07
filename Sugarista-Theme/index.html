@@ -500,6 +500,7 @@
                 <small class="english-name d-block" x-text="line.englishName"></small>
                 <div class="cart-line-meta">
                   <span x-show="line.sizeLabel" x-text="line.sizeLabel"></span>
+                  <span x-show="line.optionLabels?.length" x-text="line.optionLabels?.join('، ')"></span>
                   <span x-show="line.modifierLabels.length" x-text="line.modifierLabels.join('، ')"></span>
                 </div>
                 <div class="cart-line-meta" x-show="checkoutForm.isSplitBill && checkoutForm.splitBillMode === 'ByItem'">
@@ -1014,6 +1015,95 @@
               </template>
             </div>
           </div>
+
+          <!-- ── Per-item option groups (TASK-013) ───────────────────────────
+               Required groups («اجباری») render first, optional («دلخواه»)
+               after them. Single groups behave like radio cards, Multi groups
+               like toggle chips with the price delta on each row. -->
+          <template x-if="modalOptionGroups().length">
+            <div class="item-options" role="group" aria-label="گزینه‌های محصول">
+              <template x-for="group in modalOptionGroups()" :key="`item-option-group-${group.id}`">
+                <div class="item-option-group" :class="{ required: group.isRequired }">
+                  <div class="item-option-group-head">
+                    <span x-text="group.persianName"></span>
+                    <span
+                      class="item-option-group-badge"
+                      :class="group.isRequired ? 'mandatory' : 'optional'"
+                      x-text="group.isRequired ? 'اجباری' : 'دلخواه'"></span>
+                    <small
+                      class="item-option-group-hint"
+                      x-show="group.isRequired"
+                      x-text="group.selectionMode === 'Single' ? 'یک گزینه را انتخاب کنید' : `حداکثر ${toPersianNumber(group.maxSelections)} گزینه`"></small>
+                  </div>
+
+                  <div
+                    class="item-option-list"
+                    :class="group.selectionMode === 'Single' ? 'single' : 'multi'">
+                    <template x-for="option in group.options" :key="`item-option-${option.id}`">
+                      <div class="item-option-slot" :class="group.selectionMode === 'Single' ? 'single-slot' : 'multi-slot'">
+                        <template x-if="group.selectionMode === 'Single'">
+                          <button
+                            type="button"
+                            class="item-option-row single"
+                            :class="{
+                              active: isOptionSelected(option.id),
+                              unavailable: option.isAvailable === false
+                            }"
+                            :disabled="option.isAvailable === false"
+                            @click="selectSingleOption(group, option)"
+                          >
+                            <span class="item-option-radio" aria-hidden="true"></span>
+                            <span class="item-option-name">
+                              <span x-text="option.persianName"></span>
+                              <small
+                                class="item-option-english"
+                                x-show="option.englishName"
+                                x-text="option.englishName"></small>
+                            </span>
+                            <span
+                              class="item-option-price"
+                              x-show="option.priceDelta > 0"
+                              x-text="`+ ${formatPrice(option.priceDelta)}`"></span>
+                            <span
+                              class="item-option-soldout"
+                              x-show="option.isAvailable === false">ناموجود</span>
+                          </button>
+                        </template>
+                        <template x-if="group.selectionMode === 'Multi'">
+                          <button
+                            type="button"
+                            class="item-option-chip"
+                            :class="{
+                              active: isOptionSelected(option.id),
+                              unavailable: option.isAvailable === false
+                            }"
+                            :disabled="option.isAvailable === false"
+                            @click="toggleMultiOption(group, option)"
+                          >
+                            <span x-text="option.persianName"></span>
+                            <small
+                              class="item-option-price"
+                              x-show="option.priceDelta > 0"
+                              x-text="`+ ${formatPrice(option.priceDelta)}`"></small>
+                            <small
+                              x-show="option.isAvailable === false"
+                              class="item-option-soldout">ناموجود</small>
+                          </button>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <div class="item-options-total" x-show="modalOptionsTotal() > 0">
+                <span>جمع گزینه‌های انتخاب‌شده</span>
+                <strong x-text="`+ ${formatPrice(modalOptionsTotal())}`"></strong>
+              </div>
+
+              <p class="item-options-error" x-show="addToCartModal?.optionError" x-text="addToCartModal?.optionError"></p>
+            </div>
+          </template>
 
           <template x-if="modalBuilderProfile()">
             <div class="drink-builder">

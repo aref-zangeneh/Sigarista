@@ -28,6 +28,12 @@ public class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
         builder.Property(l => l.CustomDrinkSummary)
             .HasColumnType("text[]");
 
+        builder.Property(l => l.OptionLabels)
+            .HasColumnType("text[]");
+
+        builder.Property(l => l.OptionsJson)
+            .HasColumnType("text");
+
         builder.Property(l => l.CustomizationJson)
             .HasColumnType("text");
 

@@ -4,6 +4,9 @@ using Sugarista.Api.Authorization;
 using Sugarista.Application.MenuItems.Commands.ApplyMenuPricing;
 using Sugarista.Application.MenuItems.Commands.DeleteMenuItem;
 using Sugarista.Application.MenuItems.Commands.UpsertMenuItem;
+using Sugarista.Application.MenuItems.OptionGroups;
+using Sugarista.Application.MenuItems.OptionGroups.Commands.ReplaceMenuItemOptionGroups;
+using Sugarista.Application.MenuItems.OptionGroups.Queries.GetMenuItemOptionGroups;
 using Sugarista.Application.MenuItems.Queries.GetAdminMenuItems;
 using Sugarista.Application.MenuItems.Queries.GetAdminMenuItemOptions;
 using Sugarista.Application.MenuItems.Queries.GetMenuItemPricing;
@@ -27,6 +30,25 @@ public class AdminMenuItemsController : ApiControllerBase
         return Ok(await Mediator.Send(new GetAdminMenuItemsQuery(page, pageSize, search), cancellationToken));
     }
 
+    [HttpGet("{menuItemId:guid}/option-groups")]
+    [RequirePermission(AdminPermissions.MenuItems.View)]
+    public async Task<ActionResult<MenuItemOptionGroupsDto>> GetOptionGroups(
+        Guid menuItemId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetMenuItemOptionGroupsQuery(menuItemId), cancellationToken));
+    }
+
+    [HttpPut("{menuItemId:guid}/option-groups")]
+    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    public async Task<IActionResult> ReplaceOptionGroups(
+        Guid menuItemId,
+        [FromBody] ReplaceMenuItemOptionGroupsCommand command,
+        CancellationToken cancellationToken)
+    {
+        await Mediator.Send(command with { MenuItemId = menuItemId }, cancellationToken);
+        return NoContent();
+    }
     [HttpGet("pricing")]
     [RequireAnyPermission(AdminPermissions.MenuItems.View, AdminPermissions.Dashboard.Update)]
     public async Task<ActionResult<IReadOnlyCollection<MenuItemPricingDto>>> GetPricing(CancellationToken cancellationToken)
@@ -51,11 +73,10 @@ public class AdminMenuItemsController : ApiControllerBase
         AdminPermissions.RecordSale.View,
         AdminPermissions.ProductWiki.View,
         AdminPermissions.DrinkBuilder.View)]
-    public async Task<ActionResult<IReadOnlyCollection<AdminMenuItemOptionDto>>> GetOptions(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyCollection<global::Sugarista.Application.MenuItems.Queries.GetAdminMenuItemOptions.AdminMenuItemOptionDto>>> GetOptions(CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new GetAdminMenuItemOptionsQuery(), cancellationToken));
     }
-
     [HttpPost]
     [RequirePermission(AdminPermissions.MenuItems.Create)]
     public async Task<ActionResult<Guid>> Create([FromBody] UpsertMenuItemCommand command, CancellationToken cancellationToken)

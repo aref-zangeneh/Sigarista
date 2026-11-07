@@ -1321,14 +1321,28 @@ document.addEventListener("alpine:init", () => {
         });
       }
 
+      // Per-item option groups (TASK-013): pre-select every available
+      // default option so the popup opens with a sane, ready-to-confirm state.
+      const optionGroups = item.optionGroups || [];
+      const selectedOptionIds = [];
+      optionGroups.forEach((group) => {
+        (group.options || []).forEach((option) => {
+          if (option.isDefault && option.isAvailable !== false) {
+            selectedOptionIds.push(option.id);
+          }
+        });
+      });
+
       this.addToCartModal = {
         item,
         selectedSizeKey: defaultVariant?.key || null,
         selectedModifierIds: [],
+        selectedOptionIds,
         quantity: 1,
         builderAmounts,
         builderSelected,
-        builderError: ""
+        builderError: "",
+        optionError: ""
       };
     },
     closeAddToCartModal() {
@@ -1380,9 +1394,10 @@ document.addEventListener("alpine:init", () => {
     },
     modalUnitPrice() {
       const componentsTotal = this.modalBuilderComponentsTotal();
+      const optionsTotal = this.modalOptionsTotal();
       const variant = this.modalSelectedVariant();
       if (variant) {
-        return (variant.specialOfferPrice || variant.price || 0) + componentsTotal;
+        return (variant.specialOfferPrice || variant.price || 0) + componentsTotal + optionsTotal;
       }
 
       const item = this.addToCartModal?.item;
@@ -1390,7 +1405,95 @@ document.addEventListener("alpine:init", () => {
         return 0;
       }
 
-      return (item.specialOfferPrice || item.price || 0) + componentsTotal;
+      return (item.specialOfferPrice || item.price || 0) + componentsTotal + optionsTotal;
+    },
+    // ── Per-item option groups (TASK-013) ──────────────────────────────────
+    // Required groups ("اجباری") always render first, optional ("دلخواه")
+    // after them, each in its own section of the add-to-cart popup.
+    modalOptionGroups() {
+      const groups = this.addToCartModal?.item?.optionGroups || [];
+      return [...groups].sort((left, right) => {
+        if (left.isRequired !== right.isRequired) {
+          return left.isRequired ? -1 : 1;
+        }
+        return (left.displayOrder ?? 0) - (right.displayOrder ?? 0);
+      });
+    },
+    isOptionSelected(optionId) {
+      return this.addToCartModal?.selectedOptionIds?.includes(optionId) ?? false;
+    },
+    optionGroupSelectionCount(group) {
+      return (group.options || []).filter((option) => this.isOptionSelected(option.id)).length;
+    },
+    selectSingleOption(group, option) {
+      if (!this.addToCartModal || option.isAvailable === false) {
+        return;
+      }
+
+      // Radio semantics: one pick replaces every other option of this group.
+      const groupOptionIds = (group.options || []).map((entry) => entry.id);
+      this.addToCartModal.selectedOptionIds = [
+        ...this.addToCartModal.selectedOptionIds.filter(
+          (id) => !groupOptionIds.includes(id)
+        ),
+        option.id
+      ];
+      this.addToCartModal.optionError = "";
+    },
+    toggleMultiOption(group, option) {
+      if (!this.addToCartModal || option.isAvailable === false) {
+        return;
+      }
+
+      const groupOptionIds = (group.options || []).map((entry) => entry.id);
+      if (this.isOptionSelected(option.id)) {
+        this.addToCartModal.selectedOptionIds = this.addToCartModal.selectedOptionIds.filter(
+          (id) => id !== option.id
+        );
+        this.addToCartModal.optionError = "";
+        return;
+      }
+
+      if (this.optionGroupSelectionCount(group) >= (group.maxSelections || 1)) {
+        this.addToCartModal.optionError =
+          `حداکثر ${this.toPersianNumber(group.maxSelections || 1)} گزینه از «${group.persianName}» قابل انتخاب است.`;
+        return;
+      }
+
+      this.addToCartModal.selectedOptionIds = [
+        ...this.addToCartModal.selectedOptionIds,
+        option.id
+      ];
+      this.addToCartModal.optionError = "";
+    },
+    modalOptionsTotal() {
+      const groups = this.addToCartModal?.item?.optionGroups || [];
+      const selected = this.addToCartModal?.selectedOptionIds || [];
+      return groups
+        .flatMap((group) => group.options || [])
+        .filter((option) => selected.includes(option.id))
+        .reduce((total, option) => total + (Number(option.priceDelta) || 0), 0);
+    },
+    modalOptionsLabels() {
+      return this.modalOptionGroups()
+        .flatMap((group) => group.options || [])
+        .filter((option) => this.isOptionSelected(option.id))
+        .map((option) => option.persianName);
+    },
+    optionsValidationError() {
+      for (const group of this.modalOptionGroups()) {
+        if (!group.isRequired) {
+          continue;
+        }
+        const required = Number(group.minSelections) > 0 ? Number(group.minSelections) : 1;
+        if (this.optionGroupSelectionCount(group) < required) {
+          return required <= 1
+            ? `انتخاب یک گزینه از «${group.persianName}» الزامی است.`
+            : `حداقل ${this.toPersianNumber(required)} گزینه از «${group.persianName}» را انتخاب کنید.`;
+        }
+      }
+
+      return "";
     },
     modalSizeLabel() {
       return this.modalSelectedVariant()?.label || null;
@@ -1653,10 +1756,11 @@ document.addEventListener("alpine:init", () => {
 
       return "";
     },
-    buildCartKey(menuItemId, sizeKey, modifierIds, builderSignature = "") {
+    buildCartKey(menuItemId, sizeKey, modifierIds, builderSignature = "", optionSignature = "") {
       const sortedModifiers = [...modifierIds].sort().join("-");
       const builderPart = builderSignature ? `-builder-${builderSignature}` : "";
-      return `${menuItemId}-${sizeKey || "default"}-${sortedModifiers}${builderPart}`;
+      const optionPart = optionSignature ? `-opts-${optionSignature}` : "";
+      return `${menuItemId}-${sizeKey || "default"}-${sortedModifiers}${builderPart}${optionPart}`;
     },
     confirmAddToCart() {
       if (!this.addToCartModal || this.salesClosed) {
@@ -1669,7 +1773,15 @@ document.addEventListener("alpine:init", () => {
         return;
       }
 
+      const optionValidationError = this.optionsValidationError();
+      if (optionValidationError) {
+        this.addToCartModal.optionError = optionValidationError;
+        return;
+      }
+
       const { item, selectedSizeKey, selectedModifierIds, quantity } = this.addToCartModal;
+      const selectedOptionIds = [...this.addToCartModal.selectedOptionIds];
+      const optionLabels = this.modalOptionsLabels();
       const variant = item.variants?.length
         ? item.variants.find((entry) => entry.key === selectedSizeKey) || item.variants[0]
         : null;
@@ -1677,23 +1789,23 @@ document.addEventListener("alpine:init", () => {
         ? variant.specialOfferPrice || variant.price
         : item.specialOfferPrice || item.price;
       const componentsTotal = this.modalBuilderComponentsTotal();
-      const unitPrice = Math.round((basePrice + componentsTotal) * 100) / 100;
+      const optionsTotal = this.modalOptionsTotal();
+      const unitPrice = Math.round((basePrice + componentsTotal + optionsTotal) * 100) / 100;
       const builderSummary = this.modalBuilderSummary();
       const customDrink = this.builderSelectionPayload();
       const builderSignature = this.builderSignature();
-      const modifierLabels = [
-        ...new Set([
-          ...this.modifiers
-            .filter((modifier) => selectedModifierIds.includes(modifier.id))
-            .map((modifier) => modifier.persianName),
-          ...builderSummary
-        ])
-      ];
+      const optionSignature = selectedOptionIds.length
+        ? [...selectedOptionIds].sort().join("-")
+        : "";
+      const modifierLabels = this.modifiers
+        .filter((modifier) => selectedModifierIds.includes(modifier.id))
+        .map((modifier) => modifier.persianName);
       const cartKey = this.buildCartKey(
         item.id,
         variant?.key || null,
         selectedModifierIds,
-        builderSignature
+        builderSignature,
+        optionSignature
       );
       const existingLine = this.cart.find((line) => line.cartKey === cartKey);
 
@@ -1711,6 +1823,8 @@ document.addEventListener("alpine:init", () => {
           quantity,
           modifierIds: [...selectedModifierIds],
           modifierLabels,
+          optionIds: selectedOptionIds,
+          optionLabels,
           customDrink,
           customDrinkSummary: builderSummary,
           builderSignature,
@@ -1880,6 +1994,7 @@ document.addEventListener("alpine:init", () => {
               quantity: line.quantity,
               modifierIds: line.modifierIds || [],
               clientLineKey: line.cartKey,
+              optionIds: line.optionIds || null,
               payerKey:
                 this.checkoutForm.isSplitBill && this.checkoutForm.splitBillMode === "ByItem"
                   ? line.payerKey

@@ -46,7 +46,28 @@ public record PublicMenuItemDto(
     bool Featured,
     string Accent,
     string Short,
-    int DisplayOrder);
+    int DisplayOrder,
+    IReadOnlyCollection<PublicMenuItemOptionGroupDto> OptionGroups);
+
+public record PublicMenuItemOptionGroupDto(
+    Guid Id,
+    string PersianName,
+    string? EnglishName,
+    bool IsRequired,
+    string SelectionMode,
+    int MinSelections,
+    int MaxSelections,
+    int DisplayOrder,
+    IReadOnlyCollection<PublicMenuItemOptionDto> Options);
+
+public record PublicMenuItemOptionDto(
+    Guid Id,
+    string PersianName,
+    string? EnglishName,
+    decimal PriceDelta,
+    bool IsDefault,
+    int DisplayOrder,
+    bool IsAvailable);
 
 public record PublicMenuItemVariantDto(
     string Key,
@@ -236,6 +257,90 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
             return (best, percent);
         };
 
+        // Per-item option groups (TASK-013): active groups/options are exposed
+        // alongside each item and every option's availability is computed from
+        // the current ingredient stock so the popup can disable sold-out rows.
+        IReadOnlyDictionary<Guid, List<PublicMenuItemOptionGroupDto>> optionGroupsByItem;
+        try
+        {
+            var optionGroups = await _dbContext.MenuItemOptionGroups
+                .AsNoTracking()
+                .Include(group => group.Options)
+                    .ThenInclude(option => option.Ingredients)
+                        .ThenInclude(ingredientRow => ingredientRow.Ingredient)
+                .Where(group => group.IsActive)
+                .OrderBy(group => group.DisplayOrder)
+                .ToListAsync(cancellationToken);
+
+            var optionIngredientIds = optionGroups
+                .SelectMany(group => group.Options)
+                .SelectMany(option => option.Ingredients)
+                .Select(ingredientRow => ingredientRow.IngredientId)
+                .Distinct()
+                .ToList();
+
+            var stockByIngredient = await _dbContext.InventoryStocks
+                .AsNoTracking()
+                .Where(stock => optionIngredientIds.Contains(stock.IngredientId))
+                .ToDictionaryAsync(stock => stock.IngredientId, cancellationToken);
+
+            optionGroupsByItem = optionGroups
+                .GroupBy(group => group.MenuItemId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .Select(g => new PublicMenuItemOptionGroupDto(
+                            g.Id,
+                            g.PersianName,
+                            g.EnglishName,
+                            g.IsRequired,
+                            g.SelectionMode,
+                            g.MinSelections,
+                            g.MaxSelections,
+                            g.DisplayOrder,
+                            g.Options
+                                .Where(option => option.IsActive)
+                                .OrderBy(option => option.DisplayOrder)
+                                .ThenBy(option => option.PersianName, StringComparer.Ordinal)
+                                .Select(option => new PublicMenuItemOptionDto(
+                                    option.Id,
+                                    option.PersianName,
+                                    option.EnglishName,
+                                    option.PriceDelta,
+                                    option.IsDefault,
+                                    option.DisplayOrder,
+                                    IsOptionAvailable(option, stockByIngredient)))
+                                .ToList()))
+                        .ToList());
+        }
+        catch (Exception)
+        {
+            // Keep /api/menu working on databases that have not received the
+            // option groups migration yet.
+            optionGroupsByItem = new Dictionary<Guid, List<PublicMenuItemOptionGroupDto>>();
+        }
+
+        PublicMenuItemOptionGroupDto[] OptionGroupsFor(Guid menuItemId) =>
+            optionGroupsByItem.TryGetValue(menuItemId, out var groups)
+                ? [.. groups]
+                : [];
+
+        // An option is orderable only when every one of its ingredient usages
+        // can be satisfied once (per single item unit) from current stock.
+        static bool IsOptionAvailable(
+            MenuItemOption option,
+            IReadOnlyDictionary<Guid, InventoryStock> stockByIngredient)
+        {
+            if (option.Ingredients.Count == 0)
+            {
+                return true;
+            }
+
+            return option.Ingredients.All(ingredientRow =>
+                stockByIngredient.TryGetValue(ingredientRow.IngredientId, out var stock) &&
+                stock.CurrentQuantity >= ingredientRow.Quantity);
+        }
+
         var items = menuRows
             .Select(item =>
             {
@@ -271,7 +376,8 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 item.Featured,
                 item.Accent,
                 item.Short,
-                item.DisplayOrder);
+                item.DisplayOrder,
+                OptionGroupsFor(item.Id));
             })
             .ToList();
 

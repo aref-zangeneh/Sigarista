@@ -24,7 +24,9 @@ public class OrderLine : BaseEntity
         string? baristaNote = null,
         decimal taxPercent = 0m,
         string? customizationJson = null,
-        IReadOnlyCollection<string>? customDrinkSummary = null)
+        IReadOnlyCollection<string>? customDrinkSummary = null,
+        IReadOnlyCollection<string>? optionLabels = null,
+        string? optionsJson = null)
     {
         if (orderId == Guid.Empty)
         {
@@ -62,6 +64,8 @@ public class OrderLine : BaseEntity
         LineTotal = unitPrice * quantity;
         ModifierLabels = NormalizeList(modifierLabels);
         CustomDrinkSummary = NormalizeList(customDrinkSummary ?? []);
+        OptionLabels = NormalizeList(optionLabels ?? []);
+        OptionsJson = string.IsNullOrWhiteSpace(optionsJson) ? null : optionsJson;
         CustomizationJson = string.IsNullOrWhiteSpace(customizationJson) ? null : customizationJson;
         AssignPayer(payerKey, payerLabel);
         BaristaNote = string.IsNullOrWhiteSpace(baristaNote) ? null : baristaNote.Trim();
@@ -98,6 +102,17 @@ public class OrderLine : BaseEntity
 
     /// <summary>Short human readable labels of a custom drink (shown in carts and receipts).</summary>
     public string[] CustomDrinkSummary { get; private set; } = [];
+
+    /// <summary>Human readable labels of the chosen per-item options (shown in carts and receipts).</summary>
+    public string[] OptionLabels { get; private set; } = [];
+
+    /// <summary>
+    /// Immutable JSON snapshot of the validated per-item options (names, prices
+    /// and exact ingredient usage). Null when the line has no options. The
+    /// stored amounts keep inventory deduction/restore precise even after the
+    /// admin later edits or deletes the option definitions.
+    /// </summary>
+    public string? OptionsJson { get; private set; }
 
     /// <summary>
     /// Immutable JSON snapshot of a validated custom drink (profile, components,

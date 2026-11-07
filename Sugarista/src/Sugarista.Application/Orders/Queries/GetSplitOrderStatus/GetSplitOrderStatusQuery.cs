@@ -31,7 +31,8 @@ public record SplitOrderLineDto(
     decimal LineTotal,
     string PayerKey,
     string PayerLabel,
-    IReadOnlyCollection<string> ModifierLabels);
+    IReadOnlyCollection<string> ModifierLabels,
+    IReadOnlyCollection<string> OptionLabels);
 
 public class GetSplitOrderStatusQueryHandler : IRequestHandler<GetSplitOrderStatusQuery, SplitOrderStatusDto?>
 {
@@ -104,7 +105,8 @@ public class GetSplitOrderStatusQueryHandler : IRequestHandler<GetSplitOrderStat
                     line.LineTotal,
                     line.PayerKey ?? string.Empty,
                     line.PayerLabel ?? string.Empty,
-                    line.ModifierLabels))
+                    line.ModifierLabels,
+                    line.OptionLabels))
                 .ToArray());
     }
 }

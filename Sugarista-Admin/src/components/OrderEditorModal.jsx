@@ -123,6 +123,11 @@ export function OrderEditorModal() {
                     <strong>{line.persianName}</strong>
                     <div className="table-subtext ltr-text">{line.englishName}</div>
                     {line.sizeLabel ? <div className="table-subtext">{line.sizeLabel}</div> : null}
+                    {line.optionLabels?.length ? (
+                      <div className="table-subtext">
+                        گزینه‌ها: {line.optionLabels.join('، ')}
+                      </div>
+                    ) : null}
                     {line.customDrinkSummary?.length ? (
                       <div className="table-subtext">
                         ترکیب سفارشی: {line.customDrinkSummary.join('، ')}

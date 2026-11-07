@@ -2846,6 +2846,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset?>("ReadySmsSentAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("RescheduleCount")
+                        .HasColumnType("integer");
+
                     b.Property<Guid?>("SalonTableId")
                         .HasColumnType("uuid");
 
@@ -4102,9 +4105,6 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<bool>("PersonalCupDiscountEnabled")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("PickupAutoRefundOnCancel")
-                        .HasColumnType("boolean");
-
                     b.Property<int>("PickupCancelCutoffMinutes")
                         .HasColumnType("integer");
 
@@ -4115,8 +4115,15 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<int>("PickupMaxDaysAhead")
                         .HasColumnType("integer");
 
+                    b.Property<int>("PickupMaxReschedules")
+                        .HasColumnType("integer");
+
                     b.Property<int>("PickupMinLeadMinutes")
                         .HasColumnType("integer");
+
+                    b.Property<string>("PickupRefundMode")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("PickupRefundPolicyNote")
                         .IsRequired()

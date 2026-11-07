@@ -221,7 +221,8 @@ export const emptySettings = {
   pickupMinLeadMinutes: 30,
   pickupMaxDaysAhead: 7,
   pickupCancelCutoffMinutes: 60,
-  pickupAutoRefundOnCancel: true,
+  pickupRefundMode: 'Wallet',
+  pickupMaxReschedules: 2,
   pickupRefundPolicyNote:
     'در صورت لغو سفارش پرداخت‌شده تا مهلت مجاز، مبلغ طبق سیاست کافه به کیف پول شما برگشت داده می‌شود.',
 }

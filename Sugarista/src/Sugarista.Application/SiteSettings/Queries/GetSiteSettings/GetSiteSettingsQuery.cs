@@ -106,7 +106,8 @@ public record SiteSettingsDto
     public int PickupMinLeadMinutes { get; init; } = 30;
     public int PickupMaxDaysAhead { get; init; } = 7;
     public int PickupCancelCutoffMinutes { get; init; } = 60;
-    public bool PickupAutoRefundOnCancel { get; init; }
+    public string PickupRefundMode { get; init; } = "Wallet";
+    public int PickupMaxReschedules { get; init; } = 2;
     public string PickupRefundPolicyNote { get; init; } = string.Empty;
     public bool DiscountAbuseProtectionEnabled { get; init; } = true;
     public int DiscountMaxFailedAttempts { get; init; } = 5;
@@ -231,7 +232,8 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 PickupMinLeadMinutes = settings.PickupMinLeadMinutes,
                 PickupMaxDaysAhead = settings.PickupMaxDaysAhead,
                 PickupCancelCutoffMinutes = settings.PickupCancelCutoffMinutes,
-                PickupAutoRefundOnCancel = settings.PickupAutoRefundOnCancel,
+                PickupRefundMode = settings.PickupRefundMode,
+                PickupMaxReschedules = settings.PickupMaxReschedules,
                 PickupRefundPolicyNote = settings.PickupRefundPolicyNote,
                 DiscountAbuseProtectionEnabled = settings.DiscountAbuseProtectionEnabled,
                 DiscountMaxFailedAttempts = settings.DiscountMaxFailedAttempts,

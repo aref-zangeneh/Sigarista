@@ -1578,39 +1578,116 @@
               <dt>زمان تقریبی آماده بودن</dt>
               <dd x-text="formatPickupDateTime(orderStatus?.estimatedReadyAt)"></dd>
             </div>
+            <div x-show="orderStatus?.pickupScheduled && orderStatus?.rescheduleCount > 0">
+              <dt>تعداد تغییر زمان</dt>
+              <dd>
+                <span x-text="toPersianNumber(orderStatus?.rescheduleCount)"></span>
+                <span x-show="orderStatus?.maxReschedules > 0" x-text="' از ' + toPersianNumber(orderStatus?.maxReschedules)"></span>
+              </dd>
+            </div>
+            <div x-show="orderStatus?.amountPaid > 0 && orderStatus?.status !== 'Cancelled'">
+              <dt>روش بازپرداخت در صورت لغو</dt>
+              <dd x-text="orderStatus?.refundMethodLabel"></dd>
+            </div>
           </dl>
-          <p class="order-status-note" x-show="orderStatus?.pickupScheduled">
+          <p
+            class="order-status-note"
+            x-show="orderStatus?.pickupScheduled && orderStatus?.status !== 'Cancelled'"
+          >
             سفارش شما برای این بازه در نظر گرفته شده است؛ در صورت تغییر وضعیت، پیامک اطلاع‌رسانی ارسال می‌شود.
           </p>
 
           <div class="order-action-message feedback" x-show="actionMessage" x-text="actionMessage"></div>
           <div class="order-action-message feedback feedback-error" x-show="actionError" x-text="actionError"></div>
 
-          <div class="order-actions" x-show="orderStatus?.canCancel || orderStatus?.canReschedule || orderStatus?.changeBlockedReason">
+          <div
+            class="order-actions"
+            x-show="orderStatus?.canCancel || orderStatus?.canReschedule || orderStatus?.changeBlockedReason || orderStatus?.rescheduleBlockedReason"
+          >
             <button
               type="button"
               class="btn btn-outline-dark rounded-pill order-action-btn"
               x-show="orderStatus?.canReschedule"
               @click="openReschedule()"
             >
-              تغییر زمان تحویل
+              <span>تغییر زمان تحویل</span>
+              <small
+                class="order-action-hint"
+                x-show="orderStatus?.maxReschedules > 0"
+                x-text="'(' + toPersianNumber(orderStatus?.reschedulesRemaining) + ' بار باقی‌مانده)'"
+              ></small>
             </button>
             <button
               type="button"
               class="btn btn-outline-danger rounded-pill order-action-btn"
               x-show="orderStatus?.canCancel"
-              @click="cancelScheduledOrder()"
+              @click="openCancelConfirm()"
             >
               لغو سفارش
             </button>
             <p
               class="order-blocked-reason"
-              x-show="!orderStatus?.canCancel && !orderStatus?.canReschedule && orderStatus?.changeBlockedReason"
+              x-show="orderStatus?.changeBlockedReason"
               x-text="orderStatus?.changeBlockedReason"
+            ></p>
+            <p
+              class="order-blocked-reason"
+              x-show="!orderStatus?.changeBlockedReason && !orderStatus?.canReschedule && orderStatus?.rescheduleBlockedReason"
+              x-text="orderStatus?.rescheduleBlockedReason"
             ></p>
           </div>
 
-          <p class="order-refund-note" x-show="orderStatus?.refundPolicyNote" x-text="orderStatus?.refundPolicyNote"></p>
+          <div
+            class="order-cancel-confirm"
+            x-show="cancelConfirmOpen"
+            x-cloak
+            role="alertdialog"
+            aria-labelledby="cancel-confirm-title"
+          >
+            <strong id="cancel-confirm-title">لغو سفارش</strong>
+            <p>
+              با لغو این سفارش، ظرفیت بازهٔ انتخاب‌شده آزاد می‌شود و امکان بازگردانی آن وجود ندارد.
+            </p>
+            <div class="order-cancel-refund" x-show="orderStatus?.amountPaid > 0">
+              <span>روش بازپرداخت</span>
+              <strong x-text="orderStatus?.refundMethodLabel"></strong>
+              <p x-show="orderStatus?.refundMode === 'Wallet'">
+                مبلغ پرداختی به کیف پول شما برگشت داده می‌شود و بلافاصله قابل استفاده است.
+              </p>
+              <p x-show="orderStatus?.refundMode === 'CardToCard'">
+                بازپرداخت به‌صورت کارت‌به‌کارت توسط کافه انجام می‌شود؛ برای هماهنگی با کافه تماس بگیرید.
+              </p>
+            </div>
+            <p class="order-refund-note" x-show="orderStatus?.refundPolicyNote" x-text="orderStatus?.refundPolicyNote"></p>
+            <div class="checkout-conflict-actions">
+              <button
+                type="button"
+                class="btn btn-danger rounded-pill order-action-btn"
+                @click="confirmCancelScheduledOrder()"
+              >
+                بله، سفارش لغو شود
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-dark rounded-pill order-action-btn"
+                @click="closeCancelConfirm()"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="order-refund-note"
+            x-show="orderStatus?.status !== 'Cancelled' && (orderStatus?.refundPolicyNote || orderStatus?.amountPaid > 0)"
+          >
+            <span
+              class="order-refund-chip"
+              x-show="orderStatus?.amountPaid > 0"
+              x-text="'روش بازپرداخت: ' + orderStatus?.refundMethodLabel"
+            ></span>
+            <span x-text="orderStatus?.refundPolicyNote"></span>
+          </div>
 
           <div class="reschedule-box" x-show="rescheduleOpen" x-cloak>
             <strong>انتخاب زمان جدید</strong>

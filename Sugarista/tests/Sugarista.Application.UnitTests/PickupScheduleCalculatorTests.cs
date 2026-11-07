@@ -21,7 +21,9 @@ public class PickupScheduleCalculatorTests
         int capacity = 2,
         int minLeadMinutes = 0,
         int maxDaysAhead = 7,
-        int cancelCutoffMinutes = 60) =>
+        int cancelCutoffMinutes = 60,
+        string refundMode = "Wallet",
+        int maxReschedules = 2) =>
         new(
             enabled,
             slotMinutes,
@@ -31,8 +33,9 @@ public class PickupScheduleCalculatorTests
             maxDaysAhead,
             cancelCutoffMinutes,
             "Asia/Tehran",
-            AutoRefundOnCancel: true,
-            RefundPolicyNote: "note");
+            refundMode,
+            maxReschedules,
+            "note");
 
     private static CafeOpenHour Open(TimeOnly open, TimeOnly close) =>
         new((int)OpenDay.DayOfWeek, true, open, close);
@@ -324,6 +327,93 @@ public class PickupScheduleCalculatorTests
         Assert.Equal(
             "این سفارش قبلاً لغو شده است.",
             PickupScheduleCalculator.BuildChangeBlockedReason(order, settings, At(new TimeOnly(9, 0))));
+    }
+
+    [Fact]
+    public void CanReschedule_AllowsUntilTheConfiguredCapIsReached()
+    {
+        var settings = Settings(maxReschedules: 2);
+        var order = NewOrder(new TimeOnly(12, 0));
+        var now = At(new TimeOnly(9, 0));
+
+        Assert.True(PickupScheduleCalculator.CanReschedule(order, settings, now));
+        Assert.Null(PickupScheduleCalculator.BuildRescheduleBlockedReason(order, settings, now));
+
+        order.RecordReschedule();
+        Assert.True(PickupScheduleCalculator.CanReschedule(order, settings, now));
+        Assert.Null(PickupScheduleCalculator.BuildRescheduleBlockedReason(order, settings, now));
+
+        order.RecordReschedule();
+        Assert.False(PickupScheduleCalculator.CanReschedule(order, settings, now));
+        Assert.Equal(
+            "این سفارش 2 بار تغییر زمان داده است؛ سقف تغییر زمان به پایان رسیده است.",
+            PickupScheduleCalculator.BuildRescheduleBlockedReason(order, settings, now));
+
+        // Cancelling is unaffected by the reschedule cap.
+        Assert.True(PickupScheduleCalculator.IsWithinChangeWindow(order, settings, now));
+        Assert.Null(PickupScheduleCalculator.BuildChangeBlockedReason(order, settings, now));
+    }
+
+    [Fact]
+    public void CanReschedule_ZeroCapMeansUnlimitedAndSingularMessageIsReadable()
+    {
+        var unlimited = Settings(maxReschedules: 0);
+        var order = NewOrder(new TimeOnly(12, 0));
+        var now = At(new TimeOnly(9, 0));
+        for (var index = 0; index < 25; index++)
+        {
+            order.RecordReschedule();
+        }
+
+        Assert.True(PickupScheduleCalculator.CanReschedule(order, unlimited, now));
+        Assert.Null(PickupScheduleCalculator.BuildRescheduleBlockedReason(order, unlimited, now));
+
+        var single = Settings(maxReschedules: 1);
+        var singleOrder = NewOrder(new TimeOnly(12, 0));
+        singleOrder.RecordReschedule();
+        Assert.Equal(
+            "این سفارش یک بار تغییر زمان داده است؛ امکان تغییر دوباره وجود ندارد.",
+            PickupScheduleCalculator.BuildRescheduleBlockedReason(singleOrder, single, now));
+    }
+
+    [Fact]
+    public void CanReschedule_IsBlockedAfterTheCancelCutoff()
+    {
+        var settings = Settings(cancelCutoffMinutes: 60);
+        var order = NewOrder(new TimeOnly(12, 0));
+        var deliveryAt = order.DeliveryAt!.Value;
+
+        Assert.True(PickupScheduleCalculator.CanReschedule(
+            order, settings, deliveryAt.AddMinutes(-60)));
+        Assert.False(PickupScheduleCalculator.CanReschedule(
+            order, settings, deliveryAt.AddMinutes(-59)));
+        Assert.Equal(
+            "مهلت لغو گذشته است.",
+            PickupScheduleCalculator.BuildRescheduleBlockedReason(
+                order, settings, deliveryAt.AddMinutes(-59)));
+    }
+
+    [Fact]
+    public void SettingsSnapshot_MapsRefundModeAndRescheduleDefaults()
+    {
+        var wallet = PickupSettingsSnapshot.From(new Sugarista.Domain.Entities.SiteSettings());
+        Assert.Equal("Wallet", wallet.RefundMode);
+        Assert.True(wallet.RefundsToWallet);
+        Assert.Equal(2, wallet.MaxReschedules);
+        Assert.True(wallet.HasRescheduleLimit);
+
+        var card = PickupSettingsSnapshot.From(new Sugarista.Domain.Entities.SiteSettings
+        {
+            PickupRefundMode = "CardToCard",
+            PickupMaxReschedules = 0
+        });
+        Assert.Equal("CardToCard", card.RefundMode);
+        Assert.False(card.RefundsToWallet);
+        Assert.False(card.HasRescheduleLimit);
+
+        var unknown = PickupSettingsSnapshot.From(new Sugarista.Domain.Entities.SiteSettings { PickupRefundMode = "nonsense" });
+        Assert.Equal("Wallet", unknown.RefundMode);
+        Assert.True(unknown.RefundsToWallet);
     }
 
     [Fact]

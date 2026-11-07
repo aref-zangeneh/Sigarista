@@ -16,10 +16,17 @@ public sealed record PickupSettingsSnapshot(
     int MaxDaysAhead,
     int CancelCutoffMinutes,
     string TimeZoneId,
-    bool AutoRefundOnCancel,
+    string RefundMode,
+    int MaxReschedules,
     string RefundPolicyNote)
 {
     public bool CountsItems => string.Equals(CapacityMode, "Items", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>True when cancelling a paid order refunds to the customer wallet automatically.</summary>
+    public bool RefundsToWallet => !string.Equals(RefundMode, "CardToCard", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>0 means the customer may reschedule an unlimited number of times.</summary>
+    public bool HasRescheduleLimit => MaxReschedules > 0;
 
     public static PickupSettingsSnapshot From(Sugarista.Domain.Entities.SiteSettings? settings) => new(
         settings?.PickupSchedulingEnabled ?? false,
@@ -30,6 +37,7 @@ public sealed record PickupSettingsSnapshot(
         Math.Max(0, settings?.PickupMaxDaysAhead ?? 7),
         Math.Max(0, settings?.PickupCancelCutoffMinutes ?? 60),
         string.IsNullOrWhiteSpace(settings?.TimeZoneId) ? "Asia/Tehran" : settings!.TimeZoneId,
-        settings?.PickupAutoRefundOnCancel ?? true,
+        string.Equals(settings?.PickupRefundMode, "CardToCard", StringComparison.OrdinalIgnoreCase) ? "CardToCard" : "Wallet",
+        Math.Max(0, settings?.PickupMaxReschedules ?? 2),
         settings?.PickupRefundPolicyNote ?? string.Empty);
 }

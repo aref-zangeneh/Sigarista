@@ -112,7 +112,8 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     public int PickupMinLeadMinutes { get; init; } = 30;
     public int PickupMaxDaysAhead { get; init; } = 7;
     public int PickupCancelCutoffMinutes { get; init; } = 60;
-    public bool PickupAutoRefundOnCancel { get; init; }
+    public string PickupRefundMode { get; init; } = "Wallet";
+    public int PickupMaxReschedules { get; init; } = 2;
     public string PickupRefundPolicyNote { get; init; } = string.Empty;
 
     public bool DiscountAbuseProtectionEnabled { get; init; } = true;
@@ -184,6 +185,10 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
         RuleFor(command => command.PickupMinLeadMinutes).InclusiveBetween(0, 1440);
         RuleFor(command => command.PickupMaxDaysAhead).InclusiveBetween(0, 60);
         RuleFor(command => command.PickupCancelCutoffMinutes).InclusiveBetween(0, 10080);
+        RuleFor(command => command.PickupRefundMode)
+            .Must(mode => mode is "Wallet" or "CardToCard")
+            .WithMessage("روش بازپرداخت باید Wallet یا CardToCard باشد.");
+        RuleFor(command => command.PickupMaxReschedules).InclusiveBetween(0, 100);
         RuleFor(command => command.PickupRefundPolicyNote).MaximumLength(1000);
         RuleFor(command => command.DiscountMaxFailedAttempts).InclusiveBetween(1, 100);
         RuleFor(command => command.DiscountLockoutMinutes).InclusiveBetween(1, 10080);
@@ -313,7 +318,8 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.PickupMinLeadMinutes = request.PickupMinLeadMinutes;
         settings.PickupMaxDaysAhead = request.PickupMaxDaysAhead;
         settings.PickupCancelCutoffMinutes = request.PickupCancelCutoffMinutes;
-        settings.PickupAutoRefundOnCancel = request.PickupAutoRefundOnCancel;
+        settings.PickupRefundMode = request.PickupRefundMode is "CardToCard" ? "CardToCard" : "Wallet";
+        settings.PickupMaxReschedules = request.PickupMaxReschedules;
         settings.PickupRefundPolicyNote = string.IsNullOrWhiteSpace(request.PickupRefundPolicyNote)
             ? settings.PickupRefundPolicyNote
             : request.PickupRefundPolicyNote.Trim();

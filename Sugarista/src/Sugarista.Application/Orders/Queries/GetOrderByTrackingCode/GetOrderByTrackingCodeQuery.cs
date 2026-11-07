@@ -23,7 +23,14 @@ public record OrderStatusDto(
     bool CanReschedule = false,
     string? ChangeBlockedReason = null,
     string? RefundPolicyNote = null,
-    int CancelCutoffMinutes = 0);
+    int CancelCutoffMinutes = 0,
+    decimal AmountPaid = 0,
+    string RefundMode = "Wallet",
+    string RefundMethodLabel = "",
+    int RescheduleCount = 0,
+    int MaxReschedules = 0,
+    int ReschedulesRemaining = 0,
+    string? RescheduleBlockedReason = null);
 
 public record OrderStatusLineDto(
     string PersianName,
@@ -70,10 +77,18 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
         var pickupSettings = PickupSettingsSnapshot.From(siteSettings);
         var now = _clock.UtcNow;
         var canChange = PickupScheduleCalculator.IsWithinChangeWindow(order, pickupSettings, now);
+        var canReschedule = PickupScheduleCalculator.CanReschedule(order, pickupSettings, now);
         var blockedReason = PickupScheduleCalculator.BuildChangeBlockedReason(order, pickupSettings, now);
+        var rescheduleBlockedReason = PickupScheduleCalculator.BuildRescheduleBlockedReason(order, pickupSettings, now);
+        var reschedulesRemaining = pickupSettings.HasRescheduleLimit
+            ? Math.Max(0, pickupSettings.MaxReschedules - order.RescheduleCount)
+            : -1;
         var estimatedReadyAt = order.ReadyAt
             ?? order.DeliveryAt
             ?? order.CreatedAt.AddMinutes(pickupSettings.MinLeadMinutes);
+        var refundMethodLabel = pickupSettings.RefundsToWallet
+            ? "کیف پول"
+            : "کارت‌به‌کارت توسط کافه";
 
         return new OrderStatusDto(
             order.TrackingCode,
@@ -98,10 +113,17 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
             estimatedReadyAt,
             order.DeliveryAt is not null,
             canChange,
-            canChange && pickupSettings.Enabled,
+            canReschedule,
             blockedReason,
             pickupSettings.RefundPolicyNote,
-            pickupSettings.CancelCutoffMinutes);
+            pickupSettings.CancelCutoffMinutes,
+            order.AmountPaid,
+            pickupSettings.RefundMode,
+            refundMethodLabel,
+            order.RescheduleCount,
+            pickupSettings.MaxReschedules,
+            reschedulesRemaining,
+            rescheduleBlockedReason);
     }
 }
 

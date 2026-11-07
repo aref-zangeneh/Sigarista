@@ -262,11 +262,19 @@ public class SiteSettings : BaseAuditableEntity
     public int PickupCancelCutoffMinutes { get; set; } = 60;
 
     /// <summary>
-    /// When true, cancelling a paid pickup order attempts an automatic refund
-    /// to the customer wallet. When false, refunds are handled manually by the
-    /// café. Product decision — see the TASK-012 delivery notes.
+    /// How a paid pickup order is refunded when the customer cancels inside
+    /// the allowed window:
+    /// "Wallet"     → automatic refund to the customer wallet,
+    /// "CardToCard" → the café settles the refund manually (card-to-card).
+    /// Any other value is treated as "Wallet".
     /// </summary>
-    public bool PickupAutoRefundOnCancel { get; set; }
+    public string PickupRefundMode { get; set; } = "Wallet";
+
+    /// <summary>
+    /// Maximum number of times a customer may reschedule the same pickup
+    /// order. 0 = unlimited. The counter lives on <see cref="Order"/>.
+    /// </summary>
+    public int PickupMaxReschedules { get; set; } = 2;
 
     /// <summary>Customer-facing explanation of the refund policy for pickup orders.</summary>
     public string PickupRefundPolicyNote { get; set; } =

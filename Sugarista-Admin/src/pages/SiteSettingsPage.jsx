@@ -534,29 +534,86 @@ export function SiteSettingsPage() {
               </small>
             </label>
 
-            <label className="settings-switch-row full-width">
-              <div className="settings-switch-text">
-                <strong>برگشت خودکار مبلغ به کیف پول هنگام لغو</strong>
-                <p>
-                  اگر سفارش از کیف پول پرداخت شده باشد، مبلغ به‌صورت خودکار برگشت داده می‌شود.
-                  بازپرداخت پرداخت‌های درگاه آنلاین همچنان توسط کافه انجام می‌شود.
-                </p>
-              </div>
-              <span
-                className={`switch ${siteSettings.pickupAutoRefundOnCancel ? 'switch-on' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={siteSettings.pickupAutoRefundOnCancel !== false}
-                  onChange={(event) =>
-                    updateField('pickupAutoRefundOnCancel', event.target.checked)
-                  }
-                />
-                <span className="switch-track">
-                  <span className="switch-thumb" />
-                </span>
-              </span>
+            <label>
+              <span>حداکثر تعداد تغییر زمان</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="100"
+                value={siteSettings.pickupMaxReschedules ?? 2}
+                onChange={(event) => updateField('pickupMaxReschedules', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                مشتری تا چند بار می‌تواند زمان تحویل را تغییر دهد (۰ = بدون محدودیت).
+              </small>
             </label>
+
+            <div className="settings-choice-field full-width">
+              <span className="settings-choice-label">روش بازپرداخت هنگام لغو سفارش</span>
+              <div className="settings-choice-grid" role="radiogroup" aria-label="روش بازپرداخت">
+                <label
+                  className={`settings-choice-card ${
+                    siteSettings.pickupRefundMode !== 'CardToCard' ? 'is-selected' : ''
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="pickupRefundMode"
+                    value="Wallet"
+                    checked={siteSettings.pickupRefundMode !== 'CardToCard'}
+                    onChange={() => updateField('pickupRefundMode', 'Wallet')}
+                  />
+                  <span className="settings-choice-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6.5A2.5 2.5 0 0 1 4 16.5v-9Z" />
+                      <path d="M4 9h16" />
+                      <path d="M16 13.5h2" />
+                    </svg>
+                  </span>
+                  <span className="settings-choice-body">
+                    <strong>برگشت خودکار به کیف پول</strong>
+                    <small>
+                      مبلغ پرداختی به کیف پول مشتری برگشت داده می‌شود و بلافاصله قابل استفاده است.
+                    </small>
+                  </span>
+                  <span className="settings-choice-check" aria-hidden="true">
+                    ✓
+                  </span>
+                </label>
+
+                <label
+                  className={`settings-choice-card ${
+                    siteSettings.pickupRefundMode === 'CardToCard' ? 'is-selected' : ''
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="pickupRefundMode"
+                    value="CardToCard"
+                    checked={siteSettings.pickupRefundMode === 'CardToCard'}
+                    onChange={() => updateField('pickupRefundMode', 'CardToCard')}
+                  />
+                  <span className="settings-choice-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <path d="M3 10h18" />
+                      <path d="M7 15h4" />
+                    </svg>
+                  </span>
+                  <span className="settings-choice-body">
+                    <strong>کارت‌به‌کارت توسط کافه</strong>
+                    <small>
+                      بازپرداخت به‌صورت دستی و کارت‌به‌کارت انجام می‌شود؛ کافه با مشتری هماهنگ می‌کند.
+                    </small>
+                  </span>
+                  <span className="settings-choice-check" aria-hidden="true">
+                    ✓
+                  </span>
+                </label>
+              </div>
+            </div>
 
             <label className="full-width">
               <span>متن سیاست بازپرداخت برای مشتری</span>

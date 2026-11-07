@@ -859,6 +859,118 @@ a.tab-button {
   color: var(--muted);
 }
 
+/* ── Choice cards (refund method) ── */
+.settings-choice-field {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-choice-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--heading);
+}
+
+.settings-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-choice-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.settings-choice-card:hover {
+  border-color: rgba(170, 49, 113, 0.35);
+}
+
+.settings-choice-card.is-selected {
+  border-color: var(--accent);
+  background: rgba(170, 49, 113, 0.06);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+.settings-choice-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-choice-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(170, 49, 113, 0.1);
+  color: var(--accent);
+}
+
+.settings-choice-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.settings-choice-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-choice-body strong {
+  font-size: 0.9rem;
+  color: var(--heading);
+}
+
+.settings-choice-body small {
+  font-size: 0.76rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.settings-choice-check {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.settings-choice-card.is-selected .settings-choice-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (max-width: 720px) {
+  .settings-choice-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .settings-effects {
   margin: 10px 0 0;
   padding: 0;

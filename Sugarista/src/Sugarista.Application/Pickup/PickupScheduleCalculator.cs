@@ -268,6 +268,48 @@ public static class PickupScheduleCalculator
         return nowUtc <= deliveryAt.AddMinutes(-Math.Max(0, settings.CancelCutoffMinutes));
     }
 
+    /// <summary>
+    /// True when the customer may still reschedule: the change window is open
+    /// and the café's reschedule cap (if any) has not been reached.
+    /// </summary>
+    public static bool CanReschedule(
+        Order order,
+        PickupSettingsSnapshot settings,
+        DateTimeOffset nowUtc)
+    {
+        if (!IsWithinChangeWindow(order, settings, nowUtc))
+        {
+            return false;
+        }
+
+        return !settings.HasRescheduleLimit || order.RescheduleCount < settings.MaxReschedules;
+    }
+
+    /// <summary>
+    /// Persian reason why rescheduling is unavailable, or null when allowed.
+    /// Cancelling is intentionally unaffected by the reschedule cap.
+    /// </summary>
+    public static string? BuildRescheduleBlockedReason(
+        Order order,
+        PickupSettingsSnapshot settings,
+        DateTimeOffset nowUtc)
+    {
+        var changeBlockedReason = BuildChangeBlockedReason(order, settings, nowUtc);
+        if (changeBlockedReason is not null)
+        {
+            return changeBlockedReason;
+        }
+
+        if (settings.HasRescheduleLimit && order.RescheduleCount >= settings.MaxReschedules)
+        {
+            return settings.MaxReschedules == 1
+                ? "این سفارش یک بار تغییر زمان داده است؛ امکان تغییر دوباره وجود ندارد."
+                : $"این سفارش {settings.MaxReschedules} بار تغییر زمان داده است؛ سقف تغییر زمان به پایان رسیده است.";
+        }
+
+        return null;
+    }
+
     public static string? BuildChangeBlockedReason(
         Order order,
         PickupSettingsSnapshot settings,

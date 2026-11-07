@@ -94,11 +94,22 @@ public class Order : BaseAuditableEntity
     /// </summary>
     public string? IdempotencyKey { get; private set; }
 
+    /// <summary>
+    /// How many times the customer has rescheduled this pickup order. The
+    /// café can cap this via <see cref="SiteSettings.PickupMaxReschedules"/>.
+    /// </summary>
+    public int RescheduleCount { get; private set; }
+
     public void ApplyDeliveryTime(DateTimeOffset? deliveryAt)
     {
         // Always store the absolute instant in UTC: PostgreSQL timestamptz
         // parameters reject non-zero offsets and comparisons stay unambiguous.
         DeliveryAt = deliveryAt?.ToUniversalTime();
+    }
+
+    public void RecordReschedule()
+    {
+        RescheduleCount++;
     }
 
     public void SetIdempotencyKey(string? idempotencyKey)

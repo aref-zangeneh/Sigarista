@@ -8,4 +8,5 @@ public sealed record CustomerOrderActionResultDto(
     DateTimeOffset? DeliveryAt,
     string Message,
     decimal RefundedAmount = 0,
-    bool RefundHandledByCafe = false);
+    bool RefundHandledByCafe = false,
+    string RefundMode = "Wallet");

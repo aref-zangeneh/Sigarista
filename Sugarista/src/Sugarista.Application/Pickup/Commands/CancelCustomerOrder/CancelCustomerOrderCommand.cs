@@ -84,34 +84,58 @@ public class CancelCustomerOrderCommandHandler
             payment.MarkCancelled();
         }
 
-        var refundHandledByCafe = !pickupSettings.AutoRefundOnCancel && order.AmountPaid > 0;
-        if (pickupSettings.AutoRefundOnCancel && order.AmountPaid > 0)
+        // Wallet-funded amounts can be returned automatically. Online gateway
+        // payments stay a café-side decision: in CardToCard mode the café
+        // settles the refund manually, and even in Wallet mode any amount that
+        // was not funded by the wallet still needs café handling.
+        var walletPaidAmount = pickupSettings.RefundsToWallet && order.AmountPaid > 0
+            ? await _dbContext.WalletTransactions
+                .Where(transaction =>
+                    transaction.OrderId == order.Id &&
+                    transaction.Type == WalletTransactionType.Purchase)
+                .SumAsync(transaction => -transaction.Amount, cancellationToken)
+            : 0m;
+
+        var refundedToWallet = Math.Max(0m, walletPaidAmount);
+        if (refundedToWallet > 0)
         {
-            // Only wallet-funded amounts can be returned automatically; online
-            // gateway refunds stay a café-side decision (documented in TASK-012).
             await WalletService.RefundCancelledOrderAsync(_dbContext, order, cancellationToken);
         }
+
+        var refundHandledByCafe = order.AmountPaid - refundedToWallet > 0.01m;
 
         order.AdminCancel();
         await _loyaltyService.RefundForCancelledOrderAsync(order, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        var message = refundHandledByCafe
-            ? "سفارش لغو شد و ظرفیت بازه آزاد شد. بازپرداخت سفارش پرداخت‌شده توسط کافه انجام می‌شود."
-            : "سفارش لغو شد و ظرفیت بازه آزاد شد.";
+        var message = (refundedToWallet > 0, refundHandledByCafe) switch
+        {
+            (true, true) =>
+                "سفارش لغو شد و ظرفیت بازه آزاد شد. بخشی از مبلغ به کیف پول شما برگشت داده شد و بازپرداخت باقی‌مانده توسط کافه انجام می‌شود.",
+            (true, false) =>
+                "سفارش لغو شد و ظرفیت بازه آزاد شد. مبلغ به کیف پول شما برگشت داده شد.",
+            (false, true) when pickupSettings.RefundsToWallet =>
+                "سفارش لغو شد و ظرفیت بازه آزاد شد. بازپرداخت مبلغ پرداختی توسط کافه انجام می‌شود.",
+            (false, true) =>
+                "سفارش لغو شد و ظرفیت بازه آزاد شد. بازپرداخت به‌صورت کارت‌به‌کارت توسط کافه انجام می‌شود.",
+            _ => "سفارش لغو شد و ظرفیت بازه آزاد شد."
+        };
 
-        return ToResult(order, message, refundHandledByCafe);
+        return ToResult(order, message, refundHandledByCafe, refundedToWallet, pickupSettings.RefundMode);
     }
 
     private static CustomerOrderActionResultDto ToResult(
         Order order,
         string message,
-        bool refundHandledByCafe = false) => new(
+        bool refundHandledByCafe = false,
+        decimal refundedAmount = 0,
+        string refundMode = "Wallet") => new(
         order.TrackingCode,
         order.Status.ToString(),
         order.FulfillmentStatus.ToString(),
         order.DeliveryAt,
         message,
-        RefundedAmount: 0,
-        RefundHandledByCafe: refundHandledByCafe);
+        RefundedAmount: refundedAmount,
+        RefundHandledByCafe: refundHandledByCafe,
+        RefundMode: refundMode);
 }

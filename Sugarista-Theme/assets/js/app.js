@@ -59,6 +59,7 @@ document.addEventListener("alpine:init", () => {
     orderStatusTimer: null,
     actionMessage: "",
     actionError: "",
+    cancelConfirmOpen: false,
     rescheduleOpen: false,
     rescheduleDate: null,
     rescheduleSlot: null,
@@ -2070,18 +2071,23 @@ document.addEventListener("alpine:init", () => {
         this.orderStatusLoading = false;
       }
     },
-    async cancelScheduledOrder() {
+    openCancelConfirm() {
+      if (!this.orderStatus?.canCancel) {
+        return;
+      }
+      this.actionError = "";
+      this.actionMessage = "";
+      this.cancelConfirmOpen = true;
+    },
+    closeCancelConfirm() {
+      this.cancelConfirmOpen = false;
+    },
+    async confirmCancelScheduledOrder() {
       if (!this.orderStatus?.canCancel) {
         return;
       }
 
-      const confirmed = window.confirm(
-        "آیا از لغو این سفارش مطمئن هستید؟ ظرفیت بازهٔ انتخاب‌شده آزاد می‌شود و پس از مهلت مجاز، امکان لغو وجود ندارد."
-      );
-      if (!confirmed) {
-        return;
-      }
-
+      this.cancelConfirmOpen = false;
       this.actionError = "";
       this.actionMessage = "";
       try {
@@ -2110,6 +2116,7 @@ document.addEventListener("alpine:init", () => {
         return;
       }
       this.rescheduleOpen = true;
+      this.cancelConfirmOpen = false;
       this.rescheduleError = "";
       this.actionError = "";
       this.rescheduleSlot = null;
@@ -2304,6 +2311,7 @@ document.addEventListener("alpine:init", () => {
       this.orderStatus = null;
       this.actionMessage = "";
       this.actionError = "";
+      this.cancelConfirmOpen = false;
       this.rescheduleOpen = false;
       this.rescheduleSlot = null;
       window.history.replaceState({}, "", "/");

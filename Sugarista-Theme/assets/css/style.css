@@ -1869,6 +1869,13 @@ a {
   opacity: 0.8;
 }
 
+.order-refund-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .order-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1886,6 +1893,77 @@ a {
 .order-action-message {
   margin: 0.6rem 0 0;
   font-size: 0.8rem;
+}
+
+.order-action-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.order-action-hint {
+  font-size: 0.68rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/* ── cancel confirmation + refund summary ─────────────────────── */
+.order-cancel-confirm {
+  margin-top: 0.85rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  background: #fff5f5;
+  color: #7f1d1d;
+}
+
+.order-cancel-confirm > strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.order-cancel-confirm > p {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.order-cancel-refund {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px dashed #fca5a5;
+  font-size: 0.8rem;
+}
+
+.order-cancel-refund span {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.order-cancel-refund strong {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.88rem;
+}
+
+.order-cancel-refund p {
+  margin: 0.3rem 0 0;
+  line-height: 1.7;
+}
+
+.order-refund-chip {
+  display: inline-block;
+  margin-inline-end: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.08);
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 1;
 }
 
 .reschedule-box {

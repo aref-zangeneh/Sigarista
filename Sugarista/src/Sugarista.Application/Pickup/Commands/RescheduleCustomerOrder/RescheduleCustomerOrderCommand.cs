@@ -75,7 +75,7 @@ public class RescheduleCustomerOrderCommandHandler
             throw new DomainException("زمان‌بندی تحویل حضوری در حال حاضر فعال نیست.");
         }
 
-        var blockedReason = PickupScheduleCalculator.BuildChangeBlockedReason(order, pickupSettings, now);
+        var blockedReason = PickupScheduleCalculator.BuildRescheduleBlockedReason(order, pickupSettings, now);
         if (blockedReason is not null)
         {
             throw new DomainException(blockedReason);
@@ -108,6 +108,7 @@ public class RescheduleCustomerOrderCommandHandler
             }
 
             order.ApplyDeliveryTime(request.DeliveryAt);
+            order.RecordReschedule();
             await _dbContext.SaveChangesAsync(cancellationToken);
             await reservation.CommitAsync(cancellationToken);
         }

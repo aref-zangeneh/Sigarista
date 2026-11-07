@@ -1,4 +1,4 @@
-.PHONY: up up-all admin-reload pos-print-server test-pos-print
+.PHONY: up up-all admin-reload pos-print-server test-pos-print deploy backup restore release server-deploy
 
 # Rebuild UI containers and apply local source changes.
 up:
@@ -11,6 +11,26 @@ up-all:
 # Rebuild admin UI from mounted source without recreating images.
 admin-reload:
 	docker compose restart admin-ui
+
+# Production deploy: pull, back up the database, rebuild, restart, verify.
+deploy:
+	./scripts/deploy.sh
+
+# Dump the database into backups/.
+backup:
+	./scripts/backup-db.sh
+
+# Replace the database from a backup file: make restore FILE=backups/xxx.sql.gz
+restore:
+	./scripts/restore-db.sh $(FILE)
+
+# Build production images on this machine and push them to the registry.
+release:
+	./scripts/release.sh
+
+# On the server: pull the pushed images, back up the DB, restart, verify.
+server-deploy:
+	./scripts/server-deploy.sh
 
 # Local automatic receipt printer agent (customer + barista).
 pos-print-server:

@@ -1,0 +1,124 @@
+# Production stack that runs pre-built images pulled from a registry.
+#
+# The server never builds anything and needs no source code:
+#   1. copy this file and .env to the server (once)
+#   2. docker compose -f docker-compose.prod.yml pull
+#   3. docker compose -f docker-compose.prod.yml up -d
+#
+# Or just run ./scripts/server-deploy.sh, which also backs up the database
+# and verifies the result.
+#
+# Images are built on your machine with ./scripts/release.sh and pushed to
+# IMAGE_REGISTRY. Nothing here references a build context.
+
+name: ${COMPOSE_PROJECT_NAME:-sigarista}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sugarista}
+      POSTGRES_USER: ${POSTGRES_USER:-sugarista}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe123!}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sugarista} -d ${POSTGRES_DB:-sugarista}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}/sugarista-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sugarista};Username=${POSTGRES_USER:-sugarista};Password=${POSTGRES_PASSWORD:-ChangeMe123!}
+      Jwt__Issuer: ${JWT_ISSUER:-Sugarista}
+      Jwt__Audience: ${JWT_AUDIENCE:-SugaristaAdmin}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-SugaristaProductionSigningKeyChangeMe1234567890}
+      Jwt__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-120}
+      AdminBootstrap__Username: ${ADMIN_BOOTSTRAP_USERNAME:-admin}
+      AdminBootstrap__DisplayName: ${ADMIN_BOOTSTRAP_DISPLAY_NAME:-Sugarista Admin}
+      AdminBootstrap__Password: ${ADMIN_BOOTSTRAP_PASSWORD:-ChangeMe123!}
+      Cors__AllowedOrigins__0: ${APP_PUBLIC_ORIGIN:-http://localhost}
+      Cors__AllowedOrigins__1: ${APP_ADMIN_ORIGIN:-http://localhost}
+      Payment__Provider: ${Payment__Provider:-Mock}
+      Payment__PublicBaseUrl: ${Payment__PublicBaseUrl:-http://localhost}
+      Payment__AllowMockInProduction: ${Payment__AllowMockInProduction:-false}
+      PrintAgent__ApiKey: ${PRINT_AGENT_KEY:-Sg-printagent-4f7c2a91e8b3d605-Aa1!}
+      Sms__Provider: ${Sms__Provider:-Logging}
+      Sms__CafeName: ${Sms__CafeName:-شوگاریستا}
+      Sms__ApiKey: ${Sms__ApiKey:-}
+      Sms__Sender: ${Sms__Sender:-}
+      Email__Provider: ${Email__Provider:-Logging}
+      Email__Host: ${Email__Host:-}
+      Email__Port: ${Email__Port:-587}
+      Email__FromAddress: ${Email__FromAddress:-maintenance@sugarista.local}
+      Email__FromName: ${Email__FromName:-شوگاریستا}
+      Email__Username: ${Email__Username:-}
+      Email__Password: ${Email__Password:-}
+      Email__UseSsl: ${Email__UseSsl:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - api-uploads:/app/uploads
+
+  admin-ui:
+    image: ${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}/sugarista-admin:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  public-ui:
+    image: ${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}/sugarista-theme:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-admin:
+    image: adminer:5
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Local-only maintenance UI. Never expose Adminer through the public proxy.
+    ports:
+      - "127.0.0.1:8081:8080"
+
+  proxy:
+    image: ${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}/sugarista-proxy:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      admin-ui:
+        condition: service_healthy
+      public-ui:
+        condition: service_healthy
+      db-admin:
+        condition: service_started
+    ports:
+      - "80:80"
+
+volumes:
+  postgres-data:
+  api-uploads:

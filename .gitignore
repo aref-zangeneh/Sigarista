@@ -21,6 +21,7 @@ logs/
 *.log
 .pos-receipts/
 scripts/pos-print.env
+backups/
 
 .idea/
 .vs/

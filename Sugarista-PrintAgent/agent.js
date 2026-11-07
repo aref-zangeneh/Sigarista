@@ -3,8 +3,11 @@
  * Sugarista print agent.
  *
  * Runs on the laptop that is USB-connected to the receipt printer.
- * Polls the Sugarista API for queued receipt jobs, renders each one to a
- * 384-dot bitmap with Persian shaping (render.py), and sends it to CUPS.
+ * Polls the Sugarista API for queued receipt jobs, renders each one to raw
+ * ESC/POS bytes (raster bitmap + explicit auto-cut; render.py — Persian
+ * shaping via arabic_reshaper/bidi), and sends them straight to the printer
+ * queue with `lp -o raw`. Copies of the same order claimed together print
+ * back-to-back as a single job with a cut between them.
  *
  * Zero npm dependencies — Node 18+ (built-in fetch, child_process).
  */
@@ -43,12 +46,7 @@ function loadConfig() {
     printerName: String(raw.printerName || ""),
     pollSeconds: Number(raw.pollSeconds || 4),
     maxJobsPerPoll: Number(raw.maxJobsPerPoll || 10),
-    printTimeoutSeconds: Number(raw.printTimeoutSeconds || 60),
-    // 72 mm printable width at 203 dpi = 576 dots. Without an explicit page
-    // size CUPS may fall back to A4 and scale the bitmap into garbled output.
-    printOptions: Array.isArray(raw.printOptions) && raw.printOptions.length > 0
-      ? raw.printOptions.map(String)
-      : ["-o", "PageSize=X72MMY2000MM", "-o", "PageType=Variable", "-o", "CutType=DocCutMode"]
+    printTimeoutSeconds: Number(raw.printTimeoutSeconds || 60)
   };
   if (!config.apiKey) throw new Error("config.json is missing apiKey");
   return config;
@@ -81,24 +79,55 @@ async function renderReceipt(payload, copyType) {
   const safeCode = String(payload?.order?.code || "receipt").replace(/[^A-Za-z0-9-]/g, "");
   const stamp = Date.now();
   const payloadPath = path.join(TMP_DIR, `${safeCode}-${copyType}-${stamp}.json`);
-  const imagePath = path.join(TMP_DIR, `${safeCode}-${copyType}-${stamp}.png`);
+  const escposPath = path.join(TMP_DIR, `${safeCode}-${copyType}-${stamp}.escpos`);
 
   fs.writeFileSync(payloadPath, JSON.stringify(payload), "utf8");
 
   try {
-    await execFileAsync(pythonPath(), [RENDER_PY, payloadPath, imagePath], { timeout: 30_000 });
+    await execFileAsync(pythonPath(), [RENDER_PY, payloadPath, escposPath], { timeout: 30_000 });
   } finally {
     fs.rmSync(payloadPath, { force: true });
   }
 
-  return imagePath;
+  return escposPath;
 }
 
-async function printImage(config, imagePath) {
-  // Explicit options so a reset/reinstalled queue cannot fall back to A4 and
-  // scale the 576-dot bitmap (which produced stretched, garbled output).
-  const args = ["-d", config.printerName, ...config.printOptions, imagePath];
+async function ensureQueueReady(config) {
+  // Self-heal: a backend failure (USB glitch, paper out) leaves the CUPS queue
+  // disabled, and old jobs then spew as garbage when it recovers mid-stream.
+  try {
+    const { stdout } = await execFileAsync("lpstat", ["-p", config.printerName], { timeout: 10_000 });
+    if (/disabled/i.test(stdout)) {
+      log(`Queue "${config.printerName}" is disabled — re-enabling…`);
+      await execFileAsync("cupsenable", [config.printerName], { timeout: 10_000 }).catch(() => {});
+      await execFileAsync("cupsaccept", [config.printerName], { timeout: 10_000 }).catch(() => {});
+    }
+  } catch {
+    // lpstat failing here is non-fatal; the print attempt will surface errors.
+  }
+}
+
+async function healQueueAfterError(config) {
+  try {
+    // Drop stuck jobs (a partial job left mid-stream desynchronizes ESC/POS
+    // printing and everything after it prints as garbage) and re-open the queue.
+    await execFileAsync("cancel", ["-a", config.printerName], { timeout: 10_000 });
+    await execFileAsync("cupsenable", [config.printerName], { timeout: 10_000 });
+    await execFileAsync("cupsaccept", [config.printerName], { timeout: 10_000 });
+    log(`Queue "${config.printerName}" healed (stale jobs dropped).`);
+  } catch (error) {
+    log(`Queue heal failed: ${error instanceof Error ? error.message : error}`);
+  }
+}
+
+async function printEscpos(config, escposPath) {
+  // Raw ESC/POS passthrough: bytes reach the printer untouched — no filters,
+  // no scaling, no raster conversion. render.py already emits ready-made
+  // ESC/POS (raster + explicit cut after every copy).
+  const args = ["-d", config.printerName, "-o", "raw", escposPath];
   await execFileAsync("lp", args, { timeout: config.printTimeoutSeconds * 1000 });
+  // Wait for the spool to drain so the next job starts on clean paper.
+  await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
 function copyTypeOf(job) {
@@ -110,22 +139,36 @@ function copyTypeOf(job) {
   return text;
 }
 
-async function processJob(config, job) {
-  const copyType = copyTypeOf(job);
+async function processJobGroup(config, group) {
+  // Group = every pending copy of one order claimed in the same poll. They are
+  // rendered and submitted as ONE raw job so they print back-to-back, grouped
+  // in-order, with cut between copies, and nothing else can interleave.
   let lastError = null;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    let imagePath = null;
+    const escposPaths = [];
     try {
-      const payload = JSON.parse(job.payloadJson);
-      imagePath = await renderReceipt(payload, copyType);
-      await printImage(config, imagePath);
-      fs.rmSync(imagePath, { force: true });
+      if (attempt > 1) await healQueueAfterError(config);
+      await ensureQueueReady(config);
+
+      for (const job of group) {
+        const payload = JSON.parse(job.payloadJson);
+        escposPaths.push(await renderReceipt(payload, copyTypeOf(job)));
+      }
+
+      const combinedPath = escposPaths[0].replace(/\.escpos$/, "-combined.escpos");
+      const stream = await Promise.all(escposPaths.map((p) => fs.promises.readFile(p)));
+      fs.writeFileSync(combinedPath, Buffer.concat(stream));
+
+      await printEscpos(config, combinedPath);
+
+      escposPaths.forEach((p) => fs.rmSync(p, { force: true }));
+      fs.rmSync(combinedPath, { force: true });
       return { ok: true };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
-      if (imagePath) fs.rmSync(imagePath, { force: true });
-      log(`  attempt ${attempt}/${MAX_ATTEMPTS} failed for ${job.id}: ${lastError}`);
+      escposPaths.forEach((p) => fs.rmSync(p, { force: true }));
+      log(`  attempt ${attempt}/${MAX_ATTEMPTS} failed for ${group[0].orderTrackingCode}: ${lastError}`);
       if (attempt < MAX_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
       }
@@ -133,6 +176,21 @@ async function processJob(config, job) {
   }
 
   return { ok: false, error: lastError };
+}
+
+async function markJobResult(config, job, ok, error) {
+  try {
+    if (ok) {
+      await apiFetch(config, `/api/print-agent/${job.id}/printed`, { method: "POST" });
+    } else {
+      await apiFetch(config, `/api/print-agent/${job.id}/failed`, {
+        method: "POST",
+        body: JSON.stringify({ error })
+      });
+    }
+  } catch (err) {
+    log(`  ⚠ could not report ${ok ? "printed" : "failed"} for ${job.id}: ${err.message}`);
+  }
 }
 
 async function pollOnce(config) {
@@ -144,18 +202,29 @@ async function pollOnce(config) {
   if (!Array.isArray(jobs) || jobs.length === 0) return 0;
 
   log(`Claimed ${jobs.length} print job(s).`);
+
+  // Pending jobs are sorted by creation; contiguous copies of the same order
+  // become a single physical print task (back-to-back on one paper with cuts).
+  const groups = [];
   for (const job of jobs) {
-    log(`Printing ${job.copyType} copy for order ${job.orderTrackingCode} (${job.id})…`);
-    const result = await processJob(config, job);
+    const last = groups[groups.length - 1];
+    if (last && last[0].orderTrackingCode === job.orderTrackingCode) last.push(job);
+    else groups.push([job]);
+  }
+
+  for (const group of groups) {
+    const labels = group
+      .map((j) => copyTypeOf(j))
+      .join(" + ");
+    log(`Printing ${labels} for order ${group[0].orderTrackingCode} as one job…`);
+    const result = await processJobGroup(config, group);
+    for (const job of group) {
+      await markJobResult(config, job, result.ok, result.error);
+    }
     if (result.ok) {
-      await apiFetch(config, `/api/print-agent/${job.id}/printed`, { method: "POST" });
-      log(`  ✓ printed ${job.copyType} copy for ${job.orderTrackingCode}`);
+      log(`  ✓ printed ${labels} for ${group[0].orderTrackingCode} (cut between copies)`);
     } else {
-      await apiFetch(config, `/api/print-agent/${job.id}/failed`, {
-        method: "POST",
-        body: JSON.stringify({ error: result.error })
-      });
-      log(`  ✗ gave up on ${job.copyType} copy for ${job.orderTrackingCode}: ${result.error}`);
+      log(`  ✗ gave up on ${labels} for ${group[0].orderTrackingCode}: ${result.error}`);
     }
   }
   return jobs.length;

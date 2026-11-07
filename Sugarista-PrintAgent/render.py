@@ -218,14 +218,58 @@ class Receipt:
     def gap(self, pixels=10):
         self.y += pixels
 
-    def save(self, path: str, bottom_pad=90):
+    def cropped_image(self, bottom_pad=90) -> Image.Image:
+        """The drawn receipt cropped to its content plus trailing white space."""
         bbox = self.image.point(lambda p: 0 if p else 255).getbbox()
         if bbox is None:
             content_bottom = self.y
         else:
             content_bottom = min(bbox[3] + 12, self.y)
         height = max(content_bottom + bottom_pad, 160)
-        self.image.crop((0, 0, WIDTH, min(height, self.height))).save(path, "PNG")
+        return self.image.crop((0, 0, WIDTH, min(height, self.height)))
+
+    def save(self, path: str, bottom_pad=90):
+        self.cropped_image(bottom_pad).save(path, "PNG")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Raw ESC/POS emission (printer-fix): we no longer trust the Gainscha CUPS
+# raster filter (rastertopdt) — a damaged queue + that filter produced hex-
+# garbage on paper. Instead render.py emits the exact ESC/POS byte stream:
+#   ESC @ (init) → GS v 0 raster (576 dots = 72 bytes/line) → ESC d feed →
+#   GS V cut. The agent prints it with `lp -o raw`, bypassing every filter.
+# Mode "1": PIL pixel 0 = black; ESC/POS raster bit 1 = printed dot → same.
+# ─────────────────────────────────────────────────────────────────────────────
+
+ESC_INIT = b"\x1b@"          # initialize printer
+ESC_FEED_LINES = b"\x1bd\x04"  # print and feed 4 lines (cutter clearance)
+GS_CUT = b"\x1dV\x00"        # full cut at the paper's current position
+
+
+def receipt_to_escpos(receipt: Receipt, bottom_pad=90) -> bytes:
+    image = receipt.cropped_image(bottom_pad)
+    width, height = image.size
+    if width % 8 != 0:
+        padded = Image.new("1", ((width + 7) // 8) * 8, 1)
+        padded.paste(image, (0, 0))
+        image = padded
+        width = image.size[0]
+    bytes_per_row = width // 8
+
+    pixels = image.load()
+    rows = bytearray()
+    for y in range(height):
+        row = bytearray(bytes_per_row)
+        for x in range(width):
+            if pixels[x, y] == 0:  # black dot
+                row[x >> 3] |= 0x80 >> (x & 7)
+        rows += row
+
+    raster = b"\x1d\x76\x30\x00" + (bytes_per_row & 0xFF).to_bytes(1, "little") \
+        + (bytes_per_row >> 8).to_bytes(1, "little") \
+        + (height & 0xFF).to_bytes(1, "little") \
+        + (height >> 8).to_bytes(1, "little")
+    return raster + bytes(rows)
 
 
 def normalize_keys(value):
@@ -670,7 +714,7 @@ def barista_receipt(payload) -> Receipt:
 
 def main():
     if len(sys.argv) < 3:
-        print("usage: render.py <payload.json> <output.png>", file=sys.stderr)
+        print("usage: render.py <payload.json> <output.png|output.escpos>", file=sys.stderr)
         sys.exit(2)
 
     payload_path, output_path = sys.argv[1], sys.argv[2]
@@ -678,7 +722,12 @@ def main():
         payload = normalize_keys(json.load(handle))
 
     receipt = barista_receipt(payload) if copy_type_of(payload) == "barista" else customer_receipt(payload)
-    receipt.save(output_path)
+    if output_path.lower().endswith(".escpos"):
+        stream = ESC_INIT + receipt_to_escpos(receipt) + ESC_FEED_LINES + GS_CUT
+        with open(output_path, "wb") as handle:
+            handle.write(stream)
+    else:
+        receipt.save(output_path)
     print(output_path)
 
 

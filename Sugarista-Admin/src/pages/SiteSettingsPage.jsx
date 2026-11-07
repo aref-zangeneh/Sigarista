@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { settingsSections } from '../constants/adminForms'
+import { ReceiptLayoutPanel } from '../components/ReceiptLayoutPanel'
 
 function SectionIcon({ name }) {
   const paths = {
@@ -282,6 +283,7 @@ export function SiteSettingsPage() {
   const navItems = [
     { id: 'settings-sales', title: 'فروش آنلاین', icon: 'cart' },
     { id: 'settings-pickup', title: 'سفارش پیش از مراجعه', icon: 'clock' },
+    { id: 'settings-receipt', title: 'طرح فیش‌های چاپی', icon: 'steps' },
     { id: 'settings-abandoned-cart', title: 'سبد رهاشده', icon: 'bell' },
     { id: 'settings-loyalty', title: 'باشگاه مشتریان', icon: 'brand' },
     { id: 'settings-theme', title: 'تم و نمایش', icon: 'theme' },
@@ -1671,6 +1673,9 @@ export function SiteSettingsPage() {
           </button>
         </div>
       </form>
+
+      {/* ---------- طرح فیش‌های چاپی (ذخیرهٔ مستقل) ---------- */}
+      <ReceiptLayoutPanel session={session} apiRequest={apiRequest} getReadableError={getReadableError} />
     </div>
   )
 }

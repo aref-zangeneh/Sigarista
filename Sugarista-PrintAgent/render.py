@@ -247,125 +247,425 @@ def copy_type_of(payload) -> str:
     return str(value).lower()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Dynamic layout support (TASK-014): payload["layout"]["customer"|"barista"]
+# drives which rows/columns are printed, their labels and font sizes. Any
+# missing piece falls back to the classic layout.
+# ─────────────────────────────────────────────────────────────────────────────
+
+DEFAULT_CUSTOMER_HEADER_ROW_LABELS = {
+    "code": "کد سفارش",
+    "pickupTime": "تحویل",
+    "note": "یادداشت",
+    "service": "",
+    "table": "میز",
+    "createdAt": "",
+    "channel": "",
+    "customerName": "",
+    "customerPhone": "",
+}
+
+DEFAULT_BARISTA_INFO_LABELS = {
+    "paidAt": "",
+    "createdAt": "",
+    "channel": "",
+    "service": "",
+    "table": "میز",
+    "customerName": "مشتری",
+    "customerPhone": "",
+    "paymentMethod": "روش پرداخت",
+}
+
+BAND_COLUMN_KEYS = ("unitPrice", "total")
+
+
+def copy_layout(payload, copy: str) -> dict:
+    layouts = payload.get("layout", {})
+    if isinstance(layouts, dict):
+        own = layouts.get(copy)
+        if isinstance(own, dict):
+            return own
+    return {}
+
+
+def font_size(copy_layout_data: dict, key: str, default: int) -> int:
+    fonts = copy_layout_data.get("fonts", {})
+    if isinstance(fonts, dict):
+        value = fonts.get(key)
+        if isinstance(value, (int, float)) and value:
+            return int(value)
+    return default
+
+
+def option_text(item: dict, layout_items: dict) -> list[str]:
+    """Chosen per-menu-item options for the line (TASK-013)."""
+    options = item.get("options")
+    if isinstance(options, list):
+        show_prices = bool(layout_items.get("showOptionPrices"))
+        lines = []
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            name = str(option.get("optionName") or "").strip()
+            if not name:
+                continue
+            price = option.get("priceDeltaLabel")
+            if show_prices and price:
+                lines.append(f"{name} (+{price})")
+            else:
+                lines.append(name)
+        return lines
+    # Legacy payload fallback.
+    labels = item.get("optionLabels")
+    if isinstance(labels, list):
+        return [str(label) for label in labels if label]
+    return []
+
+
+def sub_lines(item: dict, sub_line_keys: list[str], layout_items: dict) -> list[str]:
+    """Detail lines under an item name, rendered in admin-defined order."""
+    lines: list[str] = []
+    for key in sub_line_keys:
+        if key == "size":
+            if item.get("sizeLabel"):
+                lines.append(str(item["sizeLabel"]))
+        elif key == "options":
+            lines.extend(option_text(item, layout_items))
+        elif key == "modifiers":
+            for modifier in item.get("modifierLabels") or []:
+                lines.append(str(modifier))
+        elif key == "customDrink":
+            for summary in item.get("customDrinkSummary") or []:
+                lines.append(str(summary))
+        elif key == "payer":
+            if item.get("payerLabel"):
+                lines.append(f"سهم {item['payerLabel']}")
+        elif key == "baristaNote":
+            if item.get("baristaNote"):
+                lines.append(f"! {item['baristaNote']}")
+    return lines
+
+
+def visible_columns(layout_items: dict, default_columns: list[dict]) -> list[dict]:
+    columns = layout_items.get("columns")
+    if not isinstance(columns, list) or not columns:
+        columns = default_columns
+    result = []
+    for column in columns:
+        if isinstance(column, dict) and column.get("visible", True):
+            result.append(column)
+    return result
+
+
+def info_rows(layout_data: dict, rows_key: str, default_rows: list[str]) -> list[str]:
+    rows = layout_data.get(rows_key)
+    if not isinstance(rows, list) or not rows:
+        rows = default_rows
+    return [str(row) for row in rows if row]
+
+
+def service_with_table(order: dict) -> str:
+    return (order.get("serviceLabel") or "")
+
+
+def customer_header_row(contract, payload, order: dict, key: str) -> None:
+    r, size = contract
+    if key == "code":
+        r.row("کد سفارش", order.get("code", ""), size=30, bold=True, gap=12)
+    elif key == "createdAt":
+        r.row(order.get("createdAtLabel", ""), "", size=size)
+    elif key == "channel":
+        r.row(order.get("channelLabel", ""), "", size=size)
+    elif key == "service":
+        service = service_with_table(order)
+        if service:
+            r.row(service, "", size=size)
+    elif key == "table":
+        if order.get("tableLabel"):
+            r.row(f"میز {order['tableLabel']}", "", size=size)
+    elif key == "pickupTime":
+        if order.get("pickupAtLabel"):
+            r.row("تحویل", order["pickupAtLabel"], size=size, bold=True)
+    elif key == "customerName":
+        if order.get("customerName"):
+            r.row(order["customerName"], "", size=size)
+    elif key == "customerPhone":
+        if order.get("customerPhone"):
+            r.row(order["customerPhone"], "", size=size)
+    elif key == "note":
+        if order.get("note"):
+            r.paragraph(f"یادداشت: {order['note']}", size=22)
+
+
+def barista_info_row(contract, payload, order: dict, key: str) -> None:
+    r, size = contract
+    if key == "paidAt":
+        r.row(order.get("paidAtLabel") or order.get("createdAtLabel", ""), "", size=size)
+    elif key == "createdAt":
+        r.row(order.get("createdAtLabel", ""), "", size=size)
+    elif key == "channel":
+        r.row(order.get("channelLabel", ""), "", size=size)
+    elif key == "service":
+        service = service_with_table(order)
+        if service:
+            r.paragraph(service, size=size, bold=True)
+    elif key == "table":
+        if order.get("tableLabel"):
+            r.row(f"میز {order['tableLabel']}", "", size=size)
+    elif key == "customerName":
+        if order.get("customerName"):
+            r.row(f"مشتری: {order['customerName']}", "", size=size)
+    elif key == "customerPhone":
+        if order.get("customerPhone"):
+            r.row(order["customerPhone"], "", size=size)
+    elif key == "paymentMethod":
+        r.row("روش پرداخت", order.get("paymentLabel", ""), size=size)
+
+
+def draw_items_table(r: Receipt, payload: dict, items: list[dict], layout_data: dict):
+    """Items table honoring the admin-configured columns, widths and fonts.
+
+    Geometry: `name` owns the flexible right zone (qty is drawn inline as
+    "۲ × اسپرسو"); `unitPrice`/`total` form annotation bands stacked from the
+    left margin in document order. An item row updates r.y normally; every
+    band value is aligned with the item's first name line.
+    """
+    is_barista = bool(layout_data.get("_barista"))
+
+    default_columns = (
+        [{"key": "name", "visible": True}, {"key": "qty", "visible": True}]
+        if is_barista
+        else [
+            {"key": "name", "visible": True},
+            {"key": "qty", "visible": True},
+            {"key": "unitPrice", "visible": False},
+            {"key": "total", "visible": True, "label": "جمع"},
+        ]
+    )
+    layout_items = layout_data.get("items") if isinstance(layout_data.get("items"), dict) else {}
+    columns = visible_columns(layout_items, default_columns)
+    default_sub_lines = BARISTA_DEFAULT_SUB_LINES if is_barista else CUSTOMER_DEFAULT_SUB_LINES
+    sub_line_keys = info_rows(layout_items if not is_barista else layout_data, "subLines", default_sub_lines)
+
+    size = font_size(layout_data, "item", 38 if is_barista else 30)
+    show_header = bool(layout_items.get("showHeaderRow", False))
+
+    qty_visible = any(column.get("key") == "qty" for column in columns)
+    bands = [column for column in columns if column.get("key") in BAND_COLUMN_KEYS]
+
+    # ── band widths and positions (left margin → rightwards) ────────────────
+    band_values: dict[str, list[str]] = {}
+    band_labels: dict[str, str] = {}
+    for column in bands:
+        key = column["key"]
+        band_values[key] = [
+            str(item.get("unitPriceLabel") or "" if key == "unitPrice" else item.get("totalLabel") or "")
+            for item in items
+        ]
+        band_labels[key] = str(column.get("label") or ("واحد" if key == "unitPrice" else "جمع"))
+
+    band_widths: dict[str, float] = {}
+    for column in bands:
+        key = column["key"]
+        texts = band_values[key] + ([band_labels[key]] if show_header else [])
+        measured = max(visual_width(rtl(text), size, False) for text in texts) if texts else 0.0
+        pct = column.get("widthPct")
+        assigned = (float(pct) / 100.0) * CONTENT_W if pct else max(measured + 24.0, 96.0)
+        band_widths[key] = min(assigned, CONTENT_W * 0.9)
+
+    band_positions: dict[str, tuple[float, float]] = {}
+    x = MARGIN
+    for column in bands:
+        key = column["key"]
+        band_positions[key] = (x, band_widths[key])
+        x += band_widths[key]
+
+    # The name zone spans from the end of the bands to the right margin.
+    name_width = max((WIDTH - MARGIN) - x, int(CONTENT_W * 0.4))
+    name_left = (WIDTH - MARGIN) - name_width
+
+    def draw_band_text(band_y: float, key: str, text: str, bold=False):
+        start, width = band_positions[key]
+        if not text:
+            return
+        visual = rtl(text)
+        w = min(visual_width(visual, size, bold), width - 4)
+        draw_visual(r.draw, start + max(0.0, (width - w)), band_y, visual, size, bold)
+
+    if show_header and bands:
+        header_y = r.y
+        r._ensure(size + 12)
+        for column in bands:
+            draw_band_text(header_y, column["key"], band_labels[column["key"]])
+        r.y += size + 12
+
+    for index, item in enumerate(items):
+        qty = item.get("quantityLabel") or str(item.get("quantity", 1))
+        name = item.get("name", "")
+        name_text = f"{qty} × {name}" if qty_visible else name
+
+        lines = wrap(name_text, size, True, name_width)
+        if not lines:
+            lines = [""]
+
+        for line_index, line in enumerate(lines):
+            r._ensure(size + 8)
+            visual = rtl(line)
+            w = visual_width(visual, size, True)
+            if line_index == 0:
+                for column in bands:
+                    draw_band_text(r.y, column["key"], band_values[column["key"]][index])
+            draw_visual(r.draw, (WIDTH - MARGIN) - w, r.y, visual, size, True)
+            r.y += size + 8
+
+        # Detail lines under the name, honoring the admin-defined order.
+        details = sub_lines(item, sub_line_keys, layout_items)
+        if details:
+            joined = " • ".join(details)
+            detail_width = max(name_width - 20, 120)
+            for wrapped_detail in wrap(joined, max(20, size - 8), False, detail_width):
+                r._ensure(size)
+                visual = rtl(wrapped_detail)
+                w = visual_width(visual, max(20, size - 8), False)
+                draw_visual(r.draw, (WIDTH - MARGIN) - w, r.y, visual, max(20, size - 8), False)
+                r.y += (max(20, size - 8)) + 6
+
+        # Note of the unit price when it has no column of its own (customer copy).
+        unit_price_column = any(column.get("key") == "unitPrice" for column in columns)
+        show_note = bool(layout_items.get("showUnitPriceNote", True))
+        if (
+            not is_barista
+            and show_note
+            and not unit_price_column
+            and item.get("unitPriceLabel")
+            and item.get("quantity", 1) > 1
+        ):
+            r.paragraph(f"واحد: {item['unitPriceLabel']}", size=20, indent=20, gap=4)
+        r.gap(6)
+
+
+# Default detail lines per copy (classic layout).
+CUSTOMER_DEFAULT_SUB_LINES = ["size", "options", "modifiers", "customDrink", "payer"]
+BARISTA_DEFAULT_SUB_LINES = ["size", "modifiers", "options", "customDrink", "baristaNote"]
+
+
 def customer_receipt(payload) -> Receipt:
     r = Receipt()
+    layout_data = dict(copy_layout(payload, "customer"))
+    layout_data["_barista"] = False
     header = payload.get("header", {})
     order = payload.get("order", {})
     items = payload.get("items", [])
     totals = payload.get("totals", {})
+    fonts_header = font_size(layout_data, "header", 40)
 
-    r.centered(header.get("cafeName") or "Sugarista", 40, bold=True, gap=12)
-    if header.get("address"):
-        r.centered(header["address"], 22, gap=4)
-    if header.get("contactPhone"):
-        r.centered(f"تلفن: {header['contactPhone']}", 22, gap=4)
+    r.centered(header.get("cafeName") or "Sugarista", fonts_header, bold=True, gap=12)
+    header_section = layout_data.get("header", {}) if isinstance(layout_data.get("header"), dict) else {}
+    fonts_info = font_size(layout_data, "info", 22)
+    if header_section.get("showAddress", True) and header.get("address"):
+        r.centered(header["address"], fonts_info, gap=4)
+    if header_section.get("showPhone", True) and header.get("contactPhone"):
+        r.centered(f"تلفن: {header['contactPhone']}", fonts_info, gap=4)
     r.gap(4)
     r.divider("double")
     r.gap(4)
 
-    r.row("کد سفارش", order.get("code", ""), size=30, bold=True, gap=12)
-    r.row(order.get("createdAtLabel", ""), order.get("channelLabel", ""), size=22)
-    service = order.get("serviceLabel") or ""
-    if order.get("tableLabel"):
-        service = f"{service} • میز {order['tableLabel']}"
-    if service:
-        r.row(service, "", size=22)
-    if order.get("customerName"):
-        r.row(order["customerName"], "", size=22)
-    if order.get("customerPhone"):
-        r.row(order["customerPhone"], "", size=22)
-    if order.get("note"):
-        r.paragraph(f"یادداشت: {order['note']}", size=22)
-
+    for row_key in info_rows(layout_data, "headerRows", list(DEFAULT_CUSTOMER_HEADER_ROW_LABELS)):
+        customer_header_row((r, fonts_info), payload, order, row_key)
     r.gap(4)
     r.divider()
     r.gap(4)
 
-    for item in items:
-        qty = item.get("quantityLabel") or str(item.get("quantity", 1))
-        name = item.get("name", "")
-        r.row(f"{qty} × {name}", item.get("totalLabel", ""), size=30, bold=True, gap=10)
-        details = []
-        if item.get("sizeLabel"):
-            details.append(str(item["sizeLabel"]))
-        if item.get("modifierLabels"):
-            details.extend(str(m) for m in item["modifierLabels"])
-        if item.get("payerLabel"):
-            details.append(f"سهم {item['payerLabel']}")
-        if details:
-            r.paragraph(" • ".join(details), size=22, indent=20, gap=5)
-        if item.get("unitPriceLabel") and item.get("quantity", 1) > 1:
-            r.paragraph(f"واحد: {item['unitPriceLabel']}", size=20, indent=20, gap=4)
-        r.gap(6)
+    draw_items_table(r, payload, items, layout_data)
 
     r.divider()
     r.gap(4)
 
-    if totals.get("subtotalLabel"):
-        r.row("جمع اقلام", totals["subtotalLabel"], size=24)
-    if totals.get("deliveryFeeLabel"):
-        r.row("هزینه ارسال", totals["deliveryFeeLabel"], size=24)
-    if totals.get("taxLabel"):
-        r.row("مالیات", totals["taxLabel"], size=24)
-    r.row("مبلغ نهایی", totals.get("totalLabel", ""), size=36, bold=True, gap=16)
+    # Admin-configured totals rows.
+    totals_section = layout_data.get("totals", {}) if isinstance(layout_data.get("totals"), dict) else {}
+    rows = totals_section.get("rows")
+    if not isinstance(rows, list) or not rows:
+        rows = [
+            {"key": "subtotal", "label": "جمع اقلام", "visible": True},
+            {"key": "deliveryFee", "label": "هزینه ارسال", "visible": True},
+            {"key": "tax", "label": "مالیات", "visible": True},
+            {"key": "total", "label": "مبلغ نهایی", "visible": True},
+        ]
+    subtotal_font = font_size(layout_data, "subtotal", 24)
+    total_font = font_size(layout_data, "total", 36)
+    for row in rows:
+        if not isinstance(row, dict) or not row.get("visible", True):
+            continue
+        key = row.get("key")
+        label = str(row.get("label") or "")
+        if key == "subtotal" and totals.get("subtotalLabel"):
+            r.row(label or "جمع اقلام", totals["subtotalLabel"], size=subtotal_font)
+        elif key == "deliveryFee" and totals.get("deliveryFeeLabel"):
+            r.row(label or "هزینه ارسال", totals["deliveryFeeLabel"], size=subtotal_font)
+        elif key == "tax" and totals.get("taxLabel"):
+            r.row(label or "مالیات", totals["taxLabel"], size=subtotal_font)
+        elif key == "total":
+            r.row(label or "مبلغ نهایی", totals.get("totalLabel", ""), size=total_font, bold=True, gap=16)
 
-    r.row("روش پرداخت", order.get("paymentLabel", ""), size=22)
-    if order.get("reference"):
-        r.paragraph(f"شماره پیگیری: {order['reference']}", size=20)
-    if totals.get("amountPaidLabel") and totals.get("amountPaidLabel") != totals.get("totalLabel"):
-        r.row("پرداخت شده", totals["amountPaidLabel"], size=22)
+    for row_key in info_rows(layout_data, "paymentRows", ["paymentMethod", "reference", "amountPaid"]):
+        if row_key == "paymentMethod":
+            r.row("روش پرداخت", order.get("paymentLabel", ""), size=fonts_info)
+        elif row_key == "reference":
+            if order.get("reference"):
+                r.paragraph(f"شماره پیگیری: {order['reference']}", size=20)
+        elif row_key == "amountPaid":
+            amount_paid = totals.get("amountPaidLabel")
+            if amount_paid and amount_paid != totals.get("totalLabel"):
+                r.row("پرداخت شده", amount_paid, size=fonts_info)
 
     r.gap(8)
     r.divider()
     r.gap(4)
-    if payload.get("footerText"):
-        r.centered(payload["footerText"], 22, gap=5)
-    r.centered("از انتخاب شما سپاسگزاریم", 26, bold=True, gap=8)
-    r.centered(header.get("cafeName") or "Sugarista", 20, gap=4)
+    footer = layout_data.get("footer", {}) if isinstance(layout_data.get("footer"), dict) else {}
+    footer_text = footer.get("text") or payload.get("footerText")
+    if footer_text:
+        r.centered(footer_text, 22, gap=5)
+    if footer.get("showThanks", True):
+        r.centered("از انتخاب شما سپاسگزاریم", 26, bold=True, gap=8)
+    if footer.get("showCafeName", True):
+        r.centered(header.get("cafeName") or "Sugarista", 20, gap=4)
     return r
 
 
 def barista_receipt(payload) -> Receipt:
     r = Receipt()
+    layout_data = dict(copy_layout(payload, "barista"))
+    layout_data["_barista"] = True
     order = payload.get("order", {})
     items = payload.get("items", [])
 
-    r.centered("فیش باریستا", 26, bold=True, gap=10)
-    r.centered(order.get("code", ""), 56, bold=True, gap=16)
-    r.row(order.get("paidAtLabel") or order.get("createdAtLabel", ""), order.get("channelLabel", ""), size=24)
-    service = order.get("serviceLabel") or ""
-    if order.get("tableLabel"):
-        service = f"{service} • میز {order['tableLabel']}"
-    if service:
-        r.paragraph(service, size=26, bold=True)
-    if order.get("customerName"):
-        r.paragraph(f"مشتری: {order['customerName']}", size=24)
+    title = layout_data.get("title") or "فیش باریستا"
+    fonts_info = font_size(layout_data, "info", 24)
+    r.centered(title, font_size(layout_data, "title", 26), bold=True, gap=10)
+    r.centered(order.get("code", ""), font_size(layout_data, "code", 56), bold=True, gap=16)
+
+    for row_key in info_rows(layout_data, "infoRows", ["paidAt", "channel", "service", "table", "customerName"]):
+        barista_info_row((r, fonts_info), payload, order, row_key)
 
     r.gap(4)
     r.divider("double")
     r.gap(8)
 
-    for item in items:
-        qty = item.get("quantityLabel") or str(item.get("quantity", 1))
-        name = item.get("name", "")
-        r.row(f"{qty} × {name}", "", size=38, bold=True, gap=12)
-        details = []
-        if item.get("sizeLabel"):
-            details.append(str(item["sizeLabel"]))
-        if item.get("modifierLabels"):
-            details.extend(str(m) for m in item["modifierLabels"])
-        if details:
-            r.paragraph(" • ".join(details), size=28, indent=20, gap=6)
-        if item.get("baristaNote"):
-            r.paragraph(f"! {item['baristaNote']}", size=28, bold=True, indent=20, gap=6)
-        r.gap(10)
+    draw_items_table(r, payload, items, layout_data)
 
     r.divider()
     r.gap(4)
-    if order.get("note"):
+    if bool(layout_data.get("showOrderNote", True)) and order.get("note"):
         r.paragraph(f"یادداشت سفارش: {order['note']}", size=28, bold=True)
-    r.centered("تهیه و تحویل — شوگریستا", 22, gap=4)
+    footer = layout_data.get("footer", {}) if isinstance(layout_data.get("footer"), dict) else {}
+    # A custom footer text always prints; showSign only gates the default sign-off.
+    footer_text = footer.get("text") or ""
+    if not footer_text and footer.get("showSign", True):
+        footer_text = "تهیه و تحویل — شوگریستا"
+    if footer_text:
+        r.centered(footer_text, 22, gap=4)
     return r
+
 
 
 def main():

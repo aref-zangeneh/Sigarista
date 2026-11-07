@@ -316,6 +316,15 @@ public class SiteSettings : BaseAuditableEntity
     /// <summary>Percentage off granted by the single-use abandoned-cart code.</summary>
     public decimal AbandonedCartDiscountPercent { get; set; } = 10m;
 
+    /// <summary>
+    /// Visual layout of the printed receipts (customer copy + barista/kitchen
+    /// ticket) as a serialized JSON document
+    /// (<see cref="Sugarista.Application.Printing.ReceiptLayout.ResolvedReceiptLayout"/>).
+    /// null = the built-in default layout. Configured from the admin panel,
+    /// applied by <c>ReceiptPrintJobService</c> and the offline print agent.
+    /// </summary>
+    public string? ReceiptLayoutJson { get; set; }
+
     /// <summary>How long the single-use abandoned-cart code stays valid, in hours.</summary>
     public int AbandonedCartCodeValidityHours { get; set; } = 48;
 

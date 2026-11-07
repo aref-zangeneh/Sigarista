@@ -4281,6 +4281,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("ReceiptLayoutJson")
+                        .HasMaxLength(12000)
+                        .HasColumnType("character varying(12000)");
+
                     b.Property<string>("SearchPlaceholder")
                         .IsRequired()
                         .HasMaxLength(200)

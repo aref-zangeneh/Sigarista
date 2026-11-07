@@ -2770,3 +2770,429 @@ select:focus-visible {
     align-items: stretch;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Receipt layout panel (TASK-014) — visual editor for the printed receipt
+   layout (customer copy + barista ticket) with a live paper preview.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.receipt-layout-badge-icon {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.receipt-layout-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.receipt-layout-tabs button {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.receipt-layout-tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.receipt-layout-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 22px;
+  align-items: start;
+}
+
+.receipt-layout-form {
+  min-width: 0;
+}
+
+.receipt-layout-editor h4 {
+  margin: 18px 0 8px;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.receipt-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.receipt-layout-field {
+  display: grid;
+  gap: 5px;
+  font-size: 0.84rem;
+}
+
+.receipt-layout-field > span {
+  color: var(--muted);
+}
+
+.receipt-layout-field input[type='text'],
+.receipt-layout-field input[type='number'] {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.receipt-layout-toggle {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.receipt-layout-toggle input {
+  margin-top: 3px;
+}
+
+.receipt-layout-toggle span small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.receipt-layout-ordered,
+.receipt-layout-total-row {
+  font-size: 0.84rem;
+}
+
+.receipt-layout-ordered {
+  margin-top: 10px;
+}
+
+.receipt-layout-ordered-title {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.78rem;
+  margin-bottom: 6px;
+}
+
+.receipt-layout-ordered ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.receipt-layout-ordered li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-soft, transparent);
+}
+
+.receipt-layout-ordered-label {
+  min-width: 0;
+}
+
+.receipt-layout-ordered-actions {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.receipt-layout-ordered-actions button,
+.receipt-layout-column-controls button {
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.receipt-layout-ordered-actions button:disabled,
+.receipt-layout-column-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.receipt-layout-ordered-actions button.danger {
+  color: var(--bad);
+}
+
+.receipt-layout-ordered select {
+  padding: 6px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.receipt-layout-hint {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.receipt-layout-columns ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.receipt-layout-columns li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.receipt-layout-columns li.off .receipt-layout-ordered-label {
+  opacity: 0.45;
+}
+
+.receipt-layout-column-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.receipt-layout-column-controls input {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.78rem;
+  width: 110px;
+}
+
+.receipt-layout-column-controls button.ok {
+  color: var(--ok);
+}
+
+.receipt-layout-column-controls button.danger {
+  color: var(--bad);
+}
+
+.receipt-layout-totals .receipt-layout-total-row {
+  display: grid;
+  grid-template-columns: auto 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 5px;
+}
+
+.receipt-layout-total-row.off span {
+  opacity: 0.45;
+}
+
+.receipt-layout-total-row input[type='text'] {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.receipt-layout-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.receipt-layout-save {
+  padding: 9px 22px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.receipt-layout-save:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.receipt-layout-reset {
+  padding: 9px 18px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.receipt-layout-body .feedback {
+  margin-top: 10px;
+  font-size: 0.84rem;
+}
+
+.receipt-layout-body .feedback.err {
+  color: var(--bad);
+}
+
+.receipt-layout-body .feedback.ok {
+  color: var(--ok);
+}
+
+/* ── Live preview (thermal-paper mock) ───────────────────────────────────── */
+
+.receipt-layout-preview {
+  position: sticky;
+  top: calc(var(--topbar-height) + 14px);
+}
+
+.receipt-preview-paper {
+  margin-top: 8px;
+  background: #fff;
+  color: #1c1c1c;
+  border-radius: 6px;
+  box-shadow: var(--card-shadow);
+  padding: 16px 14px 12px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  direction: rtl;
+}
+
+.receipt-preview-paper.barista {
+  color: #101410;
+}
+
+.receipt-preview-center {
+  text-align: center;
+}
+
+.receipt-preview-paper .bold {
+  font-weight: 800;
+}
+
+.receipt-preview-paper .big {
+  font-size: 1.3em;
+}
+
+.receipt-preview-paper .small {
+  font-size: 0.8em;
+  opacity: 0.85;
+}
+
+.receipt-preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.receipt-preview-row em {
+  font-style: normal;
+  text-align: left;
+}
+
+.receipt-preview-note {
+  margin-top: 3px;
+}
+
+.receipt-preview-divider {
+  border-top: 1px dashed #9a9a9a;
+  margin: 7px 0;
+}
+
+.receipt-preview-divider.double {
+  border-top-color: #1c1c1c;
+  border-top-style: solid;
+  border-top-width: 2px;
+}
+
+.receipt-preview-cols-head {
+  display: flex;
+  gap: 10px;
+  color: #333;
+  font-size: 0.8em;
+}
+
+.receipt-preview-cols-head em {
+  width: 34%;
+  font-style: normal;
+  text-align: left;
+}
+
+.receipt-preview-item {
+  margin: 6px 0;
+}
+
+.receipt-preview-name {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.receipt-preview-name strong {
+  font-size: 1.15em;
+}
+
+.receipt-preview-name em,
+.receipt-preview-unit-price {
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.receipt-preview-item.barista-item strong {
+  font-size: 1.2em;
+}
+
+.receipt-preview-sublines {
+  font-size: 0.84em;
+  color: #444;
+  margin-top: 2px;
+}
+
+.receipt-preview-hint {
+  margin-top: 10px;
+  border-top: 1px dotted #b5b5b5;
+  padding-top: 6px;
+  font-size: 0.72rem;
+  color: #777;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .receipt-layout-body {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt-layout-preview {
+    position: static;
+  }
+
+  .receipt-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}

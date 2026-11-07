@@ -53,6 +53,8 @@ public class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSettings>
         builder.Property(settings => settings.FooterCallLabel).HasMaxLength(100).IsRequired();
         builder.Property(settings => settings.IsOnlineSalesEnabled).IsRequired();
         builder.Property(settings => settings.OnlineSalesNotice).HasMaxLength(500).IsRequired();
+        // Serialized receipt layout document (customer + barista copies).
+        builder.Property(settings => settings.ReceiptLayoutJson).HasMaxLength(12000);
         builder.Property(settings => settings.TimeZoneId).HasMaxLength(64).IsRequired();
         builder.Property(settings => settings.LightThemeStartHour).IsRequired();
         builder.Property(settings => settings.DarkThemeStartHour).IsRequired();

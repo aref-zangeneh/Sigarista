@@ -628,6 +628,7 @@ public class ApplicationDbContextSeeder
                 SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260722120000_AddAccountingModule'
             );
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "CustomDrinkBuilderEnabled" boolean NOT NULL DEFAULT TRUE;
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "ReceiptLayoutJson" character varying(12000);
             ALTER TABLE "OrderLines" ADD COLUMN IF NOT EXISTS "CustomDrinkSummary" text[] NOT NULL DEFAULT ARRAY[]::text[];
             ALTER TABLE "OrderLines" ADD COLUMN IF NOT EXISTS "CustomizationJson" text;
             CREATE TABLE IF NOT EXISTS "DrinkBuilderProfiles" (

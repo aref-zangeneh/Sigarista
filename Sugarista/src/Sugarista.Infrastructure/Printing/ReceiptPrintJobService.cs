@@ -4,6 +4,9 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.MenuItems.OptionGroups;
+using Sugarista.Application.Printing;
+using Sugarista.Application.Printing.ReceiptLayout;
 using Sugarista.Domain.Entities;
 using Sugarista.Infrastructure.Data;
 
@@ -23,6 +26,9 @@ public class ReceiptPrintJobService : IPrintJobService
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         Converters = { new JsonStringEnumConverter() }
     };
+
+    private static readonly JsonSerializerOptions SnapshotJsonOptions =
+        new(JsonSerializerDefaults.Web);
 
     private static readonly PersianCalendar PersianCalendar = new();
 
@@ -61,6 +67,8 @@ public class ReceiptPrintJobService : IPrintJobService
                 .AsNoTracking()
                 .FirstOrDefaultAsync(cancellationToken);
 
+            var layout = ReceiptLayoutJsonParser.Parse(settings?.ReceiptLayoutJson);
+
             string? tableLabel = null;
             if (order.SalonTableId.HasValue)
             {
@@ -84,7 +92,7 @@ public class ReceiptPrintJobService : IPrintJobService
                 settings?.Address,
                 settings?.ContactPhone);
 
-            var basePayload = BuildReceiptPayload(order, settings, tableLabel, deliveryLabel, header);
+            var basePayload = BuildReceiptPayload(order, settings, layout, tableLabel, deliveryLabel, header);
 
             var customerPayload = basePayload with { CopyType = PrintJobCopyType.Customer };
             var baristaPayload = basePayload with { CopyType = PrintJobCopyType.Barista };
@@ -118,6 +126,7 @@ public class ReceiptPrintJobService : IPrintJobService
     private static ReceiptPayload BuildReceiptPayload(
         Order order,
         SiteSettings? settings,
+        ResolvedReceiptLayout layout,
         string? tableLabel,
         string? deliveryLabel,
         ReceiptHeaderPayload header)
@@ -125,6 +134,7 @@ public class ReceiptPrintJobService : IPrintJobService
         var timeZone = ResolveTimeZone(settings?.TimeZoneId);
         var createdAtLabel = FormatCafeLocal(order.CreatedAt, timeZone);
 
+        var showOptionPrices = layout.Customer.Items.ShowOptionPrices;
         var items = order.Lines
             .OrderBy(line => line.PersianName)
             .Select(line => new ReceiptItemPayload(
@@ -136,7 +146,10 @@ public class ReceiptPrintJobService : IPrintJobService
                 Money(line.UnitPrice),
                 Money(line.LineTotal),
                 string.IsNullOrWhiteSpace(line.PayerLabel) ? null : line.PayerLabel,
-                line.BaristaNote))
+                line.BaristaNote,
+                BuildOptionLines(line, showOptionPrices),
+                BuildOptionTotalLabel(line),
+                line.CustomDrinkSummary?.ToList()))
             .ToList();
 
         var channelLabel = order.Channel == OrderChannel.Pos
@@ -172,6 +185,10 @@ public class ReceiptPrintJobService : IPrintJobService
             ? FormatCafeLocal(order.PaidAt.Value, timeZone)
             : createdAtLabel;
 
+        var pickupAtLabel = order.DeliveryAt.HasValue
+            ? FormatCafeLocal(order.DeliveryAt.Value, timeZone)
+            : null;
+
         return new ReceiptPayload(
             CopyType: PrintJobCopyType.Customer,
             Header: header,
@@ -186,7 +203,8 @@ public class ReceiptPrintJobService : IPrintJobService
                 CreatedAtLabel: createdAtLabel,
                 PaidAtLabel: paidAtLabel,
                 PaymentLabel: paymentLabel,
-                Reference: reference),
+                Reference: reference,
+                PickupAtLabel: pickupAtLabel),
             Items: items,
             Totals: new ReceiptTotalsPayload(
                 SubtotalLabel: Money(order.Lines.Sum(line => line.LineTotal)),
@@ -195,11 +213,68 @@ public class ReceiptPrintJobService : IPrintJobService
                 TotalLabel: Money(order.TotalAmount),
                 AmountPaidLabel: order.AmountPaid > 0 ? Money(order.AmountPaid) : null),
             FooterText: settings?.FooterText,
-            TimeZoneId: settings?.TimeZoneId ?? "Asia/Tehran");
+            TimeZoneId: settings?.TimeZoneId ?? "Asia/Tehran",
+            Layout: layout);
     }
 
-    private static TimeZoneInfo ResolveTimeZone(string? timeZoneId)
+    /// <summary>
+    /// Selected per-item options of the line, from the immutable snapshot.
+    /// <paramref name="showPrices"/> attaches the frozen price delta of each
+    /// option (TASK-013), otherwise only the plain labels are returned.
+    /// </summary>
+    private static List<ReceiptOptionPayload>? BuildOptionLines(OrderLine line, bool showPrices)
     {
+        if (string.IsNullOrWhiteSpace(line.OptionsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var snapshot = JsonSerializer.Deserialize<MenuItemOptionSnapshot>(
+                line.OptionsJson,
+                SnapshotJsonOptions);
+            var components = snapshot?.Components;
+            if (components is null || components.Count == 0)
+            {
+                return null;
+            }
+
+            return components
+                .Select(component => new ReceiptOptionPayload(
+                    component.GroupName,
+                    component.OptionName,
+                    showPrices && component.PriceDelta > 0 ? Money(component.PriceDelta) : null))
+                .ToList();
+        }
+        catch (JsonException)
+        {
+            // Extremely defensive: a corrupt snapshot must never block printing.
+            return line.OptionLabels?.Select(label => new ReceiptOptionPayload(null, label, null)).ToList();
+        }
+    }
+
+    private static string? BuildOptionTotalLabel(OrderLine line)
+    {
+        if (string.IsNullOrWhiteSpace(line.OptionsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var snapshot = JsonSerializer.Deserialize<MenuItemOptionSnapshot>(
+                line.OptionsJson,
+                SnapshotJsonOptions);
+            return snapshot is { OptionsTotal: > 0 } ? Money(snapshot.OptionsTotal) : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static TimeZoneInfo ResolveTimeZone(string? timeZoneId)    {
         if (string.IsNullOrWhiteSpace(timeZoneId))
         {
             return TimeZoneInfo.Local;
@@ -264,7 +339,19 @@ public record ReceiptItemPayload(
     string UnitPriceLabel,
     string TotalLabel,
     string? PayerLabel,
-    string? BaristaNote);
+    string? BaristaNote,
+    /// <summary>Per-item options chosen at order time (TASK-013 snapshot).</summary>
+    List<ReceiptOptionPayload>? Options,
+    /// <summary>Sum of the option price deltas of the line (Toman, Persian digits).</summary>
+    string? OptionTotalLabel,
+    /// <summary>Custom drink builder summary lines (e.g. "۲ پیمانه سرکه مالت").</summary>
+    List<string>? CustomDrinkSummary);
+
+public record ReceiptOptionPayload(
+    string? GroupName,
+    string OptionName,
+    /// <summary>Frozen price delta when the layout asks for per-option prices.</summary>
+    string? PriceDeltaLabel);
 
 public record ReceiptOrderPayload(
     string Code,
@@ -277,7 +364,9 @@ public record ReceiptOrderPayload(
     string CreatedAtLabel,
     string PaidAtLabel,
     string PaymentLabel,
-    string? Reference);
+    string? Reference,
+    /// <summary>Scheduled pickup/delivery moment in cafe local time (pickup scheduling).</summary>
+    string? PickupAtLabel);
 
 public record ReceiptTotalsPayload(
     string SubtotalLabel,
@@ -293,4 +382,6 @@ public record ReceiptPayload(
     List<ReceiptItemPayload> Items,
     ReceiptTotalsPayload Totals,
     string? FooterText,
-    string TimeZoneId);
+    string TimeZoneId,
+    /// <summary>Receipt layout resolved at enqueue time — the agent renders from it.</summary>
+    ResolvedReceiptLayout Layout);

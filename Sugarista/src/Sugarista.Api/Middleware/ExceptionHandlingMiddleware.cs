@@ -1,6 +1,7 @@
 using System.Net;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Sugarista.Application.Orders;
 using Sugarista.Domain.Exceptions;
 
 namespace Sugarista.Api.Middleware;
@@ -24,7 +25,7 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            if (ex is ValidationException or DomainException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
+            if (ex is ValidationException or DomainException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException or CheckoutConflictException)
             {
                 // Expected business/input failures: log a short line instead of a
                 // full stack trace, and never include request bodies or tokens.
@@ -45,6 +46,7 @@ public class ExceptionHandlingMiddleware
         {
             ValidationException => (HttpStatusCode.BadRequest, "Validation failed."),
             DomainException => (HttpStatusCode.BadRequest, "Domain rule violation."),
+            CheckoutConflictException => (HttpStatusCode.Conflict, "Checkout conflict."),
             UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "Unauthorized."),
             KeyNotFoundException => (HttpStatusCode.NotFound, "Resource not found."),
             InvalidOperationException => (HttpStatusCode.BadRequest, "Request could not be completed."),
@@ -62,6 +64,16 @@ public class ExceptionHandlingMiddleware
         };
 
         problemDetails.Extensions["traceId"] = context.TraceIdentifier;
+
+        if (exception is CheckoutConflictException checkoutConflict)
+        {
+            problemDetails.Extensions["code"] = checkoutConflict.Code;
+
+            foreach (var detail in checkoutConflict.Details)
+            {
+                problemDetails.Extensions[detail.Key] = detail.Value;
+            }
+        }
 
         if (exception is ValidationException validationException)
         {

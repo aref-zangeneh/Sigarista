@@ -214,6 +214,16 @@ export const emptySettings = {
   darkThemeStartHour: 20,
   themeMode: 'auto',
   allowManualThemeOverride: true,
+  pickupSchedulingEnabled: false,
+  pickupSlotMinutes: 15,
+  pickupSlotCapacity: 5,
+  pickupCapacityMode: 'Orders',
+  pickupMinLeadMinutes: 30,
+  pickupMaxDaysAhead: 7,
+  pickupCancelCutoffMinutes: 60,
+  pickupAutoRefundOnCancel: true,
+  pickupRefundPolicyNote:
+    'در صورت لغو سفارش پرداخت‌شده تا مهلت مجاز، مبلغ طبق سیاست کافه به کیف پول شما برگشت داده می‌شود.',
 }
 
 export const settingsSections = [

@@ -8,6 +8,7 @@ using Sugarista.Application.Discounts.Security;
 using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Commands.ConfirmMockPayment;
+using Sugarista.Application.Pickup;
 using Sugarista.Domain.Entities;
 using Sugarista.Domain.Exceptions;
 
@@ -20,7 +21,14 @@ public record CheckoutLineRequest(
     IReadOnlyCollection<Guid> ModifierIds,
     string? PayerKey = null,
     string? PayerLabel = null,
-    DrinkBuilderLineRequest? CustomDrink = null);
+    DrinkBuilderLineRequest? CustomDrink = null,
+    string? ClientLineKey = null);
+
+public record CheckoutPriceSnapshot(
+    string? ClientLineKey,
+    Guid MenuItemId,
+    string? SizeKey,
+    decimal UnitPrice);
 
 public record CheckoutSplitShareRequest(
     string PayerKey,
@@ -43,7 +51,11 @@ public record CreateOrderCheckoutCommand(
     bool PersonalCup = false,
     bool UseSubscription = false,
     DateTimeOffset? DeliveryAt = null,
-    string? IpAddress = null) : IRequest<CreateOrderCheckoutResultDto>;
+    string? IpAddress = null,
+    decimal? ExpectedTotalAmount = null,
+    IReadOnlyCollection<CheckoutPriceSnapshot>? ExpectedLinePrices = null,
+    bool AcceptPriceChanges = false,
+    string? IdempotencyKey = null) : IRequest<CreateOrderCheckoutResultDto>;
 
 public record CreateOrderCheckoutResultDto(
     Guid OrderId,
@@ -63,6 +75,12 @@ public class CreateOrderCheckoutCommandValidator : AbstractValidator<CreateOrder
         RuleFor(c => c.CustomerPhone).NotEmpty().MaximumLength(30);
         RuleFor(c => c.Note).MaximumLength(500);
         RuleFor(c => c.DiscountCode).MaximumLength(64);
+        RuleFor(c => c.IdempotencyKey).MaximumLength(100);
+        RuleForEach(c => c.ExpectedLinePrices).ChildRules(snapshot =>
+        {
+            snapshot.RuleFor(s => s.MenuItemId).NotEmpty();
+            snapshot.RuleFor(s => s.UnitPrice).GreaterThanOrEqualTo(0);
+        });
         RuleFor(c => c.Items).NotEmpty().WithMessage("At least one item is required.");
         RuleForEach(c => c.Items).ChildRules(item =>
         {
@@ -128,19 +146,25 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
     private readonly PaymentOptions _paymentOptions;
     private readonly IDiscountEngine _discountEngine;
     private readonly IOrderPaymentFinalizer _orderPaymentFinalizer;
+    private readonly PickupSlotService _pickupSlotService;
+    private readonly IPickupSlotReservationService _pickupSlotReservationService;
 
     public CreateOrderCheckoutCommandHandler(
         IApplicationDbContext dbContext,
         IPaymentGateway paymentGateway,
         IOptions<PaymentOptions> paymentOptions,
         IDiscountEngine discountEngine,
-        IOrderPaymentFinalizer orderPaymentFinalizer)
+        IOrderPaymentFinalizer orderPaymentFinalizer,
+        PickupSlotService pickupSlotService,
+        IPickupSlotReservationService pickupSlotReservationService)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
         _paymentOptions = paymentOptions.Value;
         _discountEngine = discountEngine;
         _orderPaymentFinalizer = orderPaymentFinalizer;
+        _pickupSlotService = pickupSlotService;
+        _pickupSlotReservationService = pickupSlotReservationService;
     }
 
     public async Task<CreateOrderCheckoutResultDto> Handle(CreateOrderCheckoutCommand request, CancellationToken cancellationToken)
@@ -156,20 +180,80 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             throw new DomainException("فروش آنلاین در حال حاضر غیرفعال است؛ لطفاً بعداً دوباره تلاش کنید.");
         }
 
+        // Idempotency: a double-click or retried request carries the same key.
+        // Returning a clear conflict keeps the customer from being charged for
+        // (and the kitchen from preparing) a duplicate order.
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            var idempotencyKey = request.IdempotencyKey.Trim();
+            var existingOrder = await _dbContext.Orders
+                .AsNoTracking()
+                .FirstOrDefaultAsync(order => order.IdempotencyKey == idempotencyKey, cancellationToken);
+
+            if (existingOrder is not null)
+            {
+                throw new CheckoutConflictException(
+                    "duplicate_order",
+                    $"این سفارش قبلاً ثبت شده است. کد پیگیری: {existingOrder.TrackingCode}",
+                    new Dictionary<string, object?>
+                    {
+                        ["trackingCode"] = existingOrder.TrackingCode,
+                        ["orderId"] = existingOrder.Id
+                    });
+            }
+        }
+
+        var pickupSettings = PickupSettingsSnapshot.From(siteSettings);
+        if (request.DeliveryAt is not null && !pickupSettings.Enabled)
+        {
+            throw new CheckoutConflictException(
+                "scheduling_disabled",
+                "زمان‌بندی تحویل حضوری در حال حاضر فعال نیست؛ لطفاً سفارش را بدون زمان ثبت کنید.");
+        }
+
         var splitBillMode = ResolveSplitBillMode(request);
         var isSplitBill = splitBillMode != SplitBillMode.Single;
 
         var menuItemIds = request.Items.Select(i => i.MenuItemId).Distinct().ToList();
         var modifierIds = request.Items.SelectMany(i => i.ModifierIds).Distinct().ToList();
 
-        var menuItems = await _dbContext.MenuItems
-            .Where(m => menuItemIds.Contains(m.Id) && m.IsActive)
+        var allMenuItems = await _dbContext.MenuItems
+            .Where(m => menuItemIds.Contains(m.Id))
             .ToListAsync(cancellationToken);
 
-        if (menuItems.Count != menuItemIds.Count)
+        var unavailableMenuItems = allMenuItems
+            .Where(m => !m.IsActive || !m.IsOrderable)
+            .Select(m => new Dictionary<string, object?>
+            {
+                ["menuItemId"] = m.Id,
+                ["persianName"] = m.PersianName,
+                ["reason"] = m.IsActive ? "not_orderable" : "inactive"
+            })
+            .ToList();
+
+        var missingMenuItemIds = menuItemIds
+            .Except(allMenuItems.Select(m => m.Id))
+            .ToList();
+
+        if (unavailableMenuItems.Count > 0 || missingMenuItemIds.Count > 0)
         {
-            throw new KeyNotFoundException("One or more menu items were not found or are inactive.");
+            throw new CheckoutConflictException(
+                "item_unavailable",
+                "بعضی از محصولات سبد خرید دیگر قابل سفارش نیستند؛ لطفاً آن‌ها را حذف یا جایگزین کنید.",
+                new Dictionary<string, object?>
+                {
+                    ["items"] = unavailableMenuItems
+                        .Concat(missingMenuItemIds.Select(id => new Dictionary<string, object?>
+                        {
+                            ["menuItemId"] = id,
+                            ["persianName"] = "محصول نامشخص",
+                            ["reason"] = "not_found"
+                        }))
+                        .ToArray()
+                });
         }
+
+        var menuItems = allMenuItems;
 
         var modifiers = modifierIds.Count == 0
             ? []
@@ -239,7 +323,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                     };
                 }
 
-                return (resolved, item.PayerKey, item.PayerLabel, snapshot);
+                return (resolved: resolved, payerKey: item.PayerKey, payerLabel: item.PayerLabel, snapshot: snapshot, clientLineKey: item.ClientLineKey);
             })
             .ToList();
 
@@ -247,6 +331,19 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         var taxTotal = resolvedLines.Sum(line =>
             Math.Round(line.resolved.UnitPrice * line.resolved.Quantity * line.resolved.TaxPercent / 100m, 2));
         var totalAmount = itemsTotal + taxTotal;
+
+        // ── Pre-submit re-validation (TASK-012 §5) ───────────────────────
+        // Everything below runs on the server, not only in the UI: a price or
+        // stock change between the cart and the final click must never be
+        // accepted silently.
+        await EnsureLinesAreAvailableAsync(
+            resolvedLines.Select(line => line.resolved).ToList(),
+            cancellationToken);
+        EnsurePricesHaveNotChanged(
+            request,
+            resolvedLines.Select(line => (line.resolved, line.clientLineKey)).ToList(),
+            itemsTotal,
+            totalAmount);
 
         var customer = await CustomerDirectoryService.ResolveCustomerAsync(
             _dbContext,
@@ -293,7 +390,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             request.IpAddress,
             cancellationToken);
 
-        foreach (var (resolved, payerKey, payerLabel, _) in resolvedLines)
+        foreach (var (resolved, payerKey, payerLabel, _, _) in resolvedLines)
         {
             discountLines.Add(new DiscountLineInput(
                 resolved.MenuItemId,
@@ -364,7 +461,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             splitBillMode,
             request.GuestCount);
 
-        foreach (var (resolved, payerKey, payerLabel, snapshot) in resolvedLines)
+        foreach (var (resolved, payerKey, payerLabel, snapshot, _) in resolvedLines)
         {
             order.AddLine(new OrderLine(
                 order.Id,
@@ -650,6 +747,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         order.AssignCustomer(customer?.Id);
 
         order.ApplyDeliveryTime(request.DeliveryAt);
+        order.SetIdempotencyKey(request.IdempotencyKey);
 
         if (isSplitBill && request.SplitShares is { Count: > 0 })
         {
@@ -667,6 +765,62 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         }
 
         _dbContext.Orders.Add(order);
+
+        // Slot validation + capacity reservation. The pre-check gives the
+        // customer a fast, friendly error; the locked re-check guarantees that
+        // two simultaneous checkouts can never take the last place.
+        IPickupSlotReservation? slotReservation = null;
+        try
+        {
+            if (request.DeliveryAt is { } requestedDeliveryAt)
+            {
+                var preCheck = await _pickupSlotService.ValidateAsync(requestedDeliveryAt, cancellationToken);
+                if (!preCheck.IsValid)
+                {
+                    throw BuildSlotConflict(preCheck);
+                }
+
+                var timeZone = PickupScheduleCalculator.ResolveTimeZone(pickupSettings.TimeZoneId);
+                var openHours = await _pickupSlotService.GetOpenHoursAsync(cancellationToken);
+
+                slotReservation = await _pickupSlotReservationService.ReserveAsync(
+                    requestedDeliveryAt,
+                    cancellationToken);
+
+                var lockedCheck = await _pickupSlotService.ValidateCapacityOnlyAsync(
+                    requestedDeliveryAt,
+                    pickupSettings,
+                    openHours,
+                    timeZone,
+                    cancellationToken);
+
+                if (!lockedCheck.IsValid)
+                {
+                    throw BuildSlotConflict(lockedCheck);
+                }
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            if (slotReservation is not null)
+            {
+                await slotReservation.CommitAsync(cancellationToken);
+            }
+        }
+        catch (DbUpdateException exception) when (IsDuplicateIdempotencyKey(exception))
+        {
+            throw new CheckoutConflictException(
+                "duplicate_order",
+                "این سفارش در حال ثبت است یا قبلاً ثبت شده است؛ لطفاً صفحه را دوباره بارگذاری کنید.",
+                new Dictionary<string, object?> { ["trackingCode"] = null });
+        }
+        finally
+        {
+            if (slotReservation is not null)
+            {
+                await slotReservation.DisposeAsync();
+            }
+        }
 
         if (discountTotal > 0)
         {
@@ -755,6 +909,141 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             order.TrackingCode,
             RequiresPayment: true,
             walletSpend);
+    }
+
+    private static CheckoutConflictException BuildSlotConflict(PickupValidationResult result) =>
+        new(
+            result.Code ?? "slot_unavailable",
+            result.Message ?? "بازهٔ انتخاب‌شده معتبر نیست؛ لطفاً بازهٔ دیگری انتخاب کنید.",
+            new Dictionary<string, object?>
+            {
+                ["reason"] = result.Code,
+                ["nearestSlot"] = result.NearestAvailableSlot
+            });
+
+    private static bool IsDuplicateIdempotencyKey(DbUpdateException exception) =>
+        exception.InnerException?.Message.Contains("IdempotencyKey", StringComparison.OrdinalIgnoreCase) == true ||
+        exception.Message.Contains("IdempotencyKey", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Stock re-check before the order is accepted. A product that sold out
+    /// between the cart and the final click is reported by name so the theme
+    /// can offer "remove" / "replace" instead of a generic failure.
+    /// </summary>
+    private async Task EnsureLinesAreAvailableAsync(
+        IReadOnlyCollection<OrderPricing.ResolvedLine> lines,
+        CancellationToken cancellationToken)
+    {
+        var menuItemIds = lines.Select(line => line.MenuItemId).Distinct().ToList();
+        var stockByMenuItem = await _dbContext.MenuItemStocks
+            .AsNoTracking()
+            .Where(stock => menuItemIds.Contains(stock.MenuItemId))
+            .ToDictionaryAsync(stock => stock.MenuItemId, cancellationToken);
+
+        var requestedByMenuItem = lines
+            .GroupBy(line => line.MenuItemId)
+            .ToDictionary(group => group.Key, group => group.Sum(line => line.Quantity));
+
+        var unavailable = new List<Dictionary<string, object?>>();
+        foreach (var line in lines)
+        {
+            var requested = requestedByMenuItem.GetValueOrDefault(line.MenuItemId);
+            if (!stockByMenuItem.TryGetValue(line.MenuItemId, out var stock))
+            {
+                continue;
+            }
+
+            if (stock.CurrentQuantity < requested)
+            {
+                unavailable.Add(new Dictionary<string, object?>
+                {
+                    ["menuItemId"] = line.MenuItemId,
+                    ["persianName"] = line.PersianName,
+                    ["reason"] = "insufficient_stock",
+                    ["available"] = stock.CurrentQuantity,
+                    ["requested"] = requested
+                });
+            }
+        }
+
+        if (unavailable.Count > 0)
+        {
+            throw new CheckoutConflictException(
+                "item_unavailable",
+                "موجودی بعضی از محصولات سبد خرید کافی نیست؛ لطفاً آن‌ها را حذف یا جایگزین کنید.",
+                new Dictionary<string, object?>
+                {
+                    ["items"] = unavailable.DistinctBy(item => item["menuItemId"]).ToArray()
+                });
+        }
+    }
+
+    /// <summary>
+    /// Price re-check: the client sends the unit price it displayed. Any change
+    /// aborts the checkout with a structured conflict so the customer must
+    /// explicitly confirm the new price — silent re-pricing is forbidden.
+    /// </summary>
+    private static void EnsurePricesHaveNotChanged(
+        CreateOrderCheckoutCommand request,
+        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, string? clientLineKey)> lines,
+        decimal itemsTotal,
+        decimal totalAmount)
+    {
+        if (request.AcceptPriceChanges)
+        {
+            return;
+        }
+
+        var changes = new List<Dictionary<string, object?>>();
+
+        if (request.ExpectedLinePrices is { Count: > 0 })
+        {
+            var expectedByKey = request.ExpectedLinePrices
+                .Where(snapshot => !string.IsNullOrWhiteSpace(snapshot.ClientLineKey))
+                .GroupBy(snapshot => snapshot.ClientLineKey!)
+                .ToDictionary(group => group.Key, group => group.First().UnitPrice);
+
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line.clientLineKey) ||
+                    !expectedByKey.TryGetValue(line.clientLineKey, out var expectedUnitPrice))
+                {
+                    continue;
+                }
+
+                if (Math.Abs(expectedUnitPrice - line.resolved.UnitPrice) > 0.01m)
+                {
+                    changes.Add(new Dictionary<string, object?>
+                    {
+                        ["clientLineKey"] = line.clientLineKey,
+                        ["menuItemId"] = line.resolved.MenuItemId,
+                        ["persianName"] = line.resolved.PersianName,
+                        ["oldUnitPrice"] = expectedUnitPrice,
+                        ["newUnitPrice"] = line.resolved.UnitPrice,
+                        ["quantity"] = line.resolved.Quantity
+                    });
+                }
+            }
+        }
+
+        var totalChanged = request.ExpectedTotalAmount is { } expectedTotal &&
+                           Math.Abs(expectedTotal - itemsTotal) > 0.01m;
+
+        if (changes.Count == 0 && !totalChanged)
+        {
+            return;
+        }
+
+        throw new CheckoutConflictException(
+            "price_changed",
+            "قیمت بعضی از محصولات تغییر کرده است؛ لطفاً قیمت جدید را تأیید کنید.",
+            new Dictionary<string, object?>
+            {
+                ["changes"] = changes.ToArray(),
+                ["oldItemsTotal"] = request.ExpectedTotalAmount,
+                ["newItemsTotal"] = itemsTotal,
+                ["newTotal"] = totalAmount
+            });
     }
 
     /// <summary>

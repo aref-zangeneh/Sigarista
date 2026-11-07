@@ -54,6 +54,12 @@ function SectionIcon({ name }) {
         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
       </>
     ),
+    clock: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </>
+    ),
   }
 
   return (
@@ -275,6 +281,7 @@ export function SiteSettingsPage() {
 
   const navItems = [
     { id: 'settings-sales', title: 'فروش آنلاین', icon: 'cart' },
+    { id: 'settings-pickup', title: 'سفارش پیش از مراجعه', icon: 'clock' },
     { id: 'settings-abandoned-cart', title: 'سبد رهاشده', icon: 'bell' },
     { id: 'settings-loyalty', title: 'باشگاه مشتریان', icon: 'brand' },
     { id: 'settings-theme', title: 'تم و نمایش', icon: 'theme' },
@@ -382,6 +389,187 @@ export function SiteSettingsPage() {
                 />
               </label>
             )}
+          </div>
+        </section>
+
+        {/* ---------- سفارش پیش از مراجعه ---------- */}
+        <section id="settings-pickup" className="panel settings-section">
+          <div className="panel-head">
+            <div className="settings-section-head">
+              <span className="settings-section-badge">
+                <SectionIcon name="clock" />
+              </span>
+              <div>
+                <h2>
+                  سفارش پیش از مراجعه
+                  <span
+                    className={`settings-pill ${
+                      siteSettings.pickupSchedulingEnabled ? 'is-on' : 'is-off'
+                    }`}
+                  >
+                    {siteSettings.pickupSchedulingEnabled ? 'فعال' : 'غیرفعال'}
+                  </span>
+                </h2>
+                <p>
+                  مشتری زمان تحویل حضوری را انتخاب می‌کند؛ ظرفیت هر بازه، ساعت کاری و مهلت
+                  لغو/تغییر از همین‌جا کنترل می‌شود.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-grid">
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>فعال کردن زمان‌بندی تحویل حضوری</strong>
+                <p>
+                  با فعال شدن این گزینه، در مرحلهٔ پرداخت منوی مشتریان انتخاب روز و بازهٔ تحویل
+                  نمایش داده می‌شود. اگر غیرفعال باشد، سفارش‌ها فقط به‌صورت «در اسرع وقت» ثبت
+                  می‌شوند.
+                </p>
+              </div>
+              <span className={`switch ${siteSettings.pickupSchedulingEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(siteSettings.pickupSchedulingEnabled)}
+                  onChange={(event) => updateField('pickupSchedulingEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            <label>
+              <span>طول هر بازه (دقیقه)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="5"
+                max="120"
+                value={siteSettings.pickupSlotMinutes ?? 15}
+                onChange={(event) => updateField('pickupSlotMinutes', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                بازه‌ها از ساعت شروع کار کافه تا ساعت پایان، پشت‌سرهم ساخته می‌شوند (۵ تا ۱۲۰ دقیقه).
+              </small>
+            </label>
+
+            <label>
+              <span>ظرفیت هر بازه</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="1"
+                max="1000"
+                value={siteSettings.pickupSlotCapacity ?? 5}
+                onChange={(event) => updateField('pickupSlotCapacity', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                حداکثر بار مجاز هر بازه؛ وقتی پر شد، بازه برای مشتری با برچسب «تکمیل» غیرفعال می‌شود.
+              </small>
+            </label>
+
+            <label>
+              <span>واحد ظرفیت</span>
+              <select
+                value={siteSettings.pickupCapacityMode ?? 'Orders'}
+                onChange={(event) => updateField('pickupCapacityMode', event.target.value)}
+              >
+                <option value="Orders">بر اساس تعداد سفارش</option>
+                <option value="Items">بر اساس تعداد آیتم</option>
+              </select>
+              <small className="settings-hint">
+                «سفارش» هر سفارش را یک واحد می‌شمارد؛ «آیتم» مجموع تعداد اقلام سفارش‌ها را.
+              </small>
+            </label>
+
+            <label>
+              <span>حداقل فاصلهٔ سفارش تا تحویل (دقیقه)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="1440"
+                value={siteSettings.pickupMinLeadMinutes ?? 30}
+                onChange={(event) => updateField('pickupMinLeadMinutes', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                بازه‌هایی که کمتر از این مدت تا شروعشان مانده باشد به مشتری نمایش داده نمی‌شوند.
+              </small>
+            </label>
+
+            <label>
+              <span>حداکثر روزهای آینده</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="60"
+                value={siteSettings.pickupMaxDaysAhead ?? 7}
+                onChange={(event) => updateField('pickupMaxDaysAhead', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                مشتری تا چند روز بعد می‌تواند سفارش زمان‌بندی‌شده ثبت کند (۰ = فقط امروز).
+              </small>
+            </label>
+
+            <label>
+              <span>مهلت لغو یا تغییر (دقیقه قبل از تحویل)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="0"
+                max="10080"
+                value={siteSettings.pickupCancelCutoffMinutes ?? 60}
+                onChange={(event) => updateField('pickupCancelCutoffMinutes', Number(event.target.value))}
+              />
+              <small className="settings-hint">
+                بعد از این مهلت، دکمه‌های لغو و تغییر زمان برای مشتری غیرفعال می‌شوند.
+              </small>
+            </label>
+
+            <label className="settings-switch-row full-width">
+              <div className="settings-switch-text">
+                <strong>برگشت خودکار مبلغ به کیف پول هنگام لغو</strong>
+                <p>
+                  اگر سفارش از کیف پول پرداخت شده باشد، مبلغ به‌صورت خودکار برگشت داده می‌شود.
+                  بازپرداخت پرداخت‌های درگاه آنلاین همچنان توسط کافه انجام می‌شود.
+                </p>
+              </div>
+              <span
+                className={`switch ${siteSettings.pickupAutoRefundOnCancel ? 'switch-on' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={siteSettings.pickupAutoRefundOnCancel !== false}
+                  onChange={(event) =>
+                    updateField('pickupAutoRefundOnCancel', event.target.checked)
+                  }
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            <label className="full-width">
+              <span>متن سیاست بازپرداخت برای مشتری</span>
+              <textarea
+                rows="2"
+                maxLength={1000}
+                value={siteSettings.pickupRefundPolicyNote ?? ''}
+                onChange={(event) => updateField('pickupRefundPolicyNote', event.target.value)}
+              />
+              <small className="settings-hint">
+                این متن در صفحهٔ پیگیری سفارش و پیش از لغو به مشتری نمایش داده می‌شود.
+              </small>
+            </label>
           </div>
         </section>
 

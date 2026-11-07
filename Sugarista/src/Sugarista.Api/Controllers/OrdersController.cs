@@ -6,6 +6,11 @@ using Sugarista.Application.Orders.Commands.CreateOrderCheckout;
 using Sugarista.Application.Orders.Commands.InitiateSplitPayment;
 using Sugarista.Application.Orders.Queries.GetOrderByTrackingCode;
 using Sugarista.Application.Orders.Queries.GetSplitOrderStatus;
+using Sugarista.Application.Pickup;
+using Sugarista.Application.Pickup.Commands;
+using Sugarista.Application.Pickup.Commands.CancelCustomerOrder;
+using Sugarista.Application.Pickup.Commands.RescheduleCustomerOrder;
+using Sugarista.Application.Pickup.Queries.GetPickupSlots;
 
 namespace Sugarista.Api.Controllers;
 
@@ -24,6 +29,14 @@ public class OrdersController : ApiControllerBase
         };
 
         return Ok(await Mediator.Send(enriched, cancellationToken));
+    }
+
+    [HttpGet("pickup-slots")]
+    public async Task<ActionResult<PickupScheduleDto>> GetPickupSlots(
+        [FromQuery] int? daysAhead = null,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(new GetPickupSlotsQuery(daysAhead), cancellationToken));
     }
 
     [HttpPost("{id:guid}/confirm-mock")]
@@ -87,7 +100,33 @@ public class OrdersController : ApiControllerBase
 
         return Ok(order);
     }
+
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult<CustomerOrderActionResultDto>> Cancel(
+        Guid id,
+        [FromBody] CancelCustomerOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(
+            new CancelCustomerOrderCommand(id, request.TrackingCode),
+            cancellationToken));
+    }
+
+    [HttpPost("{id:guid}/reschedule")]
+    public async Task<ActionResult<CustomerOrderActionResultDto>> Reschedule(
+        Guid id,
+        [FromBody] RescheduleCustomerOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(
+            new RescheduleCustomerOrderCommand(id, request.TrackingCode, request.DeliveryAt),
+            cancellationToken));
+    }
 }
+
+public record CancelCustomerOrderRequest(string TrackingCode);
+
+public record RescheduleCustomerOrderRequest(string TrackingCode, DateTimeOffset DeliveryAt);
 
 public record ConfirmMockPaymentRequest(string Authority);
 

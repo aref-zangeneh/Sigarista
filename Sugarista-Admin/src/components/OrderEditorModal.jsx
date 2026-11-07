@@ -54,6 +54,9 @@ export function OrderEditorModal() {
             <div className="order-detail-meta">
               <span>پرداخت: {selectedOrder.status}</span>
               <span>آماده‌سازی: {fulfillmentStatusLabel(selectedOrder.fulfillmentStatus)}</span>
+              {selectedOrder.deliveryAt ? (
+                <span>زمان تحویل: {formatDateTime(selectedOrder.deliveryAt)}</span>
+              ) : null}
               <span>مبلغ کل: {formatMoney(selectedOrder.totalAmount)} تومان</span>
               <span>پرداخت شده: {formatMoney(selectedOrder.amountPaid ?? 0)} تومان</span>
               {selectedOrder.taxTotal > 0 ? (

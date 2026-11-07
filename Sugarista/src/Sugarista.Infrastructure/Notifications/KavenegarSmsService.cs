@@ -22,11 +22,35 @@ public class KavenegarSmsService : ISmsService
         _options = options.Value;
     }
 
-    public async Task SendOrderReadyAsync(
+    public Task SendOrderReadyAsync(
         string phoneNumber,
         string trackingCode,
         string customerName,
         CancellationToken cancellationToken = default)
+    {
+        var message = LoggingSmsService.BuildMessage(trackingCode, customerName, _options.CafeName);
+        return SendMessageAsync(phoneNumber, message, cancellationToken);
+    }
+
+    public Task SendPickupScheduleChangedAsync(
+        string phoneNumber,
+        string trackingCode,
+        string customerName,
+        string deliveryTimeLabel,
+        CancellationToken cancellationToken = default)
+    {
+        var message = LoggingSmsService.BuildPickupScheduleChangedMessage(
+            trackingCode,
+            customerName,
+            deliveryTimeLabel,
+            _options.CafeName);
+        return SendMessageAsync(phoneNumber, message, cancellationToken);
+    }
+
+    private async Task SendMessageAsync(
+        string phoneNumber,
+        string message,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
         {
@@ -38,7 +62,6 @@ public class KavenegarSmsService : ISmsService
             throw new InvalidOperationException("Kavenegar sender number is not configured.");
         }
 
-        var message = LoggingSmsService.BuildMessage(trackingCode, customerName, _options.CafeName);
         var normalizedPhone = NormalizePhone(phoneNumber);
         var url =
             $"https://api.kavenegar.com/v1/{_options.ApiKey}/sms/send.json?receptor={Uri.EscapeDataString(normalizedPhone)}&sender={Uri.EscapeDataString(_options.Sender)}&message={Uri.EscapeDataString(message)}";

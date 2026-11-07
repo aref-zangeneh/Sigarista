@@ -45,9 +45,25 @@ document.addEventListener("alpine:init", () => {
     birthdaySaving: false,
     cartProgress: null,
     cartProgressTimer: null,
-    deliverySlots: [],
-    deliverySlotsLoading: false,
+    pickupSchedule: null,
+    pickupLoading: false,
+    pickupSelectionActive: false,
+    selectedPickupDate: null,
     selectedDeliverySlot: null,
+    pickupError: "",
+    checkoutConflict: null,
+    acceptPriceChanges: false,
+    checkoutIdempotencyKey: null,
+    orderStatus: null,
+    orderStatusLoading: false,
+    orderStatusTimer: null,
+    actionMessage: "",
+    actionError: "",
+    rescheduleOpen: false,
+    rescheduleDate: null,
+    rescheduleSlot: null,
+    rescheduleSaving: false,
+    rescheduleError: "",
     profileOpen: false,
     profileLoading: false,
     profileError: "",
@@ -177,8 +193,8 @@ document.addEventListener("alpine:init", () => {
         }
         if (this.cart.length) {
           this.refreshCartProgress();
-          this.loadDeliverySlots();
         }
+        await this.loadPickupSchedule();
       } catch (error) {
         this.error = error.message || "دریافت اطلاعات با خطا مواجه شد.";
       } finally {
@@ -379,6 +395,7 @@ document.addEventListener("alpine:init", () => {
         this.orderSuccess = discountCode && discountAmount > 0
           ? { trackingCode: successCode, discountCode, discountAmount }
           : { trackingCode: successCode };
+        this.startOrderStatusPolling(successCode);
         return;
       }
 
@@ -935,75 +952,124 @@ document.addEventListener("alpine:init", () => {
         this.cartProgress = null;
       }
     },
-    async loadDeliverySlots() {
-      this.deliverySlotsLoading = true;
+    /* ── pickup scheduling (TASK-012) ─────────────────────────────── */
+    async loadPickupSchedule() {
+      this.pickupLoading = true;
       try {
-        const now = new Date();
-        const slots = [];
-        const startHour = 9;
-        const endHour = 21;
-        for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-          const base = new Date(now);
-          base.setDate(base.getDate() + dayOffset);
-          base.setHours(startHour, 0, 0, 0);
-          const end = new Date(base);
-          end.setHours(endHour, 0, 0, 0);
-          let cursor = new Date(base);
-          while (cursor < end) {
-            if (cursor > now) {
-              slots.push(new Date(cursor));
-            }
-            cursor = new Date(cursor.getTime() + 30 * 60000);
-          }
-          if (slots.length >= 6) break;
-        }
-
-        if (!slots.length) {
-          this.deliverySlots = [];
-          return;
-        }
-
-        const response = await fetch(`${this.apiBaseUrl}/discounts/delivery-slots`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lines: this.cart.map((line) => ({
-              menuItemId: line.menuItemId,
-              categoryId: null,
-              persianName: line.persianName,
-              sizeKey: line.sizeKey,
-              quantity: line.quantity,
-              unitPrice: line.unitPrice
-            })),
-            slots: slots.map((slot) => slot.toISOString()),
-            timeZoneId: this.settings.timeZoneId || "Asia/Tehran"
-          })
-        });
-
+        const response = await fetch(`${this.apiBaseUrl}/orders/pickup-slots`);
         if (!response.ok) {
-          this.deliverySlots = slots.map((slot) => ({
-            time: slot.toISOString(),
-            hasDiscount: false,
-            discountPercent: null,
-            discountName: null
-          }));
+          this.pickupSchedule = null;
           return;
         }
 
-        const data = await response.json();
-        this.deliverySlots = (data || []).map((slot) => ({
-          ...slot,
-          date: new Date(slot.time)
-        }));
+        const schedule = await response.json();
+        this.pickupSchedule = schedule;
+        if (!schedule?.enabled) {
+          this.pickupSelectionActive = false;
+          this.selectedDeliverySlot = null;
+          this.selectedPickupDate = null;
+          return;
+        }
 
-        if (!this.selectedDeliverySlot && this.deliverySlots.length) {
-          this.selectedDeliverySlot = this.deliverySlots[0].time;
+        // Keep the current selection valid; otherwise default to the first
+        // open day that still has at least one free slot.
+        const currentDay = (schedule.days || []).find((day) => day.date === this.selectedPickupDate);
+        const fallbackDay =
+          (schedule.days || []).find((day) => day.isOpen && (day.slots || []).some((slot) => !slot.isFull)) ||
+          (schedule.days || []).find((day) => day.isOpen) ||
+          null;
+
+        if (!currentDay) {
+          this.selectedPickupDate = fallbackDay?.date || null;
+        }
+
+        if (this.selectedDeliverySlot) {
+          const stillAvailable = (schedule.days || []).some((day) =>
+            (day.slots || []).some(
+              (slot) => slot.deliveryAt === this.selectedDeliverySlot && !slot.isFull
+            )
+          );
+          if (!stillAvailable) {
+            this.selectedDeliverySlot = null;
+          }
         }
       } catch {
-        this.deliverySlots = [];
+        this.pickupSchedule = null;
       } finally {
-        this.deliverySlotsLoading = false;
+        this.pickupLoading = false;
       }
+    },
+    get selectedPickupDay() {
+      if (!this.pickupSchedule?.days || !this.selectedPickupDate) {
+        return null;
+      }
+      return this.pickupSchedule.days.find((day) => day.date === this.selectedPickupDate) || null;
+    },
+    get selectedPickupSlotLabel() {
+      if (!this.selectedDeliverySlot) {
+        return "";
+      }
+      for (const day of this.pickupSchedule?.days || []) {
+        const slot = (day.slots || []).find((entry) => entry.deliveryAt === this.selectedDeliverySlot);
+        if (slot) {
+          return `${day.weekdayLabel} ${day.dateLabel} — ساعت ${slot.timeLabel}`;
+        }
+      }
+      return this.formatPickupDateTime(this.selectedDeliverySlot);
+    },
+    choosePickupMode() {
+      this.pickupSelectionActive = true;
+      if (!this.selectedPickupDate) {
+        const fallback = (this.pickupSchedule?.days || []).find(
+          (day) => day.isOpen && (day.slots || []).some((slot) => !slot.isFull)
+        );
+        this.selectedPickupDate = fallback?.date || null;
+      }
+    },
+    chooseAsSoonAsPossible() {
+      this.pickupSelectionActive = false;
+      this.selectedDeliverySlot = null;
+    },
+    selectPickupDay(day) {
+      if (!day || !day.isOpen) {
+        return;
+      }
+      this.selectedPickupDate = day.date;
+      this.pickupSelectionActive = true;
+      const currentStillThere = (day.slots || []).some(
+        (slot) => slot.deliveryAt === this.selectedDeliverySlot && !slot.isFull
+      );
+      if (!currentStillThere) {
+        this.selectedDeliverySlot = null;
+      }
+    },
+    selectPickupSlot(slot) {
+      if (!slot || slot.isFull) {
+        return;
+      }
+      this.selectedDeliverySlot = slot.deliveryAt;
+      this.pickupSelectionActive = true;
+      this.pickupError = "";
+    },
+    formatPickupDateTime(value) {
+      if (!value) {
+        return "";
+      }
+      try {
+        return new Intl.DateTimeFormat("fa-IR", {
+          timeZone: this.pickupSchedule?.timeZoneId || this.settings.timeZoneId || "Asia/Tehran",
+          dateStyle: "full",
+          timeStyle: "short"
+        }).format(new Date(value));
+      } catch {
+        return new Date(value).toLocaleString("fa-IR");
+      }
+    },
+    generateIdempotencyKey() {
+      if (window.crypto?.randomUUID) {
+        return window.crypto.randomUUID();
+      }
+      return `ck-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     },
     startFlashSaleCountdown() {
       window.clearInterval(this.flashSaleTimer);
@@ -1059,7 +1125,7 @@ document.addEventListener("alpine:init", () => {
         }
         if (this.cart.length) {
           this.refreshCartProgress();
-          this.loadDeliverySlots();
+          this.loadPickupSchedule();
         }
       } catch {
         // ignore
@@ -1163,7 +1229,7 @@ document.addEventListener("alpine:init", () => {
       if (view === "checkout") {
         this.trackCart();
         this.refreshCartProgress();
-        this.loadDeliverySlots();
+        this.loadPickupSchedule();
         this.loadCheckoutWallet();
       }
       if (view === "checkout" && this.checkoutForm.isSplitBill) {
@@ -1656,7 +1722,7 @@ document.addEventListener("alpine:init", () => {
       this.scheduleCartTracking();
       this.appliedDiscount = null;
       this.scheduleCartProgress();
-      this.loadDeliverySlots();
+      this.loadPickupSchedule();
       this.closeAddToCartModal();
       this.openCartDrawer("cart");
     },
@@ -1676,7 +1742,7 @@ document.addEventListener("alpine:init", () => {
       this.scheduleCartTracking();
       this.appliedDiscount = null;
       this.scheduleCartProgress();
-      this.loadDeliverySlots();
+      this.loadPickupSchedule();
     },
     removeFromCart(cartKey) {
       this.cart = this.cart.filter((line) => line.cartKey !== cartKey);
@@ -1684,13 +1750,13 @@ document.addEventListener("alpine:init", () => {
       this.scheduleCartTracking();
       this.appliedDiscount = null;
       this.scheduleCartProgress();
-      this.loadDeliverySlots();
+      this.loadPickupSchedule();
     },
     clearCart() {
       this.cart = [];
       this.saveCart();
     },
-    async submitCheckout() {
+    async submitCheckout(options = {}) {
       if (!this.cart.length) {
         return;
       }
@@ -1700,9 +1766,17 @@ document.addEventListener("alpine:init", () => {
         return;
       }
 
+      const acceptPriceChanges = options.acceptPriceChanges === true;
+
       this.checkoutLoading = true;
       this.checkoutError = "";
       this.appliedDiscount = null;
+      this.checkoutConflict = null;
+      this.actionError = "";
+
+      if (!this.checkoutIdempotencyKey) {
+        this.checkoutIdempotencyKey = this.generateIdempotencyKey();
+      }
 
       try {
         if (this.checkoutForm.isSplitBill && this.checkoutForm.splitBillMode === "ByItem") {
@@ -1790,11 +1864,21 @@ document.addEventListener("alpine:init", () => {
             splitBillMode: this.checkoutForm.isSplitBill ? this.checkoutForm.splitBillMode : null,
             guestCount: this.checkoutForm.isSplitBill ? Number(this.checkoutForm.guestCount) : null,
             splitShares,
+            idempotencyKey: this.checkoutIdempotencyKey,
+            acceptPriceChanges,
+            expectedTotalAmount: Math.round(this.cartTotal * 100) / 100,
+            expectedLinePrices: this.cart.map((line) => ({
+              clientLineKey: line.cartKey,
+              menuItemId: line.menuItemId,
+              sizeKey: line.sizeKey,
+              unitPrice: line.unitPrice
+            })),
             items: this.cart.map((line) => ({
               menuItemId: line.menuItemId,
               sizeKey: line.sizeKey,
               quantity: line.quantity,
               modifierIds: line.modifierIds || [],
+              clientLineKey: line.cartKey,
               payerKey:
                 this.checkoutForm.isSplitBill && this.checkoutForm.splitBillMode === "ByItem"
                   ? line.payerKey
@@ -1810,10 +1894,17 @@ document.addEventListener("alpine:init", () => {
 
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.title || payload.detail || "ثبت سفارش با خطا مواجه شد.");
+          if (response.status === 409) {
+            this.handleCheckoutConflict(payload);
+            return;
+          }
+          throw new Error(payload.detail || payload.title || "ثبت سفارش با خطا مواجه شد.");
         }
 
         const result = await response.json();
+        this.checkoutIdempotencyKey = null;
+        this.checkoutConflict = null;
+        this.acceptPriceChanges = false;
 
         // Wallet covered the whole order: no gateway step — redirect to the
         // success screen (?order=success&code=...) directly.
@@ -1845,6 +1936,245 @@ document.addEventListener("alpine:init", () => {
         this.checkoutError = error.message || "ثبت سفارش با خطا مواجه شد.";
       } finally {
         this.checkoutLoading = false;
+      }
+    },
+    handleCheckoutConflict(payload) {
+      const code = payload?.code || "conflict";
+      const message =
+        payload?.detail || payload?.title || "ثبت سفارش نیازمند بررسی دوباره است.";
+
+      if (code === "duplicate_order" && payload?.trackingCode) {
+        // The same idempotency key already produced an order — send the
+        // customer to its tracking screen instead of creating a second one.
+        this.checkoutIdempotencyKey = null;
+        this.clearCart();
+        this.closeCartDrawer();
+        window.location.href = `/?order=success&code=${encodeURIComponent(payload.trackingCode)}`;
+        return;
+      }
+
+      this.checkoutConflict = {
+        code,
+        message,
+        items: Array.isArray(payload?.items) ? payload.items : [],
+        changes: Array.isArray(payload?.changes) ? payload.changes : [],
+        nearestSlot: payload?.nearestSlot || null,
+        oldItemsTotal: payload?.oldItemsTotal ?? null,
+        newItemsTotal: payload?.newItemsTotal ?? null,
+        newTotal: payload?.newTotal ?? null,
+        trackingCode: payload?.trackingCode || null
+      };
+      this.checkoutError = message;
+
+      if (
+        ["slot_full", "slot_unavailable", "too_soon", "outside_hours", "closed_day", "invalid_slot", "beyond_max_days", "past_date", "scheduling_disabled"].includes(
+          code
+        )
+      ) {
+        this.loadPickupSchedule();
+      }
+    },
+    dismissCheckoutConflict() {
+      this.checkoutConflict = null;
+      this.checkoutError = "";
+    },
+    async confirmPriceChanges() {
+      if (!this.checkoutConflict?.changes?.length && this.checkoutConflict?.newItemsTotal == null) {
+        return;
+      }
+
+      // Apply the new prices to the visible cart, then re-submit with the
+      // explicit confirmation flag. The customer always sees the new total.
+      for (const change of this.checkoutConflict.changes || []) {
+        const line = this.cart.find((entry) => entry.cartKey === change.clientLineKey);
+        if (line && Number(change.newUnitPrice) >= 0) {
+          line.unitPrice = Number(change.newUnitPrice);
+        }
+      }
+
+      this.checkoutConflict = null;
+      this.checkoutError = "";
+      await this.submitCheckout({ acceptPriceChanges: true });
+    },
+    removeUnavailableConflictItems() {
+      const unavailableIds = new Set(
+        (this.checkoutConflict?.items || []).map((item) => item.menuItemId)
+      );
+      if (!unavailableIds.size) {
+        return;
+      }
+
+      this.cart = this.cart.filter((line) => !unavailableIds.has(line.menuItemId));
+      this.saveCart();
+      this.checkoutConflict = null;
+      this.checkoutError = "";
+      if (!this.cart.length) {
+        this.cartView = "cart";
+      }
+      this.loadPickupSchedule();
+    },
+    async applyNearestPickupSlot() {
+      const nearest = this.checkoutConflict?.nearestSlot;
+      if (!nearest) {
+        return;
+      }
+
+      await this.loadPickupSchedule();
+      const day = (this.pickupSchedule?.days || []).find((entry) =>
+        (entry.slots || []).some((slot) => slot.deliveryAt === nearest)
+      );
+      const slot = day?.slots?.find((entry) => entry.deliveryAt === nearest);
+      if (!day || !slot) {
+        this.checkoutError = "بازهٔ جایگزین دیگر موجود نیست؛ لطفاً زمان دیگری انتخاب کنید.";
+        return;
+      }
+
+      this.selectedPickupDate = day.date;
+      this.selectedDeliverySlot = slot.deliveryAt;
+      this.pickupSelectionActive = true;
+      this.checkoutConflict = null;
+      this.checkoutError = "";
+      await this.submitCheckout();
+    },
+
+    /* ── order status / cancel / reschedule (TASK-012) ────────────── */
+    startOrderStatusPolling(trackingCode) {
+      this.stopOrderStatusPolling();
+      this.loadOrderStatus(trackingCode);
+      this.orderStatusTimer = window.setInterval(
+        () => this.loadOrderStatus(trackingCode),
+        30000
+      );
+    },
+    stopOrderStatusPolling() {
+      if (this.orderStatusTimer) {
+        window.clearInterval(this.orderStatusTimer);
+        this.orderStatusTimer = null;
+      }
+    },
+    async loadOrderStatus(trackingCode) {
+      if (!trackingCode) {
+        return;
+      }
+      this.orderStatusLoading = true;
+      try {
+        const response = await fetch(
+          `${this.apiBaseUrl}/orders/status/${encodeURIComponent(trackingCode)}`
+        );
+        if (response.ok) {
+          this.orderStatus = await response.json();
+        }
+      } catch {
+        // Polling is best-effort; the success screen keeps the tracking code.
+      } finally {
+        this.orderStatusLoading = false;
+      }
+    },
+    async cancelScheduledOrder() {
+      if (!this.orderStatus?.canCancel) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "آیا از لغو این سفارش مطمئن هستید؟ ظرفیت بازهٔ انتخاب‌شده آزاد می‌شود و پس از مهلت مجاز، امکان لغو وجود ندارد."
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      this.actionError = "";
+      this.actionMessage = "";
+      try {
+        const response = await fetch(
+          `${this.apiBaseUrl}/orders/${this.orderStatus.id}/cancel`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trackingCode: this.orderStatus.trackingCode })
+          }
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.detail || payload.title || "لغو سفارش انجام نشد.");
+        }
+
+        this.actionMessage = payload.message || "سفارش لغو شد.";
+        await this.loadOrderStatus(this.orderStatus.trackingCode);
+        await this.loadPickupSchedule();
+      } catch (error) {
+        this.actionError = error.message || "لغو سفارش انجام نشد.";
+      }
+    },
+    async openReschedule() {
+      if (!this.orderStatus?.canReschedule) {
+        return;
+      }
+      this.rescheduleOpen = true;
+      this.rescheduleError = "";
+      this.actionError = "";
+      this.rescheduleSlot = null;
+      await this.loadPickupSchedule();
+      if (!this.rescheduleDate) {
+        const day = (this.pickupSchedule?.days || []).find(
+          (entry) => entry.isOpen && (entry.slots || []).some((slot) => !slot.isFull)
+        );
+        this.rescheduleDate = day?.date || null;
+      }
+    },
+    get rescheduleDay() {
+      if (!this.pickupSchedule?.days || !this.rescheduleDate) {
+        return null;
+      }
+      return this.pickupSchedule.days.find((day) => day.date === this.rescheduleDate) || null;
+    },
+    selectRescheduleDay(day) {
+      if (!day || !day.isOpen) {
+        return;
+      }
+      this.rescheduleDate = day.date;
+      this.rescheduleSlot = null;
+    },
+    selectRescheduleSlot(slot) {
+      if (!slot || slot.isFull) {
+        return;
+      }
+      this.rescheduleSlot = slot.deliveryAt;
+    },
+    async submitReschedule() {
+      if (!this.rescheduleSlot || !this.orderStatus?.id) {
+        this.rescheduleError = "لطفاً یک بازهٔ جدید انتخاب کنید.";
+        return;
+      }
+
+      this.rescheduleSaving = true;
+      this.rescheduleError = "";
+      this.actionError = "";
+      try {
+        const response = await fetch(
+          `${this.apiBaseUrl}/orders/${this.orderStatus.id}/reschedule`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              trackingCode: this.orderStatus.trackingCode,
+              deliveryAt: this.rescheduleSlot
+            })
+          }
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.detail || payload.title || "تغییر زمان انجام نشد.");
+        }
+
+        this.actionMessage = payload.message || "زمان تحویل تغییر کرد.";
+        this.rescheduleOpen = false;
+        this.rescheduleSlot = null;
+        await this.loadOrderStatus(this.orderStatus.trackingCode);
+        await this.loadPickupSchedule();
+      } catch (error) {
+        this.rescheduleError = error.message || "تغییر زمان انجام نشد.";
+      } finally {
+        this.rescheduleSaving = false;
       }
     },
     async confirmMockPayment() {
@@ -1969,7 +2299,13 @@ document.addEventListener("alpine:init", () => {
       }
     },
     dismissOrderSuccess() {
+      this.stopOrderStatusPolling();
       this.orderSuccess = null;
+      this.orderStatus = null;
+      this.actionMessage = "";
+      this.actionError = "";
+      this.rescheduleOpen = false;
+      this.rescheduleSlot = null;
       window.history.replaceState({}, "", "/");
     },
     normalizeText(value) {

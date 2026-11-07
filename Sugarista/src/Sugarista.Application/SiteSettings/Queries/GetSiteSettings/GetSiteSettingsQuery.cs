@@ -97,6 +97,17 @@ public record SiteSettingsDto
     public string SubscriptionRenewalPolicy { get; init; } = string.Empty;
     public string SubscriptionCancelRefundPolicy { get; init; } = string.Empty;
     public bool CustomDrinkBuilderEnabled { get; init; } = true;
+
+    // ── pickup scheduling (TASK-012) ─────────────────────────────────────
+    public bool PickupSchedulingEnabled { get; init; }
+    public int PickupSlotMinutes { get; init; } = 15;
+    public int PickupSlotCapacity { get; init; } = 5;
+    public string PickupCapacityMode { get; init; } = "Orders";
+    public int PickupMinLeadMinutes { get; init; } = 30;
+    public int PickupMaxDaysAhead { get; init; } = 7;
+    public int PickupCancelCutoffMinutes { get; init; } = 60;
+    public bool PickupAutoRefundOnCancel { get; init; }
+    public string PickupRefundPolicyNote { get; init; } = string.Empty;
     public bool DiscountAbuseProtectionEnabled { get; init; } = true;
     public int DiscountMaxFailedAttempts { get; init; } = 5;
     public int DiscountLockoutMinutes { get; init; } = 15;
@@ -213,6 +224,15 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 SubscriptionRenewalPolicy = settings.SubscriptionRenewalPolicy,
                 SubscriptionCancelRefundPolicy = settings.SubscriptionCancelRefundPolicy,
                 CustomDrinkBuilderEnabled = settings.CustomDrinkBuilderEnabled,
+                PickupSchedulingEnabled = settings.PickupSchedulingEnabled,
+                PickupSlotMinutes = settings.PickupSlotMinutes,
+                PickupSlotCapacity = settings.PickupSlotCapacity,
+                PickupCapacityMode = settings.PickupCapacityMode,
+                PickupMinLeadMinutes = settings.PickupMinLeadMinutes,
+                PickupMaxDaysAhead = settings.PickupMaxDaysAhead,
+                PickupCancelCutoffMinutes = settings.PickupCancelCutoffMinutes,
+                PickupAutoRefundOnCancel = settings.PickupAutoRefundOnCancel,
+                PickupRefundPolicyNote = settings.PickupRefundPolicyNote,
                 DiscountAbuseProtectionEnabled = settings.DiscountAbuseProtectionEnabled,
                 DiscountMaxFailedAttempts = settings.DiscountMaxFailedAttempts,
                 DiscountLockoutMinutes = settings.DiscountLockoutMinutes,

@@ -5,6 +5,7 @@ using Sugarista.Application.Orders.Commands.ConfirmMockPayment;
 using Sugarista.Application.Discounts.Engine;
 using Sugarista.Application.Discounts.Engine.Evaluators;
 using Sugarista.Application.Discounts.Reports;
+using Sugarista.Application.Pickup;
 
 namespace Sugarista.Application;
 
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IDiscountEvaluator, BuyXGetYDiscountEvaluator>();
         services.AddScoped<DiscountReportBuilder>();
         services.AddScoped<ReportScheduleDispatcher>();
+        services.AddScoped<PickupSlotService>();
 
         services.AddMediatR(cfg =>
         {

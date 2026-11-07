@@ -7,4 +7,11 @@ public interface ISmsService
         string trackingCode,
         string customerName,
         CancellationToken cancellationToken = default);
+
+    Task SendPickupScheduleChangedAsync(
+        string phoneNumber,
+        string trackingCode,
+        string customerName,
+        string deliveryTimeLabel,
+        CancellationToken cancellationToken = default);
 }

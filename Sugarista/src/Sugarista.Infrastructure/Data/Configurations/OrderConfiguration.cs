@@ -59,6 +59,15 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(o => o.IdempotencyKey)
+            .HasMaxLength(100);
+
+        builder.HasIndex(o => o.IdempotencyKey)
+            .IsUnique()
+            .HasFilter("\"IdempotencyKey\" IS NOT NULL");
+
+        builder.HasIndex(o => o.DeliveryAt);
+
         builder.Property(o => o.Channel)
             .HasConversion<string>()
             .HasMaxLength(20)

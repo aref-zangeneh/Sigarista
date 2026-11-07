@@ -88,9 +88,24 @@ public class Order : BaseAuditableEntity
     /// <summary>Scheduled delivery time chosen by the customer (null = as soon as possible).</summary>
     public DateTimeOffset? DeliveryAt { get; private set; }
 
+    /// <summary>
+    /// Client-generated idempotency key for online checkout. A unique index
+    /// guarantees a double-click or retried request never creates two orders.
+    /// </summary>
+    public string? IdempotencyKey { get; private set; }
+
     public void ApplyDeliveryTime(DateTimeOffset? deliveryAt)
     {
-        DeliveryAt = deliveryAt;
+        // Always store the absolute instant in UTC: PostgreSQL timestamptz
+        // parameters reject non-zero offsets and comparisons stay unambiguous.
+        DeliveryAt = deliveryAt?.ToUniversalTime();
+    }
+
+    public void SetIdempotencyKey(string? idempotencyKey)
+    {
+        IdempotencyKey = string.IsNullOrWhiteSpace(idempotencyKey)
+            ? null
+            : idempotencyKey.Trim();
     }
 
     /// <summary>Unified customer profile linked by channel (POS / online) for the customer club.</summary>

@@ -31,8 +31,37 @@ public class LoggingSmsService : ISmsService
         return Task.CompletedTask;
     }
 
+    public Task SendPickupScheduleChangedAsync(
+        string phoneNumber,
+        string trackingCode,
+        string customerName,
+        string deliveryTimeLabel,
+        CancellationToken cancellationToken = default)
+    {
+        var message = BuildPickupScheduleChangedMessage(
+            trackingCode,
+            customerName,
+            deliveryTimeLabel,
+            _options.CafeName);
+        _logger.LogInformation(
+            "SMS (dev/log) to {Phone}: {Message}",
+            phoneNumber,
+            message);
+
+        return Task.CompletedTask;
+    }
+
     internal static string BuildMessage(string trackingCode, string customerName, string cafeName)
     {
         return $"{customerName} عزیز، سفارش {trackingCode} آماده تحویل است. لطفاً برای دریافت به {cafeName} مراجعه کنید.";
+    }
+
+    internal static string BuildPickupScheduleChangedMessage(
+        string trackingCode,
+        string customerName,
+        string deliveryTimeLabel,
+        string cafeName)
+    {
+        return $"{customerName} عزیز، زمان تحویل سفارش {trackingCode} به {deliveryTimeLabel} تغییر کرد. {cafeName}";
     }
 }

@@ -1654,43 +1654,250 @@ a {
   letter-spacing: 0.05em;
 }
 
-.delivery-slot-list {
+/* ── pickup scheduling (TASK-012) ─────────────────────────────── */
+.pickup-mode-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.pickup-mode-btn {
+  flex: 1 1 0;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pickup-mode-btn:hover {
+  border-color: var(--accent);
+}
+
+.pickup-mode-btn-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.pickup-day-list,
+.pickup-slot-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
-.delivery-slot-chip {
+.pickup-day-chip,
+.pickup-slot-chip {
   position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  min-height: 44px;
+  min-width: 64px;
   padding: 0.45rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
+  color: inherit;
   font-size: 0.85rem;
+  line-height: 1.25;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.delivery-slot-chip:hover {
+.pickup-day-chip small {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
+.pickup-day-chip:hover:not(:disabled),
+.pickup-slot-chip:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
-.delivery-slot-chip-active {
+.pickup-day-chip-active,
+.pickup-slot-chip-active {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
 }
 
-.delivery-slot-badge {
+.pickup-day-chip-disabled,
+.pickup-slot-chip-full,
+.pickup-slot-chip:disabled,
+.pickup-day-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: rgba(17, 24, 39, 0.05);
+}
+
+.pickup-slot-full-label {
   display: inline-block;
-  margin-right: 0.35rem;
-  padding: 0.05rem 0.4rem;
+  margin-right: 0.25rem;
+  padding: 0.02rem 0.35rem;
   border-radius: 999px;
   background: #b91c1c;
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
+}
+
+.pickup-selected-note {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-strong, var(--accent));
+}
+
+/* ── checkout conflict (price / stock / slot) ─────────────────── */
+.checkout-conflict {
+  margin-bottom: 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  background: #fff5f5;
+  color: #7f1d1d;
+  font-size: 0.88rem;
+}
+
+.checkout-conflict-title {
+  display: block;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.checkout-conflict-list {
+  margin: 0.4rem 0;
+  padding-inline-start: 1.1rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.checkout-conflict-list s {
+  opacity: 0.7;
+}
+
+.checkout-conflict-total {
+  margin: 0.4rem 0;
+}
+
+.checkout-conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.checkout-conflict-actions .btn,
+.order-action-btn {
+  min-height: 44px;
+}
+
+/* ── order status, cancel & reschedule ────────────────────────── */
+.order-status-box {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  text-align: start;
+}
+
+.order-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.order-status-head small {
+  opacity: 0.65;
+  font-size: 0.72rem;
+}
+
+.order-status-pill {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.08);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.order-status-meta {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.order-status-meta div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.order-status-meta dt {
+  font-size: 0.78rem;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.order-status-meta dd {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: end;
+}
+
+.order-status-note,
+.order-refund-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  opacity: 0.8;
+}
+
+.order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.order-blocked-reason {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.order-action-message {
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+}
+
+.reschedule-box {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--line);
+}
+
+.reschedule-box strong {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
 }
 
 .size-options {

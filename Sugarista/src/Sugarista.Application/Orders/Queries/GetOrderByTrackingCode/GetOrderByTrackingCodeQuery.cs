@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Pickup;
 
 namespace Sugarista.Application.Orders.Queries.GetOrderByTrackingCode;
 
@@ -13,7 +14,16 @@ public record OrderStatusDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset? PaidAt,
     DateTimeOffset? ReadyAt,
-    IReadOnlyCollection<OrderStatusLineDto> Lines);
+    IReadOnlyCollection<OrderStatusLineDto> Lines,
+    Guid Id = default,
+    DateTimeOffset? DeliveryAt = null,
+    DateTimeOffset? EstimatedReadyAt = null,
+    bool PickupScheduled = false,
+    bool CanCancel = false,
+    bool CanReschedule = false,
+    string? ChangeBlockedReason = null,
+    string? RefundPolicyNote = null,
+    int CancelCutoffMinutes = 0);
 
 public record OrderStatusLineDto(
     string PersianName,
@@ -26,10 +36,12 @@ public record OrderStatusLineDto(
 public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrackingCodeQuery, OrderStatusDto?>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly IDateTime _clock;
 
-    public GetOrderByTrackingCodeQueryHandler(IApplicationDbContext dbContext)
+    public GetOrderByTrackingCodeQueryHandler(IApplicationDbContext dbContext, IDateTime clock)
     {
         _dbContext = dbContext;
+        _clock = clock;
     }
 
     public async Task<OrderStatusDto?> Handle(GetOrderByTrackingCodeQuery request, CancellationToken cancellationToken)
@@ -52,6 +64,17 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
 
         var fulfillmentStatus = order.FulfillmentStatus.ToString();
 
+        var siteSettings = await _dbContext.SiteSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+        var pickupSettings = PickupSettingsSnapshot.From(siteSettings);
+        var now = _clock.UtcNow;
+        var canChange = PickupScheduleCalculator.IsWithinChangeWindow(order, pickupSettings, now);
+        var blockedReason = PickupScheduleCalculator.BuildChangeBlockedReason(order, pickupSettings, now);
+        var estimatedReadyAt = order.ReadyAt
+            ?? order.DeliveryAt
+            ?? order.CreatedAt.AddMinutes(pickupSettings.MinLeadMinutes);
+
         return new OrderStatusDto(
             order.TrackingCode,
             order.Status.ToString(),
@@ -69,7 +92,16 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
                     line.Quantity,
                     line.LineTotal,
                     line.ModifierLabels))
-                .ToArray());
+                .ToArray(),
+            order.Id,
+            order.DeliveryAt,
+            estimatedReadyAt,
+            order.DeliveryAt is not null,
+            canChange,
+            canChange && pickupSettings.Enabled,
+            blockedReason,
+            pickupSettings.RefundPolicyNote,
+            pickupSettings.CancelCutoffMinutes);
     }
 }
 

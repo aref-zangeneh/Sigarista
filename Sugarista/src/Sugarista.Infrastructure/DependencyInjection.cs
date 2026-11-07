@@ -8,6 +8,7 @@ using Sugarista.Application.Carts.Services;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Exports;
 using Sugarista.Application.Maintenance;
+using Sugarista.Application.Pickup;
 using Sugarista.Application.Common.Options;
 using Sugarista.Infrastructure.Notifications;
 using Sugarista.Infrastructure.Auth;
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<AbandonedCartReminderDispatcher>();
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
         services.AddScoped<IPrintJobService, ReceiptPrintJobService>();
+        services.AddScoped<IPickupSlotReservationService, PickupSlotReservationService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IImageProcessingService, SkiaSharpImageProcessingService>();
         services.AddScoped<IImageFileStore, LocalImageFileStore>();

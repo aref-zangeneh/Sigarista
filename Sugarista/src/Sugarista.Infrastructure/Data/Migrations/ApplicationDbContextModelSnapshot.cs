@@ -2808,6 +2808,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset?>("HeldAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<bool>("IsSplitBill")
                         .HasColumnType("boolean");
 
@@ -2884,9 +2888,15 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
                     b.HasIndex("CustomerId");
 
+                    b.HasIndex("DeliveryAt");
+
                     b.HasIndex("DeliveryMethodId");
 
                     b.HasIndex("FulfillmentStatus");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("\"IdempotencyKey\" IS NOT NULL");
 
                     b.HasIndex("IsSplitBill");
 
@@ -4091,6 +4101,35 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
                     b.Property<bool>("PersonalCupDiscountEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("PickupAutoRefundOnCancel")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("PickupCancelCutoffMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PickupCapacityMode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PickupMaxDaysAhead")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PickupMinLeadMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PickupRefundPolicyNote")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PickupSchedulingEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("PickupSlotCapacity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PickupSlotMinutes")
+                        .HasColumnType("integer");
 
                     b.Property<string>("PopularDescription")
                         .IsRequired()

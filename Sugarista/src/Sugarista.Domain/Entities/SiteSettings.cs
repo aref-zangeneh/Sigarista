@@ -227,6 +227,51 @@ public class SiteSettings : BaseAuditableEntity
     public string SubscriptionCancelRefundPolicy { get; set; } =
         "لغو اشتراک با درخواست مشتری انجام می‌شود؛ معادل استفاده‌های باقی‌مانده به کیف پول مشتری برگشت می‌خورد.";
 
+    /// <summary>
+    /// Master switch for pickup scheduling (سفارش پیش از مراجعه). When false,
+    /// customers cannot choose a future pickup time and the server rejects any
+    /// DeliveryAt on checkout.
+    /// </summary>
+    public bool PickupSchedulingEnabled { get; set; }
+
+    /// <summary>Length of one pickup slot in minutes (e.g. 10 or 15).</summary>
+    public int PickupSlotMinutes { get; set; } = 15;
+
+    /// <summary>Maximum load allowed per pickup slot.</summary>
+    public int PickupSlotCapacity { get; set; } = 5;
+
+    /// <summary>
+    /// What the capacity counts: "Orders" (number of orders) or "Items"
+    /// (sum of line quantities). Any other value is treated as "Orders".
+    /// </summary>
+    public string PickupCapacityMode { get; set; } = "Orders";
+
+    /// <summary>
+    /// Minimum minutes between the moment of ordering and the chosen pickup
+    /// time. Keeps the kitchen from being asked for an impossible slot.
+    /// </summary>
+    public int PickupMinLeadMinutes { get; set; } = 30;
+
+    /// <summary>How many days into the future a pickup order may be placed (0 = today only).</summary>
+    public int PickupMaxDaysAhead { get; set; } = 7;
+
+    /// <summary>
+    /// Minutes before the pickup time during which the customer may still
+    /// cancel or reschedule. After this window both actions are blocked.
+    /// </summary>
+    public int PickupCancelCutoffMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// When true, cancelling a paid pickup order attempts an automatic refund
+    /// to the customer wallet. When false, refunds are handled manually by the
+    /// café. Product decision — see the TASK-012 delivery notes.
+    /// </summary>
+    public bool PickupAutoRefundOnCancel { get; set; }
+
+    /// <summary>Customer-facing explanation of the refund policy for pickup orders.</summary>
+    public string PickupRefundPolicyNote { get; set; } =
+        "در صورت لغو سفارش پرداختشده تا مهلت مجاز، مبلغ طبق سیاست کافه به کیف پول شما برگشت داده میشود.";
+
     /// <summary>Master switch for the custom drink builder in the digital menu.</summary>
     public bool CustomDrinkBuilderEnabled { get; set; } = true;
 

@@ -538,6 +538,80 @@
             role="alert"
             aria-live="assertive"
           ></div>
+
+          <div class="checkout-conflict" x-show="checkoutConflict" x-cloak role="alert" aria-live="assertive">
+            <strong class="checkout-conflict-title" x-text="checkoutConflict?.message"></strong>
+
+            <div x-show="checkoutConflict?.code === 'price_changed'" x-cloak>
+              <ul class="checkout-conflict-list">
+                <template x-for="change in (checkoutConflict?.changes || [])" :key="`price-${change.clientLineKey}`">
+                  <li>
+                    <span x-text="change.persianName"></span>:
+                    <s x-text="formatPrice(change.oldUnitPrice)"></s>
+                    <strong x-text="formatPrice(change.newUnitPrice)"></strong>
+                  </li>
+                </template>
+              </ul>
+              <p class="checkout-conflict-total" x-show="checkoutConflict?.newTotal != null">
+                مبلغ کل جدید: <strong x-text="formatPrice(checkoutConflict?.newTotal)"></strong>
+              </p>
+              <div class="checkout-conflict-actions">
+                <button type="button" class="btn btn-dark rounded-pill" @click="confirmPriceChanges()">
+                  تأیید قیمت جدید و ادامه
+                </button>
+                <button type="button" class="btn btn-outline-dark rounded-pill" @click="dismissCheckoutConflict()">
+                  انصراف
+                </button>
+              </div>
+            </div>
+
+            <div x-show="checkoutConflict?.code === 'item_unavailable'" x-cloak>
+              <ul class="checkout-conflict-list">
+                <template x-for="item in (checkoutConflict?.items || [])" :key="`unavailable-${item.menuItemId}`">
+                  <li>
+                    <span x-text="item.persianName"></span>
+                    <small x-text="item.reason === 'insufficient_stock' ? ' — موجودی کافی نیست' : ' — دیگر قابل سفارش نیست'"></small>
+                  </li>
+                </template>
+              </ul>
+              <div class="checkout-conflict-actions">
+                <button type="button" class="btn btn-dark rounded-pill" @click="removeUnavailableConflictItems()">
+                  حذف محصولات ناموجود از سبد
+                </button>
+                <button type="button" class="btn btn-outline-dark rounded-pill" @click="dismissCheckoutConflict()">
+                  جایگزینی دستی
+                </button>
+              </div>
+            </div>
+
+            <div
+              x-show="['slot_full','slot_unavailable','too_soon','outside_hours','closed_day','invalid_slot','beyond_max_days','past_date'].includes(checkoutConflict?.code)"
+              x-cloak
+            >
+              <div class="checkout-conflict-actions">
+                <button
+                  type="button"
+                  class="btn btn-dark rounded-pill"
+                  x-show="checkoutConflict?.nearestSlot"
+                  @click="applyNearestPickupSlot()"
+                >
+                  انتخاب نزدیک‌ترین بازهٔ خالی
+                </button>
+                <button type="button" class="btn btn-outline-dark rounded-pill" @click="dismissCheckoutConflict()">
+                  انتخاب زمان دیگر
+                </button>
+              </div>
+            </div>
+
+            <div x-show="checkoutConflict?.code === 'scheduling_disabled'" x-cloak>
+              <p>سفارش شما بدون زمان‌بندی ثبت می‌شود.</p>
+              <div class="checkout-conflict-actions">
+                <button type="button" class="btn btn-dark rounded-pill" @click="chooseAsSoonAsPossible(); dismissCheckoutConflict()">
+                  ادامه بدون زمان‌بندی
+                </button>
+              </div>
+            </div>
+          </div>
           <div class="mb-3 split-toggle-card">
             <label class="form-check-label d-flex align-items-center gap-2">
               <input type="checkbox" class="form-check-input mt-0" x-model="checkoutForm.isSplitBill" @change="handleSplitBillToggle()">
@@ -689,22 +763,76 @@
             >
             <small class="form-text">اگر سبد خرید ناتمام بماند، کد تخفیف یادآوری به این ایمیل هم ارسال می‌شود.</small>
           </div>
-          <div class="mb-3">
-            <label class="form-label">زمان تحویل (اختیاری)</label>
-            <div class="delivery-slot-list" x-show="deliverySlots.length">
-              <template x-for="slot in deliverySlots" :key="slot.time">
-                <button
-                  type="button"
-                  class="delivery-slot-chip"
-                  :class="{ 'delivery-slot-chip-active': selectedDeliverySlot === slot.time }"
-                  @click="selectedDeliverySlot = slot.time"
-                >
-                  <span x-text="new Date(slot.time).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })"></span>
-                  <span x-show="slot.hasDiscount" class="delivery-slot-badge" x-text="(slot.discountPercent ? toPersianNumber(slot.discountPercent) + '٪' : 'تخفیف')"></span>
-                </button>
-              </template>
+          <div class="mb-3" x-show="pickupSchedule?.enabled" x-cloak>
+            <label class="form-label">زمان تحویل حضوری</label>
+            <div class="pickup-mode-row" role="group" aria-label="نوع زمان تحویل">
+              <button
+                type="button"
+                class="pickup-mode-btn"
+                :class="{ 'pickup-mode-btn-active': !pickupSelectionActive }"
+                :aria-pressed="!pickupSelectionActive"
+                @click="chooseAsSoonAsPossible()"
+              >
+                در اسرع وقت
+              </button>
+              <button
+                type="button"
+                class="pickup-mode-btn"
+                :class="{ 'pickup-mode-btn-active': pickupSelectionActive }"
+                :aria-pressed="pickupSelectionActive"
+                @click="choosePickupMode()"
+              >
+                انتخاب زمان
+              </button>
             </div>
-            <small class="form-text" x-show="!deliverySlots.length && !deliverySlotsLoading">بازهٔ تحویلی برای امروز موجود نیست.</small>
+
+            <div x-show="pickupSelectionActive" x-cloak>
+              <div class="pickup-day-list" role="group" aria-label="انتخاب روز تحویل">
+                <template x-for="day in (pickupSchedule?.days || [])" :key="`pickup-day-${day.date}`">
+                  <button
+                    type="button"
+                    class="pickup-day-chip"
+                    :class="{ 'pickup-day-chip-active': selectedPickupDate === day.date, 'pickup-day-chip-disabled': !day.isOpen }"
+                    :disabled="!day.isOpen"
+                    :aria-pressed="selectedPickupDate === day.date"
+                    @click="selectPickupDay(day)"
+                  >
+                    <span x-text="day.weekdayLabel"></span>
+                    <strong x-text="day.dateLabel"></strong>
+                    <small x-show="!day.isOpen" x-text="'تعطیل'"></small>
+                  </button>
+                </template>
+              </div>
+
+              <div class="pickup-slot-list" x-show="selectedPickupDay" role="group" aria-label="انتخاب بازهٔ تحویل">
+                <template x-for="slot in (selectedPickupDay?.slots || [])" :key="`pickup-slot-${slot.deliveryAt}`">
+                  <button
+                    type="button"
+                    class="pickup-slot-chip"
+                    :class="{ 'pickup-slot-chip-active': selectedDeliverySlot === slot.deliveryAt, 'pickup-slot-chip-full': slot.isFull }"
+                    :disabled="slot.isFull"
+                    :aria-pressed="selectedDeliverySlot === slot.deliveryAt"
+                    :aria-label="slot.isFull ? 'بازهٔ ' + slot.timeLabel + ' تکمیل است' : 'بازهٔ ' + slot.timeLabel"
+                    @click="selectPickupSlot(slot)"
+                  >
+                    <span x-text="slot.timeLabel"></span>
+                    <span x-show="slot.isFull" class="pickup-slot-full-label">تکمیل</span>
+                  </button>
+                </template>
+                <small
+                  class="form-text"
+                  x-show="selectedPickupDay && !(selectedPickupDay?.slots || []).length"
+                >
+                  برای این روز بازهٔ خالی نمانده است؛ لطفاً روز دیگری را انتخاب کنید.
+                </small>
+              </div>
+            </div>
+
+            <small class="form-text" x-show="pickupLoading">در حال دریافت بازه‌های خالی…</small>
+            <small class="pickup-selected-note" x-show="selectedDeliverySlot" x-text="'زمان انتخابی: ' + selectedPickupSlotLabel"></small>
+            <small class="form-text" x-show="pickupSchedule?.enabled && !pickupLoading && !pickupSchedule?.days?.length">
+              در حال حاضر بازهٔ قابل انتخاب وجود ندارد.
+            </small>
           </div>
             <div class="mb-3">
               <label class="form-label" for="checkout-redeem-points">استفاده از امتیاز وفاداری (اختیاری)</label>
@@ -1435,6 +1563,108 @@
           x-show="orderSuccess && orderSuccess.discountCode"
           x-text="orderSuccess?.discountCode ? 'با کد تخفیف ' + orderSuccess.discountCode + ' — ' + formatPrice(orderSuccess.discountAmount || 0) : ''"
         ></div>
+
+        <div class="order-status-box" x-show="orderStatus" x-cloak aria-live="polite">
+          <div class="order-status-head">
+            <span class="order-status-pill" x-text="orderStatus?.fulfillmentStatusLabel"></span>
+            <small x-show="orderStatusLoading">در حال به‌روزرسانی…</small>
+          </div>
+          <dl class="order-status-meta">
+            <div x-show="orderStatus?.deliveryAt">
+              <dt>زمان تحویل حضوری</dt>
+              <dd x-text="formatPickupDateTime(orderStatus?.deliveryAt)"></dd>
+            </div>
+            <div x-show="orderStatus?.estimatedReadyAt">
+              <dt>زمان تقریبی آماده بودن</dt>
+              <dd x-text="formatPickupDateTime(orderStatus?.estimatedReadyAt)"></dd>
+            </div>
+          </dl>
+          <p class="order-status-note" x-show="orderStatus?.pickupScheduled">
+            سفارش شما برای این بازه در نظر گرفته شده است؛ در صورت تغییر وضعیت، پیامک اطلاع‌رسانی ارسال می‌شود.
+          </p>
+
+          <div class="order-action-message feedback" x-show="actionMessage" x-text="actionMessage"></div>
+          <div class="order-action-message feedback feedback-error" x-show="actionError" x-text="actionError"></div>
+
+          <div class="order-actions" x-show="orderStatus?.canCancel || orderStatus?.canReschedule || orderStatus?.changeBlockedReason">
+            <button
+              type="button"
+              class="btn btn-outline-dark rounded-pill order-action-btn"
+              x-show="orderStatus?.canReschedule"
+              @click="openReschedule()"
+            >
+              تغییر زمان تحویل
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-danger rounded-pill order-action-btn"
+              x-show="orderStatus?.canCancel"
+              @click="cancelScheduledOrder()"
+            >
+              لغو سفارش
+            </button>
+            <p
+              class="order-blocked-reason"
+              x-show="!orderStatus?.canCancel && !orderStatus?.canReschedule && orderStatus?.changeBlockedReason"
+              x-text="orderStatus?.changeBlockedReason"
+            ></p>
+          </div>
+
+          <p class="order-refund-note" x-show="orderStatus?.refundPolicyNote" x-text="orderStatus?.refundPolicyNote"></p>
+
+          <div class="reschedule-box" x-show="rescheduleOpen" x-cloak>
+            <strong>انتخاب زمان جدید</strong>
+            <div class="pickup-day-list" role="group" aria-label="انتخاب روز جدید">
+              <template x-for="day in (pickupSchedule?.days || [])" :key="`reschedule-day-${day.date}`">
+                <button
+                  type="button"
+                  class="pickup-day-chip"
+                  :class="{ 'pickup-day-chip-active': rescheduleDate === day.date, 'pickup-day-chip-disabled': !day.isOpen }"
+                  :disabled="!day.isOpen"
+                  @click="selectRescheduleDay(day)"
+                >
+                  <span x-text="day.weekdayLabel"></span>
+                  <strong x-text="day.dateLabel"></strong>
+                  <small x-show="!day.isOpen" x-text="'تعطیل'"></small>
+                </button>
+              </template>
+            </div>
+            <div class="pickup-slot-list" x-show="rescheduleDay" role="group" aria-label="انتخاب بازهٔ جدید">
+              <template x-for="slot in (rescheduleDay?.slots || [])" :key="`reschedule-slot-${slot.deliveryAt}`">
+                <button
+                  type="button"
+                  class="pickup-slot-chip"
+                  :class="{ 'pickup-slot-chip-active': rescheduleSlot === slot.deliveryAt, 'pickup-slot-chip-full': slot.isFull }"
+                  :disabled="slot.isFull"
+                  @click="selectRescheduleSlot(slot)"
+                >
+                  <span x-text="slot.timeLabel"></span>
+                  <span x-show="slot.isFull" class="pickup-slot-full-label">تکمیل</span>
+                </button>
+              </template>
+            </div>
+            <p class="feedback feedback-error" x-show="rescheduleError" x-text="rescheduleError"></p>
+            <div class="checkout-conflict-actions">
+              <button
+                type="button"
+                class="btn btn-dark rounded-pill"
+                :disabled="!rescheduleSlot || rescheduleSaving"
+                @click="submitReschedule()"
+              >
+                <span x-show="!rescheduleSaving">ثبت زمان جدید</span>
+                <span x-show="rescheduleSaving">در حال ثبت…</span>
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-dark rounded-pill"
+                @click="rescheduleOpen = false; rescheduleError = ''"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+
         <button
           type="button"
           class="btn btn-dark rounded-pill px-4 mt-4"

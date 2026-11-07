@@ -104,6 +104,17 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
 
     public bool CustomDrinkBuilderEnabled { get; init; } = true;
 
+    // ── pickup scheduling (TASK-012) ─────────────────────────────────────
+    public bool PickupSchedulingEnabled { get; init; }
+    public int PickupSlotMinutes { get; init; } = 15;
+    public int PickupSlotCapacity { get; init; } = 5;
+    public string PickupCapacityMode { get; init; } = "Orders";
+    public int PickupMinLeadMinutes { get; init; } = 30;
+    public int PickupMaxDaysAhead { get; init; } = 7;
+    public int PickupCancelCutoffMinutes { get; init; } = 60;
+    public bool PickupAutoRefundOnCancel { get; init; }
+    public string PickupRefundPolicyNote { get; init; } = string.Empty;
+
     public bool DiscountAbuseProtectionEnabled { get; init; } = true;
     public int DiscountMaxFailedAttempts { get; init; } = 5;
     public int DiscountLockoutMinutes { get; init; } = 15;
@@ -165,6 +176,15 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
         RuleFor(command => command.PersonalCupDeliveryNote).MaximumLength(500);
         RuleFor(command => command.SubscriptionRenewalPolicy).MaximumLength(1000);
         RuleFor(command => command.SubscriptionCancelRefundPolicy).MaximumLength(1000);
+        RuleFor(command => command.PickupSlotMinutes).InclusiveBetween(5, 120);
+        RuleFor(command => command.PickupSlotCapacity).InclusiveBetween(1, 1000);
+        RuleFor(command => command.PickupCapacityMode)
+            .Must(mode => mode is "Orders" or "Items")
+            .WithMessage("حالت ظرفیت بازه باید Orders یا Items باشد.");
+        RuleFor(command => command.PickupMinLeadMinutes).InclusiveBetween(0, 1440);
+        RuleFor(command => command.PickupMaxDaysAhead).InclusiveBetween(0, 60);
+        RuleFor(command => command.PickupCancelCutoffMinutes).InclusiveBetween(0, 10080);
+        RuleFor(command => command.PickupRefundPolicyNote).MaximumLength(1000);
         RuleFor(command => command.DiscountMaxFailedAttempts).InclusiveBetween(1, 100);
         RuleFor(command => command.DiscountLockoutMinutes).InclusiveBetween(1, 10080);
         RuleFor(command => command.DiscountDailyCapPerCustomer).GreaterThanOrEqualTo(0);
@@ -286,6 +306,17 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.SubscriptionCancelRefundPolicy = string.IsNullOrWhiteSpace(request.SubscriptionCancelRefundPolicy)
             ? settings.SubscriptionCancelRefundPolicy
             : request.SubscriptionCancelRefundPolicy.Trim();
+        settings.PickupSchedulingEnabled = request.PickupSchedulingEnabled;
+        settings.PickupSlotMinutes = request.PickupSlotMinutes;
+        settings.PickupSlotCapacity = request.PickupSlotCapacity;
+        settings.PickupCapacityMode = request.PickupCapacityMode is "Items" ? "Items" : "Orders";
+        settings.PickupMinLeadMinutes = request.PickupMinLeadMinutes;
+        settings.PickupMaxDaysAhead = request.PickupMaxDaysAhead;
+        settings.PickupCancelCutoffMinutes = request.PickupCancelCutoffMinutes;
+        settings.PickupAutoRefundOnCancel = request.PickupAutoRefundOnCancel;
+        settings.PickupRefundPolicyNote = string.IsNullOrWhiteSpace(request.PickupRefundPolicyNote)
+            ? settings.PickupRefundPolicyNote
+            : request.PickupRefundPolicyNote.Trim();
         settings.CustomDrinkBuilderEnabled = request.CustomDrinkBuilderEnabled;
         settings.DiscountAbuseProtectionEnabled = request.DiscountAbuseProtectionEnabled;
         settings.DiscountMaxFailedAttempts = request.DiscountMaxFailedAttempts;

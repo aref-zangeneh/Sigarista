@@ -1018,6 +1018,22 @@ export function SiteSettingsPage() {
           </div>
 
           <div className="settings-grid">
+            <label>
+              <span>مدت ماندن مشتری در حساب با شماره موبایل (روز)</span>
+              <input
+                className="ltr-input"
+                dir="ltr"
+                type="number"
+                min="1"
+                max="730"
+                value={siteSettings.customerSessionDurationDays ?? 60}
+                onChange={(event) =>
+                  updateField('customerSessionDurationDays', Number(event.target.value))
+                }
+              />
+              <small className="settings-hint">۲ ماه = ۶۰ روز — تغییر فقط برای ورودهای بعدی اعمال می‌شود</small>
+            </label>
+
             <label className="settings-switch-row full-width">
               <div className="settings-switch-text">
                 <strong>فعال‌سازی باشگاه مشتریان</strong>

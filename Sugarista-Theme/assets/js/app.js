@@ -466,7 +466,7 @@ document.addEventListener("alpine:init", () => {
       const count = Number(this.checkoutForm.guestCount) || 2;
       return Array.from({ length: count }, (_, index) => index + 1);
     },
-    cartTotal() {
+    get cartTotal() {
       return this.cart.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
     },
     get automaticDiscountAmount() {

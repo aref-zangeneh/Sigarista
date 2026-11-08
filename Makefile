@@ -41,3 +41,9 @@ pos-print-server:
 # Send sample receipts through the local print agent.
 test-pos-print:
 	bash scripts/test-pos-print.sh
+
+# Dependency-free theme regression checks (CartTotal Alpine getter class).
+test-theme:
+	node Sugarista-Theme/tests/alpineBindingConsistency.test.mjs
+
+.PHONY: test-theme

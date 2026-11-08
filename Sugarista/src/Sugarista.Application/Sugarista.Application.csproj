@@ -21,4 +21,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Expose internal pricing helpers to the unit test project. -->
+    <InternalsVisibleTo Include="Sugarista.Application.UnitTests" />
+  </ItemGroup>
+
 </Project>

@@ -1107,8 +1107,9 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
     /// Price re-check: the client sends the unit price it displayed. Any change
     /// aborts the checkout with a structured conflict so the customer must
     /// explicitly confirm the new price — silent re-pricing is forbidden.
+    /// Internal so the price guard can be unit-tested without a database.
     /// </summary>
-    private static void EnsurePricesHaveNotChanged(
+    internal static void EnsurePricesHaveNotChanged(
         CreateOrderCheckoutCommand request,
         IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, string? clientLineKey)> lines,
         decimal itemsTotal,

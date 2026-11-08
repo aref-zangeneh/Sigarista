@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Domain.Constants;
 using Sugarista.Domain.Entities;
+using Sugarista.Infrastructure.Data.DbConnection;
 using Sugarista.Infrastructure.Settings;
 
 namespace Sugarista.Infrastructure.Data;
@@ -15,6 +16,7 @@ public class ApplicationDbContextSeeder
     private readonly IAdminPasswordService _adminPasswordService;
     private readonly IOptions<AdminBootstrapOptions> _adminOptions;
     private readonly AppSetupStore _appSetupStore;
+    private readonly DbConnectionManager _connectionManager;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<ApplicationDbContextSeeder> _logger;
 
@@ -23,6 +25,7 @@ public class ApplicationDbContextSeeder
         IAdminPasswordService adminPasswordService,
         IOptions<AdminBootstrapOptions> adminOptions,
         AppSetupStore appSetupStore,
+        DbConnectionManager connectionManager,
         IHostEnvironment environment,
         ILogger<ApplicationDbContextSeeder> logger)
     {
@@ -30,6 +33,7 @@ public class ApplicationDbContextSeeder
         _adminPasswordService = adminPasswordService;
         _adminOptions = adminOptions;
         _appSetupStore = appSetupStore;
+        _connectionManager = connectionManager;
         _environment = environment;
         _logger = logger;
     }
@@ -62,6 +66,9 @@ public class ApplicationDbContextSeeder
         await SeedAccountingAccountsAsync(cancellationToken);
         await SeedCafeOpenHoursAsync(cancellationToken);
         await SeedSystemRolesAsync(cancellationToken);
+
+        // Migrations + seed are done: background services may now query safely.
+        _connectionManager.MarkSeeded();
     }
 
     private async Task EnsureSchemaCompatibilityAsync(CancellationToken cancellationToken)

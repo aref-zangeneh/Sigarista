@@ -61,6 +61,18 @@ public sealed class DbConnectionManager
         }
     }
 
+    private bool _seededOnce;
+
+    /// <summary>
+    /// True after this process has run migrations + seeding at least once.
+    /// Background services wait on this, not merely on configuration, so a
+    /// freshly configured database never receives "relation does not exist".
+    /// </summary>
+    public bool IsSeeded => _seededOnce && IsConfigured;
+
+    /// <summary>Called by the seeder when migrations + seed finished in this process.</summary>
+    public void MarkSeeded() => Volatile.Write(ref _seededOnce, true);
+
     /// <summary>True once a database connection is established (file or environment).</summary>
     public bool IsConfigured
     {

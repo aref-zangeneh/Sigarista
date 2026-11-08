@@ -241,7 +241,7 @@ if (dbConnectionManager.IsConfigured)
 
     if (!seeded)
     {
-        _ = RunBackgroundSeederAsync(app, setupProvidedAdmin);
+        _ = RunBackgroundSeederAsync(app, setupProvidedAdmin, appSetupStore);
     }
 }
 else
@@ -251,7 +251,7 @@ else
         "Complete the first-run setup at /api/setup, or edit {ConfigPath}.",
         dbConnectionManager.ConfigFilePath);
 
-    _ = RunBackgroundSeederAsync(app, setupProvidedAdmin);
+    _ = RunBackgroundSeederAsync(app, setupProvidedAdmin, appSetupStore);
 }
 
 if (app.Environment.IsDevelopment())
@@ -299,7 +299,7 @@ app.Run();
 // ── Background database migration/seed ──────────────────────────────────────
 // Waits until the database is configured (setup mode) and/or reachable, then
 // runs the same migration + seed that a normal start would have done.
-static async Task RunBackgroundSeederAsync(WebApplication app, bool setupProvidedAdmin)
+static async Task RunBackgroundSeederAsync(WebApplication app, bool setupProvidedAdmin, AppSetupStore appSetupStore)
 {
     var manager = app.Services.GetRequiredService<DbConnectionManager>();
     var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("DbSetup");
@@ -329,7 +329,10 @@ static async Task RunBackgroundSeederAsync(WebApplication app, bool setupProvide
 
                 logger.LogInformation("Database migrations and seeding completed automatically.");
 
-                LogAdminBootstrapWarning(app, logger, setupProvidedAdmin);
+                // Re-read the setup secrets: if the admin was chosen on /api/setup
+                // after this process started, the file now says so — no warning.
+                var providedAdmin = setupProvidedAdmin || appSetupStore.Load().HasBootstrapAdmin;
+                LogAdminBootstrapWarning(app, logger, providedAdmin);
 
                 return;
             }

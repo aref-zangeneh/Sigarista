@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sugarista.Application.Carts.Services;
+using Sugarista.Infrastructure.Data.DbConnection;
 
 namespace Sugarista.Infrastructure.Services;
 
@@ -16,18 +17,23 @@ public class AbandonedCartTickerService : BackgroundService
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(30);
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly DbConnectionManager _connectionManager;
     private readonly ILogger<AbandonedCartTickerService> _logger;
 
     public AbandonedCartTickerService(
         IServiceScopeFactory scopeFactory,
+        DbConnectionManager connectionManager,
         ILogger<AbandonedCartTickerService> logger)
     {
         _scopeFactory = scopeFactory;
+        _connectionManager = connectionManager;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await BackgroundDatabaseGate.WaitUntilConfiguredAsync(_connectionManager, _logger, nameof(AbandonedCartTickerService), stoppingToken);
+
         await Task.Delay(StartupDelay, stoppingToken);
 
         using var timer = new PeriodicTimer(TickPeriod);

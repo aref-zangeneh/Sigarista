@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Discounts.Reports;
+using Sugarista.Infrastructure.Data.DbConnection;
 
 namespace Sugarista.Infrastructure.Services;
 
@@ -18,18 +19,23 @@ public class ReportScheduleRunnerService : BackgroundService
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(20);
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly DbConnectionManager _connectionManager;
     private readonly ILogger<ReportScheduleRunnerService> _logger;
 
     public ReportScheduleRunnerService(
         IServiceScopeFactory scopeFactory,
+        DbConnectionManager connectionManager,
         ILogger<ReportScheduleRunnerService> logger)
     {
         _scopeFactory = scopeFactory;
+        _connectionManager = connectionManager;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await BackgroundDatabaseGate.WaitUntilConfiguredAsync(_connectionManager, _logger, nameof(ReportScheduleRunnerService), stoppingToken);
+
         await WaitForDatabaseAsync(stoppingToken);
 
         using var timer = new PeriodicTimer(TickPeriod);

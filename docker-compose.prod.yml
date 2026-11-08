@@ -1,15 +1,9 @@
-# Production stack that runs pre-built images pulled from a registry.
+# Production stack that runs pre-built image bundles loaded from files.
 #
-# The server never builds anything and needs no source code:
-#   1. copy this file and .env to the server (once)
-#   2. docker compose -f docker-compose.prod.yml pull
-#   3. docker compose -f docker-compose.prod.yml up -d
-#
-# Or just run ./scripts/server-deploy.sh, which also backs up the database
-# and verifies the result.
-#
-# Images are built on your machine with ./scripts/release.sh and pushed to
-# IMAGE_REGISTRY. Nothing here references a build context.
+# Bundles are built on the laptop with ./scripts/release.sh and arrive with
+# SFTP (./scripts/upload-images.sh). The server then runs
+# ./scripts/server-deploy.sh: docker load + backup + up + health check.
+# No registry, no pull, no build on the server — nothing references one.
 
 name: ${COMPOSE_PROJECT_NAME:-sigarista}
 
@@ -30,7 +24,7 @@ services:
       retries: 5
 
   api:
-    image: ${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}/sugarista-api:${IMAGE_TAG:-latest}
+    image: sugarista-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
@@ -74,7 +68,7 @@ services:
       - api-uploads:/app/uploads
 
   admin-ui:
-    image: ${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}/sugarista-admin:${IMAGE_TAG:-latest}
+    image: sugarista-admin:${IMAGE_TAG:-latest}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
@@ -84,7 +78,7 @@ services:
       start_period: 60s
 
   public-ui:
-    image: ${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}/sugarista-theme:${IMAGE_TAG:-latest}
+    image: sugarista-theme:${IMAGE_TAG:-latest}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
@@ -105,7 +99,7 @@ services:
       - "127.0.0.1:8081:8080"
 
   proxy:
-    image: ${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}/sugarista-proxy:${IMAGE_TAG:-latest}
+    image: sugarista-proxy:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       api:

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>راهنمای استقرار ایمیج‌محور — شوگاریستا</title>
+<title>راهنمای استقرار ایمیج‌محور (SFTP) — شوگاریستا</title>
 <style>
 @font-face {
   font-family: 'Vazirmatn';
@@ -304,10 +304,10 @@ footer {
   <header class="cover">
     <div class="brand">شوگاریستا · مستندات فنی</div>
     <h1>راهنمای استقرار ایمیج‌محور</h1>
-    <p class="subtitle">از لپ‌تاپ تا سرور — بدون git، بدون build روی سرور، بدون خطر از دست رفتن دیتا</p>
+    <p class="subtitle">از لپ‌تاپ تا سرور — یک بسته، یک SFTP، بدون git، بدون build روی سرور، بدون هیچ رجیستری واسط</p>
     <div class="meta">
-      <span>نسخه ۱.۰</span>
-      <span>۱۶ آبان ۱۴۰۵</span>
+      <span>نسخه ۱.۱</span>
+      <span>۱۷ آبان ۱۴۰۵</span>
       <span>مخاطب: مدیر سیستم / توسعه‌دهنده</span>
     </div>
   </header>
@@ -316,17 +316,16 @@ footer {
     <h2>فهرست</h2>
     <ol>
       <li><a href="#s0">تصویر کلی</a></li>
-      <li><a href="#s1">فایل‌هایی که اضافه شدند</a></li>
-      <li><a href="#s2">انتخاب رجیستری و لاگین</a></li>
-      <li><a href="#s3">تنظیم <code>.env</code></a></li>
-      <li><a href="#s4">اولین Release</a></li>
-      <li><a href="#s5">آماده‌سازی سرور</a></li>
-      <li><a href="#s6">چرخهٔ روزمره</a></li>
-      <li><a href="#s7">برگشت به نسخهٔ قبلی</a></li>
-      <li><a href="#s8">بکاپ خودکار</a></li>
-      <li><a href="#s9">نکات و تله‌ها</a></li>
-      <li><a href="#s10">چک‌لیست هر دیپلوی</a></li>
-      <li><a href="#s11">چرا این روش امن است</a></li>
+      <li><a href="#s1">فایل‌های مربوط به دیپلوی</a></li>
+      <li><a href="#s2">یک‌بار تنظیم کنید: هدف SFTP</a></li>
+      <li><a href="#s3">اولین Release روی لپ‌تاپ</a></li>
+      <li><a href="#s4">آماده‌سازی سرور (فقط یک‌بار)</a></li>
+      <li><a href="#s5">چرخهٔ روزمره</a></li>
+      <li><a href="#s6">برگشت به نسخهٔ قبلی</a></li>
+      <li><a href="#s7">بکاپ خودکار</a></li>
+      <li><a href="#s8">نکات و تله‌ها</a></li>
+      <li><a href="#s9">چک‌لیست هر دیپلوی</a></li>
+      <li><a href="#s10">چرا این روش امن است</a></li>
     </ol>
   </nav>
 
@@ -334,9 +333,11 @@ footer {
 
     <h2 id="s0"><span class="num">۰</span>تصویر کلی</h2>
     <p>
-      در این روش، ایمیج‌ها روی لپ‌تاپ ساخته و به یک رجیستری (مثل GHCR) فرستاده می‌شوند.
-      سرور فقط آن‌ها را <strong>pull</strong> می‌کند و اجرا می‌کند. هیچ سورس‌کدی روی سرور نیست،
-      هیچ buildی انجام نمی‌شود و هیچ gitی در کار نیست.
+      در این روش، ایمیج‌ها روی <strong>لپ‌تاپ خودتان</strong> ساخته می‌شوند، در یک بستهٔ
+      واحد (<code>dist/sugarista-&lt;tag&gt;.tar.gz</code>) بسته‌بندی می‌شوند و با یک
+      <strong>SFTP</strong> مستقیم روی سرور می‌روند. سرور فقط بسته را
+      <code>docker load</code> می‌کند و اجرا. <strong>هیچ رجیستری واسطی نیست</strong>:
+      نه Docker Hub، نه GHCR — ایمیج هیچ‌وقت از دستگاه شما خارج نمی‌شود مگر به سرور خودتان.
     </p>
 
     <div class="flow">
@@ -344,17 +345,17 @@ footer {
         <h4>لپ‌تاپ شما</h4>
         <ul>
           <li><code>./scripts/release.sh</code></li>
-          <li>ساخت ۴ ایمیج</li>
-          <li>push به رجیستری</li>
+          <li>ساخت ۴ ایمیج amd64</li>
+          <li>بسته‌بندی در <code>dist/</code></li>
         </ul>
       </div>
       <div class="arrow">←</div>
       <div class="box">
-        <h4>رجیستری</h4>
+        <h4>SFTP مستقیم</h4>
         <ul>
-          <li>GHCR یا Docker Hub</li>
-          <li>تگ نسخه‌دار + <code>latest</code></li>
-          <li>تاریخچهٔ کامل نسخه‌ها</li>
+          <li><code>./scripts/upload-images.sh</code></li>
+          <li>کلید SSH، نه رمز</li>
+          <li>بدون هیچ واسطه</li>
         </ul>
       </div>
       <div class="arrow">←</div>
@@ -362,7 +363,7 @@ footer {
         <h4>سرور</h4>
         <ul>
           <li><code>./scripts/server-deploy.sh</code></li>
-          <li>pull + up -d</li>
+          <li><code>docker load</code> → بکاپ → up</li>
           <li>health check + smoke test</li>
         </ul>
       </div>
@@ -375,16 +376,19 @@ footer {
       <code>docker compose down -v</code> است — هرگز آن را اجرا نکنید.
     </div>
 
-    <h2 id="s1"><span class="num">۱</span>فایل‌هایی که اضافه شدند</h2>
+    <h2 id="s1"><span class="num">۱</span>فایل‌های مربوط به دیپلوی</h2>
     <table>
       <thead>
         <tr><th>فایل</th><th>کجا اجرا می‌شود</th><th>کار</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>docker-compose.prod.yml</code></td><td>سرور</td><td>استک فقط-ایمیج: بدون <code>build</code>، بدون bind mount</td></tr>
+        <tr><td><code>docker-compose.prod.yml</code></td><td>سرور</td><td>استک فقط-ایمیج: بدون <code>build</code>، بدون bind mount، بدون هیچ رجیستری</td></tr>
         <tr><td><code>deploy/nginx/Dockerfile</code></td><td>لپ‌تاپ</td><td>کانفیگ nginx را داخل ایمیج می‌پزد</td></tr>
-        <tr><td><code>scripts/release.sh</code></td><td>لپ‌تاپ</td><td>۴ ایمیج را برای <code>linux/amd64</code> می‌سازد و push می‌کند</td></tr>
-        <tr><td><code>scripts/server-deploy.sh</code></td><td>سرور</td><td>pull → بکاپ → up → health → smoke test</td></tr>
+        <tr><td><code>deploy/.env-upload.example</code></td><td>لپ‌تاپ</td><td>قالب <code>SERVER_HOST</code> و <code>SERVER_PATH</code> — کپی کنید به <code>deploy/.env-upload</code> (در git نادیده گرفته می‌شود)</td></tr>
+        <tr><td><code>scripts/release.sh</code></td><td>لپ‌تاپ</td><td>۴ ایمیج را برای <code>linux/amd64</code> می‌سازد و در <code>dist/sugarista-&lt;tag&gt;.tar.gz</code> بسته می‌کند</td></tr>
+        <tr><td><code>scripts/upload-images.sh</code></td><td>لپ‌تاپ</td><td>بسته را با SFTP به سرور می‌فرستد؛ با <code>WITH_FILES=1</code> فایل compose و scripts را هم همگام می‌کند</td></tr>
+        <tr><td><code>scripts/ship.sh</code></td><td>لپ‌تاپ</td><td>کل زنجیره با یک دستور: ساخت → آپلود → دیپلوی ریموت</td></tr>
+        <tr><td><code>scripts/server-deploy.sh</code></td><td>سرور</td><td><code>docker load</code> → بکاپ → up → health → smoke test</td></tr>
         <tr><td><code>scripts/backup-db.sh</code></td><td>هر دو</td><td>بکاپ فشردهٔ دیتابیس با نگه‌داری N نسخهٔ آخر</td></tr>
         <tr><td><code>scripts/restore-db.sh</code></td><td>هر دو</td><td>بازگردانی کامل دیتابیس از بکاپ</td></tr>
       </tbody>
@@ -393,38 +397,38 @@ footer {
     <h3>تفاوت‌های مهم با فایل توسعه</h3>
     <ul>
       <li>همهٔ سرویس‌ها <code>image:</code> دارند و هیچ‌کدام <code>build:</code> ندارند.</li>
+      <li>نام‌های ایمیج دیگر پیشوند رجیستری ندارند: <code>sugarista-api:&lt;tag&gt;</code> — دقیقاً همان چیزی که بسته در خود دارد.</li>
       <li><code>public-ui</code> دیگر پوشهٔ <code>Sugarista-Theme</code> را mount نمی‌کند؛ فایل‌ها داخل ایمیج هستند.</li>
       <li><code>proxy</code> دیگر <code>deploy/nginx/default.conf</code> را mount نمی‌کند؛ کانفیگ داخل ایمیج است.</li>
       <li><code>name: sigarista</code> قفل شده تا نام volume هرگز عوض نشود.</li>
     </ul>
 
-    <h2 id="s2"><span class="num">۲</span>انتخاب رجیستری و لاگین</h2>
+    <h2 id="s2"><span class="num">۲</span>یک‌بار تنظیم کنید: هدف SFTP</h2>
     <p>
-      پیشنهاد: <strong>GitHub Container Registry (GHCR)</strong> — چون ریپو همان‌جاست و رایگان است.
+      اسکریپت آپلود بدانند بسته را به کجا بفرستد — فقط یک‌بار لازم است.
     </p>
 
-    <h3>۲-۱) ساخت توکن</h3>
-    <p>
-      GitHub → <strong>Settings → Developer settings → Personal access tokens → Tokens (classic)</strong>
-      → Generate new token
+    <h3>۲-۱) کلید SSH</h3>
+    <p>اگر هنوز کلیدتان را روی سرور کپی نکرده‌اید:</p>
+<pre>ssh-keygen -t ed25519          # اگر کلید ندارید
+ssh-copy-id root@sugarista-web</pre>
+    <p><code>sugarista-web</code> یک نام مستعار در <code>~/.ssh/config</code> است:</p>
+<pre>Host sugarista-web
+    HostName 203.0.113.10
+    User root
+    Port 22</pre>
+
+    <h3>۲-۲) فایل تنظیمات آپلود</h3>
+<pre>cp deploy/.env-upload.example deploy/.env-upload</pre>
+    <p>و در آن فقط این دو مقدار:</p>
+<pre>SERVER_HOST=root@sugarista-web
+SERVER_PATH=/opt/sugarista/Sigarista</pre>
+    <p class="small">
+      این فایل git-ignored است. اگر نخواهید فایل بسازید، می‌توانید متغیرها را
+      موقتاً بدهید: <code>SERVER_HOST='root@203.0.113.10' ./scripts/upload-images.sh</code>
     </p>
-    <ul>
-      <li>برای لپ‌تاپ (push): دسترسی <code>write:packages</code></li>
-      <li>برای سرور (pull): دسترسی <code>read:packages</code></li>
-    </ul>
 
-    <h3>۲-۲) لاگین روی لپ‌تاپ</h3>
-<pre>echo "TOKEN" | docker login ghcr.io -u aref-zangeneh --password-stdin</pre>
-
-    <h3>۲-۳) گزینهٔ جایگزین: Docker Hub</h3>
-<pre>docker login docker.io -u &lt;username&gt;
-# و در .env:  IMAGE_REGISTRY=docker.io/&lt;username&gt;</pre>
-
-    <h2 id="s3"><span class="num">۳</span>تنظیم <code>.env</code> روی لپ‌تاپ</h2>
-    <p>فقط این خط لازم است (پیش‌فرض هم همین است):</p>
-<pre>IMAGE_REGISTRY=ghcr.io/aref-zangeneh</pre>
-
-    <h2 id="s4"><span class="num">۴</span>اولین Release روی لپ‌تاپ</h2>
+    <h2 id="s3"><span class="num">۳</span>اولین Release روی لپ‌تاپ</h2>
 <pre>cd ~/Desktop/Sugarista-Project
 ./scripts/release.sh</pre>
 
@@ -433,11 +437,17 @@ footer {
 ==&gt; Building sugarista-admin (linux/amd64)
 ==&gt; Building sugarista-theme (linux/amd64)
 ==&gt; Building sugarista-proxy (linux/amd64)
-==&gt; Pushed all images with tag 2026.11.07-1430
+==&gt; Packing images into dist/sugarista-2026.11.09-1200.tar.gz
 
-Registry : ghcr.io/aref-zangeneh
-Tag      : 2026.11.07-1430  (also tagged :latest)
-Platform : linux/amd64</pre>
+Bundle   : dist/sugarista-2026.11.09-1200.tar.gz (xxx MB)
+Tag      : 2026.11.09-1200  (also tagged :latest)
+Platform : linux/amd64
+
+Next step — upload via SFTP to the server:
+  ./scripts/upload-images.sh</pre>
+
+    <p>بستهٔ <code>.tar.gz</code> شامل هر ۴ ایمیج است؛ لایه‌های مشترک مصالحه (dedup) می‌شوند
+    و حجم را کنترل می‌کند. سرور برای راه‌اندازی به این یک فایل بسنده می‌کند.</p>
 
     <div class="info">
       <strong>زمان ساخت</strong>
@@ -447,7 +457,7 @@ Platform : linux/amd64</pre>
 
     <h3>گزینه‌های مفید</h3>
 <pre>IMAGE_TAG=v1.2 ./scripts/release.sh                 # تگ دلخواه
-PUSH=0 ./scripts/release.sh                         # فقط build، بدون push
+BUILD_ONLY=1 ./scripts/release.sh                   # فقط build، بدون بسته‌بندی
 TARGET_PLATFORM=linux/arm64 ./scripts/release.sh    # اگر سرور ARM بود</pre>
 
     <div class="warn">
@@ -456,11 +466,11 @@ TARGET_PLATFORM=linux/arm64 ./scripts/release.sh    # اگر سرور ARM بود
       ایمیج arm64 روی سرور اجرا نمی‌شود.
     </div>
 
-    <h2 id="s5"><span class="num">۵</span>آماده‌سازی سرور (فقط یک‌بار)</h2>
+    <h2 id="s4"><span class="num">۴</span>آماده‌سازی سرور (فقط یک‌بار)</h2>
 
-    <h3>۵-۱) نام volume فعلی را بررسی کنید</h3>
+    <h3>۴-۱) نام volume فعلی را بررسی کنید</h3>
     <p>این مرحله حیاتی است؛ اگر نام عوض شود، استک جدید یک دیتابیس <strong>خالی</strong> می‌سازد.</p>
-<pre>docker volume ls | grep postgres-data</pre>
+<pre>ssh sugarista-web 'docker volume ls | grep postgres-data'</pre>
     <p>
       باید چیزی مثل <code>sigarista_postgres-data</code> ببینید؛ یعنی پیشوند پروژه <code>sigarista</code> است
       که با <code>name: sigarista</code> در فایل جدید هم‌خوان است.
@@ -468,70 +478,79 @@ TARGET_PLATFORM=linux/arm64 ./scripts/release.sh    # اگر سرور ARM بود
     </p>
 <pre>COMPOSE_PROJECT_NAME=&lt;همان-پیشوند&gt;</pre>
 
-    <h3>۵-۲) یک بکاپ اضافه بگیرید</h3>
-<pre>cd /opt/sugarista/Sigarista
+    <h3>۴-۲) یک بکاپ اضافه بگیرید</h3>
+<pre>ssh sugarista-web
+cd /opt/sugarista/Sigarista
 docker compose exec -T postgres pg_dump -U sugarista -d sugarista \
   --no-owner --no-privileges | gzip &gt; /root/pre-image-deploy.sql.gz
 ls -lh /root/pre-image-deploy.sql.gz</pre>
 
-    <h3>۵-۳) فایل‌ها را از لپ‌تاپ کپی کنید</h3>
-<pre># روی لپ‌تاپ
-cd ~/Desktop/Sugarista-Project
-scp docker-compose.prod.yml root@sugarista-web:/opt/sugarista/Sigarista/
-scp -r scripts root@sugarista-web:/opt/sugarista/Sigarista/</pre>
+    <h3>۴-۳) فایل‌های پایه را با همان SFTP بفرستید</h3>
+    <p>روی لپ‌تاپ — بعد از اولین release:</p>
+<pre>cd ~/Desktop/Sugarista-Project
+WITH_FILES=1 ./scripts/upload-images.sh</pre>
+    <p>
+      این کار هم بستهٔ ایمیج را می‌فرستد و هم <code>docker-compose.prod.yml</code> و
+      پوشهٔ <code>scripts/</code> را. از این به بعد فقط خود بسته‌ها جابه‌جا می‌شوند.
+    </p>
 
-    <h3>۵-۴) لاگین رجیستری روی سرور</h3>
-    <p>فقط اگر ایمیج‌ها خصوصی هستند:</p>
-<pre>echo "TOKEN_READ_PACKAGES" | docker login ghcr.io -u aref-zangeneh --password-stdin</pre>
-    <p class="small">این کار یک‌بار انجام می‌شود و در <code>~/.docker/config.json</code> می‌ماند.</p>
-
-    <h3>۵-۵) استک قدیمی را خاموش کنید — بدون <code>-v</code></h3>
-<pre>cd /opt/sugarista/Sigarista
+    <h3>۴-۴) استک قدیمی را خاموش کنید — بدون <code>-v</code></h3>
+<pre>ssh sugarista-web
+cd /opt/sugarista/Sigarista
 docker compose down</pre>
 
-    <h3>۵-۶) اولین دیپلوی ایمیجی</h3>
+    <h3>۴-۵) اولین دیپلوی ایمیجی</h3>
 <pre>cd /opt/sugarista/Sigarista
 chmod +x scripts/*.sh
 ./scripts/server-deploy.sh</pre>
 
     <p>خروجی موفق:</p>
-<pre>==&gt; Target image tag: latest
+<pre>==&gt; Target image tag: 2026.11.09-1200
 ==&gt; Backing up database
-==&gt; Pulling images
+==&gt; Loading images from sugarista-2026.11.09-1200.tar.gz
 ==&gt; Applying changes
 ==&gt; Waiting for API health
 ==&gt; Smoke test
   /health  -&gt; 200
   /admin/  -&gt; 200
   /        -&gt; 200
-==&gt; Deployed image tag latest successfully.</pre>
+==&gt; Deployed image tag 2026.11.09-1200 successfully.</pre>
 
     <p>از این لحظه، سرور فقط ایمیج اجرا می‌کند. سورس‌کد قدیمی را می‌توانید پاک کنید — به‌جز این‌ها:</p>
 <pre>/opt/sugarista/Sigarista/
 ├── .env                     ← رمزها، دست نزنید
 ├── docker-compose.prod.yml
 ├── scripts/
+├── dist/                    ← بسته‌های ایمیج (برای rollback)
 └── backups/</pre>
 
-    <h2 id="s6"><span class="num">۶</span>چرخهٔ روزمره</h2>
-    <h3>روی لپ‌تاپ — بعد از هر تغییر کد</h3>
+    <h2 id="s5"><span class="num">۵</span>چرخهٔ روزمره</h2>
+    <p>یکی از دو مسیر را انتخاب کنید:</p>
+
+    <h3>گزینهٔ A — یک دستور (پیشنهادی)</h3>
+    <p>روی لپ‌تاپ، كل زنجیره: ساخت ← آپلود ← دیپلوی ریموت:</p>
 <pre>cd ~/Desktop/Sugarista-Project
-./scripts/release.sh</pre>
+./scripts/ship.sh</pre>
+    <p>خروجی هر سه مرحله را پشت سر هم نشان می‌دهد و smoke test سرور را چک می‌کند.</p>
+<pre>SHIP_NO_DEPLOY=1 ./scripts/ship.sh      # فقط ساخت + آپلود، دیپلوی را خودتان بعداً
+SKIP_BUILD=1 ./scripts/ship.sh          # بستهٔ موجود در dist/ را بفرست</pre>
 
-    <h3>روی سرور</h3>
+    <h3>گزینهٔ B — مرحله‌به‌مرحله</h3>
+<pre># لپ‌تاپ
+./scripts/release.sh          # ساخت + بسته‌بندی
+./scripts/upload-images.sh    # SFTP
+
+# سرور (یا با یک خط ssh از لپ‌تاپ)
+ssh sugarista-web "cd /opt/sugarista/Sigarista && ./scripts/server-deploy.sh"</pre>
+
+    <h2 id="s6"><span class="num">۶</span>برگشت به نسخهٔ قبلی (Rollback)</h2>
+    <p>هر بسته یک تگ نسخه‌دار در خود دارد؛ سرور بسته‌های قدیمی را در <code>dist/</code> نگه می‌دارد:</p>
 <pre>cd /opt/sugarista/Sigarista
-./scripts/server-deploy.sh</pre>
-
-    <p>تمام. بدون git، بدون pull، بدون build روی سرور.</p>
-
-    <h2 id="s7"><span class="num">۷</span>برگشت به نسخهٔ قبلی (Rollback)</h2>
-    <p>هر release یک تگ نسخه‌دار هم push می‌کند، پس برگشت ساده است:</p>
-<pre>cd /opt/sugarista/Sigarista
-IMAGE_TAG=2026.11.06-0900 ./scripts/server-deploy.sh</pre>
-
+IMAGE_TAG=2026.11.08-0900 ./scripts/server-deploy.sh</pre>
     <p>
-      متغیر محیطی بر <code>.env</code> اولویت دارد، پس لازم نیست فایل را دست بزنید.
-      برای دیدن نسخه‌های موجود: GitHub → <strong>Packages</strong> → هر پکیج → <strong>Versions</strong>.
+      اگر بستهٔ آن تگ روی سرور حذف شده باشد، اول دوباره آپلودش کنید:
+      <code>IMAGE_TAG=2026.11.08-0900 ./scripts/upload-images.sh</code> (لپ‌تاپ) — بسته‌های
+      قبلی در <code>dist/</code> لپ‌تاپ هم مانده‌اند.
     </p>
 
     <div class="warn">
@@ -540,7 +559,7 @@ IMAGE_TAG=2026.11.06-0900 ./scripts/server-deploy.sh</pre>
       <code>./scripts/restore-db.sh backups/sugarista-2026xxxx-xxxxxx.sql.gz</code>
     </div>
 
-    <h2 id="s8"><span class="num">۸</span>بکاپ خودکار روزانه</h2>
+    <h2 id="s7"><span class="num">۷</span>بکاپ خودکار روزانه</h2>
 <pre>crontab -e</pre>
 <pre>0 3 * * * cd /opt/sugarista/Sigarista &amp;&amp; COMPOSE_FILE=/opt/sugarista/Sigarista/docker-compose.prod.yml ./scripts/backup-db.sh &gt;&gt; /var/log/sugarista-backup.log 2&gt;&amp;1</pre>
 
@@ -552,7 +571,7 @@ IMAGE_TAG=2026.11.06-0900 ./scripts/server-deploy.sh</pre>
       بکاپی که یک‌بار restore نشده باشد، بکاپ نیست. ماهی یک‌بار روی یک محیط تست، restore را تمرین کنید.
     </div>
 
-    <h2 id="s9"><span class="num">۹</span>نکات و تله‌ها</h2>
+    <h2 id="s8"><span class="num">۸</span>نکات و تله‌ها</h2>
     <table>
       <thead><tr><th>موضوع</th><th>نکته</th></tr></thead>
       <tbody>
@@ -563,18 +582,19 @@ IMAGE_TAG=2026.11.06-0900 ./scripts/server-deploy.sh</pre>
         <tr><td>تغییر nginx</td><td>کانفیگ داخل ایمیج proxy پخته می‌شود؛ بعد از تغییر، release بزنید.</td></tr>
         <tr><td><code>.env</code></td><td>هرگز داخل ایمیج نمی‌رود و با دیپلوی عوض نمی‌شود.</td></tr>
         <tr><td>مایگریشن</td><td>API روی استارت خودش <code>MigrateAsync()</code> را اجرا می‌کند.</td></tr>
-        <tr><td>رجیستری خصوصی</td><td>بدون <code>docker login</code> روی سرور، pull با <code>unauthorized</code> شکست می‌خورد.</td></tr>
-        <tr><td>فضای دیسک</td><td>هر release یک ایمیج جدید می‌آورد؛ گاهی <code>docker image prune -f</code> بزنید</td></tr>
+        <tr><td>نام بسته</td><td>اسکریپت‌ها تگ را <strong>از نام فایل</strong> می‌خوانند — بسته‌ها را تغییر نام ندهید.</td></tr>
+        <tr><td>دسترسی سرور</td><td>دیگر هیچ <code>docker login</code> لازم نیست؛ همه‌چیز با کلید SSH می‌گردد.</td></tr>
+        <tr><td>فضای دیسک</td><td>هر بسته چند صد مگابایت است؛ بعد از دیپلوی موفق می‌توانید بسته‌های خیلی قدیمی را از <code>dist/</code> سرور پاک کنید (حداقل ۲ تگ اخیر را نگه دارید).</td></tr>
         <tr><td>رمز ادمین</td><td>با اولین seed ست می‌شود و با دیپلوی عوض نمی‌شود.</td></tr>
       </tbody>
     </table>
 
-    <h2 id="s10"><span class="num">۱۰</span>چک‌لیست هر دیپلوی</h2>
+    <h2 id="s9"><span class="num">۹</span>چک‌لیست هر دیپلوی</h2>
     <h3>لپ‌تاپ</h3>
     <ul class="checklist">
       <li><code>dotnet test</code> سبز است</li>
       <li><code>npm run build</code> در <code>Sugarista-Admin</code> بدون خطاست</li>
-      <li><code>./scripts/release.sh</code> بدون خطا تمام شد و تگ نسخه را یادداشت کردم</li>
+      <li><code>./scripts/ship.sh</code> (یا release + upload) بدون خطا تمام شد و تگ نسخه را یادداشت کردم</li>
     </ul>
     <h3>سرور</h3>
     <ul class="checklist">
@@ -583,11 +603,12 @@ IMAGE_TAG=2026.11.06-0900 ./scripts/server-deploy.sh</pre>
       <li>یک‌بار <code>/admin/</code> را باز کردم و لاگین گرفتم</li>
     </ul>
 
-    <h2 id="s11"><span class="num">۱۱</span>چرا این روش امن است</h2>
+    <h2 id="s10"><span class="num">۱۰</span>چرا این روش امن است</h2>
     <ul>
       <li><strong>دیتابیس و آپلودها</strong> در volume هستند و اصلاً به کد کاری ندارند.</li>
+      <li><strong>هیچ رجیستری ثالثی</strong> در کار نیست — ایمیج فقط بین لپ‌تاپ و سرور خودتان جابه‌جا می‌شود، روی کانال SSH رمزنگاری‌شده.</li>
       <li><strong>سرور هیچ‌وقت کامپایل نمی‌کند</strong> → نه NuGet قطع می‌شود، نه npm، نه رم سرور.</li>
-      <li><strong>هر نسخه یک ایمیج تغییرناپذیر</strong> است → rollback دقیقاً همان چیزی را برمی‌گرداند که قبلاً کار می‌کرد.</li>
+      <li><strong>هر نسخه یک بستهٔ تغییرناپذیر</strong> است → rollback دقیقاً همان چیزی را برمی‌گرداند که قبلاً کار می‌کرد.</li>
       <li><strong><code>.env</code> و رمزها</strong> هرگز وارد ایمیج یا ریپو نمی‌شوند.</li>
       <li><strong>بکاپ خودکار</strong> قبل از هر دیپلوی گرفته می‌شود.</li>
     </ul>
@@ -598,11 +619,13 @@ IMAGE_TAG=2026.11.06-0900 ./scripts/server-deploy.sh</pre>
     <table>
       <thead><tr><th>می‌خواهم…</th><th>دستور</th></tr></thead>
       <tbody>
-        <tr><td>نسخهٔ جدید بسازم</td><td><code>./scripts/release.sh</code></td></tr>
-        <tr><td>روی سرور مستقر کنم</td><td><code>./scripts/server-deploy.sh</code></td></tr>
-        <tr><td>به نسخهٔ قبل برگردم</td><td><code>IMAGE_TAG=&lt;old&gt; ./scripts/server-deploy.sh</code></td></tr>
-        <tr><td>بکاپ بگیرم</td><td><code>./scripts/backup-db.sh</code></td></tr>
-        <tr><td>بکاپ را برگردانم</td><td><code>./scripts/restore-db.sh backups/&lt;file&gt;.sql.gz</code></td></tr>
+        <tr><td>کل زنجیره را با یک دستور بزنم (ساخت + آپلود + دیپلوی)</td><td><code>./scripts/ship.sh</code></td></tr>
+        <tr><td>نسخهٔ جدید بسازم و بسته‌بندی کنم</td><td><code>./scripts/release.sh</code></td></tr>
+        <tr><td>فقط بسته را بفرستم</td><td><code>./scripts/upload-images.sh</code></td></tr>
+        <tr><td>روی سرور مستقر کنم</td><td><code>ssh sugarista-web "cd /opt/sugarista/Sigarista &amp;&amp; ./scripts/server-deploy.sh"</code></td></tr>
+        <tr><td>به نسخهٔ قبل برگردم</td><td><code>IMAGE_TAG=&lt;old&gt; ./scripts/server-deploy.sh</code> (سرور)</td></tr>
+        <tr><td>بکاپ بگیرم</td><td><code>./scripts/backup-db.sh</code> (سرور)</td></tr>
+        <tr><td>بکاپ را برگردانم</td><td><code>./scripts/restore-db.sh backups/&lt;file&gt;.sql.gz</code> (سرور)</td></tr>
         <tr><td>لاگ API را ببینم</td><td><code>docker compose -f docker-compose.prod.yml logs -f api</code></td></tr>
         <tr><td>وضعیت را ببینم</td><td><code>docker compose -f docker-compose.prod.yml ps</code></td></tr>
       </tbody>
@@ -611,7 +634,7 @@ IMAGE_TAG=2026.11.06-0900 ./scripts/server-deploy.sh</pre>
   </main>
 
   <footer>
-    شوگاریستا — راهنمای استقرار ایمیج‌محور · نسخه ۱.۰ · ۱۶ آبان ۱۴۰۵
+    شوگاریستا — راهنمای استقرار ایمیج‌محور (SFTP) · نسخه ۱.۱ · ۱۷ آبان ۱۴۰۵
   </footer>
 
 </div>

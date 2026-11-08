@@ -1,28 +1,31 @@
 #!/usr/bin/env bash
-# Builds the production images on your machine and pushes them to a registry.
-# The server then only pulls and runs them — no source code, no build, no git.
+# Builds the production images on THIS machine and packs them into one
+# self-contained bundle:  dist/sugarista-<tag>.tar.gz
+#
+# No registry, no push — the bundle is moved to the server with
+# SFTP (./scripts/upload-images.sh) and loaded there with
+# ./scripts/server-deploy.sh.
 #
 # Usage:
-#   ./scripts/release.sh                     # build + push, auto tag
-#   IMAGE_TAG=v1 ./scripts/release.sh        # custom tag
-#   PUSH=0 ./scripts/release.sh              # build only (no push)
-#   TARGET_PLATFORM=linux/arm64 ./scripts/release.sh
+#   ./scripts/release.sh                       # build + pack, auto tag
+#   IMAGE_TAG=v1.2 ./scripts/release.sh        # custom tag
+#   TARGET_PLATFORM=linux/arm64 ./scripts/release.sh   # ARM server
+#   BUILD_ONLY=1 ./scripts/release.sh          # skip packing into dist/
 #
 # Env:
-#   IMAGE_REGISTRY   registry + owner      (default: ghcr.io/aref-zangeneh)
-#   IMAGE_TAG        image tag             (default: <date>-<time>)
-#   TARGET_PLATFORM  target platform       (default: linux/amd64)
-#   PUSH             1 = push, 0 = load    (default: 1)
+#   IMAGE_TAG        bundle + image tag     (default: <date>-<time>)
+#   TARGET_PLATFORM  target platform        (default: linux/amd64)
+#   BUILD_ONLY       1 = skip the docker save step
 
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
 
-REGISTRY="${IMAGE_REGISTRY:-ghcr.io/aref-zangeneh}"
 TAG="${IMAGE_TAG:-$(date +%Y.%m.%d-%H%M)}"
 PLATFORM="${TARGET_PLATFORM:-linux/amd64}"
-PUSH="${PUSH:-1}"
+BUILD_ONLY="${BUILD_ONLY:-0}"
+DIST_DIR="$APP_DIR/dist"
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 die() { printf '\n\033[1;31m!!  %s\033[0m\n' "$*" >&2; exit 1; }
@@ -38,21 +41,15 @@ build() {
     local -a args=(
         buildx build
         --platform "$PLATFORM"
-        --tag "$REGISTRY/sugarista-$name:$TAG"
-        --tag "$REGISTRY/sugarista-$name:latest"
+        --tag "sugarista-$name:$TAG"
+        --tag "sugarista-$name:latest"
     )
 
     [ -n "$dockerfile" ] && args+=(-f "$dockerfile")
     [ -n "$target" ] && args+=(--target "$target")
 
-    if [ "$PUSH" = "1" ]; then
-        args+=(--push)
-    else
-        args+=(--load)
-    fi
-
     say "Building sugarista-$name ($PLATFORM)"
-    docker "${args[@]}" "$context"
+    docker "${args[@]}" --load "$context"
 }
 
 build api     "$APP_DIR/Sugarista"       "$APP_DIR/Sugarista/src/Sugarista.Api/Dockerfile"
@@ -60,23 +57,36 @@ build admin   "$APP_DIR/Sugarista-Admin" "" "runtime"
 build theme   "$APP_DIR/Sugarista-Theme"
 build proxy   "$APP_DIR/deploy/nginx"
 
-if [ "$PUSH" = "1" ]; then
-    say "Pushed all images with tag $TAG"
-else
-    say "Built all images locally with tag $TAG (not pushed)"
+if [ "$BUILD_ONLY" = "1" ]; then
+    say "Built all images with tag $TAG (not packed — BUILD_ONLY=1)"
+    exit 0
 fi
+
+say "Packing images into dist/sugarista-$TAG.tar.gz"
+mkdir -p "$DIST_DIR"
+docker save \
+    "sugarista-api:$TAG"     "sugarista-api:latest" \
+    "sugarista-admin:$TAG"   "sugarista-admin:latest" \
+    "sugarista-theme:$TAG"   "sugarista-theme:latest" \
+    "sugarista-proxy:$TAG"   "sugarista-proxy:latest" \
+    | gzip > "$DIST_DIR/sugarista-$TAG.tar.gz"
+
+BUNDLE="$DIST_DIR/sugarista-$TAG.tar.gz"
+SIZE="$(du -h "$BUNDLE" | cut -f1)"
 
 cat <<EOF
 
-Registry : $REGISTRY
+Bundle   : $BUNDLE ($SIZE)
 Tag      : $TAG  (also tagged :latest)
 Platform : $PLATFORM
 
-On the server:
-  cd /opt/sugarista/Sigarista
-  ./scripts/server-deploy.sh
+Next step — upload via SFTP to the server:
+  ./scripts/upload-images.sh
 
-To roll back to a previous build:
+Or do everything in one go (build + upload + remote deploy):
+  ./scripts/ship.sh
+
+To roll back later, load an older bundle on the server:
   IMAGE_TAG=<older-tag> ./scripts/server-deploy.sh
 
 EOF

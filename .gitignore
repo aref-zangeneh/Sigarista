@@ -37,3 +37,6 @@ secrets.json
 # Sugarista-PrintAgent local runtime
 Sugarista-PrintAgent/venv/
 Sugarista-PrintAgent/config.json
+
+# SFTP deploy targets (deploy/.env-upload.example is the template)
+deploy/.env-upload

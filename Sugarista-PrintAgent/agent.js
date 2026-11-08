@@ -21,7 +21,7 @@ const { execFile } = require("node:child_process");
 const { promisify } = require("node:util");
 
 const execFileAsync = promisify(execFile);
-const { parseLpRequestId, listQueuedJobIds, isQueueDisabled } = require("./agent-helpers.cjs");
+const { parseLpRequestId, listQueuedJobIds, isQueueDisabled, buildWarmupPrimer } = require("./agent-helpers.cjs");
 
 const BASE_DIR = __dirname;
 const CONFIG_PATH = path.join(BASE_DIR, "config.json");
@@ -31,6 +31,9 @@ const TMP_DIR = path.join(os.tmpdir(), "sugarista-print-agent");
 
 const MAX_ATTEMPTS = 3;
 const DRAIN_POLL_MS = 300;
+// Let the printer finish cutting/feeding the previous job before streaming a
+// new one into it — starting data mid-cut-cycle corrupts the leading bytes.
+const GROUP_SETTLE_MS = 1500;
 // After a fully failed group whose printer/queue was stuck, hold off claiming
 // for this long so a dead printer does not spin the agent retry loop.
 const STUCK_QUEUE_COOLDOWN_MS = 25_000;
@@ -217,6 +220,9 @@ async function processJobGroup(config, group) {
     const escposPaths = [];
     try {
       if (attempt === 1) {
+        // Fresh submission after the previous job: give the cutter/feed a
+        // moment so our leading bytes never collide with the paper finish.
+        await sleep(GROUP_SETTLE_MS);
         await waitForIdleQueue(config);
       } else {
         await healQueueAfterError(config);
@@ -229,7 +235,8 @@ async function processJobGroup(config, group) {
 
       const combinedPath = escposPaths[0].replace(/\.escpos$/, "-combined.escpos");
       const stream = await Promise.all(escposPaths.map((p) => fs.promises.readFile(p)));
-      fs.writeFileSync(combinedPath, Buffer.concat(stream));
+      const primer = buildWarmupPrimer();
+      fs.writeFileSync(combinedPath, Buffer.concat([primer, ...stream]));
 
       const { jobId, verified } = await printEscpos(config, combinedPath);
       if (verified) {

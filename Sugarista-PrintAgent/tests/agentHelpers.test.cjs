@@ -11,7 +11,7 @@
  */
 
 const assert = require("node:assert");
-const { parseLpRequestId, listQueuedJobIds, isQueueDisabled } = require("../agent-helpers.cjs");
+const { parseLpRequestId, listQueuedJobIds, isQueueDisabled, buildWarmupPrimer } = require("../agent-helpers.cjs");
 
 let passed = 0;
 function test(name, fn) {
@@ -76,6 +76,33 @@ test("isQueueDisabled only trips on disabled wording", () => {
   assert.strictEqual(isQueueDisabled("printer GA-E200I disabled since Sun Nov  8 14:05:57 -\n\tUSB port busy"), true);
   assert.strictEqual(isQueueDisabled("printer GA-E200I DISABLED (paused)"), true);
   assert.strictEqual(isQueueDisabled(null), false);
+});
+
+/* ── buildWarmupPrimer ─────────────────────────────────────────────────── */
+
+test("primer leads with ignored NUL bytes (zero paper cost)", () => {
+  const primer = buildWarmupPrimer();
+  assert.ok(primer.length > 512, "primer must be long enough to cover a loss window");
+  assert.ok(primer.subarray(0, 1024).every((b) => b === 0), "leading bytes must be NUL (ignored by printer)");
+});
+
+test("primer closes with ESC @ resets so the receipt starts clean", () => {
+  const primer = buildWarmupPrimer();
+  assert.ok(primer.subarray(-8).equals(Buffer.from([0x1b, 0x40, 0x1b, 0x40, 0x1b, 0x40, 0x1b, 0x40])), "4 ESC @ resets required");
+  assert.ok(primer.length % 2 === 0, "primer must stay byte-paired");
+});
+
+test("primer contains only print-safe bytes (NULs + ESC/@ pairs)", () => {
+  const primer = buildWarmupPrimer();
+  const allowed = new Set([0x00, 0x1b, 0x40]);
+  assert.ok(
+    Array.from(primer).every((b) => allowed.has(b)),
+    "primer must be made only of NULs and ESC @ pairs",
+  );
+  // Worst case if a loss boundary splits an ESC @ pair: at most one stray '@'
+  // glyph per reset — never a garbled receipt.
+  const strayCount = Array.from(primer).filter((b) => b === 0x40).length;
+  assert.strictEqual(strayCount, 4, "exactly the 4 ESC @ payload bytes");
 });
 
 console.log(`✓ agent-helpers: ${passed}/${passed} tests passed`);

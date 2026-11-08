@@ -48,4 +48,30 @@ function isQueueDisabled(lpstatP) {
   return /disabled/i.test(lpstatP || "");
 }
 
-module.exports = { parseLpRequestId, listQueuedJobIds, isQueueDisabled };
+/**
+ * Warm-up block prepended to every raw stream. The printer mangles or drops
+ * the FIRST bytes of a transfer whenever it starts data while not fully
+ * ready — fresh from sleep after an idle gap, or still cycling the cutter of
+ * the previous job. Corruption is state-dependent, never content-dependent
+ * (identical streams printed clean and garbled purely based on job timing).
+ *
+ * The primer absorbs that loss window with bytes the printer cannot make
+ * look wrong on paper: NUL bytes are ignored in text mode and every ESC @
+ * re-initializes the controller, so regardless of how many leading bytes the
+ * printer swallows or scrambles, the receipt itself arrives intact. Costs
+ * zero paper.
+ */
+const PRIMER_ZERO_BYTES = 1024;
+const PRIMER_RESET_ITERATIONS = 4;
+
+function buildWarmupPrimer() {
+  const primer = Buffer.alloc(PRIMER_ZERO_BYTES + PRIMER_RESET_ITERATIONS * 2);
+  // 0x00 run: ignored by ESC/POS printers in text mode.
+  for (let i = 0; i < PRIMER_RESET_ITERATIONS; i += 1) {
+    primer[PRIMER_ZERO_BYTES + i * 2] = 0x1b;
+    primer[PRIMER_ZERO_BYTES + i * 2 + 1] = 0x40; // ESC @
+  }
+  return primer;
+}
+
+module.exports = { parseLpRequestId, listQueuedJobIds, isQueueDisabled, buildWarmupPrimer };

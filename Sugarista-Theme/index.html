@@ -1286,11 +1286,8 @@
           <i class="bi bi-x-lg"></i>
         </button>
         <span class="profile-badge-icon"><i class="bi bi-person-badge"></i></span>
-        <h2 id="auth-popup-title" class="h5 mb-1">به کافه خوش آمدی</h2>
-        <p class="auth-popup-sub">
-          شماره موبایلت را وارد کن تا حساب کاربری‌ات — کارت مهر، امتیازها و بج‌هایت —
-          همیشه آماده باشد؛ بدون ثبت‌نام و رمز.
-        </p>
+        <h2 id="auth-popup-title" class="h5 mb-1" x-text="settings.authPopupTitle || 'به کافه خوش آمدی'"></h2>
+        <p class="auth-popup-sub" x-text="settings.authPopupDescription || 'شماره موبایلت را وارد کن تا حساب کاربری‌ات — کارت مهر، امتیازها و بج‌هایت — همیشه آماده باشد؛ بدون ثبت‌نام و رمز.'"></p>
         <div class="mb-3">
           <input
             type="tel"
@@ -1302,11 +1299,11 @@
           />
         </div>
         <button type="button" class="btn btn-accent w-100 profile-submit" :disabled="authSubmitting" @click="submitAuthPhone()">
-          <span x-show="!authSubmitting">ورود با شماره موبایل</span>
+          <span x-show="!authSubmitting" x-text="settings.authPopupLoginButtonLabel || 'ورود با شماره موبایل'"></span>
           <span x-show="authSubmitting">در حال ورود...</span>
         </button>
         <button type="button" class="auth-popup-skip" @click="skipAuthPrompt()">
-          فقط منو را ببینم
+          <span x-text="settings.authPopupSkipButtonLabel || 'فقط منو را ببینم'"></span>
         </button>
         <p class="profile-error" x-show="authPopupError" x-text="authPopupError" x-cloak></p>
       </div>

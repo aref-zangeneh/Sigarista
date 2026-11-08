@@ -905,8 +905,6 @@ a {
   background: none;
   color: var(--accent);
   font-size: 0.9rem;
-  text-decoration: underline;
-  text-underline-offset: 4px;
   cursor: pointer;
 }
 

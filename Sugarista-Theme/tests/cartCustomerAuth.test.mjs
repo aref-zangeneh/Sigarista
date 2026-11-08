@@ -49,13 +49,22 @@ test("phone-only login popup exists and only asks for the phone", () => {
   assert.ok(!/auth-popup[^]*verify|otp/i.test(html), "phone-only flow must never ask for a one-time code");
 });
 
+test("popup copy comes from admin-editable site settings with safe fallbacks", () => {
+  for (const field of ["settings.authPopupTitle", "settings.authPopupDescription", "settings.authPopupLoginButtonLabel", "settings.authPopupSkipButtonLabel"]) {
+    assert.ok(html.includes(field), `popup must read ${field} from site settings`);
+  }
+  assert.ok(/settings\.authPopupTitle \|\|/.test(html), "title must fall back to the built-in copy when the admin leaves it empty");
+  assert.ok(js.includes("authPopupSkipButtonLabel") || html.includes("authPopupSkipButtonLabel"), "skip label must be admin-controlled too");
+});
+
 test("skip button keeps non-entering customers out of their account", () => {
-  assert.ok(html.includes("فقط منو را ببینم"), "skip button label must exist");
-  assert.count ? null : null;
+  assert.ok(html.includes("skipAuthPrompt"), "skip button label must exist");
   assert.ok(
     (html.match(/@click="skipAuthPrompt\(\)"/g) || []).length >= 2,
     "skip must be wired to the card close, the backdrop and the button",
   );
+  const skip = cssBlocks(".auth-popup-skip")[0];
+  assert.ok(!skip.includes("text-decoration: underline"), "the skip label must NOT be underlined");
 });
 
 test("checkout hides name/phone fields behind the signed-in session chip", () => {

@@ -21,6 +21,7 @@ const { execFile } = require("node:child_process");
 const { promisify } = require("node:util");
 
 const execFileAsync = promisify(execFile);
+const { parseLpRequestId, listQueuedJobIds, isQueueDisabled } = require("./agent-helpers.cjs");
 
 const BASE_DIR = __dirname;
 const CONFIG_PATH = path.join(BASE_DIR, "config.json");
@@ -29,10 +30,25 @@ const VENV_PYTHON = path.join(BASE_DIR, "venv", "bin", "python");
 const TMP_DIR = path.join(os.tmpdir(), "sugarista-print-agent");
 
 const MAX_ATTEMPTS = 3;
+const DRAIN_POLL_MS = 300;
+// After a fully failed group whose printer/queue was stuck, hold off claiming
+// for this long so a dead printer does not spin the agent retry loop.
+const STUCK_QUEUE_COOLDOWN_MS = 25_000;
+
+// Set while the printer/queue is considered unavailable (stuck-queue failure);
+// claim polling pauses until it elapses.
+let stuckQueueCooldownUntil = 0;
+
+/** Raised when the CUPS queue cannot play our bytes right now — retry later. */
+class QueueStuckError extends Error {}
 
 function log(...args) {
   const stamp = new Date().toISOString();
   console.log(`[${stamp}]`, ...args);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function loadConfig() {
@@ -92,21 +108,6 @@ async function renderReceipt(payload, copyType) {
   return escposPath;
 }
 
-async function ensureQueueReady(config) {
-  // Self-heal: a backend failure (USB glitch, paper out) leaves the CUPS queue
-  // disabled, and old jobs then spew as garbage when it recovers mid-stream.
-  try {
-    const { stdout } = await execFileAsync("lpstat", ["-p", config.printerName], { timeout: 10_000 });
-    if (/disabled/i.test(stdout)) {
-      log(`Queue "${config.printerName}" is disabled — re-enabling…`);
-      await execFileAsync("cupsenable", [config.printerName], { timeout: 10_000 }).catch(() => {});
-      await execFileAsync("cupsaccept", [config.printerName], { timeout: 10_000 }).catch(() => {});
-    }
-  } catch {
-    // lpstat failing here is non-fatal; the print attempt will surface errors.
-  }
-}
-
 async function healQueueAfterError(config) {
   try {
     // Drop stuck jobs (a partial job left mid-stream desynchronizes ESC/POS
@@ -125,9 +126,76 @@ async function printEscpos(config, escposPath) {
   // no scaling, no raster conversion. render.py already emits ready-made
   // ESC/POS (raster + explicit cut after every copy).
   const args = ["-d", config.printerName, "-o", "raw", escposPath];
-  await execFileAsync("lp", args, { timeout: config.printTimeoutSeconds * 1000 });
-  // Wait for the spool to drain so the next job starts on clean paper.
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  const { stdout } = await execFileAsync("lp", args, { timeout: config.printTimeoutSeconds * 1000 });
+
+  // `lp` success only means ACCEPTED into the spool. Verify the job actually
+  // drained (left the queue = physically played out) before declaring the
+  // receipt printed: a disabled queue replaying stale bytes is exactly how
+  // garbled paper happened while the database claimed printed status.
+  const jobId = parseLpRequestId(stdout);
+  if (!jobId) {
+    throw new Error(`lp did not report a job id: ${String(stdout).trim().slice(0, 120)}`);
+  }
+
+  const deadline = Date.now() + config.printTimeoutSeconds * 1000;
+  while (Date.now() < deadline) {
+    const queuedOut = await execFileAsync("lpstat", ["-W", "not-completed", "-o", config.printerName], { timeout: 10_000 })
+      .then((r) => r.stdout)
+      .catch(() => "");
+    const task = listQueuedJobIds(queuedOut).includes(jobId) ? "queued" : "drained";
+
+    if (task === "drained") {
+      return { jobId, verified: true };
+    }
+
+    const pOut = await execFileAsync("lpstat", ["-p", config.printerName], { timeout: 10_000 })
+      .then((r) => r.stdout)
+      .catch(() => "");
+    if (isQueueDisabled(pOut)) {
+      throw new QueueStuckError(`queue "${config.printerName}" is disabled while job ${jobId} sits unprinted (printer offline / paper out?)`);
+    }
+
+    await sleep(DRAIN_POLL_MS);
+  }
+
+  throw new QueueStuckError(`job ${jobId} still queued after ${config.printTimeoutSeconds}s — queue is stalled`);
+}
+
+/**
+ * Before sending fresh bytes, make sure the queue is idle and healthy. A job
+ * stuck (or dirty) in a recovered queue is how the printer replayed garbage:
+ * any pre-existing non-completed job here can only be our own leftovers from
+ * an interrupted attempt, so wait briefly for it to finish and otherwise drop
+ * it before starting from a clean state.
+ */
+async function waitForIdleQueue(config, waitMs = 15_000) {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const queuedOut = await execFileAsync("lpstat", ["-W", "not-completed", "-o", config.printerName], { timeout: 10_000 })
+      .then((r) => r.stdout)
+      .catch(() => "");
+
+    if (!listQueuedJobIds(queuedOut).length) {
+      return;
+    }
+
+    const pOut = await execFileAsync("lpstat", ["-p", config.printerName], { timeout: 10_000 })
+      .then((r) => r.stdout)
+      .catch(() => "");
+    if (isQueueDisabled(pOut)) {
+      log(`Queue "${config.printerName}" disabled with stale job(s) — draining them and re-enabling.`);
+      await healQueueAfterError(config);
+      return;
+    }
+
+    if (Date.now() >= deadline) {
+      log(`Queue still busy after ${waitMs}ms — dropping stale job(s) to keep the stream clean.`);
+      await healQueueAfterError(config);
+      return;
+    }
+
+    await sleep(DRAIN_POLL_MS);
+  }
 }
 
 function copyTypeOf(job) {
@@ -148,8 +216,11 @@ async function processJobGroup(config, group) {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const escposPaths = [];
     try {
-      if (attempt > 1) await healQueueAfterError(config);
-      await ensureQueueReady(config);
+      if (attempt === 1) {
+        await waitForIdleQueue(config);
+      } else {
+        await healQueueAfterError(config);
+      }
 
       for (const job of group) {
         const payload = JSON.parse(job.payloadJson);
@@ -160,22 +231,32 @@ async function processJobGroup(config, group) {
       const stream = await Promise.all(escposPaths.map((p) => fs.promises.readFile(p)));
       fs.writeFileSync(combinedPath, Buffer.concat(stream));
 
-      await printEscpos(config, combinedPath);
+      const { jobId, verified } = await printEscpos(config, combinedPath);
+      if (verified) {
+        log(`  job ${jobId} drained — physically printed.`);
+      }
 
       escposPaths.forEach((p) => fs.rmSync(p, { force: true }));
       fs.rmSync(combinedPath, { force: true });
       return { ok: true };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
+      const stuck = error instanceof QueueStuckError;
       escposPaths.forEach((p) => fs.rmSync(p, { force: true }));
       log(`  attempt ${attempt}/${MAX_ATTEMPTS} failed for ${group[0].orderTrackingCode}: ${lastError}`);
+      if (stuck) {
+        // Nothing printed; the printer/queue is unavailable. Back off instead
+        // of hammering — the pool picks the job back up once healthy.
+        lastError = new QueueStuckError(lastError);
+        break;
+      }
       if (attempt < MAX_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
       }
     }
   }
 
-  return { ok: false, error: lastError };
+  return { ok: false, error: lastError instanceof Error ? lastError.message : lastError, stuck: lastError instanceof QueueStuckError };
 }
 
 async function markJobResult(config, job, ok, error) {
@@ -194,6 +275,9 @@ async function markJobResult(config, job, ok, error) {
 }
 
 async function pollOnce(config) {
+  if (stuckQueueCooldownUntil > Date.now()) {
+    return 0;
+  }
   const jobs = await apiFetch(
     config,
     `/api/print-agent/pending?maxJobs=${config.maxJobsPerPoll}`
@@ -218,6 +302,17 @@ async function pollOnce(config) {
       .join(" + ");
     log(`Printing ${labels} for order ${group[0].orderTrackingCode} as one job…`);
     const result = await processJobGroup(config, group);
+    if (result.stuck) {
+      // Printer/queue unavailable — leave the DB jobs pending so the next
+      // polls retry from scratch once the queue is healthy again (the bytes
+      // sitting in a recovered queue are exactly what prints as garbage).
+      stuckQueueCooldownUntil = Date.now() + STUCK_QUEUE_COOLDOWN_MS;
+      log(
+        `  ⏸ printer/queue stuck for ${group[0].orderTrackingCode} (${result.error}) — ` +
+        `jobs stay pending; will retry in ~${STUCK_QUEUE_COOLDOWN_MS / 1000}s.`
+      );
+      break;
+    }
     for (const job of group) {
       await markJobResult(config, job, result.ok, result.error);
     }

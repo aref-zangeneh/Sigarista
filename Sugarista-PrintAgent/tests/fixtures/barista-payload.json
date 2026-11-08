@@ -1,0 +1,178 @@
+{
+ "copyType": "Barista",
+ "header": {
+  "cafeName": "Sugarista Cafe",
+  "address": "",
+  "contactPhone": ""
+ },
+ "order": {
+  "code": "TEST-PRNT",
+  "channelLabel": "سفارش آنلاین",
+  "customerName": "مشتری تست",
+  "customerPhone": "",
+  "createdAtLabel": "۱۴۰۵/۰۸/۱۷ — ۱۵:۲۴",
+  "paidAtLabel": "۱۴۰۵/۰۸/۱۷ — ۱۵:۲۵",
+  "paymentLabel": "پرداخت آنلاین"
+ },
+ "items": [
+  {
+   "name": "اسپرسو",
+   "sizeLabel": "مینیلو",
+   "quantity": 1,
+   "quantityLabel": "۱",
+   "modifierLabels": [],
+   "unitPriceLabel": "۲۰۰٬۰۰۰",
+   "totalLabel": "۲۰۰٬۰۰۰",
+   "options": [
+    {
+     "groupName": "درصد دانه قهوه",
+     "optionName": "۷۰/۳۰ عربیکا",
+     "priceDeltaLabel": "۸۰٬۰۰۰"
+    }
+   ],
+   "optionTotalLabel": "۸۰٬۰۰۰",
+   "customDrinkSummary": []
+  }
+ ],
+ "totals": {
+  "subtotalLabel": "۲۰۰٬۰۰۰",
+  "taxLabel": "۲۰٬۰۰۰",
+  "totalLabel": "۲۲۰٬۰۰۰",
+  "amountPaidLabel": "۲۲۰٬۰۰۰"
+ },
+ "footerText": "Sugarista Cafe Digital Menu",
+ "timeZoneId": "Asia/Tehran",
+ "layout": {
+  "customer": {
+   "header": {
+    "showAddress": false,
+    "showPhone": true
+   },
+   "headerRows": [
+    "code",
+    "pickupTime",
+    "customerName",
+    "note"
+   ],
+   "items": {
+    "columns": [
+     {
+      "key": "name",
+      "label": "",
+      "visible": true
+     },
+     {
+      "key": "qty",
+      "label": "تعداد",
+      "visible": true
+     },
+     {
+      "key": "unitPrice",
+      "label": "قیمت واحد",
+      "visible": true,
+      "widthPct": 30
+     },
+     {
+      "key": "total",
+      "label": "جمع",
+      "visible": true,
+      "widthPct": 30
+     }
+    ],
+    "subLines": [
+     "options",
+     "modifiers",
+     "size",
+     "customDrink",
+     "payer"
+    ],
+    "showHeaderRow": true,
+    "showOptionPrices": true,
+    "showUnitPriceNote": true,
+    "fontSize": 28
+   },
+   "totals": {
+    "rows": [
+     {
+      "key": "subtotal",
+      "label": "جمع اقلام",
+      "visible": true
+     },
+     {
+      "key": "deliveryFee",
+      "label": "هزینه ارسال",
+      "visible": false
+     },
+     {
+      "key": "tax",
+      "label": "مالیات",
+      "visible": true
+     },
+     {
+      "key": "total",
+      "label": "قابل پرداخت",
+      "visible": true
+     }
+    ]
+   },
+   "paymentRows": [
+    "paymentMethod",
+    "reference"
+   ],
+   "footer": {
+    "text": "",
+    "showThanks": true,
+    "showCafeName": true
+   },
+   "fonts": {
+    "header": 34,
+    "info": 20,
+    "item": 28,
+    "subtotal": 22,
+    "total": 32
+   }
+  },
+  "barista": {
+   "title": "سفارش آشپزخانه",
+   "infoRows": [
+    "paidAt",
+    "table",
+    "customerName"
+   ],
+   "items": {
+    "columns": [
+     {
+      "key": "name",
+      "label": "",
+      "visible": true
+     },
+     {
+      "key": "qty",
+      "label": "",
+      "visible": true
+     }
+    ],
+    "subLines": [
+     "options",
+     "modifiers",
+     "baristaNote"
+    ],
+    "showHeaderRow": false,
+    "showOptionPrices": false,
+    "showUnitPriceNote": false,
+    "fontSize": 40
+   },
+   "showOrderNote": true,
+   "footer": {
+    "text": "",
+    "showSign": true
+   },
+   "fonts": {
+    "title": 30,
+    "code": 48,
+    "info": 24,
+    "item": 40
+   }
+  }
+ }
+}

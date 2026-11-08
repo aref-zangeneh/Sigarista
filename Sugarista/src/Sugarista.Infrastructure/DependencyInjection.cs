@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Carts.Services;
@@ -13,6 +14,7 @@ using Sugarista.Application.Common.Options;
 using Sugarista.Infrastructure.Notifications;
 using Sugarista.Infrastructure.Auth;
 using Sugarista.Infrastructure.Data;
+using Sugarista.Infrastructure.Data.DbConnection;
 using Sugarista.Infrastructure.Data.Interceptors;
 using Sugarista.Infrastructure.Payments;
 using Sugarista.Infrastructure.Printing;
@@ -101,14 +103,31 @@ public static class DependencyInjection
         services.AddHostedService<AbandonedCartTickerService>();
         services.AddHostedService<ReportScheduleRunnerService>();
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+        var fallbackConnectionString = configuration.GetConnectionString("DefaultConnection");
+
+        // WordPress-style database setup: the app owns its connection file
+        // (config/db-connection.json) written by the first-run /setup page.
+        // With no file and no connection string the app starts in "setup mode" —
+        // everything is blocked except /api/setup and /health until configured.
+        services.AddSingleton<DbConfigStore>();
+        services.AddSingleton(_ => new DbConnectionManager(
+            _.GetRequiredService<DbConfigStore>(),
+            fallbackConnectionString,
+            _.GetRequiredService<ILogger<DbConnectionManager>>()));
 
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
-            options.UseNpgsql(
-                connectionString,
-                builder => builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName));
+            var manager = serviceProvider.GetRequiredService<DbConnectionManager>();
+            var dataSource = manager.GetDataSource();
+
+            // Setup mode: no provider is attached — requests never reach the
+            // context because the setup gate middleware blocks them first.
+            if (dataSource is not null)
+            {
+                options.UseNpgsql(
+                    dataSource,
+                    builder => builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName));
+            }
 
             options.ConfigureWarnings(warnings =>
                 warnings.Ignore(RelationalEventId.PendingModelChangesWarning));

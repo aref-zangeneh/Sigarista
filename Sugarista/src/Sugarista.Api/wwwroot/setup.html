@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>تنظیم دیتابیس — شوگاریستا</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #fff; --ink: #1f2937; --muted: #6b7280;
+    --brand: #b45309; --brand2: #92400e; --line: #e5e7eb;
+    --ok: #065f46; --okbg: #ecfdf5; --err: #991b1b; --errbg: #fef2f2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Vazirmatn, Tahoma, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--ink);
+    min-height: 100vh; padding: 24px 16px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .logo { text-align: center; margin-bottom: 18px; }
+  .logo h1 { font-size: 22px; font-weight: 800; color: var(--brand2); }
+  .logo p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 20px 22px; margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .card .hint { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; line-height: 1.9; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 13.5px; padding: 10px 12px; border-radius: 10px; margin-bottom: 18px; }
+  .status.on  { background: var(--okbg);  color: var(--ok); }
+  .status.off { background: var(--errbg); color: var(--err); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 5px; }
+  input, select {
+    width: 100%; padding: 10px 12px; font: inherit; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
+  }
+  input:focus, select:focus { outline: 2px solid #fbbf24; border-color: var(--brand); }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .checkbox { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; margin: 14px 0 4px; line-height: 1.8; }
+  .checkbox input { width: auto; margin-top: 6px; }
+  button {
+    font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    border: 0; border-radius: 10px; padding: 11px 18px; width: 100%;
+    background: var(--brand); color: #fff; transition: background .15s;
+  }
+  button:hover { background: var(--brand2); }
+  button.secondary { background: #fff; color: var(--brand2); border: 1px solid var(--line); }
+  button.secondary:hover { background: #fffbeb; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .msg { font-size: 13px; line-height: 2; border-radius: 10px; padding: 10px 12px; margin-top: 12px; display: none; word-break: break-word; }
+  .msg.ok  { display: block; background: var(--okbg);  color: var(--ok); }
+  .msg.err { display: block; background: var(--errbg); color: var(--err); }
+  .msg.info { display: block; background: #eff6ff; color: #1e40af; }
+  .configPath { font-size: 11.5px; color: var(--muted); direction: ltr; text-align: left; margin-top: 10px; word-break: break-all; }
+  .divider { height: 1px; background: var(--line); margin: 16px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <h1>🍹 شوگاریستا</h1>
+    <p>تنظیم اتصال دیتابیس — مثل وردپرس، بدون دست‌زدن به کد</p>
+  </div>
+
+  <div id="status" class="status off"><span class="dot"></span> در حال بررسی وضعیت…</div>
+
+  <!-- ─── اولیه: اتصال اول ─── -->
+  <div id="connectCard" class="card" style="display:none">
+    <h2>راه‌اندازی اولیهٔ دیتابیس</h2>
+    <div class="hint">
+      اطلاعات سرور PostgreSQL را وارد کنید، اتصال را تست کنید و «اتصال و ذخیره» را بزنید.
+      تنظیمات در فایل ذخیره می‌شود و از این به بعد با هر ری‌استارت خودکار خوانده می‌شود.
+    </div>
+    <label for="host">آدرس سرور دیتابیس (Host)</label>
+    <input id="host" value="localhost" placeholder="مثلاً postgres یا 127.0.0.1">
+    <div class="row">
+      <div>
+        <label for="port">پورت</label>
+        <input id="port" type="number" value="5432">
+      </div>
+      <div>
+        <label for="ssl">حالت SSL</label>
+        <select id="ssl">
+          <option value="Prefer">Prefer (پیش‌فرض)</option>
+          <option value="Disable">Disable</option>
+          <option value="Require">Require</option>
+          <option value="VerifyCA">VerifyCA</option>
+          <option value="VerifyFull">VerifyFull</option>
+        </select>
+      </div>
+    </div>
+    <label for="database">نام دیتابیس</label>
+    <input id="database" value="sugarista">
+    <label for="username">نام کاربر</label>
+    <input id="username" value="sugarista">
+    <label for="password">رمز عبور</label>
+    <input id="password" type="password" autocomplete="off">
+    <div style="margin-top:16px; display:flex; gap:10px;">
+      <button id="btnSave">اتصال و ذخیره</button>
+      <button id="btnTest" class="secondary">فقط تست اتصال</button>
+    </div>
+    <div id="msgConnect" class="msg"></div>
+  </div>
+
+  <!-- ─── تغییر رمز ─── -->
+  <div id="rotateCard" class="card" style="display:none">
+    <h2>تغییر رمز دیتابیس (بدون قطعی سایت)</h2>
+    <div class="hint">
+      برای هر دو حالت، ابتدا باید با نام کاربری و رمز <b>ادمین پنل</b> تأیید شوید.
+      <br>• اگر هنوز رمز را در PostgreSQL عوض نکرده‌اید: تیک گزینهٔ پایین را بگذارید تا خودش
+      <span style="direction:ltr; display:inline-block;">ALTER USER</span> را اجرا کند و سایت بدون قطعی سرویس دهد.
+      <br>• اگر رمز را از قبل بیرون از سایت (مثلاً با psql) عوض کرده‌اید: تیک را بردارید؛
+      اول رمز جدید تست می‌شود و درست بودن‌اش اعمال می‌گردد.
+    </div>
+    <label for="adminUsername">نام کاربری ادمین</label>
+    <input id="adminUsername" value="admin" autocomplete="off">
+    <label for="adminPassword">رمز ادمین</label>
+    <input id="adminPassword" type="password" autocomplete="off">
+    <div class="divider"></div>
+    <label for="newPassword">رمز جدید دیتابیس</label>
+    <input id="newPassword" type="password" autocomplete="new-password">
+    <label for="newPassword2">تکرار رمز جدید</label>
+    <input id="newPassword2" type="password" autocomplete="new-password">
+    <label class="checkbox">
+      <input id="alterInDb" type="checkbox" checked>
+      <span>رمز را داخل خود PostgreSQL هم عوض کن (ALTER USER با رمز فعلی)</span>
+    </label>
+    <div style="margin-top:16px">
+      <button id="btnRotate">تغییر رمز دیتابیس</button>
+    </div>
+    <div id="msgRotate" class="msg"></div>
+  </div>
+
+  <div class="card" style="border-style:dashed; background:transparent; box-shadow:none;">
+    <h2 style="font-size:13.5px">راه دیگر برای معرفی رمز جدید</h2>
+    <div class="hint" style="margin-top:4px">
+      می‌توانید فایل زیر را مستقیماً ویرایش کنید؛ تا ۲ ثانیه بعد رمز بدون ری‌استارت خوانده می‌شود:
+      <span class="configPath" id="configPath"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var statusBox = $('status');
+
+  var save = $('btnSave'), test = $('btnTest'), rotate = $('btnRotate');
+
+  function showMsg(el, kind, text) {
+    el.className = 'msg ' + kind;
+    el.textContent = text;
+  }
+
+  function connPayload() {
+    return {
+      host: $('host').value.trim(),
+      port: parseInt($('port').value, 10) || 5432,
+      database: $('database').value.trim(),
+      username: $('username').value.trim(),
+      password: $('password').value,
+      sslMode: $('ssl').value
+    };
+  }
+
+  async function refreshStatus() {
+    try {
+      var res = await fetch('/api/setup/status', { cache: 'no-store' });
+      var data = await res.json();
+      $('configPath').textContent = data.configPath || '';
+      if (data.configured) {
+        statusBox.className = 'status on';
+        statusBox.innerHTML = '<span class="dot"></span> دیتابیس متصل است: ' +
+          (data.host || '') + ':' + (data.port || '') + ' / ' + (data.database || '') +
+          ' (کاربر: ' + (data.username || '') + ')';
+        $('connectCard').style.display = 'none';
+        $('rotateCard').style.display = 'block';
+      } else {
+        statusBox.className = 'status off';
+        statusBox.innerHTML = '<span class="dot"></span> دیتابیس تنظیم نشده است — همهٔ بخش‌های سایت تا زمان تنظیم، بسته است.';
+        $('connectCard').style.display = 'block';
+        $('rotateCard').style.display = 'none';
+      }
+    } catch (e) {
+      statusBox.className = 'status off';
+      statusBox.innerHTML = '<span class="dot"></span> خطا در اتصال به سرویس: ' + e;
+    }
+  }
+
+  async function testConnection() {
+    showMsg($('msgConnect'), 'info', 'در حال تست اتصال…');
+    test.disabled = true; save.disabled = true;
+    try {
+      var res = await fetch('/api/setup/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(connPayload())
+      });
+      var data = await res.json();
+      showMsg($('msgConnect'), data.success ? 'ok' : 'err', data.message);
+    } catch (e) {
+      showMsg($('msgConnect'), 'err', 'خطا: ' + e);
+    }
+    test.disabled = false; save.disabled = false;
+  }
+
+  async function saveConnection() {
+    showMsg($('msgConnect'), 'info', 'در حال اتصال و ذخیره…');
+    test.disabled = true; save.disabled = true;
+    try {
+      var res = await fetch('/api/setup/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(connPayload())
+      });
+      var data = await res.json();
+      showMsg($('msgConnect'), data.success ? 'ok' : 'err', data.message);
+      if (data.success) setTimeout(refreshStatus, 2500);
+    } catch (e) {
+      showMsg($('msgConnect'), 'err', 'خطا: ' + e);
+    }
+    test.disabled = false; save.disabled = false;
+  }
+
+  async function rotatePassword() {
+    if ($('newPassword').value !== $('newPassword2').value) {
+      showMsg($('msgRotate'), 'err', 'تکرار رمز جدید با رمز جدید یکسان نیست.');
+      return;
+    }
+    showMsg($('msgRotate'), 'info', 'در حال تغییر رمز…');
+    rotate.disabled = true;
+    try {
+      var res = await fetch('/api/setup/rotate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminUsername: $('adminUsername').value.trim(),
+          adminPassword: $('adminPassword').value,
+          newPassword: $('newPassword').value,
+          alterInDatabase: $('alterInDb').checked
+        })
+      });
+      var data = await res.json();
+      showMsg($('msgRotate'), data.success ? 'ok' : 'err', data.message);
+      if (data.success) {
+        $('newPassword').value = ''; $('newPassword2').value = ''; $('adminPassword').value = '';
+        setTimeout(refreshStatus, 1500);
+      }
+    } catch (e) {
+      showMsg($('msgRotate'), 'err', 'خطا: ' + e);
+    }
+    rotate.disabled = false;
+  }
+
+  test.onclick = testConnection;
+  save.onclick = saveConnection;
+  rotate.onclick = rotatePassword;
+  await refreshStatus();
+})();
+</script>
+</body>
+</html>

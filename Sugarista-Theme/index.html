@@ -725,57 +725,79 @@
               </small>
             </div>
           </template>
-          <div class="mb-3">
-            <label class="form-label" for="checkout-discount-code">کد تخفیف (اختیاری)</label>
-            <input
-              id="checkout-discount-code"
-              type="text"
-              class="form-control ltr-text"
-              x-model="checkoutForm.discountCode"
-              placeholder="مثلاً SAVE10"
-              autocomplete="off"
-            >
-            <small class="form-text text-muted" x-show="checkoutForm.discountCode.trim()" for="checkout-discount-code">
-              کد وارد شده در سفارش نهایی اعمال می‌شود.
-            </small>
+          <div class="checkout-essentials">
+            <div class="mb-2">
+              <label class="form-label" for="checkout-customer-name">نام و نام خانوادگی</label>
+              <input
+                id="checkout-customer-name"
+                type="text"
+                class="form-control"
+                x-model="checkoutForm.customerName"
+                autocomplete="name"
+                required
+              >
+            </div>
+            <div class="mb-2">
+              <label class="form-label" for="checkout-customer-phone">شماره تماس</label>
+              <input
+                id="checkout-customer-phone"
+                type="tel"
+                class="form-control ltr-text"
+                x-model="checkoutForm.customerPhone"
+                autocomplete="tel"
+                inputmode="tel"
+                @blur="trackCart(); loadCheckoutWallet()"
+                required
+              >
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label" for="checkout-customer-name">نام و نام خانوادگی (مسئول سفارش)</label>
-            <input
-              id="checkout-customer-name"
-              type="text"
-              class="form-control"
-              x-model="checkoutForm.customerName"
-              autocomplete="name"
-              required
-            >
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="checkout-customer-phone">شماره تماس</label>
-            <input
-              id="checkout-customer-phone"
-              type="tel"
-              class="form-control ltr-text"
-              x-model="checkoutForm.customerPhone"
-              autocomplete="tel"
-              inputmode="tel"
-              @blur="trackCart(); loadCheckoutWallet()"
-              required
-            >
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="checkout-customer-email">ایمیل (اختیاری)</label>
-            <input
-              id="checkout-customer-email"
-              type="email"
-              class="form-control ltr-text"
-              x-model="checkoutForm.email"
-              autocomplete="email"
-              inputmode="email"
-              @blur="trackCart()"
-            >
-            <small class="form-text">اگر سبد خرید ناتمام بماند، کد تخفیف یادآوری به این ایمیل هم ارسال می‌شود.</small>
-          </div>
+          <details class="checkout-extra">
+            <summary>
+              <i class="bi bi-sliders"></i>
+              <span>کد تخفیف و گزینه‌های بیشتر</span>
+              <i class="bi bi-chevron-down chev"></i>
+            </summary>
+            <div class="checkout-extra-body">
+              <div class="mb-2">
+                <label class="form-label" for="checkout-discount-code">کد تخفیف (اختیاری)</label>
+                <input
+                  id="checkout-discount-code"
+                  type="text"
+                  class="form-control ltr-text"
+                  x-model="checkoutForm.discountCode"
+                  placeholder="مثلاً SAVE10"
+                  autocomplete="off"
+                >
+              </div>
+              <div class="mb-2">
+                <label class="form-label" for="checkout-customer-email">ایمیل (اختیاری)</label>
+                <input
+                  id="checkout-customer-email"
+                  type="email"
+                  class="form-control ltr-text"
+                  x-model="checkoutForm.email"
+                  autocomplete="email"
+                  inputmode="email"
+                  @blur="trackCart()"
+                >
+              </div>
+              <div class="mb-2">
+                <label class="form-label" for="checkout-redeem-points">امتیاز وفاداری (اختیاری)</label>
+                <input
+                  id="checkout-redeem-points"
+                  type="number"
+                  min="0"
+                  class="form-control ltr-text"
+                  x-model="checkoutForm.redeemPoints"
+                  placeholder="تعداد امتیاز"
+                >
+              </div>
+              <div class="mb-0">
+                <label class="form-label" for="checkout-note">توضیحات (اختیاری)</label>
+                <textarea id="checkout-note" class="form-control" rows="2" x-model="checkoutForm.note"></textarea>
+              </div>
+            </div>
+          </details>
           <div class="mb-3" x-show="pickupSchedule?.enabled" x-cloak>
             <label class="form-label">زمان تحویل حضوری</label>
             <div class="pickup-mode-row" role="group" aria-label="نوع زمان تحویل">
@@ -846,20 +868,6 @@
             <small class="form-text" x-show="pickupSchedule?.enabled && !pickupLoading && !pickupSchedule?.days?.length">
               در حال حاضر بازهٔ قابل انتخاب وجود ندارد.
             </small>
-          </div>
-            <div class="mb-3">
-              <label class="form-label" for="checkout-redeem-points">استفاده از امتیاز وفاداری (اختیاری)</label>
-              <input
-                id="checkout-redeem-points"
-                type="number"
-                min="0"
-                class="form-control ltr-text"
-                x-model="checkoutForm.redeemPoints"
-                placeholder="تعداد امتیاز"
-              >
-            </div>
-            <label class="form-label" for="checkout-note">توضیحات (اختیاری)</label>
-            <textarea id="checkout-note" class="form-control" rows="3" x-model="checkoutForm.note"></textarea>
           </div>
 
           <!-- کیف پول: شناسایی با شماره موبایل، بدون رمز و کد تایید -->
@@ -935,13 +943,10 @@
             </p>
           </div>
 
-          <div class="checkout-summary">
-            <span>مبلغ قابل پرداخت</span>
+          <div class="checkout-summary" x-show="appliedDiscount || automaticDiscountAmount > 0" x-cloak>
             <div class="d-flex align-items-center gap-2">
-              <strong x-text="formatPrice(payableAfterWallet)"></strong>
-              <small x-show="checkoutForm.useWallet && walletSpendAmount > 0" x-text="'با کیف پول — ' + formatPrice(walletSpendAmount)"></small>
-              <small x-show="(!checkoutForm.useWallet || !walletSpendAmount) && appliedDiscount && appliedDiscount.amount > 0" x-text="appliedDiscount ? 'با تخفیف ' + appliedDiscount.code + ' — ' + formatPrice(appliedDiscount.amount) : ''"></small>
-              <small x-show="(!checkoutForm.useWallet || !walletSpendAmount) && (!appliedDiscount || !appliedDiscount.amount) && automaticDiscountAmount > 0" x-text="'تخفیف پلکانی سبد — ' + formatPrice(automaticDiscountAmount)"></small>
+              <small x-show="appliedDiscount && appliedDiscount.amount > 0" x-text="appliedDiscount ? 'با تخفیف ' + appliedDiscount.code + ' — ' + formatPrice(appliedDiscount.amount) : ''"></small>
+              <small x-show="(!appliedDiscount || !appliedDiscount.amount) && automaticDiscountAmount > 0" x-text="'تخفیف پلکانی سبد — ' + formatPrice(automaticDiscountAmount)"></small>
             </div>
           </div>
         </div>
@@ -960,18 +965,24 @@
           </template>
           <template x-if="cartView === 'checkout'">
             <div class="cart-drawer-foot-inner">
-              <button type="button" class="btn btn-outline-dark rounded-pill" @click="cartView = 'cart'">
-                بازگشت
+              <button type="button" class="btn btn-outline-dark rounded-pill" @click="cartView = 'cart'" aria-label="بازگشت به سبد">
+                <i class="bi bi-arrow-right"></i>
               </button>
-              <button
-                type="button"
-                class="btn btn-dark rounded-pill px-4"
-                :disabled="checkoutLoading || !canSubmitCheckout"
-                @click="submitCheckout()"
-              >
-                <span x-show="!checkoutLoading" x-text="checkoutForm.isSplitBill ? 'ثبت و تقسیم حساب' : 'پرداخت'"></span>
-                <span x-show="checkoutLoading">در حال ثبت...</span>
-              </button>
+              <div class="cart-drawer-pay">
+                <div class="cart-drawer-pay-amount">
+                  <small>مبلغ قابل پرداخت</small>
+                  <strong x-text="formatPrice(payableAfterWallet)"></strong>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-dark rounded-pill px-4"
+                  :disabled="checkoutLoading || !canSubmitCheckout"
+                  @click="submitCheckout()"
+                >
+                  <span x-show="!checkoutLoading" x-text="checkoutForm.isSplitBill ? 'ثبت و تقسیم حساب' : 'پرداخت'"></span>
+                  <span x-show="checkoutLoading">در حال ثبت...</span>
+                </button>
+              </div>
             </div>
           </template>
         </div>

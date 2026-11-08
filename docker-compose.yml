@@ -59,6 +59,9 @@ services:
         condition: service_healthy
     volumes:
       - api-uploads:/app/uploads
+      # WordPress-style database configuration, written by the first-run
+      # /api/setup page and kept across container recreation.
+      - app-config:/app/config
 
   admin-ui:
     build:
@@ -117,3 +120,4 @@ services:
 volumes:
   postgres-data:
   api-uploads:
+  app-config:

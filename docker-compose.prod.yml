@@ -66,6 +66,8 @@ services:
         condition: service_healthy
     volumes:
       - api-uploads:/app/uploads
+      # WordPress-style database configuration, written by /api/setup on first run.
+      - app-config:/app/config
 
   admin-ui:
     image: sugarista-admin:${IMAGE_TAG:-latest}
@@ -114,5 +116,6 @@ services:
       - "80:80"
 
 volumes:
+  app-config:
   postgres-data:
   api-uploads:

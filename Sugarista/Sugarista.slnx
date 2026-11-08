@@ -8,5 +8,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Sugarista.Application.UnitTests/Sugarista.Application.UnitTests.csproj" />
     <Project Path="tests/Sugarista.Domain.UnitTests/Sugarista.Domain.UnitTests.csproj" />
+    <Project Path="tests/Sugarista.Infrastructure.UnitTests/Sugarista.Infrastructure.UnitTests.csproj" />
   </Folder>
 </Solution>

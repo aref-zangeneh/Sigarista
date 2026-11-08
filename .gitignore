@@ -40,3 +40,7 @@ Sugarista-PrintAgent/config.json
 
 # SFTP deploy targets (deploy/.env-upload.example is the template)
 deploy/.env-upload
+
+# image bundles are artifacts, never committed
+dist/*.tar.gz
+dist/*.tar

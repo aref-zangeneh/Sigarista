@@ -110,6 +110,7 @@ public static class DependencyInjection
         // With no file and no connection string the app starts in "setup mode" —
         // everything is blocked except /api/setup and /health until configured.
         services.AddSingleton<DbConfigStore>();
+        services.AddSingleton<AppSetupStore>();
         services.AddSingleton(_ => new DbConnectionManager(
             _.GetRequiredService<DbConfigStore>(),
             fallbackConnectionString,

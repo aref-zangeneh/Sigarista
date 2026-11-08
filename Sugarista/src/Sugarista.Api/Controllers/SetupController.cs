@@ -7,6 +7,7 @@ using Sugarista.Domain.Constants;
 using Sugarista.Domain.Entities;
 using Sugarista.Infrastructure.Data.DbConnection;
 using Sugarista.Infrastructure.Services;
+using Sugarista.Infrastructure.Settings;
 
 namespace Sugarista.Api.Controllers;
 
@@ -17,6 +18,18 @@ public sealed record SetupTestRequest(
     string Username,
     string Password,
     string? SslMode);
+
+/// <summary>First-run connection request with the web admin account to seed.</summary>
+public sealed record SetupConnectRequest(
+    string Host,
+    int Port,
+    string Database,
+    string Username,
+    string Password,
+    string? SslMode,
+    string? AdminUsername,
+    string? AdminDisplayName,
+    string? AdminPassword);
 
 public sealed record SetupRotateRequest(
     string AdminUsername,
@@ -52,17 +65,20 @@ public sealed class SetupController : ApiControllerBase
     private readonly DbConnectionManager _manager;
     private readonly IAdminPasswordService _adminPasswordService;
     private readonly IApplicationDbContext _dbContext;
+    private readonly AppSetupStore _appSetupStore;
     private readonly IWebHostEnvironment _environment;
 
     public SetupController(
         DbConnectionManager manager,
         IAdminPasswordService adminPasswordService,
         IApplicationDbContext dbContext,
+        AppSetupStore appSetupStore,
         IWebHostEnvironment environment)
     {
         _manager = manager;
         _adminPasswordService = adminPasswordService;
         _dbContext = dbContext;
+        _appSetupStore = appSetupStore;
         _environment = environment;
     }
 
@@ -124,7 +140,7 @@ public sealed class SetupController : ApiControllerBase
     /// <summary>First-run configuration (only allowed while the database is not configured yet).</summary>
     [HttpPost("connect")]
     public async Task<ActionResult<SetupResultResponse>> Connect(
-        [FromBody] SetupTestRequest request,
+        [FromBody] SetupConnectRequest request,
         CancellationToken cancellationToken)
     {
         if (_manager.IsConfigured)
@@ -134,10 +150,40 @@ public sealed class SetupController : ApiControllerBase
                 "دیتابیس هم‌اکنون تنظیم شده است. برای تغییر تنها رمز عبور از «تغییر رمز» در همین صفحه استفاده کنید."));
         }
 
-        var (settings, invalidMessage) = BuildSettings(request);
+        var (settings, invalidMessage) = BuildSettings(
+            request.Host, request.Port, request.Database, request.Username, request.Password, request.SslMode);
         if (invalidMessage is not null)
         {
             return BadRequest(new SetupResultResponse(false, invalidMessage));
+        }
+
+        // Optional web-admin account: chosen here so a fresh install never needs
+        // env variables. Validated with the same rules as the login endpoint.
+        var adminUsername = request.AdminUsername?.Trim();
+        var adminDisplayName = request.AdminDisplayName?.Trim();
+        var adminPassword = request.AdminPassword;
+
+        if (!string.IsNullOrEmpty(adminUsername))
+        {
+            if (adminUsername.Length > 100)
+            {
+                return BadRequest(new SetupResultResponse(false, "نام کاربری ادمین حداکثر ۱۰۰ کاراکتر است."));
+            }
+
+            if (!string.IsNullOrEmpty(adminDisplayName) && adminDisplayName.Length > 100)
+            {
+                return BadRequest(new SetupResultResponse(false, "نام نمایشی ادمین حداکثر ۱۰۰ کاراکتر است."));
+            }
+
+            if (string.IsNullOrEmpty(adminPassword))
+            {
+                return BadRequest(new SetupResultResponse(false, "برای نام کاربری ادمین، رمز عبور ادمین را هم وارد کنید."));
+            }
+
+            if (adminPassword.Length < 8)
+            {
+                return BadRequest(new SetupResultResponse(false, "رمز ادمین باید حداقل ۸ کاراکتر باشد."));
+            }
         }
 
         try
@@ -147,6 +193,15 @@ public sealed class SetupController : ApiControllerBase
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return BadRequest(new SetupResultResponse(false, DescribeConnectionFailure(exception)));
+        }
+
+        if (!string.IsNullOrEmpty(adminUsername))
+        {
+            // Persist BEFORE seeding so the background seeder picks these up.
+            _appSetupStore.PatchAdmin(
+                adminUsername,
+                string.IsNullOrWhiteSpace(adminDisplayName) ? null : adminDisplayName,
+                adminPassword);
         }
 
         _manager.Configure(settings!);

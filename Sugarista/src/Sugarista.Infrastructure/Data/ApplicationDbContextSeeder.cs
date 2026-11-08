@@ -14,6 +14,7 @@ public class ApplicationDbContextSeeder
     private readonly ApplicationDbContext _dbContext;
     private readonly IAdminPasswordService _adminPasswordService;
     private readonly IOptions<AdminBootstrapOptions> _adminOptions;
+    private readonly AppSetupStore _appSetupStore;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<ApplicationDbContextSeeder> _logger;
 
@@ -21,12 +22,14 @@ public class ApplicationDbContextSeeder
         ApplicationDbContext dbContext,
         IAdminPasswordService adminPasswordService,
         IOptions<AdminBootstrapOptions> adminOptions,
+        AppSetupStore appSetupStore,
         IHostEnvironment environment,
         ILogger<ApplicationDbContextSeeder> logger)
     {
         _dbContext = dbContext;
         _adminPasswordService = adminPasswordService;
         _adminOptions = adminOptions;
+        _appSetupStore = appSetupStore;
         _environment = environment;
         _logger = logger;
     }
@@ -1028,15 +1031,24 @@ public class ApplicationDbContextSeeder
             return;
         }
 
+        // Web-panel credentials chosen on the first-run setup page take priority
+        // over the environment, so a fresh install needs no env passwords at all.
+        var setupSecrets = _appSetupStore.Load();
         var adminOptions = _adminOptions.Value;
+        var username = (setupSecrets.AdminUsername ?? adminOptions.Username).Trim();
+        var displayName = string.IsNullOrWhiteSpace(setupSecrets.AdminDisplayName)
+            ? adminOptions.DisplayName
+            : setupSecrets.AdminDisplayName;
+        var password = setupSecrets.AdminPassword ?? adminOptions.Password;
+
         var adminUser = new AdminUser(
-            adminOptions.Username,
-            adminOptions.DisplayName,
+            username,
+            displayName,
             passwordHash: "placeholder",
             role: RoleNames.SuperAdmin);
 
         adminUser.SetSuperAdmin(true);
-        adminUser.SetPasswordHash(_adminPasswordService.HashPassword(adminUser, adminOptions.Password));
+        adminUser.SetPasswordHash(_adminPasswordService.HashPassword(adminUser, password));
 
         _dbContext.AdminUsers.Add(adminUser);
         await _dbContext.SaveChangesAsync(cancellationToken);

@@ -28,7 +28,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sugarista};Username=${POSTGRES_USER:-sugarista};Password=${POSTGRES_PASSWORD:-ChangeMe123!}
+      # No ConnectionStrings__DefaultConnection here on purpose: the app is
+      # WordPress-style. On the first run it serves /api/setup where the
+      # database credentials (and the admin password) are entered once and
+      # persisted to the app-config volume. From then on no env, no .env edit,
+      # no code change is needed; rotating the password is done from /api/setup.
       Jwt__Issuer: ${JWT_ISSUER:-Sugarista}
       Jwt__Audience: ${JWT_AUDIENCE:-SugaristaAdmin}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-SugaristaProductionSigningKeyChangeMe1234567890}

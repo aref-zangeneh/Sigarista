@@ -76,7 +76,8 @@
       تنظیمات در فایل ذخیره می‌شود و از این به بعد با هر ری‌استارت خودکار خوانده می‌شود.
     </div>
     <label for="host">آدرس سرور دیتابیس (Host)</label>
-    <input id="host" value="localhost" placeholder="مثلاً postgres یا 127.0.0.1">
+    <input id="host" value="postgres" placeholder="postgres (کانتینر داکر) یا 127.0.0.1">
+    <div class="hint" style="margin-top:6px">در همین استک داکر، نام سرویس همان <b>postgres</b> است؛ اگر دیتابیس بیرون از داکر است آدرسش را بدهید.</div>
     <div class="row">
       <div>
         <label for="port">پورت</label>
@@ -103,6 +104,23 @@
       <button id="btnSave">اتصال و ذخیره</button>
       <button id="btnTest" class="secondary">فقط تست اتصال</button>
     </div>
+
+    <div class="divider"></div>
+    <h2 style="font-size:15px">حساب مدیر سایت (پنل مدیریت)</h2>
+    <div class="hint">
+      با اولین اتصال، با همین نام کاربری و رمز، حساب مدیر سایت ساخته می‌شود —
+      دیگر نیازی به تنظیم رمز ادمین در فایل env یا متغیرهای محیطی نیست.
+      اگر خالی بگذارید، مقادیر پیش‌فرض محیط استفاده می‌شود.
+    </div>
+    <label for="adminUsername">نام کاربری ادمین</label>
+    <input id="adminUsername" value="admin" autocomplete="off">
+    <label for="adminDisplayName">نام نمایشی (اختیاری)</label>
+    <input id="adminDisplayName" placeholder="مثلاً Administration">
+    <label for="adminPassword">رمز ادمین</label>
+    <input id="adminPassword" type="password" autocomplete="new-password">
+    <label for="adminPassword2">تکرار رمز ادمین</label>
+    <input id="adminPassword2" type="password" autocomplete="new-password">
+
     <div id="msgConnect" class="msg"></div>
   </div>
 
@@ -209,17 +227,29 @@
   }
 
   async function saveConnection() {
+    var ap = $('adminPassword').value, ap2 = $('adminPassword2').value;
+    if (ap && ap !== ap2) {
+      showMsg($('msgConnect'), 'err', 'تکرار رمز ادمین با رمز ادمین یکسان نیست.');
+      return;
+    }
     showMsg($('msgConnect'), 'info', 'در حال اتصال و ذخیره…');
     test.disabled = true; save.disabled = true;
     try {
+      var payload = connPayload();
+      payload.adminUsername = $('adminUsername').value.trim();
+      payload.adminDisplayName = $('adminDisplayName').value.trim();
+      payload.adminPassword = ap;
       var res = await fetch('/api/setup/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(connPayload())
+        body: JSON.stringify(payload)
       });
       var data = await res.json();
       showMsg($('msgConnect'), data.success ? 'ok' : 'err', data.message);
-      if (data.success) setTimeout(refreshStatus, 2500);
+      if (data.success) {
+        $('password').value = ''; $('adminPassword').value = ''; $('adminPassword2').value = '';
+        setTimeout(refreshStatus, 2500);
+      }
     } catch (e) {
       showMsg($('msgConnect'), 'err', 'خطا: ' + e);
     }

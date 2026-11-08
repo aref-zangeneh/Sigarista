@@ -41,6 +41,10 @@ Sugarista-PrintAgent/config.json
 # SFTP deploy targets (deploy/.env-upload.example is the template)
 deploy/.env-upload
 
+# server-only files: live on the server, never in git
+docker-compose.override.yml
+server-caddy/
+
 # image bundles are artifacts, never committed
 dist/*.tar.gz
 dist/*.tar

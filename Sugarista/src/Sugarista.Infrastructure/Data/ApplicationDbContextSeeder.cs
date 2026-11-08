@@ -101,6 +101,9 @@ public class ApplicationDbContextSeeder
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_IngredientSuppliers_IngredientId_SupplierId" ON "IngredientSuppliers" ("IngredientId", "SupplierId");
             ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "RecipeDescription" character varying(4000);
             ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "MarkupPercent" numeric(5,2);
+            ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "SmallName" character varying(60);
+            ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "MediumName" character varying(60);
+            ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "LargeName" character varying(60);
             CREATE TABLE IF NOT EXISTS "DeliveryMethods" (
                 "Id" uuid NOT NULL,
                 "PersianName" character varying(150) NOT NULL,
@@ -908,12 +911,15 @@ public class ApplicationDbContextSeeder
                 smallPrice: null,
                 smallSpecialOfferPrice: null,
                 smallVolume: null,
+                smallName: null,
                 mediumPrice: price,
                 mediumSpecialOfferPrice: null,
                 mediumVolume: null,
+                mediumName: null,
                 largePrice: null,
                 largeSpecialOfferPrice: null,
                 largeVolume: null,
+                largeName: null,
                 tags,
                 badge,
                 featured,

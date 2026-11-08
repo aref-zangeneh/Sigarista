@@ -58,32 +58,32 @@ internal static class OrderPricing
 
         if (normalizedKey is "small")
         {
-            return ResolveVariant("small", "کوچک", menuItem.SmallPrice, menuItem.SmallSpecialOfferPrice, menuItem);
+            return ResolveVariant("small", menuItem.SmallName ?? "کوچک", menuItem.SmallPrice, menuItem.SmallSpecialOfferPrice, menuItem);
         }
 
         if (normalizedKey is "medium")
         {
-            return ResolveVariant("medium", "متوسط", menuItem.MediumPrice, menuItem.MediumSpecialOfferPrice, menuItem);
+            return ResolveVariant("medium", menuItem.MediumName ?? "متوسط", menuItem.MediumPrice, menuItem.MediumSpecialOfferPrice, menuItem);
         }
 
         if (normalizedKey is "large")
         {
-            return ResolveVariant("large", "بزرگ", menuItem.LargePrice, menuItem.LargeSpecialOfferPrice, menuItem);
+            return ResolveVariant("large", menuItem.LargeName ?? "بزرگ", menuItem.LargePrice, menuItem.LargeSpecialOfferPrice, menuItem);
         }
 
         if (menuItem.MediumPrice.HasValue)
         {
-            return ResolveVariant("medium", "متوسط", menuItem.MediumPrice, menuItem.MediumSpecialOfferPrice, menuItem);
+            return ResolveVariant("medium", menuItem.MediumName ?? "متوسط", menuItem.MediumPrice, menuItem.MediumSpecialOfferPrice, menuItem);
         }
 
         if (menuItem.SmallPrice.HasValue)
         {
-            return ResolveVariant("small", "کوچک", menuItem.SmallPrice, menuItem.SmallSpecialOfferPrice, menuItem);
+            return ResolveVariant("small", menuItem.SmallName ?? "کوچک", menuItem.SmallPrice, menuItem.SmallSpecialOfferPrice, menuItem);
         }
 
         if (menuItem.LargePrice.HasValue)
         {
-            return ResolveVariant("large", "بزرگ", menuItem.LargePrice, menuItem.LargeSpecialOfferPrice, menuItem);
+            return ResolveVariant("large", menuItem.LargeName ?? "بزرگ", menuItem.LargePrice, menuItem.LargeSpecialOfferPrice, menuItem);
         }
 
         var fallbackPrice = menuItem.SpecialOfferPrice ?? menuItem.Price;

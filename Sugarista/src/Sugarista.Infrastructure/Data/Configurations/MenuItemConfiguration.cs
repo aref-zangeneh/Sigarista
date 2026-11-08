@@ -72,11 +72,20 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
         builder.Property(item => item.SmallVolume)
             .HasMaxLength(100);
 
+        builder.Property(item => item.SmallName)
+            .HasMaxLength(60);
+
         builder.Property(item => item.MediumVolume)
             .HasMaxLength(100);
 
+        builder.Property(item => item.MediumName)
+            .HasMaxLength(60);
+
         builder.Property(item => item.LargeVolume)
             .HasMaxLength(100);
+
+        builder.Property(item => item.LargeName)
+            .HasMaxLength(60);
 
         builder.Property(item => item.Accent)
             .HasMaxLength(200)

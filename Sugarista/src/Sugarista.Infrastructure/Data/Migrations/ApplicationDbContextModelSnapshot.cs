@@ -2580,6 +2580,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<bool>("IsOrderable")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("LargeName")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
                     b.Property<decimal?>("LargePrice")
                         .HasColumnType("numeric(18,2)");
 
@@ -2599,6 +2603,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<decimal?>("MarkupPercent")
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("MediumName")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
 
                     b.Property<decimal?>("MediumPrice")
                         .HasColumnType("numeric(18,2)");
@@ -2634,6 +2642,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<string>("SmallName")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
 
                     b.Property<decimal?>("SmallPrice")
                         .HasColumnType("numeric(18,2)");

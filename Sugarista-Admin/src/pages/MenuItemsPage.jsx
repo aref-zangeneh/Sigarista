@@ -242,7 +242,21 @@ export function MenuItemsPage() {
                 ['large', 'بزرگ'],
               ].map(([variantKey, variantLabel]) => (
                 <div key={variantKey} className="variant-card">
-                  <strong>{variantLabel}</strong>
+                  <strong>{menuItemForm[`${variantKey}Name`]?.trim() || variantLabel}</strong>
+                  <label>
+                    <span>نام نمایشی سایز (اختیاری)</span>
+                    <input
+                      placeholder={variantLabel}
+                      maxLength="60"
+                      value={menuItemForm[`${variantKey}Name`] ?? ''}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          [`${variantKey}Name`]: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
                   <label>
                     <span>قیمت</span>
                     <input

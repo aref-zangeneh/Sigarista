@@ -22,12 +22,15 @@ public record UpsertMenuItemCommand(
     decimal? SmallPrice,
     decimal? SmallSpecialOfferPrice,
     string? SmallVolume,
+    string? SmallName,
     decimal? MediumPrice,
     decimal? MediumSpecialOfferPrice,
     string? MediumVolume,
+    string? MediumName,
     decimal? LargePrice,
     decimal? LargeSpecialOfferPrice,
     string? LargeVolume,
+    string? LargeName,
     IReadOnlyCollection<string> Tags,
     string? Badge,
     bool Featured,
@@ -53,12 +56,15 @@ public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCo
         RuleFor(command => command.SmallPrice).GreaterThanOrEqualTo(0);
         RuleFor(command => command.SmallSpecialOfferPrice).GreaterThanOrEqualTo(0);
         RuleFor(command => command.SmallVolume).MaximumLength(100);
+        RuleFor(command => command.SmallName).MaximumLength(60);
         RuleFor(command => command.MediumPrice).GreaterThanOrEqualTo(0);
         RuleFor(command => command.MediumSpecialOfferPrice).GreaterThanOrEqualTo(0);
         RuleFor(command => command.MediumVolume).MaximumLength(100);
+        RuleFor(command => command.MediumName).MaximumLength(60);
         RuleFor(command => command.LargePrice).GreaterThanOrEqualTo(0);
         RuleFor(command => command.LargeSpecialOfferPrice).GreaterThanOrEqualTo(0);
         RuleFor(command => command.LargeVolume).MaximumLength(100);
+        RuleFor(command => command.LargeName).MaximumLength(60);
         RuleFor(command => command)
             .Must(command => command.SmallPrice.HasValue || command.MediumPrice.HasValue || command.LargePrice.HasValue)
             .WithMessage("At least one size price is required.");
@@ -120,12 +126,15 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
                 request.SmallPrice,
                 request.SmallSpecialOfferPrice,
                 request.SmallVolume,
+                request.SmallName,
                 request.MediumPrice,
                 request.MediumSpecialOfferPrice,
                 request.MediumVolume,
+                request.MediumName,
                 request.LargePrice,
                 request.LargeSpecialOfferPrice,
                 request.LargeVolume,
+                request.LargeName,
                 request.Tags,
                 request.Badge,
                 request.Featured,
@@ -153,12 +162,15 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
                 request.SmallPrice,
                 request.SmallSpecialOfferPrice,
                 request.SmallVolume,
+                request.SmallName,
                 request.MediumPrice,
                 request.MediumSpecialOfferPrice,
                 request.MediumVolume,
+                request.MediumName,
                 request.LargePrice,
                 request.LargeSpecialOfferPrice,
                 request.LargeVolume,
+                request.LargeName,
                 request.Tags,
                 request.Badge,
                 request.Featured,

@@ -28,12 +28,15 @@ public class MenuItem : BaseAuditableEntity
         decimal? smallPrice,
         decimal? smallSpecialOfferPrice,
         string? smallVolume,
+        string? smallName,
         decimal? mediumPrice,
         decimal? mediumSpecialOfferPrice,
         string? mediumVolume,
+        string? mediumName,
         decimal? largePrice,
         decimal? largeSpecialOfferPrice,
         string? largeVolume,
+        string? largeName,
         IEnumerable<string> tags,
         string? badge,
         bool featured,
@@ -59,12 +62,15 @@ public class MenuItem : BaseAuditableEntity
             smallPrice,
             smallSpecialOfferPrice,
             smallVolume,
+            smallName,
             mediumPrice,
             mediumSpecialOfferPrice,
             mediumVolume,
+            mediumName,
             largePrice,
             largeSpecialOfferPrice,
             largeVolume,
+            largeName,
             tags,
             badge,
             featured,
@@ -112,17 +118,26 @@ public class MenuItem : BaseAuditableEntity
 
     public string? SmallVolume { get; private set; }
 
+    /// <summary>Admin-defined display name for the small size (e.g. "مینیلو"); null falls back to "کوچک".</summary>
+    public string? SmallName { get; private set; }
+
     public decimal? MediumPrice { get; private set; }
 
     public decimal? MediumSpecialOfferPrice { get; private set; }
 
     public string? MediumVolume { get; private set; }
 
+    /// <summary>Admin-defined display name for the medium size; null falls back to "متوسط".</summary>
+    public string? MediumName { get; private set; }
+
     public decimal? LargePrice { get; private set; }
 
     public decimal? LargeSpecialOfferPrice { get; private set; }
 
     public string? LargeVolume { get; private set; }
+
+    /// <summary>Admin-defined display name for the large size; null falls back to "بزرگ".</summary>
+    public string? LargeName { get; private set; }
 
     public string[] Tags { get; private set; } = [];
 
@@ -180,12 +195,15 @@ public class MenuItem : BaseAuditableEntity
         decimal? smallPrice,
         decimal? smallSpecialOfferPrice,
         string? smallVolume,
+        string? smallName,
         decimal? mediumPrice,
         decimal? mediumSpecialOfferPrice,
         string? mediumVolume,
+        string? mediumName,
         decimal? largePrice,
         decimal? largeSpecialOfferPrice,
         string? largeVolume,
+        string? largeName,
         IEnumerable<string> tags,
         string? badge,
         bool featured,
@@ -203,6 +221,10 @@ public class MenuItem : BaseAuditableEntity
         {
             throw new DomainException("Menu item Persian name is required.");
         }
+
+        ValidateTextLength(smallName, "Small size name", 60);
+        ValidateTextLength(mediumName, "Medium size name", 60);
+        ValidateTextLength(largeName, "Large size name", 60);
 
         if (string.IsNullOrWhiteSpace(englishName))
         {
@@ -247,12 +269,15 @@ public class MenuItem : BaseAuditableEntity
         SmallPrice = smallPrice;
         SmallSpecialOfferPrice = smallSpecialOfferPrice;
         SmallVolume = NormalizeOptionalText(smallVolume);
+        SmallName = NormalizeOptionalText(smallName);
         MediumPrice = mediumPrice;
         MediumSpecialOfferPrice = mediumSpecialOfferPrice;
         MediumVolume = NormalizeOptionalText(mediumVolume);
+        MediumName = NormalizeOptionalText(mediumName);
         LargePrice = largePrice;
         LargeSpecialOfferPrice = largeSpecialOfferPrice;
         LargeVolume = NormalizeOptionalText(largeVolume);
+        LargeName = NormalizeOptionalText(largeName);
         Price = mediumPrice ?? smallPrice ?? largePrice ?? 0;
         SpecialOfferPrice = specialOfferPrice ?? mediumSpecialOfferPrice ?? smallSpecialOfferPrice ?? largeSpecialOfferPrice;
         TaxPercent = taxPercent;
@@ -275,6 +300,15 @@ public class MenuItem : BaseAuditableEntity
         if (value < 0)
         {
             throw new DomainException($"{fieldName} must be greater than or equal to zero.");
+        }
+    }
+
+    private static void ValidateTextLength(string? value, string fieldName, int maxLength)
+    {
+        string? trimmed = NormalizeOptionalText(value);
+        if (trimmed is { Length: > 0 } text && text.Length > maxLength)
+        {
+            throw new DomainException($"{fieldName} must not exceed {maxLength} characters.");
         }
     }
 

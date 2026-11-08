@@ -1034,6 +1034,44 @@ export function SiteSettingsPage() {
               <small className="settings-hint">۲ ماه = ۶۰ روز — تغییر فقط برای ورودهای بعدی اعمال می‌شود</small>
             </label>
 
+            <h3 className="settings-subheading full-width">پاپ‌آپ ورود با شماره موبایل</h3>
+            <label>
+              <span>تیتر پاپ‌آپ</span>
+              <input
+                type="text"
+                value={siteSettings.authPopupTitle ?? ''}
+                onChange={(event) => updateField('authPopupTitle', event.target.value)}
+              />
+              <small className="settings-hint">خالی = «به کافه خوش آمدی»</small>
+            </label>
+            <label>
+              <span>متن توضیح پاپ‌آپ</span>
+              <textarea
+                rows="2"
+                value={siteSettings.authPopupDescription ?? ''}
+                onChange={(event) => updateField('authPopupDescription', event.target.value)}
+              />
+              <small className="settings-hint">خالی = متن پیش‌فرض دربارهٔ کارت مهر و امتیازها</small>
+            </label>
+            <label>
+              <span>نوشتهٔ دکمهٔ ورود</span>
+              <input
+                type="text"
+                value={siteSettings.authPopupLoginButtonLabel ?? ''}
+                onChange={(event) => updateField('authPopupLoginButtonLabel', event.target.value)}
+              />
+              <small className="settings-hint">خالی = «ورود با شماره موبایل»</small>
+            </label>
+            <label>
+              <span>نوشتهٔ دکمهٔ skip</span>
+              <input
+                type="text"
+                value={siteSettings.authPopupSkipButtonLabel ?? ''}
+                onChange={(event) => updateField('authPopupSkipButtonLabel', event.target.value)}
+              />
+              <small className="settings-hint">خالی = «فقط منو را ببینم»</small>
+            </label>
+
             <label className="settings-switch-row full-width">
               <div className="settings-switch-text">
                 <strong>فعال‌سازی باشگاه مشتریان</strong>

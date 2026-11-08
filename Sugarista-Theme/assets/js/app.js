@@ -71,6 +71,12 @@ document.addEventListener("alpine:init", () => {
     profilePhoneInput: "",
     profilePhone: null,
     profile: null,
+    // ── ورود موبایلی (بدون رمز و کد تایید) ────────────────────────────────
+    customerSession: null,
+    authPopupOpen: false,
+    authPhoneInput: "",
+    authSubmitting: false,
+    authPopupError: "",
     flashSale: null,
     flashSaleTimer: null,
     flashSaleRemaining: "",
@@ -146,6 +152,7 @@ document.addEventListener("alpine:init", () => {
       this.applyTheme();
       this.loadCart();
       this.restoreProfilePhone();
+      this.initCustomerAuth(); // جلسهٔ لاگین موبایلی: تا بدون تایپ شماره، حساب فعال بماند
       this.handleRouteState();
       this.loading = true;
       this.error = "";
@@ -591,7 +598,13 @@ document.addEventListener("alpine:init", () => {
       if (this.salesClosed) {
         return false;
       }
-      if (!this.checkoutForm.customerName.trim() || !this.checkoutForm.customerPhone.trim()) {
+      // مشتری لاگین‌شده با session، نام و شماره‌اش از حسابش تأمین می‌شود —
+      // فقط برای مهمانِ بدون حساب، پر کردن نام و شماره الزامی است.
+      if (!this.customerSession) {
+        if (!this.checkoutForm.customerName.trim() || !this.checkoutForm.customerPhone.trim()) {
+          return false;
+        }
+      } else if (!this.checkoutForm.customerPhone.trim()) {
         return false;
       }
 
@@ -768,6 +781,122 @@ document.addEventListener("alpine:init", () => {
         this.loadProfile();
       }
     },
+    // ── ورود موبایلی (فقط شماره، بدون رمز و کد تایید) ─────────────────────
+    // مشتری با شماره موبایل وارد حسابش می‌شود؛ یک کوکی HttpOnly امیدار تا
+    // تعداد روزی که ادمین در تنظیمات کنترل می‌کند (پیش‌فرض ۶۰ روز) هر بار
+    // باز کردن سایت، بدون هیچ تایپی حساب فعال است. «فقط منو را ببینم» بدون
+    // حساب جلو می‌رود و دیگر پاپ‌آپ باز نمی‌شود.
+    AUTH_PROMPT_STORAGE_KEY: "sugarista_auth_prompt_skipped",
+    async initCustomerAuth() {
+      this.authPopupError = "";
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/customers/auth/me`, { cache: "no-store" });
+        if (response.ok) {
+          const identity = await response.json();
+          if (identity?.phoneNumber) {
+            this.customerSession = identity;
+            this.profilePhone = identity.phoneNumber;
+            if (!this.checkoutForm.customerPhone.trim()) {
+              this.checkoutForm.customerPhone = identity.phoneNumber;
+            }
+            if (!this.profile) {
+              this.loadProfile();
+            }
+            return;
+          }
+        }
+      } catch {
+        // شبکه قطع است؛ این بار به‌عنوان مهمان ادامه بده
+      }
+      this.customerSession = null;
+      // پاپ‌آپ فقط در اولین نگاه: نه بعد از skip، نه وقتی شماره از قبل هست
+      let dismissed = false;
+      let storedPhone = "";
+      try {
+        dismissed = window.localStorage.getItem(this.AUTH_PROMPT_STORAGE_KEY) === "1";
+        storedPhone = window.localStorage.getItem(PROFILE_STORAGE_KEY) || "";
+      } catch {
+        dismissed = false;
+      }
+      this.authPopupOpen = !dismissed && !storedPhone;
+    },
+    async submitAuthPhone() {
+      const digits = (this.authPhoneInput || "").replace(/\D/g, "");
+      if (digits.length < 8) {
+        this.authPopupError = "شماره موبایل معتبر وارد کنید.";
+        return;
+      }
+      await this.loginCustomer(digits, true);
+    },
+    async loginCustomer(phoneDigits, isAuthPopup = false) {
+      this.authSubmitting = isAuthPopup;
+      this.authPopupError = "";
+      this.profileError = "";
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/customers/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber: phoneDigits })
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.detail || payload.title || "ورود انجام نشد.");
+        }
+        const result = await response.json();
+        this.customerSession = result.customer;
+        this.profilePhone = result.customer.phoneNumber;
+        this.profilePhoneInput = result.customer.phoneNumber;
+        try {
+          window.localStorage.setItem(PROFILE_STORAGE_KEY, result.customer.phoneNumber);
+        } catch {
+          // Private mode
+        }
+        if (!this.checkoutForm.customerPhone.trim()) {
+          this.checkoutForm.customerPhone = result.customer.phoneNumber;
+        }
+        this.authPopupOpen = false;
+        await this.loadProfile();
+        return true;
+      } catch (error) {
+        this.authPopupError = error.message || "ورود انجام نشد.";
+        if (!isAuthPopup) {
+          this.profileError = this.authPopupError;
+        }
+        return false;
+      } finally {
+        this.authSubmitting = false;
+      }
+    },
+    skipAuthPrompt() {
+      this.authPopupOpen = false;
+      try {
+        window.localStorage.setItem(this.AUTH_PROMPT_STORAGE_KEY, "1");
+      } catch {
+        // Private mode: همین بازدید skip است؛ بازدید بعدی دوباره پرسیده می‌شود
+      }
+    },
+    async logoutCustomer() {
+      try {
+        await fetch(`${this.apiBaseUrl}/customers/auth/logout`, { method: "POST" });
+      } catch {
+        // خروج محلی را انجام بده؛ کوکی سرور هم در endpoint پاک می‌شود
+      }
+      this.customerSession = null;
+      this.profileOpen = false;
+      this.profile = null;
+      this.profilePhone = null;
+      this.profilePhoneInput = "";
+      this.checkoutForm.customerName = "";
+      this.checkoutForm.customerPhone = "";
+      this.checkoutForm.email = "";
+      try {
+        window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+        window.localStorage.removeItem(this.AUTH_PROMPT_STORAGE_KEY);
+      } catch {
+        // Private mode
+      }
+      this.actionMessage = "از حساب خارج شدی. دفعهٔ بعد دوباره با شماره‌ات وارد می‌شوی.";
+    },
     closeProfile() {
       this.profileOpen = false;
     },
@@ -789,6 +918,12 @@ document.addEventListener("alpine:init", () => {
       const digits = (this.profilePhoneInput || "").replace(/\D/g, "");
       if (digits.length < 8) {
         this.profileError = "شماره موبایل معتبر وارد کنید.";
+        return;
+      }
+      // ورود از پاپ‌آپ پروفایل هم یک لاگین واقعی است: ذخیرهٔ session و
+      // کوکی فقط از مسیر endpoint اصیل انجام می‌شود.
+      const loggedIn = await this.loginCustomer(digits);
+      if (!loggedIn) {
         return;
       }
       this.profilePhone = digits;
@@ -1991,11 +2126,17 @@ document.addEventListener("alpine:init", () => {
               }))
             : null;
 
+        // مشتریِ لاگین‌شده: نام از پروفایلش (یا شماره‌اش وقتی هنوز نامی ثبت
+        // نکرده) همراه سفارش می‌رود تا فرم هر بار خالی نپرسد.
+        const sessionCustomerName = this.checkoutForm.customerName.trim() ||
+          (this.profile?.persianName || this.customerSession?.persianName || "").trim() ||
+          this.checkoutForm.customerPhone.trim();
+
         const response = await fetch(`${this.apiBaseUrl}/orders/checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            customerName: this.checkoutForm.customerName.trim(),
+            customerName: sessionCustomerName,
             customerPhone: this.checkoutForm.customerPhone.trim(),
             note: this.checkoutForm.note.trim() || null,
             discountCode: this.checkoutForm.discountCode.trim() || null,

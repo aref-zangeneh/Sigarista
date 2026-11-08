@@ -725,7 +725,14 @@
               </small>
             </div>
           </template>
-          <div class="checkout-essentials">
+          <!-- مشتری لاگین‌شده: فیلدهای نام و شماره به‌طور خودکار از حسابش پر شده‌اند -->
+          <div class="checkout-session-chip" x-show="customerSession" x-cloak>
+            <i class="bi bi-person-check-fill"></i>
+            <span class="checkout-session-chip-name" x-show="customerSession?.persianName && customerSession.persianName !== customerSession?.phoneNumber" x-text="customerSession?.persianName"></span>
+            <span class="checkout-session-chip-phone ltr-text" x-text="customerSession?.phoneNumber"></span>
+            <em>اطلاعات تماس از حساب کاربری‌ات پر شده است</em>
+          </div>
+          <div class="checkout-essentials" x-show="!customerSession" x-cloak>
             <div class="mb-2">
               <label class="form-label" for="checkout-customer-name">نام و نام خانوادگی</label>
               <input
@@ -1265,6 +1272,46 @@
       </div>
     </div>
 
+    <!-- پاپ‌آپ ورود موبایلی: فقط شماره، بدون رمز و کد تایید. دکمهٔ skip برای
+         کسی که فقط منو را می‌بیند؛ بعد از skip در همین مرورگر دیگر پرسیده نمی‌شود. -->
+    <div
+      class="auth-popup-overlay"
+      x-show="authPopupOpen && !profileOpen"
+      x-cloak
+      @click.self="skipAuthPrompt()"
+      @keydown.escape.window="skipAuthPrompt()"
+    >
+      <div class="auth-popup-card" role="dialog" aria-modal="true" aria-labelledby="auth-popup-title">
+        <button type="button" class="profile-close" @click="skipAuthPrompt()" aria-label="بستن">
+          <i class="bi bi-x-lg"></i>
+        </button>
+        <span class="profile-badge-icon"><i class="bi bi-person-badge"></i></span>
+        <h2 id="auth-popup-title" class="h5 mb-1">به کافه خوش آمدی</h2>
+        <p class="auth-popup-sub">
+          شماره موبایلت را وارد کن تا حساب کاربری‌ات — کارت مهر، امتیازها و بج‌هایت —
+          همیشه آماده باشد؛ بدون ثبت‌نام و رمز.
+        </p>
+        <div class="mb-3">
+          <input
+            type="tel"
+            inputmode="numeric"
+            class="form-control ltr-text"
+            placeholder="09xxxxxxxxx"
+            x-model="authPhoneInput"
+            @keydown.enter.prevent="submitAuthPhone()"
+          />
+        </div>
+        <button type="button" class="btn btn-accent w-100 profile-submit" :disabled="authSubmitting" @click="submitAuthPhone()">
+          <span x-show="!authSubmitting">ورود با شماره موبایل</span>
+          <span x-show="authSubmitting">در حال ورود...</span>
+        </button>
+        <button type="button" class="auth-popup-skip" @click="skipAuthPrompt()">
+          فقط منو را ببینم
+        </button>
+        <p class="profile-error" x-show="authPopupError" x-text="authPopupError" x-cloak></p>
+      </div>
+    </div>
+
     <div
       class="profile-overlay"
       x-show="profileOpen"
@@ -1538,9 +1585,9 @@
                   </div>
                 </div>
 
-                <button type="button" class="btn btn-link profile-forget" @click="forgetProfile()">
+                <button type="button" class="btn btn-link profile-forget" @click="customerSession ? logoutCustomer() : forgetProfile()">
                   <i class="bi bi-box-arrow-right"></i>
-                  مشاهده‌ی پروفایل دیگری
+                  <span x-text="customerSession ? 'خروج از حساب' : 'مشاهده‌ی پروفایل دیگری'"></span>
                 </button>
               </div>
             </template>

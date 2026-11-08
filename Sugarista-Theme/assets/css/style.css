@@ -860,6 +860,86 @@ a {
   margin-top: 0.5rem;
 }
 
+/* ── پاپ‌آپ ورود موبایلی (session شیرین بدون رمز) ─────────────────────── */
+.auth-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 54;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 18, 24, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.auth-popup-card {
+  position: relative;
+  width: min(380px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1.75rem 1.4rem 1.3rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.auth-popup-card .profile-submit {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.auth-popup-sub {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.9;
+  margin-bottom: 1rem;
+}
+
+.auth-popup-skip {
+  display: block;
+  width: 100%;
+  margin-top: 0.6rem;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* ── چیپ «با حساب کاربری وارد شده‌ای» در صفحهٔ پرداخت ─────────────────── */
+.checkout-session-chip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.checkout-session-chip .checkout-session-chip-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.checkout-session-chip .checkout-session-chip-phone {
+  direction: ltr;
+  font-weight: 600;
+}
+
+.checkout-session-chip em {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .profile-loading {
   color: var(--muted);
   font-size: 0.9rem;

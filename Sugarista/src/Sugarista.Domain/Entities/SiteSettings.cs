@@ -150,6 +150,13 @@ public class SiteSettings : BaseAuditableEntity
     /// <summary>Days without a paid order before the win-back SMS dispatch sends a comeback discount code (0 disables the sweep).</summary>
     public int WinBackDays { get; set; } = 30;
 
+    /// <summary>
+    /// How many days a customer stays signed in to the digital menu after a
+    /// phone-only login (1-730). 2 months = 60 days. New logins apply the
+    /// current value; existing sessions keep their original expiry.
+    /// </summary>
+    public int CustomerSessionDurationDays { get; set; } = 60;
+
     /// <summary>Master switch for the loyalty points program.</summary>
     public bool LoyaltyEnabled { get; set; }
 

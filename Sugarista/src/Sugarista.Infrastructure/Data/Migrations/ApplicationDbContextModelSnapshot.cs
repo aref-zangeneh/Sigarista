@@ -950,6 +950,39 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("CustomerGroupMemberships", (string)null);
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.CustomerSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("CustomerSessions");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.CustomerSubscription", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4069,6 +4102,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<bool>("CustomDrinkBuilderEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("CustomerSessionDurationDays")
+                        .HasColumnType("integer");
+
                     b.Property<int>("DarkThemeStartHour")
                         .HasColumnType("integer");
 
@@ -4864,6 +4900,17 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Navigation("Customer");
 
                     b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.CustomerSession", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.CustomerSubscription", b =>

@@ -69,6 +69,7 @@ public record SiteSettingsDto
     public bool AllowManualThemeOverride { get; init; } = true;
     public bool IsOnlineOrderingAvailable { get; init; } = true;
     public int WinBackDays { get; init; } = 30;
+    public int CustomerSessionDurationDays { get; init; } = 60;
     public bool LoyaltyEnabled { get; init; }
     public decimal LoyaltyEarnTomanPerPoint { get; init; } = 10000m;
     public decimal LoyaltyRedeemTomanPerPoint { get; init; } = 1000m;
@@ -207,6 +208,7 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 ThemeMode = settings.ThemeMode,
                 AllowManualThemeOverride = settings.AllowManualThemeOverride,
                 WinBackDays = settings.WinBackDays,
+                CustomerSessionDurationDays = settings.CustomerSessionDurationDays,
                 LoyaltyEnabled = settings.LoyaltyEnabled,
                 LoyaltyEarnTomanPerPoint = settings.LoyaltyEarnTomanPerPoint,
                 LoyaltyRedeemTomanPerPoint = settings.LoyaltyRedeemTomanPerPoint,

@@ -43,6 +43,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Customer> Customers => Set<Customer>();
 
+    public DbSet<CustomerSession> CustomerSessions => Set<CustomerSession>();
+
     public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
 
     public DbSet<CafeOpenHour> CafeOpenHours => Set<CafeOpenHour>();

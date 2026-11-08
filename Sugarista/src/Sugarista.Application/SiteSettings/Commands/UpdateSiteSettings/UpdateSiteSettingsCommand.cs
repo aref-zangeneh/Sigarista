@@ -81,6 +81,9 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
 
     public int WinBackDays { get; init; } = 30;
 
+    /// <summary>How long a phone-login session of the digital menu stays valid (days).</summary>
+    public int CustomerSessionDurationDays { get; init; } = 60;
+
     public bool LoyaltyEnabled { get; init; }
 
     public decimal LoyaltyEarnTomanPerPoint { get; init; } = 10000m;
@@ -175,6 +178,7 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
             .Must(mode => mode is "auto" or "light" or "dark")
             .WithMessage("حالت تم باید یکی از auto، light یا dark باشد.");
         RuleFor(command => command.WinBackDays).InclusiveBetween(0, 365);
+        RuleFor(command => command.CustomerSessionDurationDays).InclusiveBetween(1, 730);
         RuleFor(command => command.LoyaltyEarnTomanPerPoint).GreaterThanOrEqualTo(0);
         RuleFor(command => command.LoyaltyRedeemTomanPerPoint).GreaterThanOrEqualTo(0);
         RuleFor(command => command.LoyaltyPointsExpiryDays).InclusiveBetween(0, 3650);
@@ -307,6 +311,7 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.ThemeMode = request.ThemeMode.Trim().ToLowerInvariant();
         settings.AllowManualThemeOverride = request.AllowManualThemeOverride;
         settings.WinBackDays = request.WinBackDays;
+        settings.CustomerSessionDurationDays = request.CustomerSessionDurationDays;
         settings.LoyaltyEnabled = request.LoyaltyEnabled;
         settings.LoyaltyEarnTomanPerPoint = request.LoyaltyEarnTomanPerPoint;
         settings.LoyaltyRedeemTomanPerPoint = request.LoyaltyRedeemTomanPerPoint;

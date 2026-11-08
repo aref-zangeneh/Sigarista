@@ -84,6 +84,15 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     /// <summary>How long a phone-login session of the digital menu stays valid (days).</summary>
     public int CustomerSessionDurationDays { get; init; } = 60;
 
+    /// <summary>Texts of the phone-login popup; empty strings mean the storefront defaults.</summary>
+    public string AuthPopupTitle { get; init; } = string.Empty;
+
+    public string AuthPopupDescription { get; init; } = string.Empty;
+
+    public string AuthPopupLoginButtonLabel { get; init; } = string.Empty;
+
+    public string AuthPopupSkipButtonLabel { get; init; } = string.Empty;
+
     public bool LoyaltyEnabled { get; init; }
 
     public decimal LoyaltyEarnTomanPerPoint { get; init; } = 10000m;
@@ -179,6 +188,10 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
             .WithMessage("حالت تم باید یکی از auto، light یا dark باشد.");
         RuleFor(command => command.WinBackDays).InclusiveBetween(0, 365);
         RuleFor(command => command.CustomerSessionDurationDays).InclusiveBetween(1, 730);
+        RuleFor(command => command.AuthPopupTitle).MaximumLength(150);
+        RuleFor(command => command.AuthPopupDescription).MaximumLength(600);
+        RuleFor(command => command.AuthPopupLoginButtonLabel).MaximumLength(100);
+        RuleFor(command => command.AuthPopupSkipButtonLabel).MaximumLength(100);
         RuleFor(command => command.LoyaltyEarnTomanPerPoint).GreaterThanOrEqualTo(0);
         RuleFor(command => command.LoyaltyRedeemTomanPerPoint).GreaterThanOrEqualTo(0);
         RuleFor(command => command.LoyaltyPointsExpiryDays).InclusiveBetween(0, 3650);
@@ -312,6 +325,10 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.AllowManualThemeOverride = request.AllowManualThemeOverride;
         settings.WinBackDays = request.WinBackDays;
         settings.CustomerSessionDurationDays = request.CustomerSessionDurationDays;
+        settings.AuthPopupTitle = request.AuthPopupTitle.Trim();
+        settings.AuthPopupDescription = request.AuthPopupDescription.Trim();
+        settings.AuthPopupLoginButtonLabel = request.AuthPopupLoginButtonLabel.Trim();
+        settings.AuthPopupSkipButtonLabel = request.AuthPopupSkipButtonLabel.Trim();
         settings.LoyaltyEnabled = request.LoyaltyEnabled;
         settings.LoyaltyEarnTomanPerPoint = request.LoyaltyEarnTomanPerPoint;
         settings.LoyaltyRedeemTomanPerPoint = request.LoyaltyRedeemTomanPerPoint;

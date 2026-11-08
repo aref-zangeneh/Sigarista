@@ -157,6 +157,15 @@ public class SiteSettings : BaseAuditableEntity
     /// </summary>
     public int CustomerSessionDurationDays { get; set; } = 60;
 
+    /// <summary>Texts of the phone-login popup on the digital menu, all admin-editable; empty falls back to the built-in Persian copy.</summary>
+    public string AuthPopupTitle { get; set; } = string.Empty;
+
+    public string AuthPopupDescription { get; set; } = string.Empty;
+
+    public string AuthPopupLoginButtonLabel { get; set; } = string.Empty;
+
+    public string AuthPopupSkipButtonLabel { get; set; } = string.Empty;
+
     /// <summary>Master switch for the loyalty points program.</summary>
     public bool LoyaltyEnabled { get; set; }
 

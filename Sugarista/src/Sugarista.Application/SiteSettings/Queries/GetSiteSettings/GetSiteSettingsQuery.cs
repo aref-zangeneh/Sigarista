@@ -70,6 +70,10 @@ public record SiteSettingsDto
     public bool IsOnlineOrderingAvailable { get; init; } = true;
     public int WinBackDays { get; init; } = 30;
     public int CustomerSessionDurationDays { get; init; } = 60;
+    public string AuthPopupTitle { get; init; } = string.Empty;
+    public string AuthPopupDescription { get; init; } = string.Empty;
+    public string AuthPopupLoginButtonLabel { get; init; } = string.Empty;
+    public string AuthPopupSkipButtonLabel { get; init; } = string.Empty;
     public bool LoyaltyEnabled { get; init; }
     public decimal LoyaltyEarnTomanPerPoint { get; init; } = 10000m;
     public decimal LoyaltyRedeemTomanPerPoint { get; init; } = 1000m;
@@ -209,6 +213,10 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 AllowManualThemeOverride = settings.AllowManualThemeOverride,
                 WinBackDays = settings.WinBackDays,
                 CustomerSessionDurationDays = settings.CustomerSessionDurationDays,
+                AuthPopupTitle = settings.AuthPopupTitle,
+                AuthPopupDescription = settings.AuthPopupDescription,
+                AuthPopupLoginButtonLabel = settings.AuthPopupLoginButtonLabel,
+                AuthPopupSkipButtonLabel = settings.AuthPopupSkipButtonLabel,
                 LoyaltyEnabled = settings.LoyaltyEnabled,
                 LoyaltyEarnTomanPerPoint = settings.LoyaltyEarnTomanPerPoint,
                 LoyaltyRedeemTomanPerPoint = settings.LoyaltyRedeemTomanPerPoint,

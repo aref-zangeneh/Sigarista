@@ -4044,6 +4044,22 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<bool>("AllowManualThemeOverride")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("AuthPopupDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AuthPopupLoginButtonLabel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AuthPopupSkipButtonLabel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AuthPopupTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<bool>("BirthdayDiscountEnabled")
                         .HasColumnType("boolean");
 

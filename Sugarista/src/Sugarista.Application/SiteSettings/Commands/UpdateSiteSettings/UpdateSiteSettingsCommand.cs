@@ -51,6 +51,24 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     public bool IsOnlineSalesEnabled { get; init; } = true;
     public string OnlineSalesNotice { get; init; } = string.Empty;
 
+    /// <summary>Event/occasion banner toggle — off = the banner is gone entirely.</summary>
+    public bool EventBannerEnabled { get; init; }
+
+    /// <summary>Event banner image URL.</summary>
+    public string EventBannerImageUrl { get; init; } = string.Empty;
+
+    /// <summary>Optional headline written over the banner.</summary>
+    public string EventBannerTitle { get; init; } = string.Empty;
+
+    /// <summary>Optional click-through URL when the banner is tapped.</summary>
+    public string EventBannerLinkUrl { get; init; } = string.Empty;
+
+    /// <summary>Optional schedule start (UTC); banner hides before this moment.</summary>
+    public DateTimeOffset? EventBannerStartsAt { get; init; }
+
+    /// <summary>Optional schedule end (UTC); banner hides after this moment.</summary>
+    public DateTimeOffset? EventBannerEndsAt { get; init; }
+
     public string TimeZoneId { get; init; } = "Asia/Tehran";
 
     public int LightThemeStartHour { get; init; } = 6;
@@ -199,6 +217,17 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
         RuleFor(command => command.AbandonedCartSmsTemplate).MaximumLength(1000);
         RuleFor(command => command.AbandonedCartEmailSubject).MaximumLength(200);
         RuleFor(command => command.AbandonedCartEmailTemplate).MaximumLength(4000);
+        RuleFor(command => command.EventBannerImageUrl).MaximumLength(400);
+        RuleFor(command => command.EventBannerTitle).MaximumLength(200);
+        RuleFor(command => command.EventBannerLinkUrl).MaximumLength(400);
+        RuleFor(command => command.EventBannerLinkUrl)
+            .Matches(@"^(https?://|/).*$")
+            .When(command => !string.IsNullOrWhiteSpace(command.EventBannerLinkUrl))
+            .WithMessage("لینک بنر باید با http:// یا https:// شروع شود یا مسیر داخلی باشد.");
+        RuleFor(command => command)
+            .Must(command => !command.EventBannerStartsAt.HasValue || !command.EventBannerEndsAt.HasValue
+                || command.EventBannerEndsAt.Value >= command.EventBannerStartsAt.Value)
+            .WithMessage("پایان بازهٔ نمایش بنر باید بعد از شروع آن باشد.");
     }
 }
 
@@ -266,6 +295,12 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.FooterCallLabel = request.FooterCallLabel.Trim();
         settings.IsOnlineSalesEnabled = request.IsOnlineSalesEnabled;
         settings.OnlineSalesNotice = request.OnlineSalesNotice.Trim();
+        settings.EventBannerEnabled = request.EventBannerEnabled;
+        settings.EventBannerImageUrl = request.EventBannerImageUrl.Trim();
+        settings.EventBannerTitle = request.EventBannerTitle.Trim();
+        settings.EventBannerLinkUrl = request.EventBannerLinkUrl.Trim();
+        settings.EventBannerStartsAt = request.EventBannerStartsAt;
+        settings.EventBannerEndsAt = request.EventBannerEndsAt;
         settings.TimeZoneId = request.TimeZoneId.Trim();
         settings.LightThemeStartHour = request.LightThemeStartHour;
         settings.DarkThemeStartHour = request.DarkThemeStartHour;

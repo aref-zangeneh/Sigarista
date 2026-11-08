@@ -56,6 +56,12 @@ public record SiteSettingsDto
     public string FooterCallLabel { get; init; } = string.Empty;
     public bool IsOnlineSalesEnabled { get; init; } = true;
     public string OnlineSalesNotice { get; init; } = string.Empty;
+    public bool EventBannerEnabled { get; init; }
+    public string EventBannerImageUrl { get; init; } = string.Empty;
+    public string EventBannerTitle { get; init; } = string.Empty;
+    public string EventBannerLinkUrl { get; init; } = string.Empty;
+    public DateTimeOffset? EventBannerStartsAt { get; init; }
+    public DateTimeOffset? EventBannerEndsAt { get; init; }
     public string TimeZoneId { get; init; } = "Asia/Tehran";
     public int LightThemeStartHour { get; init; } = 6;
     public int DarkThemeStartHour { get; init; } = 20;
@@ -189,6 +195,12 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 FooterCallLabel = settings.FooterCallLabel,
                 IsOnlineSalesEnabled = settings.IsOnlineSalesEnabled,
                 OnlineSalesNotice = settings.OnlineSalesNotice,
+                EventBannerEnabled = settings.EventBannerEnabled,
+                EventBannerImageUrl = settings.EventBannerImageUrl,
+                EventBannerTitle = settings.EventBannerTitle,
+                EventBannerLinkUrl = settings.EventBannerLinkUrl,
+                EventBannerStartsAt = settings.EventBannerStartsAt,
+                EventBannerEndsAt = settings.EventBannerEndsAt,
                 TimeZoneId = settings.TimeZoneId,
                 LightThemeStartHour = settings.LightThemeStartHour,
                 DarkThemeStartHour = settings.DarkThemeStartHour,

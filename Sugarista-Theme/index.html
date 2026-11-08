@@ -118,12 +118,24 @@
       </div>
     </header>
 
-    <div class="sales-notice" x-show="salesClosed" x-cloak role="status" aria-live="polite">
-      <div class="container sales-notice-inner">
-        <i class="bi bi-pause-circle"></i>
-        <p x-text="salesNoticeText"></p>
-      </div>
-    </div>
+    <!-- بنر ایونت و مناسبت: تصویر + تیتر اختیاری + لینک اختیاری و بازهٔ نمایش
+         اختیاری — کنترل کامل از پنل ادمین. غیرفعال = کلاً از صفحه حذف می‌شود. -->
+    <a
+      class="event-banner"
+      x-show="eventBannerVisible"
+      x-cloak
+      :href="eventBannerLink || false"
+      :target="eventBannerLink ? '_blank' : false"
+      :rel="eventBannerLink ? 'noopener' : false"
+      aria-label="بنر ایونت و مناسبت"
+    >
+      <span
+        class="event-banner-image"
+        :style="eventBannerImage ? `background-image:url('${eventBannerImage}')` : ''"
+        aria-hidden="true"
+      ></span>
+      <span class="event-banner-title" x-show="eventBannerTitle" x-text="eventBannerTitle"></span>
+    </a>
 
     <main>
       <section

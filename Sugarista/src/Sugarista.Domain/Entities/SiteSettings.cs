@@ -95,6 +95,28 @@ public class SiteSettings : BaseAuditableEntity
     public string OnlineSalesNotice { get; set; } = string.Empty;
 
     /// <summary>
+    /// Event/occasion banner (بنر ایونت و مناسبت): an optional full-width image
+    /// strip at the top of the public menu, fully admin-driven. When disabled
+    /// (or out of its optional schedule) the banner fades away completely.
+    /// </summary>
+    public bool EventBannerEnabled { get; set; }
+
+    /// <summary>URL of the uploaded event banner image.</summary>
+    public string EventBannerImageUrl { get; set; } = string.Empty;
+
+    /// <summary>Optional headline written over the banner image.</summary>
+    public string EventBannerTitle { get; set; } = string.Empty;
+
+    /// <summary>Optional click-through URL when the banner is tapped.</summary>
+    public string EventBannerLinkUrl { get; set; } = string.Empty;
+
+    /// <summary>Optional schedule start (UTC); banner hides before this moment.</summary>
+    public DateTimeOffset? EventBannerStartsAt { get; set; }
+
+    /// <summary>Optional schedule end (UTC); banner hides after this moment.</summary>
+    public DateTimeOffset? EventBannerEndsAt { get; set; }
+
+    /// <summary>
     /// IANA time zone id of the café (e.g. "Asia/Tehran"). Drives the
     /// time-of-day theme and any other local-time logic on the public menu.
     /// </summary>

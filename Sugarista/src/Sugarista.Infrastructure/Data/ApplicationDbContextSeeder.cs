@@ -426,6 +426,12 @@ public class ApplicationDbContextSeeder
             ALTER TABLE "RecipeItems" ADD COLUMN IF NOT EXISTS "PreparationNote" character varying(1000);
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "IsOnlineSalesEnabled" boolean NOT NULL DEFAULT TRUE;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "OnlineSalesNotice" character varying(500) NOT NULL DEFAULT '';
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "EventBannerEnabled" boolean NOT NULL DEFAULT FALSE;
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "EventBannerImageUrl" character varying(400) NOT NULL DEFAULT '';
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "EventBannerTitle" character varying(200) NOT NULL DEFAULT '';
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "EventBannerLinkUrl" character varying(400) NOT NULL DEFAULT '';
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "EventBannerStartsAt" timestamp with time zone;
+            ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "EventBannerEndsAt" timestamp with time zone;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "TimeZoneId" character varying(64) NOT NULL DEFAULT 'Asia/Tehran';
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "LightThemeStartHour" integer NOT NULL DEFAULT 6;
             ALTER TABLE "SiteSettings" ADD COLUMN IF NOT EXISTS "DarkThemeStartHour" integer NOT NULL DEFAULT 20;

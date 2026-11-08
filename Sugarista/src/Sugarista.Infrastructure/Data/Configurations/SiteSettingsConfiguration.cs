@@ -53,6 +53,11 @@ public class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSettings>
         builder.Property(settings => settings.FooterCallLabel).HasMaxLength(100).IsRequired();
         builder.Property(settings => settings.IsOnlineSalesEnabled).IsRequired();
         builder.Property(settings => settings.OnlineSalesNotice).HasMaxLength(500).IsRequired();
+        // Event/occasion banner (بنر ایونت و مناسبت) — admin-driven, optional schedule.
+        builder.Property(settings => settings.EventBannerEnabled).IsRequired();
+        builder.Property(settings => settings.EventBannerImageUrl).HasMaxLength(400).IsRequired();
+        builder.Property(settings => settings.EventBannerTitle).HasMaxLength(200).IsRequired();
+        builder.Property(settings => settings.EventBannerLinkUrl).HasMaxLength(400).IsRequired();
         // Serialized receipt layout document (customer + barista copies).
         builder.Property(settings => settings.ReceiptLayoutJson).HasMaxLength(12000);
         builder.Property(settings => settings.TimeZoneId).HasMaxLength(64).IsRequired();

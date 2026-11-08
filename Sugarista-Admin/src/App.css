@@ -1083,7 +1083,6 @@ a.tab-button {
 .settings-fade-in {
   animation: settings-fade-in 0.22s ease;
 }
-
 @keyframes settings-fade-in {
   from {
     opacity: 0;
@@ -1095,6 +1094,173 @@ a.tab-button {
   }
 }
 
+/* ── Full-screen sales-closed cover editor (settings → فروش آنلاین) ── */
+.event-banner-settings {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-notice-inner-row {
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.settings-notice-inner-row span {
+  color: var(--text);
+}
+
+.settings-notice-inner-row input,
+.settings-notice-inner-row textarea {
+  width: 100%;
+  font-weight: 400;
+  font-size: 0.86rem;
+}
+
+.event-banner-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.event-banner-frame {
+  position: relative;
+  aspect-ratio: 9 / 13;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background-color: var(--panel-2);
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  padding: 12px;
+  transition: border-color 0.2s ease;
+  max-height: 320px;
+}
+
+.event-banner-frame.empty {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(170, 49, 113, 0.04) 0 12px,
+    transparent 12px 24px
+  );
+  border-style: dashed;
+}
+
+.event-banner-frame.has-image {
+  border-color: rgba(170, 49, 113, 0.55);
+}
+
+.event-banner-progress {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(12, 12, 16, 0.55);
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.event-banner-actions {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.event-banner-btn {
+  cursor: pointer;
+  border: 1px solid rgba(170, 49, 113, 0.5);
+  background: rgba(170, 49, 113, 0.08);
+  color: var(--text);
+  border-radius: var(--radius-sm, 10px);
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.event-banner-btn:hover:not(:disabled) {
+  background: rgba(170, 49, 113, 0.16);
+}
+
+.event-banner-btn.danger {
+  border-color: rgba(200, 60, 60, 0.5);
+  background: rgba(200, 60, 60, 0.07);
+}
+
+.event-banner-btn.danger:hover:not(:disabled) {
+  background: rgba(200, 60, 60, 0.15);
+}
+
+.event-banner-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.event-banner-hint {
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.event-banner-error {
+  font-size: 0.78rem;
+  color: var(--brand-error);
+}
+
+@media (max-width: 720px) {
+  .event-banner-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .event-banner-frame {
+    max-height: 220px;
+  }
+}
+
+/* ── Event banner (بنر ایونت و مناسبت) ── */
+.event-banner-picker .event-banner-frame {
+  aspect-ratio: 16 / 9;
+  max-height: 220px;
+}
+
+.event-banner-schedule {
+  display: grid;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.event-banner-schedule-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 480px;
+}
+
+.event-banner-schedule-fields label {
+  display: grid;
+  gap: 4px;
+}
+
+.event-banner-schedule-fields em {
+  font-style: normal;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.event-banner-schedule-fields input {
+  width: 100%;
+  font-weight: 400;
+  font-size: 0.85rem;
+}
 /* ── Field hints & required marker ── */
 .settings-hint {
   font-size: 0.74rem;

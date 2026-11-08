@@ -1151,6 +1151,35 @@ document.addEventListener("alpine:init", () => {
       // return notice || "";
       return notice || "فروش آنلاین موقتاً غیرفعال است؛ می‌توانید حضوری سفارش دهید.";
     },
+    // ── بنر ایونت و مناسبت (کنترل کامل از پنل ادمین) ────────────
+    // eventBannerEnabled کل بنر را فعال/غیرفعال می‌کند؛ بدون تصویر هم بنر
+    // رندر نمی‌شود و بازهٔ نمایش اختیاری آن را خودکار می‌بازد/می‌بندد.
+    get eventBannerEnabled() {
+      return this.settings.eventBannerEnabled === true;
+    },
+    get eventBannerImage() {
+      return (this.settings.eventBannerImageUrl || "").trim();
+    },
+    get eventBannerTitle() {
+      return (this.settings.eventBannerTitle || "").trim();
+    },
+    get eventBannerLink() {
+      return (this.settings.eventBannerLinkUrl || "").trim();
+    },
+    get eventBannerVisible() {
+      if (!this.eventBannerEnabled || !this.eventBannerImage) return false;
+      const starts = this._parseEventDate(this.settings.eventBannerStartsAt);
+      const ends = this._parseEventDate(this.settings.eventBannerEndsAt);
+      const now = Date.now();
+      if (starts && now < starts) return false;
+      if (ends && now > ends) return false;
+      return true;
+    },
+    _parseEventDate(value) {
+      if (!value) return null;
+      const time = new Date(value).getTime();
+      return Number.isNaN(time) ? null : time;
+    },
     get featuredItems() {
       return this.items.filter((item) => item.featured);
     },

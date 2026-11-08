@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { settingsSections } from '../constants/adminForms'
 import { ReceiptLayoutPanel } from '../components/ReceiptLayoutPanel'
+import { uploadImage, validateImageFile } from '../utils/imageUpload'
 
 function SectionIcon({ name }) {
   const paths = {
@@ -99,6 +100,49 @@ export function SiteSettingsPage() {
     }))
 
   const salesPaused = siteSettings.isOnlineSalesEnabled === false
+
+  // ── بنر ایونت و مناسبت (تصویر + تیتر + لینک + بازهٔ نمایش) ──
+  const [bannerUploading, setBannerUploading] = useState('')
+  const [bannerError, setBannerError] = useState('')
+
+  const eventBannerImage = siteSettings.eventBannerImageUrl ?? ''
+  const eventBannerEnabled = siteSettings.eventBannerEnabled === true
+
+  const handleEventBannerUpload = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    const validation = validateImageFile(file)
+    if (validation) {
+      setBannerError(validation)
+      return
+    }
+    if (!session?.token) {
+      setBannerError('برای آپلود تصویر ابتدا وارد حساب شوید.')
+      return
+    }
+    setBannerUploading(true)
+    setBannerError('')
+    try {
+      const result = await uploadImage('/admin/uploads/images', file, session.token)
+      updateField('eventBannerImageUrl', result?.url ?? '')
+      if (!result?.url) setBannerError('آپلود ناموفق بود؛ دوباره تلاش کنید.')
+    } catch (uploadRequestError) {
+      setBannerError(getReadableError(uploadRequestError))
+    } finally {
+      setBannerUploading(false)
+    }
+  }
+
+  const toDatetimeLocal = (value) => {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+
+  const fromDatetimeLocal = (value) => (value ? new Date(value).toISOString() : null)
 
   // ── بسته‌های شارژ کیف پول ────────────────────────────────
   const [walletPackages, setWalletPackages] = useState([])
@@ -282,6 +326,7 @@ export function SiteSettingsPage() {
 
   const navItems = [
     { id: 'settings-sales', title: 'فروش آنلاین', icon: 'cart' },
+    { id: 'settings-event-banner', title: 'بنر ایونت و مناسبت', icon: 'hero' },
     { id: 'settings-pickup', title: 'سفارش پیش از مراجعه', icon: 'clock' },
     { id: 'settings-receipt', title: 'طرح فیش‌های چاپی', icon: 'steps' },
     { id: 'settings-abandoned-cart', title: 'سبد رهاشده', icon: 'bell' },
@@ -361,7 +406,7 @@ export function SiteSettingsPage() {
                   <li>دکمه «افزودن به سبد خرید» روی کارت محصولات محو می‌شود</li>
                   <li>نوار و کشوی سبد خرید از سایت حذف می‌شود</li>
                   <li>ثبت سفارش آنلاین در سرور نیز مسدود می‌شود</li>
-                  <li>بنر اطلاع‌رسانی بالای منو برای مشتریان نمایش داده می‌شود</li>
+                  <li>منو با پوشش تمام‌صفحهٔ تعطیلی فروش (تصویر/پیام) پوشش داده می‌شود</li>
                 </ul>
               </div>
               <span className={`switch ${salesPaused ? 'switch-on' : ''}`}>
@@ -380,7 +425,7 @@ export function SiteSettingsPage() {
               <label className="settings-notice settings-fade-in">
                 <span>
                   پیام اطلاع‌رسانی به مشتریان
-                  <em>بنر بالای منوی مشتریان با این متن نمایش داده می‌شود.</em>
+                  <em>این متن برای مشتری هنگام تلاش برای سفارش آنلاین نمایش داده می‌شود.</em>
                 </span>
                 <textarea
                   rows="2"
@@ -390,6 +435,132 @@ export function SiteSettingsPage() {
                   onChange={(event) => updateField('onlineSalesNotice', event.target.value)}
                 />
               </label>
+            )}
+          </div>
+        </section>
+
+        {/* ---------- بنر ایونت و مناسبت ---------- */}
+        <section id="settings-event-banner" className="panel settings-section">
+          <div className="panel-head">
+            <div className="settings-section-head">
+              <span className="settings-section-badge">
+                <SectionIcon name="hero" />
+              </span>
+              <div>
+                <h2>بنر ایونت و مناسبت</h2>
+                <p>بنر عکس مناسبتی بالای منوی مشتریان — تولد، سالگرد، ایام خاص</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-sales-body">
+            <label className="settings-switch-row">
+              <div className="settings-switch-text">
+                <strong>نمایش بنر</strong>
+                <p>با غیرفعال کردن، بنر به‌صورت نرم از سایت محو می‌شود و هیچ اثری از آن نمی‌ماند.</p>
+              </div>
+              <span className={`switch ${eventBannerEnabled ? 'switch-on' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={eventBannerEnabled}
+                  onChange={(event) => updateField('eventBannerEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            {eventBannerEnabled && (
+              <div className="settings-notice settings-fade-in event-banner-settings">
+                <span>
+                  تصویر بنر
+                  <em>بنر کامل عرض صفحه را می‌گیرد؛ بدون تصویر، بنر نمایش داده نمی‌شود.</em>
+                </span>
+
+                <div className="event-banner-grid event-banner-picker">
+                  <div
+                    className={`event-banner-frame event-banner-preview ${eventBannerImage ? 'has-image' : 'empty'}`}
+                    style={eventBannerImage ? { backgroundImage: `url(${eventBannerImage})` } : undefined}
+                  >
+                    {!eventBannerImage && <p>تصویری انتخاب نشده است</p>}
+                    {bannerUploading && <span className="event-banner-progress">در حال بارگذاری…</span>}
+                  </div>
+
+                  <div className="event-banner-actions">
+                    <label className="event-banner-btn">
+                      <input
+                        type="file"
+                        accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp"
+                        hidden
+                        disabled={bannerUploading}
+                        onChange={handleEventBannerUpload}
+                      />
+                      انتخاب تصویر بنر
+                    </label>
+                    {eventBannerImage ? (
+                      <button
+                        type="button"
+                        className="event-banner-btn danger"
+                        onClick={() => updateField('eventBannerImageUrl', '')}
+                        disabled={bannerUploading}
+                      >
+                        حذف تصویر
+                      </button>
+                    ) : null}
+                    {bannerError ? <p className="event-banner-error">{bannerError}</p> : null}
+                    <p className="event-banner-hint">JPEG/PNG/WebP تا ۱۰MB — عرض عریض (مثلاً ۱۶:۵ تا ۳:۱) بهتر جواب می‌دهد.</p>
+                  </div>
+                </div>
+
+                <label className="settings-notice-inner-row">
+                  <span>تیتر روی بنر (اختیاری)</span>
+                  <input
+                    type="text"
+                    maxLength="200"
+                    placeholder="مثلاً: هفتگی کتابخونه‌ای‌ها — ۲۰٪ تخفیف ویژه"
+                    value={siteSettings.eventBannerTitle ?? ''}
+                    onChange={(event) => updateField('eventBannerTitle', event.target.value)}
+                  />
+                </label>
+
+                <label className="settings-notice-inner-row">
+                  <span>لینک با کلیک روی بنر (اختیاری)</span>
+                  <input
+                    type="text"
+                    maxLength="400"
+                    dir="ltr"
+                    placeholder="https://example.com/event  (خالی = بدون لینک)"
+                    value={siteSettings.eventBannerLinkUrl ?? ''}
+                    onChange={(event) => updateField('eventBannerLinkUrl', event.target.value.trimStart())}
+                  />
+                </label>
+
+                <div className="event-banner-schedule">
+                  <span>بازهٔ نمایش (اختیاری)</span>
+                  <div className="event-banner-schedule-fields">
+                    <label>
+                      <em>از</em>
+                      <input
+                        type="datetime-local"
+                        value={toDatetimeLocal(siteSettings.eventBannerStartsAt)}
+                        onChange={(event) => updateField('eventBannerStartsAt', fromDatetimeLocal(event.target.value))}
+                      />
+                    </label>
+                    <label>
+                      <em>تا</em>
+                      <input
+                        type="datetime-local"
+                        value={toDatetimeLocal(siteSettings.eventBannerEndsAt)}
+                        onChange={(event) => updateField('eventBannerEndsAt', fromDatetimeLocal(event.target.value))}
+                      />
+                    </label>
+                  </div>
+                  <p className="event-banner-hint">
+                    اگر خالی بگذارید بنر تا وقتی فعال است نمایش داده می‌شود؛ با گذشتن «تا»، بنر خودکار محو می‌شود.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         </section>

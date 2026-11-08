@@ -4072,6 +4072,30 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<int>("DiscountMaxFailedAttempts")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("EventBannerEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("EventBannerEndsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventBannerImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("EventBannerLinkUrl")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<DateTimeOffset?>("EventBannerStartsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventBannerTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("Eyebrow")
                         .IsRequired()
                         .HasMaxLength(150)

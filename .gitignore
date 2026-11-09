@@ -34,6 +34,10 @@ backups/
 appsettings.*.local.json
 secrets.json
 
+# runtime-generated secrets (JWT key, admin bootstrap, route flags) — server owns them
+Sugarista/src/Sugarista.Api/config/app-setup.json
+Sugarista/src/Sugarista.Api/config/db-connection.json
+
 # Sugarista-PrintAgent local runtime
 Sugarista-PrintAgent/venv/
 Sugarista-PrintAgent/config.json

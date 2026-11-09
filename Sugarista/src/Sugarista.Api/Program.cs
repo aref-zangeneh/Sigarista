@@ -213,6 +213,10 @@ app.Use(async (context, next) =>
 // request is blocked except /api/setup (page + endpoints) and /health.
 app.UseMiddleware<SetupGateMiddleware>();
 
+// Special-route control (admin panel): /api/setup and public /health can be
+// opened/closed at runtime; flags persist in app-setup.json.
+app.UseMiddleware<RouteControlMiddleware>();
+
 if (dbConnectionManager.IsConfigured)
 {
     var seeded = false;

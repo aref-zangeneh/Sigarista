@@ -89,6 +89,18 @@ public sealed class AppSetupStoreTests : IDisposable
     }
 
     [Fact]
+    public void PatchRouteFlags_MergesToggles()
+    {
+        _store.PatchRouteFlags(setupPageEnabled: true, publicHealthEnabled: null);
+        _store.PatchRouteFlags(setupPageEnabled: null, publicHealthEnabled: false);
+
+        var secrets = _store.Load();
+
+        Assert.True(secrets.SetupPageEnabled);
+        Assert.False(secrets.PublicHealthEnabled);
+    }
+
+    [Fact]
     public void IsSigningKeyUsable_RejectsPlaceholders()
     {
         Assert.False(AppSetupStore.IsSigningKeyUsable(null));

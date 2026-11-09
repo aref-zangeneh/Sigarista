@@ -23,6 +23,17 @@ public sealed class AppSetupSecrets
     /// <summary>Admin panel password chosen on the first-run setup page (used for seeding only).</summary>
     public string? AdminPassword { get; set; }
 
+    /// <summary>
+    /// Route control for special paths. null = default behaviour.
+    /// <para>SetupPageEnabled: when the database is configured, the setup page
+    /// is closed by default and can be re-opened from the admin panel.</para>
+    /// <para>PublicHealthEnabled: the public /health endpoint; on by default.
+    /// The container's internal healthcheck is never affected.</para>
+    /// </summary>
+    public bool? SetupPageEnabled { get; set; }
+
+    public bool? PublicHealthEnabled { get; set; }
+
     [JsonIgnore]
     public bool HasBootstrapAdmin =>
         !string.IsNullOrWhiteSpace(AdminUsername) && !string.IsNullOrWhiteSpace(AdminPassword);
@@ -88,6 +99,8 @@ public sealed class AppSetupStore
         merged.AdminUsername = values.AdminUsername ?? merged.AdminUsername;
         merged.AdminDisplayName = values.AdminDisplayName ?? merged.AdminDisplayName;
         merged.AdminPassword = values.AdminPassword ?? merged.AdminPassword;
+        merged.SetupPageEnabled = values.SetupPageEnabled ?? merged.SetupPageEnabled;
+        merged.PublicHealthEnabled = values.PublicHealthEnabled ?? merged.PublicHealthEnabled;
 
         var directory = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(directory))
@@ -119,6 +132,14 @@ public sealed class AppSetupStore
     /// <summary>Merges-only the JWT key into the file.</summary>
     public void PatchJwtSigningKey(string signingKey) =>
         Save(new AppSetupSecrets { JwtSigningKey = signingKey });
+
+    /// <summary>Merges-only the special-route toggles (null keeps the stored value).</summary>
+    public void PatchRouteFlags(bool? setupPageEnabled, bool? publicHealthEnabled) =>
+        Save(new AppSetupSecrets
+        {
+            SetupPageEnabled = setupPageEnabled,
+            PublicHealthEnabled = publicHealthEnabled
+        });
 
     /// <summary>128 bits of entropy, URL-safe, ~43 printable characters with no placeholder words.</summary>
     public static string GenerateSigningKey()

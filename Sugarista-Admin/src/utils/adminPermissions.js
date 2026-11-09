@@ -158,6 +158,10 @@ export const PERMISSIONS = {
     view: 'admin.site-settings.view',
     update: 'admin.site-settings.update',
   },
+  'special-routes': {
+    view: 'admin.site-settings.view',
+    update: 'admin.site-settings.update',
+  },
   'admin-users': {
     view: 'admin.users.view',
     create: 'admin.users.create',

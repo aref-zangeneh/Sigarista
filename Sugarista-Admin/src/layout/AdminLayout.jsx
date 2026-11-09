@@ -195,7 +195,7 @@ const NAV_GROUPS = [
   { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'منابع انسانی', routes: ['hr'] },
-  { title: 'سیستم', routes: ['site-settings', 'admin-users', 'activity-log'] },
+  { title: 'سیستم', routes: ['site-settings', 'special-routes', 'admin-users', 'activity-log'] },
 ]
 
 export function AdminLayout() {

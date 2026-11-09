@@ -38,6 +38,7 @@ import { AssetsPage } from './pages/AssetsPage'
 import { EquipmentMaintenancePage } from './pages/EquipmentMaintenancePage'
 import { ActivityLogPage } from './pages/ActivityLogPage'
 import { SiteSettingsPage } from './pages/SiteSettingsPage'
+import { SpecialRoutesPage } from './pages/SpecialRoutesPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import './App.css'
 
@@ -74,6 +75,7 @@ const pageComponents = {
   maintenance: EquipmentMaintenancePage,
   hr: HrPage,
   'site-settings': SiteSettingsPage,
+  'special-routes': SpecialRoutesPage,
   'admin-users': AdminUsersPage,
   'activity-log': ActivityLogPage,
 }

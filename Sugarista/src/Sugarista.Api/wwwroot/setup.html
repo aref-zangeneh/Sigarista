@@ -134,10 +134,10 @@
       <br>• اگر رمز را از قبل بیرون از سایت (مثلاً با psql) عوض کرده‌اید: تیک را بردارید؛
       اول رمز جدید تست می‌شود و درست بودن‌اش اعمال می‌گردد.
     </div>
-    <label for="adminUsername">نام کاربری ادمین</label>
-    <input id="adminUsername" value="admin" autocomplete="off">
-    <label for="adminPassword">رمز ادمین</label>
-    <input id="adminPassword" type="password" autocomplete="off">
+    <label for="radminUsername">نام کاربری ادمین</label>
+    <input id="radminUsername" autocomplete="off">
+    <label for="radminPassword">رمز ادمین</label>
+    <input id="radminPassword" type="password" autocomplete="off">
     <div class="divider"></div>
     <label for="newPassword">رمز جدید دیتابیس</label>
     <input id="newPassword" type="password" autocomplete="new-password">
@@ -268,8 +268,8 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminUsername: $('adminUsername').value.trim(),
-          adminPassword: $('adminPassword').value,
+          adminUsername: $('radminUsername').value.trim(),
+          adminPassword: $('radminPassword').value,
           newPassword: $('newPassword').value,
           alterInDatabase: $('alterInDb').checked
         })
@@ -277,7 +277,7 @@
       var data = await res.json();
       showMsg($('msgRotate'), data.success ? 'ok' : 'err', data.message);
       if (data.success) {
-        $('newPassword').value = ''; $('newPassword2').value = ''; $('adminPassword').value = '';
+        $('newPassword').value = ''; $('newPassword2').value = ''; $('radminPassword').value = '';
         setTimeout(refreshStatus, 1500);
       }
     } catch (e) {

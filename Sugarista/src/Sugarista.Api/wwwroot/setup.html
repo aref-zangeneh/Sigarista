@@ -128,24 +128,21 @@
   <div id="rotateCard" class="card" style="display:none">
     <h2>تغییر رمز دیتابیس (بدون قطعی سایت)</h2>
     <div class="hint">
-      برای هر دو حالت، ابتدا باید با نام کاربری و رمز <b>ادمین پنل</b> تأیید شوید.
-      <br>• اگر هنوز رمز را در PostgreSQL عوض نکرده‌اید: تیک گزینهٔ پایین را بگذارید تا خودش
-      <span style="direction:ltr; display:inline-block;">ALTER USER</span> را اجرا کند و سایت بدون قطعی سرویس دهد.
-      <br>• اگر رمز را از قبل بیرون از سایت (مثلاً با psql) عوض کرده‌اید: تیک را بردارید؛
-      اول رمز جدید تست می‌شود و درست بودن‌اش اعمال می‌گردد.
+      برای این کار فقط <b>رمز فعلی دیتابیس</b> لازم است (همانی که الان کار میکند) —
+      هرکس بتواند به دیتابیس وصل شود میتواند رمزش را عوض کند.
+      <br>• تیک گزینهٔ پایین بماند: خودش <span style="direction:ltr; display:inline-block;">ALTER USER</span> را داخل PostgreSQL اجرا میکند و سایت بدون قطعی با رمز جدید ادامه میدهد.
+      <br>• اگر رمز را بیرون از سایت (با psql یا Adminer) از قبل عوض کرده‌اید: تیک را بردارید؛ رمز جدید تست و اعمال میشود.
     </div>
-    <label for="radminUsername">نام کاربری ادمین</label>
-    <input id="radminUsername" autocomplete="off">
-    <label for="radminPassword">رمز ادمین</label>
-    <input id="radminPassword" type="password" autocomplete="off">
+    <label for="currentPassword">رمز فعلی دیتابیس</label>
+    <input id="currentPassword" type="password" autocomplete="off">
     <div class="divider"></div>
     <label for="newPassword">رمز جدید دیتابیس</label>
     <input id="newPassword" type="password" autocomplete="new-password">
-    <label for="newPassword2">تکرار رمز جدید</label>
+    <label for="newPassword2">تکرار رمز جدید دیتابیس</label>
     <input id="newPassword2" type="password" autocomplete="new-password">
     <label class="checkbox">
       <input id="alterInDb" type="checkbox" checked>
-      <span>رمز را داخل خود PostgreSQL هم عوض کن (ALTER USER با رمز فعلی)</span>
+      <span>رمز را داخل خود PostgreSQL هم عوض کن</span>
     </label>
     <div style="margin-top:16px">
       <button id="btnRotate">تغییر رمز دیتابیس</button>
@@ -268,8 +265,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminUsername: $('radminUsername').value.trim(),
-          adminPassword: $('radminPassword').value,
+          currentPassword: $('currentPassword').value,
           newPassword: $('newPassword').value,
           alterInDatabase: $('alterInDb').checked
         })
@@ -277,7 +273,7 @@
       var data = await res.json();
       showMsg($('msgRotate'), data.success ? 'ok' : 'err', data.message);
       if (data.success) {
-        $('newPassword').value = ''; $('newPassword2').value = ''; $('radminPassword').value = '';
+        $('newPassword').value = ''; $('newPassword2').value = ''; $('currentPassword').value = '';
         setTimeout(refreshStatus, 1500);
       }
     } catch (e) {

@@ -32,8 +32,7 @@ public sealed record SetupConnectRequest(
     string? AdminPassword);
 
 public sealed record SetupRotateRequest(
-    string AdminUsername,
-    string AdminPassword,
+    string CurrentPassword,
     string NewPassword,
     bool AlterInDatabase);
 
@@ -212,8 +211,9 @@ public sealed class SetupController : ApiControllerBase
     }
 
     /// <summary>
-    /// Rotates the database password without restarting the site. Requires valid
-    /// admin credentials (the same username/password as the admin panel login).
+    /// Rotates the database password without restarting the site. The only
+    /// required secret is the database password that is currently in effect —
+    /// whoever can open the database is allowed to change its password.
     /// </summary>
     [HttpPost("rotate")]
     public async Task<ActionResult<SetupResultResponse>> Rotate(
@@ -228,27 +228,11 @@ public sealed class SetupController : ApiControllerBase
                 "دیتابیس هنوز تنظیم نشده است؛ ابتدا تنظیم اولیه را از همین صفحه انجام دهید."));
         }
 
-        // Authorization: the caller must be an active SuperAdmin whose password
-        // verifies exactly like the regular admin-panel login.
-        if (string.IsNullOrWhiteSpace(request.AdminUsername) ||
-            string.IsNullOrWhiteSpace(request.AdminPassword))
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword))
         {
-            return BadRequest(new SetupResultResponse(false, "نام کاربری و رمز ادمین الزامی است."));
-        }
-
-        var adminUser = await _dbContext.AdminUsers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                user => user.Username.ToLower() == request.AdminUsername.ToLower() &&
-                        user.IsActive &&
-                        user.Role == RoleNames.SuperAdmin,
-                cancellationToken);
-
-        if (adminUser is null || !_adminPasswordService.VerifyPassword(adminUser, request.AdminPassword))
-        {
-            return Unauthorized(new SetupResultResponse(
+            return BadRequest(new SetupResultResponse(
                 false,
-                "نام کاربری یا رمز ادمین نادرست است."));
+                "رمز فعلی دیتابیس را وارد کنید (همان که الان کار میکند)."));
         }
 
         if (string.IsNullOrWhiteSpace(request.NewPassword))
@@ -258,24 +242,37 @@ public sealed class SetupController : ApiControllerBase
 
         try
         {
+            // Proof of ownership: the password being replaced must actually
+            // open the database. No site admin accounts are involved here.
+            await DbConnectionManager.TestConnectionAsync(
+                settings.WithPassword(request.CurrentPassword),
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return Unauthorized(new SetupResultResponse(false, "رمز فعلی دیتابیس نادرست است."));
+        }
+
+        try
+        {
             if (request.AlterInDatabase)
             {
-                // 1) change the password inside PostgreSQL itself, using the
-                //    CURRENT password for the connection — the site keeps working.
-                await AlterDatabaseUserPasswordAsync(settings, request.NewPassword, cancellationToken);
+                // 1) change the password inside PostgreSQL itself, connecting
+                //    with the proven CURRENT password — the site keeps working.
+                await AlterDatabaseUserPasswordAsync(
+                    settings.WithPassword(request.CurrentPassword),
+                    request.NewPassword,
+                    cancellationToken);
 
-                // 2) tell the running app: future physical connections use the new
-                //    password (existing pooled connections stay alive).
+                // 2) tell the running app: future physical connections use the
+                //    new password (existing pooled connections stay alive).
                 _manager.UpdatePassword(request.NewPassword);
             }
             else
             {
-                // The password was already changed in PostgreSQL (e.g. via psql).
-                // Prove the new password works BEFORE switching to it.
-                await DbConnectionManager.TestConnectionAsync(
-                    settings.WithPassword(request.NewPassword),
-                    cancellationToken);
-
+                // The password was already changed in PostgreSQL (e.g. via
+                // Adminer or psql). Prove the new password works BEFORE
+                // switching to it — already verified above.
                 _manager.UpdatePassword(request.NewPassword);
             }
         }

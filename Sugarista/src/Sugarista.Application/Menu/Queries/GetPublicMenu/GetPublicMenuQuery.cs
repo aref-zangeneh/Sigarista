@@ -18,7 +18,7 @@ public record PublicFlashSaleDto(
     DateTimeOffset EndsAt,
     decimal? DiscountPercent);
 
-public record PublicMenuCategoryDto(Guid Id, string Slug, string Label, int DisplayOrder);
+public record PublicMenuCategoryDto(Guid Id, string Slug, string Label, int DisplayOrder, string? ImageUrl);
 
 public record PublicMenuItemDto(
     Guid Id,
@@ -146,7 +146,8 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 category.Id,
                 category.Slug,
                 category.Name,
-                category.DisplayOrder))
+                category.DisplayOrder,
+                category.ImageUrl))
             .ToListAsync(cancellationToken);
 
         var menuRows = await _dbContext.MenuItems

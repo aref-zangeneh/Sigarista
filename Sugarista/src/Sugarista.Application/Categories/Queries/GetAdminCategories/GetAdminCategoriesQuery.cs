@@ -7,7 +7,7 @@ namespace Sugarista.Application.Categories.Queries.GetAdminCategories;
 public record GetAdminCategoriesQuery(int Page = 1, int PageSize = 25, string? Search = null)
     : IRequest<PaginatedList<AdminCategoryDto>>;
 
-public record AdminCategoryDto(Guid Id, string Slug, string Name, int DisplayOrder, bool IsActive, int ItemCount);
+public record AdminCategoryDto(Guid Id, string Slug, string Name, int DisplayOrder, bool IsActive, int ItemCount, string? ImageUrl);
 
 public class GetAdminCategoriesQueryHandler : IRequestHandler<GetAdminCategoriesQuery, PaginatedList<AdminCategoryDto>>
 {
@@ -41,7 +41,8 @@ public class GetAdminCategoriesQueryHandler : IRequestHandler<GetAdminCategories
                 category.Name,
                 category.DisplayOrder,
                 category.IsActive,
-                category.MenuItems.Count))
+                category.MenuItems.Count,
+                category.ImageUrl))
             .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

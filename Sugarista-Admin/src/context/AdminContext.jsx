@@ -943,6 +943,7 @@ export function AdminProvider({ children }) {
         body: {
           slug: categoryForm.slug,
           name: categoryForm.name,
+          imageUrl: categoryForm.imageUrl || null,
           displayOrder: Number(categoryForm.displayOrder),
           isActive: categoryForm.isActive,
         },
@@ -1115,6 +1116,7 @@ export function AdminProvider({ children }) {
       id: category.id,
       slug: category.slug,
       name: category.name,
+      imageUrl: category.imageUrl ?? '',
       displayOrder: category.displayOrder,
       isActive: category.isActive,
     })

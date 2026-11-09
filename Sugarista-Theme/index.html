@@ -179,7 +179,7 @@
                     type="button"
                     role="tab"
                     class="category-tab"
-                    :class="{ active: selectedCategory === category.id }"
+                    :class="{ active: selectedCategory === category.id, 'category-tab--with-image': category.imageUrl }"
                     :aria-selected="selectedCategory === category.id"
                     @click="setCategory(category.id)"
                     @keydown.arrow-left.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i+1)%tabs.length].focus()"
@@ -187,6 +187,18 @@
                     @keydown.home.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[0].focus()"
                     @keydown.end.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[tabs.length-1].focus()"
                   >
+                    <template x-if="category.imageUrl">
+                      <img
+                        class="category-tab-thumb"
+                        :src="category.imageUrl"
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        width="34"
+                        height="34"
+                        aria-hidden="true"
+                      />
+                    </template>
                     <span x-text="category.label"></span>
                   </button>
                 </template>

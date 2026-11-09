@@ -179,6 +179,43 @@ a {
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
+/* Tabs that carry a small photo (bar گرم و…) — circular thumbnail rings. */
+.category-tab--with-image {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline-start: 0.45rem;
+}
+
+.category-tab-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--line);
+  box-shadow: 0 0 0 1px var(--line);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.category-tab:hover .category-tab-thumb {
+  box-shadow: 0 0 0 1.5px var(--line-strong);
+}
+
+.category-tab.active .category-tab-thumb {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+  transform: scale(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-tab-thumb {
+    transition: none;
+  }
+  .category-tab.active .category-tab-thumb {
+    transform: none;
+  }
+}
+
 .category-tab:hover {
   border-color: var(--line-strong);
   color: var(--text);

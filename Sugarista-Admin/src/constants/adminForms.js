@@ -22,6 +22,7 @@ export const emptyCategoryForm = {
   id: '',
   slug: '',
   name: '',
+  imageUrl: '',
   displayOrder: 0,
   isActive: true,
 }

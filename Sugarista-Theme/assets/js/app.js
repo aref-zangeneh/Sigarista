@@ -173,6 +173,7 @@ document.addEventListener("alpine:init", () => {
         this.categories = menuData.categories.map((category) => ({
           id: category.slug,
           label: category.label,
+          imageUrl: category.imageUrl || null,
           order: category.displayOrder
         }));
         this.items = menuData.items.map((item) => ({
@@ -1241,6 +1242,7 @@ document.addEventListener("alpine:init", () => {
         this.categories = (menuData.categories || []).map((category) => ({
           id: category.slug,
           label: category.label,
+          imageUrl: category.imageUrl || null,
           order: category.displayOrder
         }));
         this.items = (menuData.items || []).map((item) => ({

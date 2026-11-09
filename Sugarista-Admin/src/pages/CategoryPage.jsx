@@ -1,5 +1,6 @@
 import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
+import { ImageUploader } from '../components/ImageUploader'
 
 export function CategoryPage() {
   const {
@@ -44,6 +45,21 @@ export function CategoryPage() {
               }
             />
           </label>
+          <div className="form-section">
+            <h4>تصویر دسته‌بندی</h4>
+            <ImageUploader
+              label="عکس دسته‌بندی"
+              hint="در منوی مشتری، کنار نام دسته‌بندی نمایش داده میشود — عکس مربعی و تمیز بهترین نتیجه را میدهد (اختیاری)"
+              value={categoryForm.imageUrl ?? ''}
+              token={session?.token}
+              onChange={(url) =>
+                setCategoryForm((currentForm) => ({
+                  ...currentForm,
+                  imageUrl: url ?? '',
+                }))
+              }
+            />
+          </div>
           <label>
             <span>ترتیب نمایش</span>
             <input

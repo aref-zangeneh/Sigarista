@@ -3,7 +3,13 @@ using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Categories.Commands.UpsertCategory;
 
-public record UpsertCategoryCommand(Guid? Id, string Slug, string Name, int DisplayOrder, bool IsActive) : IRequest<Guid>;
+public record UpsertCategoryCommand(
+    Guid? Id,
+    string Slug,
+    string Name,
+    int DisplayOrder,
+    bool IsActive,
+    string? ImageUrl = null) : IRequest<Guid>;
 
 public class UpsertCategoryCommandValidator : AbstractValidator<UpsertCategoryCommand>
 {
@@ -12,6 +18,7 @@ public class UpsertCategoryCommandValidator : AbstractValidator<UpsertCategoryCo
         RuleFor(command => command.Slug).NotEmpty().MaximumLength(100);
         RuleFor(command => command.Name).NotEmpty().MaximumLength(150);
         RuleFor(command => command.DisplayOrder).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.ImageUrl).MaximumLength(400);
     }
 }
 
@@ -44,11 +51,13 @@ public class UpsertCategoryCommandHandler : IRequestHandler<UpsertCategoryComman
                 .FirstOrDefaultAsync(category => category.Id == categoryId, cancellationToken)
                 ?? throw new KeyNotFoundException("Category was not found.");
 
-            existingCategory.Update(normalizedSlug, request.Name, request.DisplayOrder, request.IsActive);
+            existingCategory.Update(
+                normalizedSlug, request.Name, request.DisplayOrder, request.IsActive, request.ImageUrl);
         }
         else
         {
-            _dbContext.Categories.Add(new Category(normalizedSlug, request.Name, request.DisplayOrder, request.IsActive));
+            _dbContext.Categories.Add(new Category(
+                normalizedSlug, request.Name, request.DisplayOrder, request.IsActive, request.ImageUrl));
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

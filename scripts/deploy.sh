@@ -80,9 +80,10 @@ fi
 
 # ── 5. smoke test ──────────────────────────────────────────────────────────
 say "Smoke test"
-code_health="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/health)"
-code_admin="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/admin/)"
-code_theme="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/)"
+# -L: on the production server Caddy 308-redirects HTTP -> HTTPS; follow it.
+code_health="$(curl -sL -o /dev/null -w '%{http_code}' http://127.0.0.1/health)"
+code_admin="$(curl -sL -o /dev/null -w '%{http_code}' http://127.0.0.1/admin/)"
+code_theme="$(curl -sL -o /dev/null -w '%{http_code}' http://127.0.0.1/)"
 printf '  /health  -> %s\n  /admin/  -> %s\n  /        -> %s\n' "$code_health" "$code_admin" "$code_theme"
 
 [ "$code_health" = "200" ] && [ "$code_admin" = "200" ] && [ "$code_theme" = "200" ] \

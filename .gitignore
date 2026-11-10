@@ -52,3 +52,4 @@ server-caddy/
 # image bundles are artifacts, never committed
 dist/*.tar.gz
 dist/*.tar
+Sugarista/src/Sugarista.Api/uploads/

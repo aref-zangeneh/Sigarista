@@ -42,6 +42,10 @@ services:
       AdminBootstrap__Password: ${ADMIN_BOOTSTRAP_PASSWORD:-ChangeMe123!}
       Cors__AllowedOrigins__0: ${APP_PUBLIC_ORIGIN:-http://localhost}
       Cors__AllowedOrigins__1: ${APP_ADMIN_ORIGIN:-http://localhost}
+      # Absolute-URL prefix for uploaded site images (category photos etc.).
+      # Same value as the public origin; relative upload paths become
+      # https://sugarista.ir/api/files/... automatically.
+      App__PublicOrigin: ${APP_PUBLIC_ORIGIN:-}
       Payment__Provider: ${Payment__Provider:-Mock}
       Payment__PublicBaseUrl: ${Payment__PublicBaseUrl:-http://localhost}
       Payment__AllowMockInProduction: ${Payment__AllowMockInProduction:-false}
@@ -120,6 +124,9 @@ services:
       - "80:80"
     volumes:
       - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # Read-only access to the runtime flag files the API writes
+      # (e.g. route-flag-db-admin-open controlling /db-admin).
+      - app-config:/config:ro
 
 volumes:
   postgres-data:

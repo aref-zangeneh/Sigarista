@@ -173,7 +173,7 @@ document.addEventListener("alpine:init", () => {
         this.categories = menuData.categories.map((category) => ({
           id: category.slug,
           label: category.label,
-          imageUrl: category.imageUrl || null,
+          imageUrl: this.absoluteImageUrl(category.imageUrl),
           order: category.displayOrder
         }));
         this.items = menuData.items.map((item) => ({
@@ -1242,7 +1242,7 @@ document.addEventListener("alpine:init", () => {
         this.categories = (menuData.categories || []).map((category) => ({
           id: category.slug,
           label: category.label,
-          imageUrl: category.imageUrl || null,
+          imageUrl: this.absoluteImageUrl(category.imageUrl),
           order: category.displayOrder
         }));
         this.items = (menuData.items || []).map((item) => ({
@@ -1365,6 +1365,13 @@ document.addEventListener("alpine:init", () => {
     },
     countForCategory(categoryId) {
       return this.items.filter((item) => item.category === categoryId).length;
+    },
+    // Uploaded picture paths are stored root-relative (/api/files/...);
+    // legacy rows may also be relative. Resolve them against the current
+    // origin so thumbnails never break.
+    absoluteImageUrl(url) {
+      if (!url) return null;
+      return url.startsWith('/') ? window.location.origin + url : url;
     },
     setCategory(categoryId) {
       this.selectedCategory = categoryId;

@@ -66,6 +66,35 @@ public sealed class AppSetupStore
 
     public string FilePath => _filePath;
 
+    /// <summary>
+    /// Marker file for the /db-admin (Adminer) special route. The nginx proxy
+    /// mounts the same directory read-only and proxies /db-admin/ to Adminer
+    /// only while this file exists — so the admin panel can open/close it at
+    /// runtime without restarting anything. Absent file = closed (default).
+    /// </summary>
+    private string DbAdminMarkerPath =>
+        Path.Combine(Path.GetDirectoryName(_filePath) ?? ".", "route-flag-db-admin-open");
+
+    public bool IsDbAdminOpen => File.Exists(DbAdminMarkerPath);
+
+    public void SetDbAdminOpen(bool open)
+    {
+        var directory = Path.GetDirectoryName(DbAdminMarkerPath);
+        if (open)
+        {
+            Directory.CreateDirectory(directory!);
+            File.WriteAllText(DbAdminMarkerPath, DateTimeOffset.UtcNow.ToString("O"));
+            _logger.LogInformation("The /db-admin route is now OPEN (marker written to {Marker}).", DbAdminMarkerPath);
+            return;
+        }
+
+        if (File.Exists(DbAdminMarkerPath))
+        {
+            File.Delete(DbAdminMarkerPath);
+            _logger.LogInformation("The /db-admin route is now CLOSED (marker {Marker} removed).", DbAdminMarkerPath);
+        }
+    }
+
     public AppSetupSecrets Load()
     {
         try

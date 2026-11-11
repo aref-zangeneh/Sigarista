@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Common.Extensions;
+using Sugarista.Application.Common.Interfaces;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Categories.Commands.UpsertCategory;
@@ -25,15 +27,22 @@ public class UpsertCategoryCommandValidator : AbstractValidator<UpsertCategoryCo
 public class UpsertCategoryCommandHandler : IRequestHandler<UpsertCategoryCommand, Guid>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly IPublicOriginProvider _publicOriginProvider;
 
-    public UpsertCategoryCommandHandler(IApplicationDbContext dbContext)
+    public UpsertCategoryCommandHandler(
+        IApplicationDbContext dbContext,
+        IPublicOriginProvider publicOriginProvider)
     {
         _dbContext = dbContext;
+        _publicOriginProvider = publicOriginProvider;
     }
 
     public async Task<Guid> Handle(UpsertCategoryCommand request, CancellationToken cancellationToken)
     {
         var normalizedSlug = request.Slug.Trim().ToLowerInvariant();
+        // Uploaded paths arrive root-relative; store them with the site domain
+        // attached so the URL is valid wherever it is used.
+        var imageUrl = ImageUrlNormalizer.Normalize(request.ImageUrl, _publicOriginProvider.PublicOrigin);
 
         var duplicateExists = await _dbContext.Categories
             .AnyAsync(
@@ -52,12 +61,12 @@ public class UpsertCategoryCommandHandler : IRequestHandler<UpsertCategoryComman
                 ?? throw new KeyNotFoundException("Category was not found.");
 
             existingCategory.Update(
-                normalizedSlug, request.Name, request.DisplayOrder, request.IsActive, request.ImageUrl);
+                normalizedSlug, request.Name, request.DisplayOrder, request.IsActive, imageUrl);
         }
         else
         {
             _dbContext.Categories.Add(new Category(
-                normalizedSlug, request.Name, request.DisplayOrder, request.IsActive, request.ImageUrl));
+                normalizedSlug, request.Name, request.DisplayOrder, request.IsActive, imageUrl));
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

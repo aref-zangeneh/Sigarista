@@ -79,9 +79,9 @@ public class AdminRouteFlagsController(
                 "db_admin",
                 "Adminer (مدیریت دیتابیس)",
                 "/db-admin",
-                Enabled: false,
-                Editable: false,
-                "عمداً از بیرون بسته است. برای دسترسی موقت: روی سرور SSH Tunnel بزنید — ssh -L 8081:127.0.0.1:8081 root@IP-سرور — سپس در مرورگر http://localhost:8081")
+                appSetupStore.IsDbAdminOpen,
+                Editable: true,
+                "پیش‌فرض بسته. فقط برای جلسات نگهداری بازش کنید — کار تمام شد بلافاصله ببندید. آدرس‌های بسته به صفحهٔ اصلی ریدایرکت می‌شوند.")
         });
     }
 
@@ -117,6 +117,10 @@ public class AdminRouteFlagsController(
                     publicHealthEnabled: request.Enabled);
                 break;
 
+            case "db_admin":
+                appSetupStore.SetDbAdminOpen(request.Enabled);
+                break;
+
             default:
                 return BadRequest(new
                 {
@@ -130,7 +134,7 @@ public class AdminRouteFlagsController(
             success = true,
             message = request.Enabled
                 ? "مسیر باز شد — بلافاصله از بیرون قابل دسترسی است."
-                : "مسیر بسته شد — درخواست‌های بیرونی 404 می‌گیرند؛ سایت و پنل بی‌متغیر کار میکنند."
+                : "مسیر بسته شد — آدرس‌های بیرونی به صفحهٔ اصلی ریدایرکت می‌شوند؛ سایت و پنل بی‌تغییر کار میکنند."
         });
     }
 }

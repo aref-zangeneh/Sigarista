@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IImageProcessingService, SkiaSharpImageProcessingService>();
         services.AddScoped<IImageFileStore, LocalImageFileStore>();
+        services.AddSingleton<IPublicOriginProvider, PublicOriginProvider>();
         services.AddScoped<IExcelExporter, ClosedXmlExcelExporter>();
         services.AddSingleton<IExportJobQueue, ExportJobQueue>();
         services.AddScoped<IExportFileStore, LocalFileStorageService>();

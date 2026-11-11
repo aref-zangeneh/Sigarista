@@ -45,10 +45,9 @@ public sealed class RouteControlMiddleware
                 context.Request.Path,
                 context.Connection.RemoteIpAddress);
 
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsync(
-                "{\"success\":false,\"message\":\"این مسیر از پنل مدیریت بسته شده است.\"}");
+            // Closed special routes redirect to the public homepage instead of
+            // answering 404, so a stale link lands somewhere useful.
+            context.Response.Redirect("/", permanent: false);
             return;
         }
 

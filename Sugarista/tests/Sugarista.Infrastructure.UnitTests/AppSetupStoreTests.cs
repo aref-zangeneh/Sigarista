@@ -101,6 +101,33 @@ public sealed class AppSetupStoreTests : IDisposable
     }
 
     [Fact]
+    public void DbAdminMarker_DefaultsToClosed_AndSurvivesReloads()
+    {
+        Assert.False(_store.IsDbAdminOpen);
+
+        _store.SetDbAdminOpen(true);
+        Assert.True(_store.IsDbAdminOpen);
+        // A fresh store over the same directory (restart simulation) sees it too.
+        Assert.True(MakeStore().IsDbAdminOpen);
+
+        _store.SetDbAdminOpen(false);
+        Assert.False(_store.IsDbAdminOpen);
+        // Deleting twice must be a no-op.
+        _store.SetDbAdminOpen(false);
+        Assert.False(_store.IsDbAdminOpen);
+    }
+
+    [Fact]
+    public void DbAdminMarker_LivesNextToAppSetupJson()
+    {
+        _store.SetDbAdminOpen(true);
+
+        Assert.True(
+            File.Exists(Path.Combine(_tempDir, "route-flag-db-admin-open")),
+            "the nginx proxy must find the marker in the shared app-config volume");
+    }
+
+    [Fact]
     public void IsSigningKeyUsable_RejectsPlaceholders()
     {
         Assert.False(AppSetupStore.IsSigningKeyUsable(null));

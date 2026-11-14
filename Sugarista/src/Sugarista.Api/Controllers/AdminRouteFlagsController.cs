@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sugarista.Api.Authorization;
+using Sugarista.Application.Common.Interfaces;
 using Sugarista.Infrastructure.Data.DbConnection;
 using Sugarista.Infrastructure.Settings;
 using Sugarista.Domain.Constants;
@@ -16,7 +17,8 @@ namespace Sugarista.Api.Controllers;
 [Route("api/admin/route-flags")]
 public class AdminRouteFlagsController(
     DbConnectionManager connectionManager,
-    AppSetupStore appSetupStore) : ApiControllerBase
+    AppSetupStore appSetupStore,
+    IAuditLog audit) : ApiControllerBase
 {
     public sealed record RouteFlagDto(
         string Key,
@@ -128,6 +130,8 @@ public class AdminRouteFlagsController(
                     message = "این مسیر از پنل کنترل نمی‌شود."
                 });
         }
+
+        audit.Write("route_flag_changed", $"{request.Key} → {(request.Enabled ? "open" : "closed")}");
 
         return Ok(new
         {

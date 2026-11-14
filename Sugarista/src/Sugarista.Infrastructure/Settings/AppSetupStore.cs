@@ -34,6 +34,10 @@ public sealed class AppSetupSecrets
 
     public bool? PublicHealthEnabled { get; set; }
 
+    /// <summary>Log minimum level changed from the admin panel at runtime
+    /// (e.g. "Warning"). null = follow the appsettings default.</summary>
+    public string? LoggingMinimumLevel { get; set; }
+
     [JsonIgnore]
     public bool HasBootstrapAdmin =>
         !string.IsNullOrWhiteSpace(AdminUsername) && !string.IsNullOrWhiteSpace(AdminPassword);
@@ -130,6 +134,7 @@ public sealed class AppSetupStore
         merged.AdminPassword = values.AdminPassword ?? merged.AdminPassword;
         merged.SetupPageEnabled = values.SetupPageEnabled ?? merged.SetupPageEnabled;
         merged.PublicHealthEnabled = values.PublicHealthEnabled ?? merged.PublicHealthEnabled;
+        merged.LoggingMinimumLevel = values.LoggingMinimumLevel ?? merged.LoggingMinimumLevel;
 
         var directory = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(directory))
@@ -169,6 +174,10 @@ public sealed class AppSetupStore
             SetupPageEnabled = setupPageEnabled,
             PublicHealthEnabled = publicHealthEnabled
         });
+
+    /// <summary>Merges-only the runtime log minimum level (null keeps the stored value).</summary>
+    public void PatchLoggingMinimumLevel(string? minimumLevel) =>
+        Save(new AppSetupSecrets { LoggingMinimumLevel = minimumLevel });
 
     /// <summary>128 bits of entropy, URL-safe, ~43 printable characters with no placeholder words.</summary>
     public static string GenerateSigningKey()

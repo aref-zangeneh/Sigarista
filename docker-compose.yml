@@ -67,6 +67,9 @@ services:
         condition: service_healthy
     volumes:
       - api-uploads:/app/uploads
+      # Dedicated log volume: rolling compact-JSON files live here, isolated
+      # from uploads and DB config, never lost on container recreation.
+      - api-logs:/app/logs
       # WordPress-style database configuration, written by the first-run
       # /api/setup page and kept across container recreation.
       - app-config:/app/config
@@ -132,3 +135,4 @@ volumes:
   postgres-data:
   api-uploads:
   app-config:
+  api-logs:

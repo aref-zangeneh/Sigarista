@@ -72,14 +72,18 @@ public sealed class SetupController : ApiControllerBase
         IAdminPasswordService adminPasswordService,
         IApplicationDbContext dbContext,
         AppSetupStore appSetupStore,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IAuditLog audit)
     {
         _manager = manager;
         _adminPasswordService = adminPasswordService;
         _dbContext = dbContext;
         _appSetupStore = appSetupStore;
         _environment = environment;
+        _audit = audit;
     }
+
+    private readonly IAuditLog _audit;
 
     [HttpGet]
     public IActionResult SetupPage()
@@ -281,10 +285,17 @@ public sealed class SetupController : ApiControllerBase
             return BadRequest(new SetupResultResponse(false, DescribeRotationFailure(exception)));
         }
 
+        AuditRotate(request.AlterInDatabase);
+
         return Ok(new SetupResultResponse(
             true,
             "رمز دیتابیس عوض شد و سایت بدون قطعی با رمز جدید کار می‌کند. تنظیمات در فایل ذخیره ماند."));
     }
+
+    private void AuditRotate(bool alterInDatabase) =>
+        _audit.Write(
+            "database_password_rotated",
+            alterInDatabase ? "ALTER USER applied" : "config file only");
 
     private static (DbConnectionSettings? Settings, string? InvalidMessage) BuildSettings(
         SetupTestRequest request) =>

@@ -20,6 +20,14 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
     <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.119.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
+    <!-- Lightweight logging engine: no database, no external services. The
+         sinks (console/file/seq) and the bounded-queue/dedup/redaction
+         plumbing live in Sugarista.Infrastructure/Logging. -->
+    <PackageReference Include="Serilog" Version="4.4.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Serilog.Sinks.Seq" Version="9.1.0" />
+    <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
   </ItemGroup>
 
 

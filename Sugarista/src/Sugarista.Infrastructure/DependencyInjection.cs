@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<IImageProcessingService, SkiaSharpImageProcessingService>();
         services.AddScoped<IImageFileStore, LocalImageFileStore>();
         services.AddSingleton<IPublicOriginProvider, PublicOriginProvider>();
+        // IAuditLog is registered as the bootstrap's configured instance in Program.cs
         services.AddScoped<IExcelExporter, ClosedXmlExcelExporter>();
         services.AddSingleton<IExportJobQueue, ExportJobQueue>();
         services.AddScoped<IExportFileStore, LocalFileStorageService>();

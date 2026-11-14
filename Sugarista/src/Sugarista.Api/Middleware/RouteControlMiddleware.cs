@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Hosting;
 using Sugarista.Infrastructure.Data.DbConnection;
 using Sugarista.Infrastructure.Settings;
 
@@ -22,17 +23,20 @@ public sealed class RouteControlMiddleware
     private readonly RequestDelegate _next;
     private readonly DbConnectionManager _connectionManager;
     private readonly AppSetupStore _appSetupStore;
+    private readonly IWebHostEnvironment _environment;
     private readonly ILogger<RouteControlMiddleware> _logger;
 
     public RouteControlMiddleware(
         RequestDelegate next,
         DbConnectionManager connectionManager,
         AppSetupStore appSetupStore,
+        IWebHostEnvironment environment,
         ILogger<RouteControlMiddleware> logger)
     {
         _next = next;
         _connectionManager = connectionManager;
         _appSetupStore = appSetupStore;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -83,6 +87,13 @@ public sealed class RouteControlMiddleware
                    context.Request.Headers.ContainsKey(ForwardedForHeader);
         }
 
+        // /swagger — default CLOSED in production (attack surface), always
+        // open in Development. Re-openable from the admin panel for API work.
+        if (IsSwaggerPath(path) && !(secrets.SwaggerEnabled ?? _environment.IsDevelopment()))
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -102,4 +113,7 @@ public sealed class RouteControlMiddleware
         path.Value is not null &&
         (path.Value.Equals("/health", StringComparison.OrdinalIgnoreCase) ||
          path.Value.StartsWith("/health/", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsSwaggerPath(PathString path) =>
+        path.StartsWithSegments("/swagger");
 }

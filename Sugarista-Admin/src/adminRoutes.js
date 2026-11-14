@@ -34,6 +34,7 @@ export const adminRoutes = [
   { id: 'hr', path: 'hr', label: 'منابع انسانی' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },
   { id: 'special-routes', path: 'special-routes', label: 'مسیرهای متفرقه' },
+  { id: 'system-logs', path: 'system-logs', label: 'لاگ‌ها و سلامت سیستم' },
   { id: 'admin-users', path: 'admin-users', label: 'مدیریت کاربران' },
   { id: 'activity-log', path: 'activity-log', label: 'لاگ فعالیت‌ها' },
 ].map((route) => ({

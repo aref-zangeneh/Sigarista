@@ -57,6 +57,14 @@ public class AdminRouteFlagsController(
                 "بستن این مسیر فقط دسترسی بیرونی را قطع میکند؛ بررسی سلامت خودِ کانتینر همیشه کار میکند و سایت را نمی‌اندازد."),
 
             new RouteFlagDto(
+                "swagger",
+                "مستندات API (Swagger)",
+                "/swagger",
+                secrets.SwaggerEnabled ?? false,
+                Editable: true,
+                "مستندات فنی و تست زندهٔ APIها — پیش‌فرض بسته. برای کارهای توسعه/اتصال سرویس بیرونی بازش کنید و بعد از کار ببندید؛ داخل سیستم آدرس‌های بسته ریدایرکت می‌شوند."),
+
+            new RouteFlagDto(
                 "admin_panel",
                 "پنل مدیریت",
                 "/admin/",
@@ -121,6 +129,10 @@ public class AdminRouteFlagsController(
 
             case "db_admin":
                 appSetupStore.SetDbAdminOpen(request.Enabled);
+                break;
+
+            case "swagger":
+                appSetupStore.PatchSwaggerEnabled(request.Enabled);
                 break;
 
             default:

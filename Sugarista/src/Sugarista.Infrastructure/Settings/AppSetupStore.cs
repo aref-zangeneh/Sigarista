@@ -34,6 +34,10 @@ public sealed class AppSetupSecrets
 
     public bool? PublicHealthEnabled { get; set; }
 
+    /// <summary>Swagger/API docs (/swagger). Default closed in production,
+    /// open in Development. Openable from the admin panel for maintenance.</summary>
+    public bool? SwaggerEnabled { get; set; }
+
     /// <summary>Log minimum level changed from the admin panel at runtime
     /// (e.g. "Warning"). null = follow the appsettings default.</summary>
     public string? LoggingMinimumLevel { get; set; }
@@ -134,6 +138,7 @@ public sealed class AppSetupStore
         merged.AdminPassword = values.AdminPassword ?? merged.AdminPassword;
         merged.SetupPageEnabled = values.SetupPageEnabled ?? merged.SetupPageEnabled;
         merged.PublicHealthEnabled = values.PublicHealthEnabled ?? merged.PublicHealthEnabled;
+        merged.SwaggerEnabled = values.SwaggerEnabled ?? merged.SwaggerEnabled;
         merged.LoggingMinimumLevel = values.LoggingMinimumLevel ?? merged.LoggingMinimumLevel;
 
         var directory = Path.GetDirectoryName(_filePath);
@@ -178,6 +183,10 @@ public sealed class AppSetupStore
     /// <summary>Merges-only the runtime log minimum level (null keeps the stored value).</summary>
     public void PatchLoggingMinimumLevel(string? minimumLevel) =>
         Save(new AppSetupSecrets { LoggingMinimumLevel = minimumLevel });
+
+    /// <summary>Merges-only the Swagger toggle (null keeps the stored value).</summary>
+    public void PatchSwaggerEnabled(bool? enabled) =>
+        Save(new AppSetupSecrets { SwaggerEnabled = enabled });
 
     /// <summary>128 bits of entropy, URL-safe, ~43 printable characters with no placeholder words.</summary>
     public static string GenerateSigningKey()

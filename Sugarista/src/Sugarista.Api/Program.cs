@@ -178,7 +178,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// Schema IDs use the full type name: two DTOs may share a short name
+// (e.g. AdminMenuItemOptionDto in different namespaces) and would otherwise
+// collide, failing swagger.json generation entirely.
+builder.Services.AddSwaggerGen(options =>
+    options.CustomSchemaIds(type => type.FullName!.Replace("+", ".")));
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
@@ -313,10 +317,14 @@ else
     _ = RunBackgroundSeederAsync(app, setupProvidedAdmin, appSetupStore);
 }
 
+// Swagger is registered in every environment; in production it stays behind
+// RouteControlMiddleware (default closed, openable from the admin panel).
+// In Development it is always open.
+app.UseSwagger();
+app.UseSwaggerUI();
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
     app.UseHttpsRedirection();
 }
 

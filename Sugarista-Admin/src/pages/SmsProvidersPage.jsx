@@ -18,6 +18,7 @@ const EMPTY_FORM = {
   password: '',
   timeoutSeconds: 30,
   extraSettingsJson: '',
+  deliveryWebhookSecret: '',
   isEnabled: true,
   isDefault: false,
   senderLines: [],
@@ -59,6 +60,7 @@ export function SmsProvidersPage() {
         password: form.password || null,
         timeoutSeconds: Number(form.timeoutSeconds) || 30,
         extraSettingsJson: form.extraSettingsJson || null,
+        deliveryWebhookSecret: form.deliveryWebhookSecret || null,
         isEnabled: form.isEnabled,
         isDefault: form.isDefault,
         senderLines: form.senderLines.filter((line) => line.number.trim()),
@@ -180,6 +182,20 @@ export function SmsProvidersPage() {
             <input dir="ltr" value={form.extraSettingsJson} onChange={(event) => setForm({ ...form, extraSettingsJson: event.target.value })} placeholder='{"key": "value"}' />
           </label>
           <label>
+            کلید Webhook گزارش تحویل {form.id ? '(خالی = حفظ مقدار فعلی)' : '(خالی = تولید خودکار)'}
+            <div className="sms-row" style={{ flex: 'initial' }}>
+              <input dir="ltr" value={form.deliveryWebhookSecret} onChange={(event) => setForm({ ...form, deliveryWebhookSecret: event.target.value })} placeholder="خالی برای تولید خودکار" />
+              <button
+                type="button"
+                className="sms-inline-btn"
+                style={{ flex: 'initial' }}
+                onClick={() => setForm({ ...form, deliveryWebhookSecret: [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, '0')).join('') })}
+              >
+                تولید کلید
+              </button>
+            </div>
+          </label>
+          <label>
             خطوط ارسال (Sender Lines)
             {form.senderLines.map((line, index) => (
               <div className="sms-row" key={index} style={{ flex: 'initial', marginTop: 6 }}>
@@ -270,6 +286,20 @@ export function SmsProvidersPage() {
                   </td>
                   <td>{formatSmsDateTime(provider.lastSuccessfulConnectionAt)}</td>
                   <td className="sms-row" style={{ flex: 'initial' }}>
+                    {provider.supportsDeliveryReport && provider.deliveryWebhookSecret ? (
+                      <button
+                        type="button"
+                        className="sms-inline-btn"
+                        title="کپی URL وب‌هوک برای تنظیم در پنل Provider"
+                        onClick={() => {
+                          const url = `${window.location.origin}/api/sms/webhook/${provider.id}/${provider.deliveryWebhookSecret}`
+                          navigator.clipboard?.writeText(url)
+                          alert(`URL وب‌هوک کپی شد:\n${url}`)
+                        }}
+                      >
+                        URL وب‌هوک
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="sms-inline-btn"
@@ -283,6 +313,7 @@ export function SmsProvidersPage() {
                         password: '',
                         timeoutSeconds: provider.timeoutSeconds,
                         extraSettingsJson: provider.extraSettingsJson ?? '',
+                        deliveryWebhookSecret: '',
                         isEnabled: provider.isEnabled,
                         isDefault: provider.isDefault,
                         senderLines: provider.senderLines.map((line) => ({ number: line.number, label: line.label ?? '', isDefault: line.isDefaultLine })),

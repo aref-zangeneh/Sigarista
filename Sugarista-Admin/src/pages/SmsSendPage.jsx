@@ -15,6 +15,7 @@ export function SmsSendPage() {
   const [kind, setKind] = useState('Service')
   const [preview, setPreview] = useState(null)
   const [result, setResult] = useState(null)
+  const [senderLine, setSenderLine] = useState('')
   const [sending, setSending] = useState(false)
   const [flash, setFlash] = useState('')
   const [error, setError] = useState('')
@@ -27,6 +28,9 @@ export function SmsSendPage() {
       .then((list) => setTemplates((list ?? []).filter((template) => template.isActive)))
       .catch(() => {})
   }, [session.token])
+
+  const selectedProvider = providers.find((provider) => provider.id === providerId)
+  const providerLines = selectedProvider?.senderLines ?? []
 
   const runPreview = async () => {
     setError('')
@@ -59,6 +63,7 @@ export function SmsSendPage() {
           templateId: templateId || null,
           body: templateId ? null : body,
           kind,
+          senderLine: senderLine || null,
         },
       })
       setResult(data)
@@ -101,11 +106,22 @@ export function SmsSendPage() {
           <div className="sms-row">
             <label>
               سرویس‌دهنده
-              <select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
+              <select value={providerId} onChange={(event) => { setProviderId(event.target.value); setSenderLine('') }}>
                 <option value="">پیش‌فرض سیستم</option>
                 {providers.map((provider) => (
                   <option key={provider.id} value={provider.id}>
                     {provider.name}{provider.isEnabled ? '' : ' (غیرفعال)'}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              خط ارسال
+              <select value={senderLine} onChange={(event) => setSenderLine(event.target.value)} disabled={!providerLines.length}>
+                <option value="">خط پیش‌فرض Provider</option>
+                {providerLines.map((line) => (
+                  <option key={line.id} value={line.number}>
+                    {line.number}{line.label ? ` (${line.label})` : ''}{line.isDefaultLine ? ' ⭐' : ''}
                   </option>
                 ))}
               </select>

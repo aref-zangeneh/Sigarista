@@ -8,7 +8,16 @@ public enum SmsProviderType
 
     Kavenegar = 1,
 
-    SmsIr = 2
+    SmsIr = 2,
+
+    /// <summary>payamak-panel.com REST API (username/password auth).</summary>
+    Melipayamak = 3,
+
+    /// <summary>api.ghasedak.me REST v2 (apikey header).</summary>
+    Ghasedak = 4,
+
+    /// <summary>api.ippanel.com REST v1 (API key header).</summary>
+    IpPanel = 5
 }
 
 /// <summary>Message categories. Marketing messages require recipient consent.</summary>

@@ -4525,6 +4525,13 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<Guid>("ProviderId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SenderLine")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int>("SentCount")
                         .HasColumnType("integer");
 
@@ -4548,6 +4555,8 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("Status", "ScheduledAt");
 
                     b.ToTable("SmsCampaigns");
                 });
@@ -4623,6 +4632,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("character varying(400)");
 
+                    b.Property<bool>("IsSmart")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -4633,6 +4645,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
+
+                    b.Property<string>("SmartFilterJson")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.HasKey("Id");
 
@@ -4801,6 +4817,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
+
+                    b.Property<string>("DeliveryWebhookSecret")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("EncryptedApiKey")
                         .HasMaxLength(2048)

@@ -54,6 +54,13 @@ public class SmsProvider : BaseAuditableEntity
     /// <summary>Provider-specific knobs the adapter understands (JSON).</summary>
     public string? ExtraSettingsJson { get; private set; }
 
+    /// <summary>
+    /// Shared secret for the DELIVERY-REPORT webhook URL the admin configures
+    /// in the provider panel (api/sms/webhook/{providerId}/{secret}). Not a
+    /// credential — it must be visible so the panel can show the full URL.
+    /// </summary>
+    public string? DeliveryWebhookSecret { get; private set; }
+
     /// <summary>Last time an API call to this provider succeeded.</summary>
     public DateTimeOffset? LastSuccessfulConnectionAt { get; private set; }
 
@@ -87,6 +94,12 @@ public class SmsProvider : BaseAuditableEntity
         TimeoutSeconds = timeoutSeconds is <= 0 or > 120 ? 30 : timeoutSeconds;
         ExtraSettingsJson = string.IsNullOrWhiteSpace(extraSettingsJson) ? null : extraSettingsJson;
     }
+
+    /// <summary>Sets (or regenerates) the delivery-report webhook secret.</summary>
+    public void SetDeliveryWebhookSecret(string secret) =>
+        DeliveryWebhookSecret = string.IsNullOrWhiteSpace(secret)
+            ? null
+            : secret.Trim();
 
     public void MarkConnectionSucceeded(DateTimeOffset atUtc)
     {

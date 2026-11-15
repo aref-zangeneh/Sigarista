@@ -16,7 +16,9 @@ public class SmsCampaign : BaseAuditableEntity
         Guid? templateId,
         Guid providerId,
         IReadOnlyCollection<string> recipients,
-        string? createdBy)
+        string? createdBy,
+        DateTimeOffset? scheduledAt = null,
+        string? senderLine = null)
     {
         Title = title.Trim();
         Body = body;
@@ -26,6 +28,8 @@ public class SmsCampaign : BaseAuditableEntity
         TotalRecipients = recipients.Count;
         CreatedBy = createdBy;
         CreatedAt = DateTimeOffset.UtcNow;
+        ScheduledAt = scheduledAt;
+        SenderLine = string.IsNullOrWhiteSpace(senderLine) ? null : senderLine.Trim();
         Status = SmsCampaignStatus.Pending;
     }
 
@@ -44,6 +48,15 @@ public class SmsCampaign : BaseAuditableEntity
     public Guid ProviderId { get; private set; }
 
     public SmsCampaignStatus Status { get; private set; }
+
+    /// <summary>
+    /// When set, the runner defers the campaign until this moment (UTC).
+    /// Scheduled sends stay Pending and are picked up only when due.
+    /// </summary>
+    public DateTimeOffset? ScheduledAt { get; private set; }
+
+    /// <summary>Sender line chosen by the admin; null = provider default line.</summary>
+    public string? SenderLine { get; private set; }
 
     public int TotalRecipients { get; private set; }
 

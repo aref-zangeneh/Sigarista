@@ -30,6 +30,22 @@ public sealed class SmsProviderGatewayFactory(
                 loggerFactory.CreateLogger<SmsIrGateway>(),
                 credentials.ApiKey,
                 credentials.BaseUrl),
+            SmsProviderType.Melipayamak => new MelipayamakGateway(
+                httpClient,
+                loggerFactory.CreateLogger<MelipayamakGateway>(),
+                credentials.Username,
+                credentials.Password,
+                credentials.BaseUrl),
+            SmsProviderType.Ghasedak => new GhasedakGateway(
+                httpClient,
+                loggerFactory.CreateLogger<GhasedakGateway>(),
+                credentials.ApiKey,
+                credentials.BaseUrl),
+            SmsProviderType.IpPanel => new IpPanelGateway(
+                httpClient,
+                loggerFactory.CreateLogger<IpPanelGateway>(),
+                credentials.ApiKey,
+                credentials.BaseUrl),
             _ => new LoggingGateway(loggerFactory.CreateLogger<LoggingGateway>())
         };
     }

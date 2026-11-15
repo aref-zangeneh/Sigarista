@@ -26,6 +26,7 @@ public class SmsConfiguration :
         builder.Property(provider => provider.EncryptedPassword).HasMaxLength(512);
         builder.Property(provider => provider.ExtraSettingsJson).HasMaxLength(2000);
         builder.Property(provider => provider.LastConnectionError).HasMaxLength(520);
+        builder.Property(provider => provider.DeliveryWebhookSecret).HasMaxLength(128);
         builder.HasIndex(provider => provider.ProviderType);
         builder.HasMany(provider => provider.SenderLines)
             .WithOne()
@@ -58,7 +59,9 @@ public class SmsConfiguration :
     {
         builder.Property(campaign => campaign.Title).HasMaxLength(160).IsRequired();
         builder.Property(campaign => campaign.Body).HasMaxLength(1400).IsRequired();
+        builder.Property(campaign => campaign.SenderLine).HasMaxLength(20);
         builder.HasIndex(campaign => campaign.Status);
+        builder.HasIndex(campaign => new { campaign.Status, campaign.ScheduledAt });
     }
 
     public void Configure(EntityTypeBuilder<SmsContact> builder)
@@ -77,6 +80,7 @@ public class SmsConfiguration :
     {
         builder.Property(group => group.Name).HasMaxLength(120).IsRequired();
         builder.Property(group => group.Description).HasMaxLength(400);
+        builder.Property(group => group.SmartFilterJson).HasMaxLength(500);
         builder.HasIndex(group => group.Name).IsUnique();
     }
 

@@ -70,6 +70,7 @@ public sealed class SmsGateway(
             body,
             settings,
             attemptNumber: 0,
+            request.SenderLine, // admin-selected line beats the provider default
             cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -117,6 +118,8 @@ public sealed class SmsGateway(
     public async Task<SmsCampaign> CreateCampaignAsync(
         SmsBulkPreviewRequest request,
         string title,
+        DateTimeOffset? scheduledAt,
+        string? senderLine,
         string? createdBy,
         CancellationToken cancellationToken = default)
     {
@@ -158,7 +161,11 @@ public sealed class SmsGateway(
                 ?? throw new InvalidOperationException("هیچ سرویس‌دهنده فعالی تنظیم نشده است.");
 
         var rendered = SmsTextUtilities.RenderTemplate(body, SmsTextUtilities.SampleValues);
-        var campaign = new SmsCampaign(title, rendered, request.Kind, request.TemplateId, provider.Id, final, createdBy);
+        // The chosen line is validated against THIS provider's lines; unknown
+        // lines fall back to the provider default rather than failing at send time.
+        var campaign = new SmsCampaign(
+            title, rendered, request.Kind, request.TemplateId, provider.Id, final, createdBy,
+            scheduledAt, CoalesceSenderLine(senderLine, provider));
         dbContext.SmsCampaigns.Add(campaign);
 
         var batchSize = Math.Max(1, settings.BatchSize);
@@ -237,11 +244,16 @@ public sealed class SmsGateway(
         string body,
         SmsGlobalSettings settings,
         int attemptNumber,
+        string? requestedSenderLine,
         CancellationToken cancellationToken)
     {
         message.AttachAttempt(primary.Id, attemptNumber);
         var gateway = gatewayFactory.Create(resolver.Decrypt(primary));
-        var result = await gateway.SendAsync(message.Mobile, body, SenderLineFor(primary), cancellationToken);
+        var result = await gateway.SendAsync(
+            message.Mobile,
+            body,
+            CoalesceSenderLine(requestedSenderLine, primary),
+            cancellationToken);
         ApplyResult(message, result, primary, attemptNumber);
         await RecordHealthAndLogAsync(primary, result, "send", cancellationToken);
 
@@ -269,7 +281,7 @@ public sealed class SmsGateway(
             "SMS failover: primary {Primary} failed ({Error}); retrying via {Failover}.",
             primary.Name, result.Error, failoverProvider.Name);
 
-        return await SendWithFailoverAsync(message, failoverProvider, body, settings, attemptNumber + 1, cancellationToken);
+        return await SendWithFailoverAsync(message, failoverProvider, body, settings, attemptNumber + 1, null, cancellationToken);
     }
 
     private void ApplyResult(SmsMessage message, SmsSendResult result, SmsProvider provider, int attemptNumber)
@@ -311,6 +323,14 @@ public sealed class SmsGateway(
     private static string? SenderLineFor(SmsProvider provider) =>
         provider.SenderLines.FirstOrDefault(line => line.IsDefaultLine)?.Number
         ?? provider.SenderLines.FirstOrDefault()?.Number;
+
+    /// <summary>An admin-selected line only applies to the provider it was chosen for.</summary>
+    private static string? CoalesceSenderLine(string? requestedSenderLine, SmsProvider provider) =>
+        string.IsNullOrWhiteSpace(requestedSenderLine)
+            ? SenderLineFor(provider)
+            : provider.SenderLines.Any(line => line.Number == requestedSenderLine)
+                ? requestedSenderLine
+                : SenderLineFor(provider);
 
     private async Task<string> ResolveBodyAsync(
         SmsSendRequest request,
@@ -402,16 +422,49 @@ public sealed class SmsGateway(
 
         if (request.GroupIds.Count > 0)
         {
+            var groups = await dbContext.SmsContactGroups
+                .AsNoTracking()
+                .Where(group => request.GroupIds.Contains(group.Id))
+                .ToListAsync(cancellationToken);
+
+            var groupIds = groups.Select(group => group.Id).ToList();
+
+            // Ordinary groups: fixed membership table.
             var memberMobiles = await dbContext.SmsContactGroupMembers
                 .AsNoTracking()
-                .Where(member => request.GroupIds.Contains(member.GroupId))
+                .Where(member => groupIds.Contains(member.GroupId))
                 .Join(dbContext.SmsContacts,
                     member => member.ContactId,
                     contact => contact.Id,
                     (member, contact) => contact.Mobile)
                 .ToListAsync(cancellationToken);
-
             candidates.AddRange(memberMobiles);
+
+            // Smart groups: membership is computed from the filter at send time.
+            foreach (var group in groups.Where(item => item.IsSmart))
+            {
+                var filter = SmsSmartContactFilter.FromJsonOrNull(group.SmartFilterJson)
+                             ?? SmsSmartContactFilter.Default;
+                if (filter.IsEmpty)
+                {
+                    // Empty smart filter is treated as "all active contacts".
+                    filter = filter with { IsActive = true };
+                }
+
+                var now = DateTimeOffset.UtcNow;
+                var cutoff = filter.AddedWithinDays is > 0
+                    ? new DateTimeOffset(now.DateTime.Date.AddDays(-filter.AddedWithinDays.Value), TimeSpan.Zero)
+                    : (DateTimeOffset?)null;
+                var smartMobiles = await dbContext.SmsContacts
+                    .AsNoTracking()
+                    .Where(contact =>
+                        (filter.IsActive == null || contact.IsActive == filter.IsActive)
+                        && (filter.MarketingConsent == null || contact.MarketingConsent == filter.MarketingConsent)
+                        && (cutoff == null || contact.CreatedAt >= cutoff))
+                    .Select(contact => contact.Mobile)
+                    .ToListAsync(cancellationToken);
+                candidates.AddRange(smartMobiles);
+            }
         }
 
         return (candidates, invalid);

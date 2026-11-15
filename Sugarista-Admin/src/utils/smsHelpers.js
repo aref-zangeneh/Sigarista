@@ -40,6 +40,9 @@ export const SMS_PROVIDER_TYPES = [
   { value: 'Logging', label: 'Logging (فقط ثبت)' },
   { value: 'Kavenegar', label: 'کاوه‌نگار' },
   { value: 'SmsIr', label: 'SMS.ir' },
+  { value: 'Melipayamak', label: 'ملی پیامک' },
+  { value: 'Ghasedak', label: 'قاصدک' },
+  { value: 'IpPanel', label: 'آی‌پنل' },
 ]
 
 export const SMS_CAMPAIGN_STATUS_LABELS = {
@@ -48,6 +51,15 @@ export const SMS_CAMPAIGN_STATUS_LABELS = {
   Completed: 'تکمیل‌شده',
   Cancelled: 'لغوشده',
   Failed: 'ناموفق',
+}
+
+export function campaignStatusLabel(campaign) {
+  if (campaign.status === 'Pending'
+      && campaign.scheduledAt
+      && new Date(campaign.scheduledAt) > new Date()) {
+    return 'زمان‌بندی‌شده'
+  }
+  return SMS_CAMPAIGN_STATUS_LABELS[campaign.status] ?? campaign.status
 }
 
 export const SMS_TEMPLATE_PLACEHOLDERS = [

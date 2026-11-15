@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { useAdmin } from '../context/AdminContext'
 import {
-  SMS_CAMPAIGN_STATUS_LABELS,
   SMS_KIND_LABELS,
+  campaignStatusLabel,
+  formatSmsDateTime,
   formatToman,
   toPersian,
 } from '../utils/smsHelpers'
@@ -25,6 +26,8 @@ export function SmsBulkPage() {
   const [manualNumbers, setManualNumbers] = useState('')
   const [csvRows, setCsvRows] = useState([])
   const [providerId, setProviderId] = useState('')
+  const [senderLine, setSenderLine] = useState('')
+  const [scheduledAt, setScheduledAt] = useState('')
   const [templateId, setTemplateId] = useState('')
   const [body, setBody] = useState('')
   const [kind, setKind] = useState('Marketing')
@@ -34,6 +37,9 @@ export function SmsBulkPage() {
   const [submitting, setSubmitting] = useState(false)
   const [flash, setFlash] = useState('')
   const [error, setError] = useState('')
+
+  const selectedProvider = providers.find((provider) => provider.id === providerId)
+  const providerLines = selectedProvider?.senderLines ?? []
 
   const loadCampaigns = async () => {
     try {
@@ -84,6 +90,7 @@ export function SmsBulkPage() {
           templateId: templateId || null,
           body: templateId ? null : body,
           kind,
+          senderLine: senderLine || null,
         },
       })
       setPreview(data)
@@ -108,6 +115,8 @@ export function SmsBulkPage() {
           templateId: templateId || null,
           body: templateId ? null : body,
           kind,
+          senderLine: senderLine || null,
+          scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
         },
       })
       setFlash(`ارسال گروهی ثبت شد و در پس‌زمینه پردازش می‌شود (${toPersian(data.totalRecipients)} گیرنده).`)
@@ -179,11 +188,22 @@ export function SmsBulkPage() {
           <div className="sms-row">
             <label>
               سرویس‌دهنده
-              <select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
+              <select value={providerId} onChange={(event) => { setProviderId(event.target.value); setSenderLine('') }}>
                 <option value="">پیش‌فرض سیستم</option>
                 {providers.map((provider) => (
                   <option key={provider.id} value={provider.id}>
                     {provider.name}{provider.supportsBulk ? ' (ارسال بومی گروهی)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              خط ارسال
+              <select value={senderLine} onChange={(event) => setSenderLine(event.target.value)} disabled={!providerLines.length}>
+                <option value="">خط پیش‌فرض Provider</option>
+                {providerLines.map((line) => (
+                  <option key={line.id} value={line.number}>
+                    {line.number}{line.label ? ` (${line.label})` : ''}{line.isDefaultLine ? ' ⭐' : ''}
                   </option>
                 ))}
               </select>
@@ -195,6 +215,14 @@ export function SmsBulkPage() {
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
+            </label>
+            <label>
+              ارسال زمان‌بندی‌شده (اختیاری)
+              <input
+                type="datetime-local"
+                value={scheduledAt}
+                onChange={(event) => setScheduledAt(event.target.value)}
+              />
             </label>
           </div>
           <label>
@@ -287,21 +315,27 @@ export function SmsBulkPage() {
               <tr>
                 <th>عنوان</th>
                 <th>وضعیت</th>
+                <th>زمان‌بندی</th>
                 <th>گیرندگان</th>
                 <th>موفق</th>
                 <th>ناموفق</th>
-                <th>ایجاد</th>
+                <th>خط ارسال</th>
               </tr>
             </thead>
             <tbody>
               {campaigns.map((campaign) => (
                 <tr key={campaign.id}>
                   <td>{campaign.title}</td>
-                  <td>{SMS_CAMPAIGN_STATUS_LABELS[campaign.status] ?? campaign.status}</td>
+                  <td>{campaignStatusLabel(campaign)}</td>
+                  <td>
+                    {campaign.scheduledAt
+                      ? formatSmsDateTime(campaign.scheduledAt)
+                      : '—'}
+                  </td>
                   <td>{toPersian(campaign.totalRecipients)}</td>
                   <td>{toPersian(campaign.sentCount)}</td>
                   <td>{toPersian(campaign.failedCount)}</td>
-                  <td>{campaign.cancelRequested ? 'در حال لغو…' : '—'}</td>
+                  <td dir="ltr">{campaign.senderLine ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

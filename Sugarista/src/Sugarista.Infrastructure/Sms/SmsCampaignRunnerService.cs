@@ -59,7 +59,9 @@ public sealed class SmsCampaignRunnerService(
         var appSetupStore = scope.ServiceProvider.GetRequiredService<AppSetupStore>();
 
         var campaign = await dbContext.SmsCampaigns
-            .Where(item => item.Status == SmsCampaignStatus.Pending || item.Status == SmsCampaignStatus.Processing)
+            .Where(item => (item.Status == SmsCampaignStatus.Pending || item.Status == SmsCampaignStatus.Processing)
+                           // Scheduled campaigns are picked up only when due.
+                           && (item.ScheduledAt == null || item.ScheduledAt <= DateTimeOffset.UtcNow))
             .OrderBy(item => item.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
         if (campaign is null)
@@ -120,7 +122,7 @@ public sealed class SmsCampaignRunnerService(
 
             if (gateway.SupportsBulkSend)
             {
-                var bulk = await gateway.SendBulkAsync(mobiles, batchBody, SenderLineFor(provider), cancellationToken);
+                var bulk = await gateway.SendBulkAsync(mobiles, batchBody, SenderLineFor(provider, campaign.SenderLine), cancellationToken);
                 if (bulk.Success)
                 {
                     results.AddRange(bulk.Items);
@@ -212,7 +214,7 @@ public sealed class SmsCampaignRunnerService(
         {
             for (var attempt = 0; ; attempt++)
             {
-                var result = await gateway.SendAsync(message.Mobile, message.Body, SenderLineFor(provider), cancellationToken);
+                var result = await gateway.SendAsync(message.Mobile, message.Body, SenderLineFor(provider, campaign.SenderLine), cancellationToken);
 
                 var transientFailure = result.Success is false
                                        && result.Status != SmsOutcomeStatus.Rejected
@@ -265,7 +267,13 @@ public sealed class SmsCampaignRunnerService(
         await resolver.RecordLogAsync(provider, action, result.Success, result.Error ?? result.ProviderResponse, cancellationToken);
     }
 
-    private static string? SenderLineFor(SmsProvider provider) =>
-        provider.SenderLines.FirstOrDefault(line => line.IsDefaultLine)?.Number
-        ?? provider.SenderLines.FirstOrDefault()?.Number;
+    /// <summary>The admin-selected line (validated at creation) beats the provider default.</summary>
+    private static string? SenderLineFor(SmsProvider provider, string? campaignLine) =>
+        string.IsNullOrWhiteSpace(campaignLine)
+            ? provider.SenderLines.FirstOrDefault(line => line.IsDefaultLine)?.Number
+              ?? provider.SenderLines.FirstOrDefault()?.Number
+            : provider.SenderLines.Any(line => line.Number == campaignLine)
+                ? campaignLine
+                : provider.SenderLines.FirstOrDefault(line => line.IsDefaultLine)?.Number
+                  ?? provider.SenderLines.FirstOrDefault()?.Number;
 }

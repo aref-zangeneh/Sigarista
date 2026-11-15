@@ -9,6 +9,10 @@ export function SmsContactGroupsPage() {
   const [groups, setGroups] = useState([])
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [isSmart, setIsSmart] = useState(false)
+  const [filterActive, setFilterActive] = useState('true')
+  const [filterConsent, setFilterConsent] = useState('')
+  const [filterDays, setFilterDays] = useState('')
   const [editId, setEditId] = useState(null)
   const [openGroupId, setOpenGroupId] = useState(null)
   const [members, setMembers] = useState({ items: [], total: 0 })
@@ -37,21 +41,38 @@ export function SmsContactGroupsPage() {
     }
   }
 
+  const resetForm = () => {
+    setName('')
+    setDescription('')
+    setIsSmart(false)
+    setFilterActive('true')
+    setFilterConsent('')
+    setFilterDays('')
+    setEditId(null)
+  }
+
+  const buildSmartFilter = () => {
+    if (!isSmart) return null
+    return {
+      IsActive: filterActive === '' ? null : filterActive === 'true',
+      MarketingConsent: filterConsent === '' ? null : filterConsent === 'true',
+      AddedWithinDays: filterDays ? Number(filterDays) : null,
+    }
+  }
+
   const save = async () => {
     setBusy(true)
     setError('')
     setFlash('')
     try {
-      const payload = { name, description: description || null }
+      const payload = { name, description: description || null, smartFilter: buildSmartFilter() }
       if (editId) {
         await apiRequest(`/admin/sms/groups/${editId}`, { method: 'PUT', token: session.token, body: payload })
       } else {
         await apiRequest('/admin/sms/groups', { method: 'POST', token: session.token, body: payload })
       }
       setFlash(editId ? 'گروه ویرایش شد.' : 'گروه ساخته شد.')
-      setName('')
-      setDescription('')
-      setEditId(null)
+      resetForm()
       await load()
     } catch (requestError) {
       setError(getReadableError(requestError))
@@ -86,6 +107,8 @@ export function SmsContactGroupsPage() {
   }
 
   const removeMember = async (groupId, contactId) => {
+    const group = groups.find((entry) => entry.id === groupId)
+    if (!group || group.isSmart) return // smart-group membership is filter-based, not editable
     setBusy(true)
     try {
       await apiRequest('/admin/sms/contacts/remove-from-groups', {
@@ -123,12 +146,47 @@ export function SmsContactGroupsPage() {
               <input value={description} onChange={(event) => setDescription(event.target.value)} />
             </label>
           </div>
+          <label className="sms-checkbox-row" style={{ flex: 'initial' }}>
+            <input type="checkbox" checked={isSmart} onChange={(event) => setIsSmart(event.target.checked)} />
+            گروه هوشمند (اعضا به‌صورت خودکار از فیلتر زیر محاسبه می‌شوند)
+          </label>
+          {isSmart ? (
+            <div className="sms-row">
+              <label>
+                وضعیت مخاطب
+                <select value={filterActive} onChange={(event) => setFilterActive(event.target.value)}>
+                  <option value="true">فعال</option>
+                  <option value="false">غیرفعال</option>
+                  <option value="">بدون شرط</option>
+                </select>
+              </label>
+              <label>
+                رضایت تبلیغات
+                <select value={filterConsent} onChange={(event) => setFilterConsent(event.target.value)}>
+                  <option value="">بدون شرط</option>
+                  <option value="true">دارای رضایت</option>
+                  <option value="false">بدون رضایت</option>
+                </select>
+              </label>
+              <label>
+                اضافه‌شده در روز اخیر
+                <input
+                  type="number"
+                  min={1}
+                  max={3650}
+                  value={filterDays}
+                  onChange={(event) => setFilterDays(event.target.value)}
+                  placeholder="مثلاً ۳۰ (اختیاری)"
+                />
+              </label>
+            </div>
+          ) : null}
           <div className="sms-actions">
             <button type="button" className="sms-btn" disabled={busy || !name.trim()} onClick={save}>
               {editId ? 'ذخیره' : 'ایجاد گروه'}
             </button>
             {editId ? (
-              <button type="button" className="sms-btn sms-btn--secondary" onClick={() => { setEditId(null); setName(''); setDescription('') }}>
+              <button type="button" className="sms-btn sms-btn--secondary" onClick={resetForm}>
                 انصراف
               </button>
             ) : null}
@@ -152,8 +210,15 @@ export function SmsContactGroupsPage() {
               {groups.map((group) => (
                 <>
                   <tr key={group.id}>
-                    <td>{group.name}</td>
-                    <td>{group.description ?? '—'}</td>
+                    <td>
+                      {group.name}
+                      {group.isSmart ? <span className="sms-badge tone-info" style={{ marginInlineStart: 6 }}>هوشمند</span> : null}
+                    </td>
+                    <td>
+                      {group.isSmart
+                        ? `⚙ ${group.smartFilterDescription ?? 'فیلتر هوشمند'}`
+                        : group.description ?? '—'}
+                    </td>
                     <td>{toPersian(group.memberCount)}</td>
                     <td className="sms-row" style={{ flex: 'initial' }}>
                       <button type="button" className="sms-inline-btn" onClick={() => toggleMembers(group)}>
@@ -162,7 +227,15 @@ export function SmsContactGroupsPage() {
                       <button
                         type="button"
                         className="sms-inline-btn"
-                        onClick={() => { setEditId(group.id); setName(group.name); setDescription(group.description ?? '') }}
+                        onClick={() => {
+                          setEditId(group.id)
+                          setName(group.name)
+                          setDescription(group.description ?? '')
+                          setIsSmart(group.isSmart)
+                          setFilterActive(group.smartFilter?.isActive === null || group.smartFilter?.isActive === undefined ? '' : String(group.smartFilter.isActive))
+                          setFilterConsent(group.smartFilter?.marketingConsent === null || group.smartFilter?.marketingConsent === undefined ? '' : String(group.smartFilter.marketingConsent))
+                          setFilterDays(group.smartFilter?.addedWithinDays ? String(group.smartFilter.addedWithinDays) : '')
+                        }}
                       >
                         ویرایش
                       </button>
@@ -174,20 +247,27 @@ export function SmsContactGroupsPage() {
                   {openGroupId === group.id ? (
                     <tr key={`${group.id}-members`}>
                       <td colSpan={4}>
+                        {group.isSmart ? (
+                          <p style={{ fontSize: 12, margin: 0 }}>
+                            اعضای گروه هوشمند از فیلتر محاسبه می‌شوند و حذف دستی ندارند — برای تغییر اعضا فیلتر گروه را ویرایش کنید.
+                          </p>
+                        ) : null}
                         {members.items.length ? (
                           <ul className="sms-mini-list">
                             {members.items.map((member) => (
                               <li key={member.contactId} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 {[member.firstName, member.lastName].filter(Boolean).join(' ') || '—'}
                                 <span dir="ltr">{member.displayMobile}</span>
-                                <button
-                                  type="button"
-                                  className="sms-inline-btn sms-inline-btn--danger"
-                                  onClick={() => removeMember(group.id, member.contactId)}
-                                  disabled={busy}
-                                >
-                                  حذف عضویت
-                                </button>
+                                {!group.isSmart ? (
+                                  <button
+                                    type="button"
+                                    className="sms-inline-btn sms-inline-btn--danger"
+                                    onClick={() => removeMember(group.id, member.contactId)}
+                                    disabled={busy}
+                                  >
+                                    حذف عضویت
+                                  </button>
+                                ) : null}
                               </li>
                             ))}
                           </ul>

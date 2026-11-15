@@ -30,6 +30,8 @@ public interface ISmsGateway
     Task<SmsCampaign> CreateCampaignAsync(
         SmsBulkPreviewRequest request,
         string title,
+        DateTimeOffset? scheduledAt,
+        string? senderLine,
         string? createdBy,
         CancellationToken cancellationToken = default);
 

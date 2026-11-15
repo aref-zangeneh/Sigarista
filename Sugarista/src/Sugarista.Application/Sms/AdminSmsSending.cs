@@ -76,7 +76,8 @@ public record PreviewSmsBulkCommand(
     Guid? ProviderId,
     Guid? TemplateId,
     string? Body,
-    string Kind) : IRequest<SmsBulkPreview>;
+    string Kind,
+    string? SenderLine = null) : IRequest<SmsBulkPreview>;
 
 public class PreviewSmsBulkCommandValidator : AbstractValidator<PreviewSmsBulkCommand>
 {
@@ -103,7 +104,8 @@ public class PreviewSmsBulkCommandHandler(ISmsGateway gateway) : IRequestHandler
                 request.ProviderId,
                 request.TemplateId,
                 request.Body,
-                kind),
+                kind,
+                request.SenderLine),
             cancellationToken);
     }
 }
@@ -115,7 +117,9 @@ public record CreateSmsCampaignCommand(
     Guid? ProviderId,
     Guid? TemplateId,
     string? Body,
-    string Kind) : IRequest<SmsCampaignDto>;
+    string Kind,
+    DateTimeOffset? ScheduledAt = null,
+    string? SenderLine = null) : IRequest<SmsCampaignDto>;
 
 public class CreateSmsCampaignCommandValidator : AbstractValidator<CreateSmsCampaignCommand>
 {
@@ -125,9 +129,16 @@ public class CreateSmsCampaignCommandValidator : AbstractValidator<CreateSmsCamp
         RuleFor(command => command.Kind).Must(kind =>
                 Enum.TryParse<SmsMessageKind>(kind, ignoreCase: true, out _))
             .WithMessage("نوع پیامک نامعتبر است.");
+        RuleFor(command => command.SenderLine).MaximumLength(20);
         RuleFor(command => command)
             .Must(command => command.Recipients.Count > 0 || command.GroupIds.Count > 0)
             .WithMessage("حداقل یک شماره یا یک گروه گیرنده انتخاب کنید.");
+        RuleFor(command => command.ScheduledAt)
+            .Must(scheduledAt => scheduledAt is null || scheduledAt > DateTimeOffset.UtcNow)
+            .WithMessage("زمان‌بندی ارسال باید در آینده باشد.")
+            .Must(scheduledAt => scheduledAt is null
+                                 || scheduledAt <= DateTimeOffset.UtcNow.AddDays(90))
+            .WithMessage("زمان‌بندی ارسال حداکثر ۹۰ روز آینده می‌تواند باشد.");
     }
 }
 
@@ -145,8 +156,11 @@ public class CreateSmsCampaignCommandHandler(
                 request.ProviderId,
                 request.TemplateId,
                 request.Body,
-                kind),
+                kind,
+                request.SenderLine),
             request.Title,
+            request.ScheduledAt,
+            request.SenderLine,
             currentUser.UserId ?? "admin",
             cancellationToken);
 
@@ -162,7 +176,9 @@ public class CreateSmsCampaignCommandHandler(
             campaign.CreatedAt,
             campaign.StartedAt,
             campaign.CompletedAt,
-            campaign.CancelRequested);
+            campaign.CancelRequested,
+            campaign.ScheduledAt,
+            campaign.SenderLine);
     }
 }
 
@@ -178,7 +194,9 @@ public sealed record SmsCampaignDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset? StartedAt,
     DateTimeOffset? CompletedAt,
-    bool CancelRequested);
+    bool CancelRequested,
+    DateTimeOffset? ScheduledAt = null,
+    string? SenderLine = null);
 
 public record GetSmsCampaignsQuery(
     int Page = 1,
@@ -211,7 +229,9 @@ public class GetSmsCampaignsQueryHandler(IApplicationDbContext dbContext)
                 campaign.CreatedAt,
                 campaign.StartedAt,
                 campaign.CompletedAt,
-                campaign.CancelRequested))
+                campaign.CancelRequested,
+                campaign.ScheduledAt,
+                campaign.SenderLine))
             .ToListAsync(cancellationToken);
 
         return new SmsPagedResult<SmsCampaignDto>(items, total, page, pageSize);
@@ -233,7 +253,9 @@ public sealed record SmsCampaignDetailDto(
     DateTimeOffset? StartedAt,
     DateTimeOffset? CompletedAt,
     bool CancelRequested,
-    IReadOnlyList<SmsCampaignBatchDto> Batches);
+    IReadOnlyList<SmsCampaignBatchDto> Batches,
+    DateTimeOffset? ScheduledAt = null,
+    string? SenderLine = null);
 
 public sealed record SmsCampaignBatchDto(int BatchNumber, int Total, int Sent, int Failed, int Pending);
 
@@ -294,7 +316,9 @@ public class GetSmsCampaignQueryHandler(IApplicationDbContext dbContext)
                     entry.Sent,
                     entry.Failed,
                     entry.Total - entry.Sent - entry.Failed))
-                .ToList());
+                .ToList(),
+            campaign.ScheduledAt,
+            campaign.SenderLine);
     }
 }
 

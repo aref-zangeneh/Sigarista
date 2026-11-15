@@ -34,7 +34,9 @@ public sealed record SmsProviderDto(
     bool SupportsCredit,
     bool SupportsPattern,
     bool SupportsMessageStatus,
-    int BulkBatchSize);
+    int BulkBatchSize,
+    bool SupportsDeliveryReport,
+    string? DeliveryWebhookSecret);
 
 public record GetSmsProvidersQuery : IRequest<IReadOnlyList<SmsProviderDto>>;
 
@@ -98,7 +100,9 @@ public class GetSmsProvidersQueryHandler(
                     gateway.SupportsCreditCheck,
                     gateway.SupportsPatternSend,
                     gateway.SupportsMessageStatus,
-                    gateway.BulkBatchSize);
+                    gateway.BulkBatchSize,
+                    gateway.SupportsDeliveryReport,
+                    provider.DeliveryWebhookSecret);
             })
             .ToList();
     }
@@ -121,7 +125,8 @@ public record UpsertSmsProviderCommand(
     string? ExtraSettingsJson,
     bool IsEnabled,
     bool IsDefault,
-    IReadOnlyList<SmsSenderLineInput> SenderLines) : IRequest<Guid>;
+    IReadOnlyList<SmsSenderLineInput> SenderLines,
+    string? DeliveryWebhookSecret = null) : IRequest<Guid>;
 
 public class UpsertSmsProviderCommandValidator : AbstractValidator<UpsertSmsProviderCommand>
 {
@@ -134,6 +139,12 @@ public class UpsertSmsProviderCommandValidator : AbstractValidator<UpsertSmsProv
             .Must(url => url is null || Uri.IsWellFormedUriString(url, UriKind.Absolute))
             .WithMessage("آدرس API نامعتبر است.");
         RuleFor(command => command.TimeoutSeconds).InclusiveBetween(3, 120);
+        RuleFor(command => command.DeliveryWebhookSecret).MaximumLength(128);
+        RuleFor(command => command)
+            .Must(command => !string.IsNullOrWhiteSpace(command.Username)
+                             || !string.IsNullOrWhiteSpace(command.ApiKey)
+                             || IsCredentiallessType(command.ProviderType))
+            .WithMessage("برای ملی پیامک نام کاربری/رمز و برای بقیه کلید API لازم است.");
         RuleFor(command => command.ExtraSettingsJson)
             .Must(json => json is null || IsJson(json)).WithMessage("تنظیمات اضافه باید JSON معتبر باشد.");
     }
@@ -141,6 +152,10 @@ public class UpsertSmsProviderCommandValidator : AbstractValidator<UpsertSmsProv
     private static bool BeKnownProviderType(string value) =>
         Enum.TryParse<SmsProviderType>(value, ignoreCase: true, out _)
         && value.Equals(Enum.Parse<SmsProviderType>(value, true).ToString(), StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCredentiallessType(string value) =>
+        Enum.TryParse<SmsProviderType>(value, ignoreCase: true, out var type)
+        && (type == SmsProviderType.Logging || type == SmsProviderType.Melipayamak);
 
     private static bool IsJson(string value)
     {
@@ -173,7 +188,9 @@ public class UpsertSmsProviderCommandHandler(
         SmsProvider provider;
         if (request.Id == Guid.Empty)
         {
-            if (string.IsNullOrWhiteSpace(request.ApiKey) && providerType != SmsProviderType.Logging)
+            // Melipayamak authenticates with username/password — no API key.
+            if (string.IsNullOrWhiteSpace(request.ApiKey) && providerType != SmsProviderType.Logging
+                && providerType != SmsProviderType.Melipayamak)
             {
                 throw new FluentValidation.ValidationException("کلید API برای سرویس‌دهندهٔ جدید الزامی است.");
             }
@@ -189,6 +206,11 @@ public class UpsertSmsProviderCommandHandler(
                 request.ExtraSettingsJson,
                 request.IsEnabled,
                 request.IsDefault);
+            // Auto-generate the delivery-webhook secret when none was supplied.
+            provider.SetDeliveryWebhookSecret(
+                string.IsNullOrWhiteSpace(request.DeliveryWebhookSecret)
+                    ? Guid.NewGuid().ToString("N")
+                    : request.DeliveryWebhookSecret);
             dbContext.SmsProviders.Add(provider);
         }
         else
@@ -218,6 +240,12 @@ public class UpsertSmsProviderCommandHandler(
             {
                 // Credentials are secrets — the audit entry names WHAT changed, never the value.
                 auditLog.Write("sms.provider.credentials-changed", $"Provider '{provider.Name}' ({provider.Id}).");
+            }
+
+            // Empty webhook secret on update = keep the stored one.
+            if (!string.IsNullOrWhiteSpace(request.DeliveryWebhookSecret))
+            {
+                provider.SetDeliveryWebhookSecret(request.DeliveryWebhookSecret);
             }
         }
 

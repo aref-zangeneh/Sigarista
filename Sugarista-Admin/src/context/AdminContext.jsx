@@ -666,6 +666,10 @@ export function AdminProvider({ children }) {
       const data = {}
       const failures = []
 
+      // 401 failures are a session expiry, not a data problem: log the user
+      // out (and let the login page explain itself) instead of listing the
+      // keys — otherwise the login screen shows a scary «بخش‌ها ناموفق بود».
+      let authExpired = false
       results.forEach((result, index) => {
         const { key } = requests[index]
         if (result.status === 'fulfilled') {
@@ -673,10 +677,13 @@ export function AdminProvider({ children }) {
           return
         }
 
-        failures.push(key)
         if (result.reason?.message?.includes('401')) {
+          authExpired = true
           setSession(null)
+          return
         }
+
+        failures.push(key)
       })
 
       if (data.categoryOptions) {
@@ -722,6 +729,8 @@ export function AdminProvider({ children }) {
 
       if (failures.length > 0) {
         setError(`بارگذاری برخی بخش‌ها ناموفق بود: ${failures.join('، ')}`)
+      } else if (authExpired) {
+        setError('نشست شما منقضی شده است؛ دوباره وارد شوید.')
       }
     } catch (requestError) {
       if (requestError.message.includes('401')) {

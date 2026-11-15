@@ -281,7 +281,7 @@ export function SmsProvidersPage() {
                   <td>
                     {provider.isEnabled ? 'فعال' : 'غیرفعال'}
                     {provider.lastConnectionError ? (
-                      <><br /><span style={{ color: '#b91c1c', fontSize: 11 }}>{provider.lastConnectionError}</span></>
+                      <><br /><span style={{ color: 'var(--bad)', fontSize: 11 }}>{provider.lastConnectionError}</span></>
                     ) : null}
                   </td>
                   <td>{formatSmsDateTime(provider.lastSuccessfulConnectionAt)}</td>

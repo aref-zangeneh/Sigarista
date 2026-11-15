@@ -1,4 +1,6 @@
-/* Shared styles for the SMS Management Center pages. */
+/* Shared styles for the SMS Management Center pages.
+   Colors come from the theme tokens in index.css so light and dark
+   themes stay consistent (no hardcoded light-only values). */
 
 .sms-page {
   display: flex;
@@ -14,12 +16,12 @@
 
 .sms-page-header p {
   margin: 0;
-  color: var(--muted, #6b7280);
+  color: var(--muted);
   font-size: 13px;
 }
 
 .sms-card {
-  background: var(--card-bg, #fff);
+  background: var(--surface, #fff);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 14px;
   padding: 18px 20px;
@@ -51,7 +53,7 @@
 .sms-stat-label {
   margin-top: 4px;
   font-size: 12px;
-  color: var(--muted, #6b7280);
+  color: var(--muted);
 }
 
 .sms-badge {
@@ -62,11 +64,11 @@
   white-space: nowrap;
 }
 
-.sms-badge.tone-ok { background: #dcfce7; color: #166534; }
-.sms-badge.tone-error { background: #fee2e2; color: #991b1b; }
-.sms-badge.tone-warn { background: #fef3c7; color: #92400e; }
-.sms-badge.tone-info { background: #dbeafe; color: #1e40af; }
-.sms-badge.tone-neutral { background: #f3f4f6; color: #4b5563; }
+.sms-badge.tone-ok { background: var(--ok-soft); color: var(--ok); }
+.sms-badge.tone-error { background: var(--bad-soft); color: var(--bad); }
+.sms-badge.tone-warn { background: var(--warn-soft); color: var(--warn-ink); }
+.sms-badge.tone-info { background: var(--info-soft); color: var(--info-ink); }
+.sms-badge.tone-neutral { background: var(--neutral-soft); color: var(--neutral-ink); }
 
 .sms-form {
   display: grid;
@@ -89,8 +91,8 @@
   border: 1px solid var(--border, #d1d5db);
   border-radius: 10px;
   font: inherit;
-  background: var(--input-bg, #fff);
-  color: inherit;
+  background: var(--surface, #fff);
+  color: var(--text, inherit);
 }
 
 .sms-form textarea {
@@ -117,16 +119,16 @@
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 13px;
-  background: #dcfce7;
-  color: #166534;
+  background: var(--ok-soft);
+  color: var(--ok);
 }
 
 .sms-error {
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 13px;
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bad-soft);
+  color: var(--bad);
 }
 
 .sms-preview {
@@ -136,6 +138,7 @@
   font-size: 14px;
   line-height: 1.9;
   white-space: pre-wrap;
+  color: var(--text);
 }
 
 .sms-mini-list {
@@ -148,7 +151,8 @@
 }
 
 .sms-mini-list li {
-  background: #f3f4f6;
+  background: var(--neutral-soft);
+  color: var(--text);
   border-radius: 8px;
   padding: 2px 10px;
   font-size: 12px;
@@ -184,12 +188,12 @@
   width: 100%;
 }
 
-.sms-bar-ok { background: #22c55e; }
-.sms-bar-error { background: #ef4444; }
+.sms-bar-ok { background: var(--ok, #22c55e); }
+.sms-bar-error { background: var(--bad, #ef4444); }
 
 .sms-timeline-label {
   font-size: 10px;
-  color: var(--muted, #6b7280);
+  color: var(--muted);
   direction: ltr;
   white-space: nowrap;
 }
@@ -198,7 +202,7 @@
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: var(--muted, #6b7280);
+  color: var(--muted);
 }
 
 .sms-legend i {
@@ -226,7 +230,7 @@
 
 .sms-table th {
   font-size: 12px;
-  color: var(--muted, #6b7280);
+  color: var(--muted);
   font-weight: 600;
 }
 
@@ -240,7 +244,7 @@
 .sms-inline-btn {
   border: 1px solid var(--border, #d1d5db);
   background: transparent;
-  color: inherit;
+  color: var(--text);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: 12px;
@@ -248,12 +252,12 @@
 }
 
 .sms-inline-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--tint-strong);
 }
 
 .sms-inline-btn--danger {
-  color: #b91c1c;
-  border-color: #fca5a5;
+  color: var(--bad);
+  border-color: var(--bad-border);
 }
 
 .sms-btn {
@@ -263,8 +267,8 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  background: var(--primary, #2563eb);
-  color: #fff;
+  background: var(--primary, var(--accent, #2563eb));
+  color: var(--on-accent, #fff);
 }
 
 .sms-btn:disabled {
@@ -274,21 +278,21 @@
 
 .sms-btn--secondary {
   background: transparent;
-  color: inherit;
+  color: var(--text);
   border: 1px solid var(--border, #d1d5db);
 }
 
 .sms-progress {
   height: 10px;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--track, #e5e7eb);
   overflow: hidden;
 }
 
 .sms-progress span {
   display: block;
   height: 100%;
-  background: var(--primary, #2563eb);
+  background: var(--primary, var(--accent, #2563eb));
   border-radius: 999px;
 }
 

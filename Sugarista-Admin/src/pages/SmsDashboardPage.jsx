@@ -163,8 +163,8 @@ export function SmsDashboardPage() {
           <p>داده‌ای در این بازه وجود ندارد.</p>
         )}
         <div className="sms-legend" style={{ marginTop: 10 }}>
-          <span><i style={{ background: '#22c55e' }} /> موفق</span>
-          <span><i style={{ background: '#ef4444' }} /> ناموفق</span>
+          <span><i style={{ background: 'var(--ok, #22c55e)' }} /> موفق</span>
+          <span><i style={{ background: 'var(--bad, #ef4444)' }} /> ناموفق</span>
         </div>
       </div>
 

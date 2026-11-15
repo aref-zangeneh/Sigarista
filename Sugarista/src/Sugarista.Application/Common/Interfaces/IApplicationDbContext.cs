@@ -166,5 +166,27 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.ProfitDistributionLine> ProfitDistributionLines { get; }
 
+    DbSet<Sugarista.Domain.Entities.SmsProvider> SmsProviders { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsSenderLine> SmsSenderLines { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsMessage> SmsMessages { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsCampaign> SmsCampaigns { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsContact> SmsContacts { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsContactGroup> SmsContactGroups { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsContactGroupMember> SmsContactGroupMembers { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsTemplate> SmsTemplates { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsTemplateProviderMapping> SmsTemplateProviderMappings { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsOptOut> SmsOptOuts { get; }
+
+    DbSet<Sugarista.Domain.Entities.SmsProviderLog> SmsProviderLogs { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

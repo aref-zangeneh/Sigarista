@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sugarista.Application.Sms;
 using Sugarista.Infrastructure.Data.DbConnection;
 
 namespace Sugarista.Infrastructure.Settings;
@@ -41,6 +42,9 @@ public sealed class AppSetupSecrets
     /// <summary>Log minimum level changed from the admin panel at runtime
     /// (e.g. "Warning"). null = follow the appsettings default.</summary>
     public string? LoggingMinimumLevel { get; set; }
+
+    /// <summary>Serialized SmsGlobalSettings (admin panel → /api/admin/sms/settings).</summary>
+    public string? SmsSettingsJson { get; set; }
 
     [JsonIgnore]
     public bool HasBootstrapAdmin =>
@@ -140,6 +144,7 @@ public sealed class AppSetupStore
         merged.PublicHealthEnabled = values.PublicHealthEnabled ?? merged.PublicHealthEnabled;
         merged.SwaggerEnabled = values.SwaggerEnabled ?? merged.SwaggerEnabled;
         merged.LoggingMinimumLevel = values.LoggingMinimumLevel ?? merged.LoggingMinimumLevel;
+        merged.SmsSettingsJson = values.SmsSettingsJson ?? merged.SmsSettingsJson;
 
         var directory = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(directory))
@@ -187,6 +192,34 @@ public sealed class AppSetupStore
     /// <summary>Merges-only the Swagger toggle (null keeps the stored value).</summary>
     public void PatchSwaggerEnabled(bool? enabled) =>
         Save(new AppSetupSecrets { SwaggerEnabled = enabled });
+
+    /// <summary>Reads the stored SMS policies; defaults when absent/corrupt.</summary>
+    public SmsGlobalSettings GetSmsSettings()
+    {
+        var secrets = Load();
+        if (string.IsNullOrWhiteSpace(secrets.SmsSettingsJson))
+        {
+            return SmsGlobalSettings.Defaults;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<SmsGlobalSettings>(secrets.SmsSettingsJson, JsonOptions)?.Clamp()
+                   ?? SmsGlobalSettings.Defaults;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Could not read SMS settings; using defaults.");
+            return SmsGlobalSettings.Defaults;
+        }
+    }
+
+    /// <summary>Merges-only the SMS policy block.</summary>
+    public void PatchSmsSettings(SmsGlobalSettings settings) =>
+        Save(new AppSetupSecrets
+        {
+            SmsSettingsJson = JsonSerializer.Serialize(settings.Clamp(), JsonOptions)
+        });
 
     /// <summary>128 bits of entropy, URL-safe, ~43 printable characters with no placeholder words.</summary>
     public static string GenerateSigningKey()

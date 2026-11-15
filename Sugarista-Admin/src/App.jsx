@@ -41,6 +41,15 @@ import { SiteSettingsPage } from './pages/SiteSettingsPage'
 import { SpecialRoutesPage } from './pages/SpecialRoutesPage'
 import { SystemLogsPage } from './pages/SystemLogsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
+import { SmsDashboardPage } from './pages/SmsDashboardPage'
+import { SmsSendPage } from './pages/SmsSendPage'
+import { SmsBulkPage } from './pages/SmsBulkPage'
+import { SmsContactsPage } from './pages/SmsContactsPage'
+import { SmsContactGroupsPage } from './pages/SmsContactGroupsPage'
+import { SmsTemplatesPage } from './pages/SmsTemplatesPage'
+import { SmsHistoryPage } from './pages/SmsHistoryPage'
+import { SmsProvidersPage } from './pages/SmsProvidersPage'
+import { SmsSettingsPage } from './pages/SmsSettingsPage'
 import './App.css'
 
 const pageComponents = {
@@ -78,6 +87,15 @@ const pageComponents = {
   'site-settings': SiteSettingsPage,
   'special-routes': SpecialRoutesPage,
   'system-logs': SystemLogsPage,
+  'sms-dashboard': SmsDashboardPage,
+  'sms-send': SmsSendPage,
+  'sms-bulk': SmsBulkPage,
+  'sms-contacts': SmsContactsPage,
+  'sms-groups': SmsContactGroupsPage,
+  'sms-templates': SmsTemplatesPage,
+  'sms-history': SmsHistoryPage,
+  'sms-providers': SmsProvidersPage,
+  'sms-settings': SmsSettingsPage,
   'admin-users': AdminUsersPage,
   'activity-log': ActivityLogPage,
 }

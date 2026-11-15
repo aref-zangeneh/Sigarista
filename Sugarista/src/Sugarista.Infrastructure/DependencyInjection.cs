@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
@@ -10,6 +12,7 @@ using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Exports;
 using Sugarista.Application.Maintenance;
 using Sugarista.Application.Pickup;
+using Sugarista.Application.Sms;
 using Sugarista.Application.Common.Options;
 using Sugarista.Infrastructure.Notifications;
 using Sugarista.Infrastructure.Auth;
@@ -20,6 +23,7 @@ using Sugarista.Infrastructure.Payments;
 using Sugarista.Infrastructure.Printing;
 using Sugarista.Infrastructure.Settings;
 using Sugarista.Infrastructure.Services;
+using Sugarista.Infrastructure.Sms;
 
 namespace Sugarista.Infrastructure;
 
@@ -67,28 +71,11 @@ public static class DependencyInjection
         services.AddScoped<LoggingMaintenanceSmsService>();
         services.AddScoped<LoggingMaintenanceEmailService>();
         services.AddScoped<SmtpMaintenanceEmailService>();
-        services.AddScoped<ISmsService>(provider =>
-        {
-            var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
-            if (string.Equals(smsOptions.Provider, "Kavenegar", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(smsOptions.ApiKey))
-            {
-                return provider.GetRequiredService<KavenegarSmsService>();
-            }
-
-            return provider.GetRequiredService<LoggingSmsService>();
-        });
-        services.AddScoped<IMaintenanceSmsSender>(provider =>
-        {
-            var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
-            if (string.Equals(smsOptions.Provider, "Kavenegar", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(smsOptions.ApiKey))
-            {
-                return provider.GetRequiredService<KavenegarMaintenanceSmsService>();
-            }
-
-            return provider.GetRequiredService<LoggingMaintenanceSmsService>();
-        });
+        // Legacy channels route through the SMS Management Center when a DB
+        // provider exists; otherwise the appsettings-driven services keep working.
+        services.AddScoped<SmsGatewayRouter>();
+        services.AddScoped<ISmsService>(provider => provider.GetRequiredService<SmsGatewayRouter>());
+        services.AddScoped<IMaintenanceSmsSender>(provider => provider.GetRequiredService<SmsGatewayRouter>());
         services.AddScoped<IMaintenanceEmailSender>(provider =>
         {
             var emailOptions = provider.GetRequiredService<IOptions<EmailOptions>>().Value;
@@ -140,6 +127,31 @@ public static class DependencyInjection
 
         services.AddScoped<IApplicationDbContext>(provider =>
             provider.GetRequiredService<ApplicationDbContext>());
+
+        // ---- SMS Management Center --------------------------------------
+        // Credential keys persist in the config directory (same volume as
+        // db-connection.json) so encrypted provider credentials survive
+        // container rebuilds.
+        services.AddHttpClient();
+        var dbConfigPath = configuration["DB_CONFIG_PATH"];
+        var configDirectory = string.IsNullOrWhiteSpace(dbConfigPath)
+            ? Path.Combine(
+                configuration[HostDefaults.ContentRootKey] is { Length: > 0 } contentRoot
+                    ? contentRoot
+                    : Directory.GetCurrentDirectory(),
+                "config")
+            : Path.GetDirectoryName(Path.GetFullPath(dbConfigPath))!;
+        Directory.CreateDirectory(configDirectory);
+        services
+            .AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(configDirectory))
+            .SetApplicationName("Sugarista");
+        services.AddSingleton<ISmsCredentialProtector, SmsCredentialProtector>();
+        services.AddSingleton<ISmsSettingsStore, AppSetupSmsSettingsStore>();
+        services.AddScoped<ISmsProviderResolver, SmsProviderResolver>();
+        services.AddScoped<ISmsProviderGatewayFactory, SmsProviderGatewayFactory>();
+        services.AddScoped<ISmsGateway, SmsGateway>();
+        services.AddHostedService<SmsCampaignRunnerService>();
 
         return services;
     }

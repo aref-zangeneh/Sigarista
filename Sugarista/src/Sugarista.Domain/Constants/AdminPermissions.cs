@@ -196,6 +196,21 @@ public static class AdminPermissions
         public const string Delete = "admin.activity-logs.delete";
     }
 
+    public static class Sms
+    {
+        public const string ViewDashboard = "admin.sms.view-dashboard";
+        public const string SendSingle = "admin.sms.send-single";
+        public const string SendBulk = "admin.sms.send-bulk";
+        public const string ManageContacts = "admin.sms.manage-contacts";
+        public const string ManageGroups = "admin.sms.manage-groups";
+        public const string ManageTemplates = "admin.sms.manage-templates";
+        public const string ViewHistory = "admin.sms.view-history";
+        public const string ExportReports = "admin.sms.export-reports";
+        public const string ManageProviders = "admin.sms.manage-providers";
+        public const string ManageSettings = "admin.sms.manage-settings";
+        public const string CancelCampaign = "admin.sms.cancel-campaign";
+    }
+
     public static readonly IReadOnlyList<AdminPermissionDefinition> Catalog =
     [
         new(Dashboard.View, "dashboard", "view", "نمای کلی", "مشاهده داشبورد"),
@@ -285,6 +300,17 @@ public static class AdminPermissions
         new(Users.Update, "admin-users", "update", "مدیریت کاربران", "ویرایش کاربر"),
         new(Users.Delete, "admin-users", "delete", "مدیریت کاربران", "غیرفعال‌سازی"),
         new(Users.ManagePermissions, "admin-users", "manage-permissions", "مدیریت کاربران", "مدیریت دسترسی‌ها"),
+        new(Sms.ViewDashboard, "sms", "view-dashboard", "مدیریت پیامک", "مشاهدهٔ داشبورد پیامک"),
+        new(Sms.SendSingle, "sms", "send-single", "مدیریت پیامک", "ارسال پیامک تکی"),
+        new(Sms.SendBulk, "sms", "send-bulk", "مدیریت پیامک", "ارسال گروهی"),
+        new(Sms.ManageContacts, "sms", "manage-contacts", "مدیریت پیامک", "دفترچه مخاطبین"),
+        new(Sms.ManageGroups, "sms", "manage-groups", "مدیریت پیامک", "گروه‌های مخاطبین"),
+        new(Sms.ManageTemplates, "sms", "manage-templates", "مدیریت پیامک", "قالب‌های پیامکی"),
+        new(Sms.ViewHistory, "sms", "view-history", "مدیریت پیامک", "تاریخچه و گزارش ارسال‌ها"),
+        new(Sms.ExportReports, "sms", "export-reports", "مدیریت پیامک", "خروجی گزارش‌ها"),
+        new(Sms.ManageProviders, "sms", "manage-providers", "مدیریت پیامک", "مدیریت سرویس‌دهندگان"),
+        new(Sms.ManageSettings, "sms", "manage-settings", "مدیریت پیامک", "تنظیمات پیامک"),
+        new(Sms.CancelCampaign, "sms", "cancel-campaign", "مدیریت پیامک", "لغو ارسال گروهی"),
     ];
 
     public static readonly HashSet<string> AllKeys = Catalog

@@ -166,6 +166,33 @@ export const PERMISSIONS = {
     view: 'admin.site-settings.view',
     update: 'admin.site-settings.update',
   },
+  'sms-dashboard': {
+    view: 'admin.sms.view-dashboard',
+  },
+  'sms-send': {
+    view: 'admin.sms.send-single',
+  },
+  'sms-bulk': {
+    view: 'admin.sms.send-bulk',
+  },
+  'sms-contacts': {
+    view: 'admin.sms.manage-contacts',
+  },
+  'sms-groups': {
+    view: 'admin.sms.manage-groups',
+  },
+  'sms-templates': {
+    view: 'admin.sms.manage-templates',
+  },
+  'sms-history': {
+    view: 'admin.sms.view-history',
+  },
+  'sms-providers': {
+    view: 'admin.sms.manage-providers',
+  },
+  'sms-settings': {
+    view: 'admin.sms.manage-settings',
+  },
   'admin-users': {
     view: 'admin.users.view',
     create: 'admin.users.create',

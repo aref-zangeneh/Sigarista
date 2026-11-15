@@ -175,6 +175,28 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<ProfitDistributionLine> ProfitDistributionLines => Set<ProfitDistributionLine>();
 
+    public DbSet<SmsProvider> SmsProviders => Set<SmsProvider>();
+
+    public DbSet<SmsSenderLine> SmsSenderLines => Set<SmsSenderLine>();
+
+    public DbSet<SmsMessage> SmsMessages => Set<SmsMessage>();
+
+    public DbSet<SmsCampaign> SmsCampaigns => Set<SmsCampaign>();
+
+    public DbSet<SmsContact> SmsContacts => Set<SmsContact>();
+
+    public DbSet<SmsContactGroup> SmsContactGroups => Set<SmsContactGroup>();
+
+    public DbSet<SmsContactGroupMember> SmsContactGroupMembers => Set<SmsContactGroupMember>();
+
+    public DbSet<SmsTemplate> SmsTemplates => Set<SmsTemplate>();
+
+    public DbSet<SmsTemplateProviderMapping> SmsTemplateProviderMappings => Set<SmsTemplateProviderMapping>();
+
+    public DbSet<SmsOptOut> SmsOptOuts => Set<SmsOptOut>();
+
+    public DbSet<SmsProviderLog> SmsProviderLogs => Set<SmsProviderLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

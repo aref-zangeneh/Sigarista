@@ -195,6 +195,7 @@ const NAV_GROUPS = [
   { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'منابع انسانی', routes: ['hr'] },
+  { title: 'مدیریت پیامک', routes: ['sms-dashboard', 'sms-send', 'sms-bulk', 'sms-contacts', 'sms-groups', 'sms-templates', 'sms-history', 'sms-providers', 'sms-settings'] },
   { title: 'سیستم', routes: ['site-settings', 'special-routes', 'admin-users', 'activity-log'] },
 ]
 

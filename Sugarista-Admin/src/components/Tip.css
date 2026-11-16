@@ -1,0 +1,83 @@
+/* ── Admin tooltip bubbles (theme-aware, RTL) ─────────────── */
+
+.tip-anchor {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.tip-trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 3px;
+  border: 1px solid var(--tint-border);
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--neutral-ink, var(--muted));
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  transition: background var(--transition-fast, 0.18s ease), color var(--transition-fast, 0.18s ease),
+    border-color var(--transition-fast, 0.18s ease);
+}
+
+.tip-trigger:hover,
+.tip-trigger:focus-visible,
+.tip-trigger.is-open {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-accent, #fff);
+}
+
+.tip-trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.tip-bubble {
+  position: absolute;
+  z-index: 60;
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--heading);
+  color: var(--surface);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  text-align: right;
+  white-space: pre-wrap;
+  box-shadow: var(--shadow);
+  animation: tip-pop 0.14s ease-out;
+}
+
+.tip-bubble-top {
+  bottom: calc(100% + 8px);
+  right: -8px;
+}
+
+.tip-bubble-bottom {
+  top: calc(100% + 8px);
+  right: -8px;
+}
+
+@keyframes tip-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip-bubble {
+    animation: none;
+  }
+}

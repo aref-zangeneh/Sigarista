@@ -181,6 +181,12 @@ public static class AdminPermissions
         public const string Update = "admin.site-settings.update";
     }
 
+    public static class Tooltips
+    {
+        public const string View = "admin.tooltips.view";
+        public const string Update = "admin.tooltips.update";
+    }
+
     public static class Users
     {
         public const string View = "admin.users.view";
@@ -293,6 +299,8 @@ public static class AdminPermissions
         new(Maintenance.Delete, "maintenance", "delete", "سرویس دوره‌ای تجهیزات", "حذف"),
         new(SiteSettings.View, "site-settings", "view", "تنظیمات سایت", "مشاهده"),
         new(SiteSettings.Update, "site-settings", "update", "تنظیمات سایت", "ویرایش"),
+        new(Tooltips.View, "tooltips", "view", "راهنماهای صفحه‌ها", "مشاهدهٔ راهنماها"),
+        new(Tooltips.Update, "tooltips", "update", "راهنماهای صفحه‌ها", "ویرایش / غیرفعال‌سازی راهنماها"),
         new(ActivityLogs.View, "activity-logs", "view", "لاگ فعالیت‌ها", "مشاهدهٔ لاگ کاربران"),
         new(ActivityLogs.Delete, "activity-logs", "delete", "لاگ فعالیت‌ها", "پاک‌سازی لاگ‌های قدیمی"),
         new(Users.View, "admin-users", "view", "مدیریت کاربران", "مشاهده"),

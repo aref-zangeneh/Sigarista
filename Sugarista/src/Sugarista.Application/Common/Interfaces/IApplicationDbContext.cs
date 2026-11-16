@@ -188,5 +188,7 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.SmsProviderLog> SmsProviderLogs { get; }
 
+    DbSet<Sugarista.Domain.Entities.AdminTooltip> AdminTooltips { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -95,6 +95,7 @@ export function AdminProvider({ children }) {
   const orderAlertsRef = useRef(null)
   const [salonStatus, setSalonStatus] = useState(emptySalonStatus)
   const [siteSettings, setSiteSettings] = useState(emptySettings)
+  const [tipOverrides, setTipOverrides] = useState({})
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [menuItemForm, setMenuItemForm] = useState(emptyMenuItemForm)
   const [addonForm, setAddonForm] = useState(emptyAddonForm)
@@ -661,6 +662,10 @@ export function AdminProvider({ children }) {
       { key: 'salonStatus', promise: apiRequest('/admin/salon/status', { token }) },
     ]
 
+    // Tooltip overrides never block (or scare) the admin on failure — worst
+    // case the help bubbles fall back to their registry default texts.
+    fetchTooltipOverrides(token)
+
     try {
       const results = await Promise.allSettled(requests.map((request) => request.promise))
       const data = {}
@@ -743,6 +748,16 @@ export function AdminProvider({ children }) {
     }
   }
 
+  function fetchTooltipOverrides(token = session?.token) {
+    if (!token) {
+      return
+    }
+
+    apiRequest('/admin/tooltips/active', { token })
+      .then((map) => setTipOverrides(map ?? {}))
+      .catch(() => {})
+  }
+
   async function handleLogin(event) {
     event.preventDefault()
     setSaving(true)
@@ -817,6 +832,7 @@ export function AdminProvider({ children }) {
     setOrderAlerts(null)
     setOrderAlertPulse(false)
     setDismissedOrderAlertIds(new Set())
+    setTipOverrides({})
     notifiedKitchenOrderIdsRef.current = null
     lastOrderAlertPollRef.current = null
     setMessage('از حساب کاربری خارج شدید.')
@@ -1425,6 +1441,8 @@ export function AdminProvider({ children }) {
     salonStatus,
     siteSettings,
     setSiteSettings,
+    tipOverrides,
+    reloadTipOverrides: fetchTooltipOverrides,
     categoryForm,
     setCategoryForm,
     menuItemForm,

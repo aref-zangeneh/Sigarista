@@ -4,6 +4,7 @@ import { useAdmin } from '../context/AdminContext'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { formatDateTime, formatDuration, toPersianNumber } from '../utils/adminFormatters'
 import { hasPermission, PERMISSIONS, canSubmitPosOrder } from '../utils/adminPermissions'
+import { Tip } from '../components/Tip'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
   buildCartLineKey,
@@ -512,18 +513,24 @@ export function PosPage() {
               <button type="button" className="pos-secondary-button" onClick={loadBootstrap} disabled={loading}>
                 تازه‌سازی
               </button>
+              <Tip k="pos.refresh" />
             </div>
           </header>
 
-          <div className="pos-search">
-            <input
-              ref={searchRef}
-              type="search"
-              placeholder="جستجوی سریع محصول..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <kbd>/</kbd>
+          <div className="pos-search-row">
+            <div className="pos-search">
+              <input
+                ref={searchRef}
+                type="search"
+                placeholder="جستجوی سریع محصول..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <kbd>/</kbd>
+            </div>
+            <Tip k="pos.search" />
+            <Tip k="pos.categories" />
+            <Tip k="pos.product_add" />
           </div>
 
           <div className="pos-categories">
@@ -552,32 +559,42 @@ export function PosPage() {
           </div>
 
           <div className="pos-products">
-            {filteredItems.map((item) => (
-              <article key={item.id} className="pos-product-card">
-                {cartQtyByItem.get(item.id) ? (
-                  <span className="pos-product-qty">{toPersianNumber(cartQtyByItem.get(item.id))}</span>
-                ) : null}
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.persianName} loading="lazy" />
-                ) : (
-                  <div className="pos-product-placeholder">☕</div>
-                )}
-                <h3>{item.persianName}</h3>
-                <p>{formatPrice(resolveItemPrice(item, resolveDefaultSizeKey(item)))} تومان</p>
-                <button
-                  type="button"
-                  className="pos-product-add"
-                  onClick={() =>
-                    item.variants?.length || modifiers.length
-                      ? setProductModal(item)
-                      : quickAddProduct(item)
-                  }
-                  aria-label={`افزودن ${item.persianName}`}
+            {filteredItems.map((item) => {
+              const openItem = () =>
+                item.variants?.length || modifiers.length
+                  ? setProductModal(item)
+                  : quickAddProduct(item)
+
+              return (
+                <article
+                  key={item.id}
+                  className="pos-product-card"
+                  onClick={openItem}
                 >
-                  +
-                </button>
-              </article>
-            ))}
+                  {cartQtyByItem.get(item.id) ? (
+                    <span className="pos-product-qty">{toPersianNumber(cartQtyByItem.get(item.id))}</span>
+                  ) : null}
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.persianName} loading="lazy" />
+                  ) : (
+                    <div className="pos-product-placeholder">☕</div>
+                  )}
+                  <h3>{item.persianName}</h3>
+                  <p>{formatPrice(resolveItemPrice(item, resolveDefaultSizeKey(item)))} تومان</p>
+                  <button
+                    type="button"
+                    className="pos-product-add"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      openItem()
+                    }}
+                    aria-label={`افزودن ${item.persianName}`}
+                  >
+                    +
+                  </button>
+                </article>
+              )
+            })}
           </div>
 
           <p className="pos-shortcuts">
@@ -588,10 +605,14 @@ export function PosPage() {
         <aside className="pos-sidebar">
           <div className="pos-sidebar-head">
             <h2>{trackingCode ? `سفارش #${trackingCode}` : 'سفارش جدید'}</h2>
-            <div className="pos-service-toggle">
+            <span className="pos-sidebar-label">
+              نوع سرو <Tip k="pos.service_toggle" />
+            </span>
+            <div className="pos-service-toggle" role="group" aria-label="نوع سرو">
               <button
                 type="button"
                 className={serviceType === 'DineIn' ? 'active' : ''}
+                aria-pressed={serviceType === 'DineIn'}
                 onClick={() => setServiceType('DineIn')}
               >
                 داخل سالن
@@ -599,6 +620,7 @@ export function PosPage() {
               <button
                 type="button"
                 className={serviceType === 'TakeAway' ? 'active' : ''}
+                aria-pressed={serviceType === 'TakeAway'}
                 onClick={() => setServiceType('TakeAway')}
               >
                 بیرون‌بر
@@ -606,87 +628,123 @@ export function PosPage() {
             </div>
 
             {(deliveryOptions ?? []).length > 0 ? (
-              <select
-                className="pos-delivery-select"
-                value={deliveryMethodId}
-                onChange={(event) => setDeliveryMethodId(event.target.value)}
-              >
-                <option value="">روش تحویل: بدون ست (بدون هزینه)</option>
-                {deliveryOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.persianName}{Number(option.deliveryFee) > 0 ? ` (+${formatPrice(option.deliveryFee)} ت)` : ''}
-                  </option>
-                ))}
-              </select>
+              <>
+                <span className="pos-sidebar-label">
+                  روش تحویل <Tip k="pos.delivery_select" />
+                </span>
+                <select
+                  className="pos-delivery-select"
+                  value={deliveryMethodId}
+                  onChange={(event) => setDeliveryMethodId(event.target.value)}
+                >
+                  <option value="">بدون ست (بدون هزینه)</option>
+                  {deliveryOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.persianName}{Number(option.deliveryFee) > 0 ? ` (+${formatPrice(option.deliveryFee)} ت)` : ''}
+                    </option>
+                  ))}
+                </select>
+              </>
             ) : null}
 
             <div className="pos-form-grid">
-              <input
-                type="text"
-                placeholder="نام مشتری"
-                value={customerName}
-                onChange={(event) => setCustomerName(event.target.value)}
-              />
+              <div className="pos-field-row">
+                <input
+                  type="text"
+                  placeholder="نام مشتری"
+                  value={customerName}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                />
+                <Tip k="pos.customer_name" />
+              </div>
               {serviceType === 'DineIn' ? (
-                <input
-                  type="text"
-                  placeholder={selectedTable ? `میز: ${selectedTable.name}` : 'میز را از پایین انتخاب کنید'}
-                  value={selectedTable?.name ?? ''}
-                  readOnly
-                />
+                <div className="pos-field-row">
+                  <input
+                    type="text"
+                    placeholder={selectedTable ? `میز: ${selectedTable.name}` : 'میز را از پایین انتخاب کنید'}
+                    value={selectedTable?.name ?? ''}
+                    readOnly
+                  />
+                  <Tip k="pos.table_input" />
+                </div>
               ) : (
-                <input
-                  type="text"
-                  placeholder="شماره تماس (اختیاری)"
-                  value={customerPhone}
-                  onChange={(event) => setCustomerPhone(event.target.value)}
-                />
+                <div className="pos-field-row">
+                  <input
+                    type="text"
+                    placeholder="شماره تماس (اختیاری)"
+                    value={customerPhone}
+                    onChange={(event) => setCustomerPhone(event.target.value)}
+                  />
+                  <Tip k="pos.customer_phone" />
+                </div>
               )}
-              <textarea
-                rows={2}
-                placeholder="یادداشت سفارش"
-                value={orderNote}
-                onChange={(event) => setOrderNote(event.target.value)}
-              />
-              <label className="pos-benefit-check">
-                <input
-                  type="checkbox"
-                  checked={personalCup}
-                  onChange={(event) => setPersonalCup(event.target.checked)}
-                />{' '}
-                لیوان شخصی مشتری (تخفیف لیوان)
-              </label>
-              <label className="pos-benefit-check">
-                <input
-                  type="checkbox"
-                  checked={useSubscription}
-                  onChange={(event) => setUseSubscription(event.target.checked)}
-                />{' '}
-                استفاده از اشتراک ماهانه
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={splitBill.isSplitBill}
-                  onChange={(event) =>
-                    setSplitBill((current) => ({ ...current, isSplitBill: event.target.checked }))
-                  }
-                />{' '}
-                تسویه جداگانه
-              </label>
+              <div className="pos-field-row">
+                <textarea
+                  rows={2}
+                  placeholder="یادداشت سفارش"
+                  value={orderNote}
+                  onChange={(event) => setOrderNote(event.target.value)}
+                />
+                <Tip k="pos.order_note" />
+              </div>
+              <div className="pos-benefit-row">
+                <label className="pos-benefit-check">
+                  <input
+                    type="checkbox"
+                    checked={personalCup}
+                    onChange={(event) => setPersonalCup(event.target.checked)}
+                  />{' '}
+                  لیوان شخصی مشتری (تخفیف لیوان)
+                </label>
+                <Tip k="pos.personal_cup" />
+              </div>
+              <div className="pos-benefit-row">
+                <label className="pos-benefit-check">
+                  <input
+                    type="checkbox"
+                    checked={useSubscription}
+                    onChange={(event) => setUseSubscription(event.target.checked)}
+                  />{' '}
+                  استفاده از اشتراک ماهانه
+                </label>
+                <Tip k="pos.use_subscription" />
+              </div>
+              <div className="pos-benefit-row">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={splitBill.isSplitBill}
+                    onChange={(event) =>
+                      setSplitBill((current) => ({ ...current, isSplitBill: event.target.checked }))
+                    }
+                  />{' '}
+                  تسویه جداگانه
+                </label>
+                <Tip k="pos.split_bill" />
+              </div>
             </div>
 
-            <div className="pos-panel-toggle" style={{ marginTop: 12 }}>
-              <button type="button" className="pos-secondary-button" onClick={() => setSidePanel('cart')}>سبد</button>
-              <button type="button" className="pos-secondary-button" onClick={() => setSidePanel('tables')}>میزها</button>
-              <button type="button" className="pos-secondary-button" onClick={() => setSidePanel('held')}>نگه‌داشته</button>
-              <button type="button" className="pos-secondary-button" onClick={() => setSidePanel('recent')}>اخیر</button>
+            <span className="pos-sidebar-label">
+              پنل‌های کنار سبد <Tip k="pos.side_panels" />
+            </span>
+            <div className="pos-panel-toggle">
+              <button type="button" className={sidePanel === 'cart' ? 'active' : ''} onClick={() => setSidePanel('cart')}>سبد</button>
+              <button type="button" className={sidePanel === 'tables' ? 'active' : ''} onClick={() => setSidePanel('tables')}>میزها</button>
+              <button type="button" className={sidePanel === 'held' ? 'active' : ''} onClick={() => setSidePanel('held')}>نگه‌داشته</button>
+              <button type="button" className={sidePanel === 'recent' ? 'active' : ''} onClick={() => setSidePanel('recent')}>اخیر</button>
             </div>
           </div>
 
           {sidePanel === 'cart' ? (
             <div className="pos-cart-lines">
-              {cart.length === 0 ? <p>سبد خالی است.</p> : null}
+              <div className="pos-panel-head">
+                <span>اقلام سفارش</span>
+                <span className="pos-panel-tips">
+                  <Tip k="pos.cart_qty" />
+                  <Tip k="pos.cart_note" />
+                </span>
+              </div>
+              {cart.length === 0 ? <p>سبد خالی است. از کارت‌های محصول سمت راست اضافه کنید.</p> : null}
               {cart.map((line) => (
                 <div key={line.cartKey} className="pos-cart-line">
                   {line.imageUrl ? (
@@ -723,6 +781,10 @@ export function PosPage() {
 
           {sidePanel === 'tables' ? (
             <div className="pos-cart-lines">
+              <div className="pos-panel-head">
+                <span>نقشهٔ میزها</span>
+                <Tip k="pos.tables_grid" />
+              </div>
               <div className="pos-table-grid">
                 {(bootstrap?.tables ?? []).filter((table) => table.isActive).map((table) => (
                   <button
@@ -749,6 +811,10 @@ export function PosPage() {
 
           {sidePanel === 'held' ? (
             <div className="pos-cart-lines">
+              <div className="pos-panel-head">
+                <span>سفارش‌های نگه‌داشته</span>
+                <Tip k="pos.held_orders" />
+              </div>
               <div className="pos-held-list">
                 {(bootstrap?.heldOrders ?? []).length === 0 ? <p>سفارش نگه‌داشته‌شده‌ای نیست.</p> : null}
                 {(bootstrap?.heldOrders ?? []).map((order) => (
@@ -770,6 +836,10 @@ export function PosPage() {
 
           {sidePanel === 'recent' ? (
             <div className="pos-cart-lines">
+              <div className="pos-panel-head">
+                <span>سفارش‌های اخیر</span>
+                <Tip k="pos.recent_orders" />
+              </div>
               <div className="pos-recent-list">
                 {(bootstrap?.recentOrders ?? []).map((order) => (
                   <div key={order.id} className="pos-held-item">
@@ -809,37 +879,49 @@ export function PosPage() {
               </div>
             ) : null}
             <div className="pos-total-row">
-              <span>جمع کل</span>
+              <span>جمع کل <Tip k="pos.totals" /></span>
               <span>{formatPrice(cartTotals.grandTotal)} تومان</span>
             </div>
             <div className="pos-actions">
-              <button
-                type="button"
-                className="pos-secondary-button"
-                onClick={() => submitOrder('Hold')}
-                disabled={submitting || !cart.length}
-              >
-                نگه‌داشت (F2)
-              </button>
-              <button type="button" className="pos-danger-button" onClick={cancelCurrentOrder} disabled={submitting}>
-                {orderId ? 'حذف سفارش' : 'پاک کردن سبد'}
-              </button>
-              <button
-                type="button"
-                className="pos-primary-button"
-                onClick={() => submitOrder('PayCash')}
-                disabled={submitting || !cart.length}
-              >
-                نقد (F4)
-              </button>
-              <button
-                type="button"
-                className="pos-primary-button"
-                onClick={() => submitOrder('PayCard')}
-                disabled={submitting || !cart.length}
-              >
-                کارت (F5)
-              </button>
+              <div className="pos-action-cell">
+                <button
+                  type="button"
+                  className="pos-secondary-button"
+                  onClick={() => submitOrder('Hold')}
+                  disabled={submitting || !cart.length}
+                >
+                  نگه‌داشت (F2)
+                </button>
+                <Tip k="pos.hold_button" />
+              </div>
+              <div className="pos-action-cell">
+                <button type="button" className="pos-danger-button" onClick={cancelCurrentOrder} disabled={submitting}>
+                  {orderId ? 'حذف سفارش' : 'پاک کردن سبد'}
+                </button>
+                <Tip k="pos.clear_button" />
+              </div>
+              <div className="pos-action-cell">
+                <button
+                  type="button"
+                  className="pos-primary-button"
+                  onClick={() => submitOrder('PayCash')}
+                  disabled={submitting || !cart.length}
+                >
+                  نقد (F4)
+                </button>
+                <Tip k="pos.cash_button" />
+              </div>
+              <div className="pos-action-cell">
+                <button
+                  type="button"
+                  className="pos-primary-button"
+                  onClick={() => submitOrder('PayCard')}
+                  disabled={submitting || !cart.length}
+                >
+                  کارت (F5)
+                </button>
+                <Tip k="pos.card_button" />
+              </div>
             </div>
           </div>
         </aside>

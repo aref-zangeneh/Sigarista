@@ -33,6 +33,7 @@ export const adminRoutes = [
   { id: 'maintenance', path: 'equipment-maintenance', label: 'سرویس دوره‌ای تجهیزات' },
   { id: 'hr', path: 'hr', label: 'منابع انسانی' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },
+  { id: 'tooltips', path: 'tooltips', label: 'راهنماهای صفحه‌ها' },
   { id: 'special-routes', path: 'special-routes', label: 'مسیرهای متفرقه' },
   { id: 'system-logs', path: 'system-logs', label: 'لاگ‌ها و سلامت سیستم' },
   { id: 'sms-dashboard', path: 'sms-dashboard', label: 'داشبورد پیامک' },

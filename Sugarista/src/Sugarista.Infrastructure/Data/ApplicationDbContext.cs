@@ -197,6 +197,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<SmsProviderLog> SmsProviderLogs => Set<SmsProviderLog>();
 
+    public DbSet<AdminTooltip> AdminTooltips => Set<AdminTooltip>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

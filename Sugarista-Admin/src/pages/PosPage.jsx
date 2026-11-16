@@ -4,7 +4,6 @@ import { useAdmin } from '../context/AdminContext'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { formatDateTime, formatDuration, toPersianNumber } from '../utils/adminFormatters'
 import { hasPermission, PERMISSIONS, canSubmitPosOrder } from '../utils/adminPermissions'
-import { printPosReceipts } from '../utils/posReceipt'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
   buildCartLineKey,
@@ -142,7 +141,7 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
 }
 
 export function PosPage() {
-  const { session, siteSettings } = useAdmin()
+  const { session } = useAdmin()
   const searchRef = useRef(null)
 
   const [bootstrap, setBootstrap] = useState(null)
@@ -402,25 +401,10 @@ export function PosPage() {
         setMessage(`سفارش ${result.trackingCode} نگه‌داشته شد.`)
         resetCart()
       } else {
-        const cartSnapshot = cart.map((line) => ({ ...line }))
-        try {
-          const printResult = await printPosReceipts({
-            result,
-            cart: cartSnapshot,
-            customerName,
-            customerPhone,
-            orderNote,
-            serviceType,
-            tableName: selectedTable?.name ?? null,
-            siteSettings,
-          })
-          const printLabel = printResult.method === 'agent' ? 'چاپ خودکار' : 'چاپ مرورگر'
-          setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد و رسید مشتری و باریستا (${printLabel}) ارسال شد.`)
-        } catch (printError) {
-          console.error(printError)
-          setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد، اما چاپ رسید با خطا مواجه شد.`)
-          setError(getReadableError(printError))
-        }
+        // Same as online orders: the backend already queued TWO thermal copies
+        // (customer + barista/kitchen) for the print agent — no browser print
+        // dialogs here, they duplicate the automatic print and break the flow.
+        setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد؛ دو فیش چاپ (مشتری + آشپزخانه) به صف چاپ ارسال شد.`)
         resetCart()
       }
 

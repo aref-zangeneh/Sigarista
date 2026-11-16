@@ -189,6 +189,12 @@ public class ReceiptPrintJobService : IPrintJobService
             ? FormatCafeLocal(order.DeliveryAt.Value, timeZone)
             : null;
 
+        var customerPhoneLabel =
+            string.IsNullOrWhiteSpace(order.CustomerPhone)
+            || string.Equals(order.CustomerPhone, "POS", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : order.CustomerPhone;
+
         return new ReceiptPayload(
             CopyType: PrintJobCopyType.Customer,
             Header: header,
@@ -198,7 +204,7 @@ public class ReceiptPrintJobService : IPrintJobService
                 ServiceLabel: serviceLabel,
                 TableLabel: tableLabel,
                 CustomerName: string.IsNullOrWhiteSpace(order.CustomerName) ? null : order.CustomerName,
-                CustomerPhone: string.IsNullOrWhiteSpace(order.CustomerPhone) ? null : order.CustomerPhone,
+                CustomerPhone: customerPhoneLabel,
                 Note: order.Note,
                 CreatedAtLabel: createdAtLabel,
                 PaidAtLabel: paidAtLabel,

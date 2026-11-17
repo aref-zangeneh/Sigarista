@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sugarista.Infrastructure.Logging;
 
 namespace Sugarista.Infrastructure.UnitTests;
@@ -269,5 +270,181 @@ public sealed class SystemLogFileStoreTests : IDisposable
         Assert.Contains("sugarista-20261117.log", remaining);
         Assert.Contains("audit-20261115.log", remaining); // audit files are never touched
         Assert.Equal(2, remaining.Count);
+    }
+
+    // ── Batch deletion + retention (new) ─────────────────────────────────────
+
+    // NOTE: the "yyyyMMdd" format must be formatted with the invariant
+    // calendar — the machine culture (fa-IR) renders it as the Solar Hijri
+    // year (1405), which then parses as a 1405-Gregorian date.
+    private static string DayFile(int daysAgo, int part = 0) =>
+        $"sugarista-{DateTime.UtcNow.Date.AddDays(-daysAgo).ToString("yyyyMMdd", CultureInfo.InvariantCulture)}" +
+        (part > 0 ? $"_{part:000}" : string.Empty) + ".log";
+
+    private static string TodayFile() =>
+        $"sugarista-{DateTime.UtcNow.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}.log";
+
+    private void SetLastWrite(string fileName, DateTime utc)
+    {
+        File.SetLastWriteTimeUtc(Path.Combine(_directory, fileName), utc);
+    }
+
+    [Fact]
+    public void ListFiles_IncludesSizeRolledParts()
+    {
+        WriteLogFile(_directory, "sugarista-20261116_001.log", Line("2026-11-16T10:00:00.0000000Z", "Information", "roll part"));
+        WriteLogFile(_directory, "sugarista-20261116.log", Line("2026-11-16T10:01:00.0000000Z", "Information", "main"));
+
+        var files = _store.ListFiles();
+
+        Assert.Equal(2, files.Count);
+        Assert.Contains(files, file => file.FileName == "sugarista-20261116_001.log");
+    }
+
+    [Fact]
+    public void TryGetFileDate_ParsesDayPart()
+    {
+        Assert.True(SystemLogFileStore.TryGetFileDate("sugarista-20261117_003.log", out var date));
+        Assert.Equal(new DateTime(2026, 11, 17, 0, 0, 0, DateTimeKind.Utc), date);
+
+        Assert.False(SystemLogFileStore.TryGetFileDate("audit-20261117.log", out _));
+        Assert.False(SystemLogFileStore.TryGetFileDate("sugarista-not-a-date.log", out _));
+    }
+
+    [Fact]
+    public void DeleteOldestFiles_RemovesOldestN_SkipsTodayAndAuditFiles()
+    {
+        // Five past days; force distinct write times so "oldest" is deterministic.
+        for (var index = 5; index >= 1; index--)
+        {
+            WriteLogFile(_directory, DayFile(index), Line("2026-11-01T10:00:00.0000000Z", "Information", $"day -{index}"));
+            SetLastWrite(DayFile(index), DateTime.UtcNow.Date.AddDays(-index).AddHours(12));
+        }
+
+        WriteLogFile(_directory, TodayFile(), Line("2026-11-17T10:00:00.0000000Z", "Information", "today"));
+        File.WriteAllText(Path.Combine(_directory, "audit-20261110.log"), "{}");
+
+        var result = _store.DeleteOldestFiles(3);
+
+        Assert.Equal(3, result.DeletedFiles);
+        Assert.True(result.FreedBytes > 0);
+        var remaining = Directory.GetFiles(_directory, "sugarista-*.log").Select(Path.GetFileName).ToList();
+        Assert.Contains(remaining, name => name == DayFile(1));
+        Assert.Contains(remaining, name => name == DayFile(2));
+        Assert.Contains(remaining, name => name == TodayFile());
+        Assert.Equal(3, remaining.Count);
+
+        // Audit files are never touched by any deletion path.
+        Assert.True(File.Exists(Path.Combine(_directory, "audit-20261110.log")));
+    }
+
+    [Fact]
+    public void DeleteOlderThanDays_RemovesOnlyFilesOlderThanCutoff()
+    {
+        WriteLogFile(_directory, DayFile(30), Line("2026-10-18T10:00:00.0000000Z", "Information", "ancient"));
+        WriteLogFile(_directory, DayFile(15), Line("2026-11-02T10:00:00.0000000Z", "Information", "too old"));
+        WriteLogFile(_directory, DayFile(13), Line("2026-11-04T10:00:00.0000000Z", "Information", "within window"));
+        WriteLogFile(_directory, DayFile(0), Line("2026-11-17T10:00:00.0000000Z", "Information", "today"));
+
+        var result = _store.DeleteOlderThanDays(14);
+
+        Assert.Equal(2, result.DeletedFiles);
+        Assert.True(File.Exists(Path.Combine(_directory, DayFile(13))));
+        Assert.True(File.Exists(Path.Combine(_directory, DayFile(0))));
+        Assert.False(File.Exists(Path.Combine(_directory, DayFile(15))));
+        Assert.False(File.Exists(Path.Combine(_directory, DayFile(30))));
+    }
+
+    [Fact]
+    public void DeleteOlderThanDays_ZeroDays_Disabled()
+    {
+        WriteLogFile(_directory, DayFile(30), Line("2026-10-18T10:00:00.0000000Z", "Information", "x"));
+
+        var result = _store.DeleteOlderThanDays(0);
+
+        Assert.Equal(0, result.DeletedFiles);
+        Assert.True(File.Exists(Path.Combine(_directory, DayFile(30))));
+    }
+
+    [Fact]
+    public void DeleteAllExceptToday_KeepsEveryPartOfToday()
+    {
+        WriteLogFile(_directory, DayFile(3), Line("2026-11-14T10:00:00.0000000Z", "Information", "old"));
+        WriteLogFile(_directory, TodayFile(), Line("2026-11-17T08:00:00.0000000Z", "Information", "today main"));
+        WriteLogFile(_directory, $"sugarista-{DateTime.UtcNow.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}_001.log", Line("2026-11-17T09:00:00.0000000Z", "Information", "today roll"));
+
+        var removed = _store.DeleteAllExceptToday();
+
+        Assert.Equal(1, removed);
+        var remaining = Directory.GetFiles(_directory, "sugarista-*.log").Select(Path.GetFileName).ToList();
+        Assert.Equal(2, remaining.Count);
+        Assert.Contains(remaining, name => name == TodayFile());
+        Assert.Contains(remaining, name => name == $"sugarista-{DateTime.UtcNow.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}_001.log");
+    }
+
+    [Fact]
+    public void DeleteOldestEntries_RemovesOldestN_KeepsRestByteIntact()
+    {
+        var fileName = DayFile(1);
+        var lines = Enumerable.Range(1, 10)
+            .Select(index => Line(
+                $"2026-11-16T10:{index:00}:00.0000000Z",
+                "Information",
+                $"event {index:00}"))
+            .ToArray();
+        WriteLogFile(_directory, fileName, lines);
+
+        var result = _store.DeleteOldestEntries(fileName, 4);
+
+        Assert.True(result.Success);
+        Assert.Equal(4, result.DeletedEntries);
+        Assert.False(result.FileDeleted);
+        Assert.True(result.FreedBytes > 0);
+
+        var parsed = _store.ReadEntries(fileName);
+        Assert.Equal(6, parsed.TotalMatching);
+        // The remaining file starts at entry 05 — the first four are gone.
+        Assert.Equal("event 10", parsed.Entries[0].Message);
+        Assert.Equal("event 05", parsed.Entries[5].Message);
+
+        // The raw file keeps only the remaining lines, byte-for-byte (file
+        // order is chronological, so the first remaining line is entry 05).
+        var rawLines = File.ReadAllLines(Path.Combine(_directory, fileName));
+        Assert.Equal(6, rawLines.Length);
+        Assert.Contains("event 05", rawLines[0]);
+        Assert.DoesNotContain("event 04", rawLines[0]);
+    }
+
+    [Fact]
+    public void DeleteOldestEntries_CountCoversAllEntries_DeletesFile()
+    {
+        var fileName = DayFile(1);
+        WriteLogFile(
+            _directory,
+            fileName,
+            Line("2026-11-16T10:00:00.0000000Z", "Information", "a"),
+            Line("2026-11-16T10:01:00.0000000Z", "Information", "b"));
+
+        var result = _store.DeleteOldestEntries(fileName, 500);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.DeletedEntries);
+        Assert.True(result.FileDeleted);
+        Assert.False(File.Exists(Path.Combine(_directory, fileName)));
+    }
+
+    [Fact]
+    public void DeleteOldestEntries_RejectsUnknownAndTodaysFile()
+    {
+        var result = _store.DeleteOldestEntries("sugarista-19990101.log", 100);
+        Assert.False(result.Success);
+        Assert.Equal("not-found", result.Reason);
+
+        var today = TodayFile();
+        WriteLogFile(_directory, today, Line("2026-11-17T10:00:00.0000000Z", "Information", "hot"));
+        var todayResult = _store.DeleteOldestEntries(today, 100);
+        Assert.False(todayResult.Success);
+        Assert.Equal("active-day", todayResult.Reason);
+        Assert.True(File.Exists(Path.Combine(_directory, today)));
     }
 }

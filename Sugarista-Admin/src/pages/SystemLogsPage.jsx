@@ -40,11 +40,24 @@ const LEVEL_BADGES = {
 }
 
 function formatFileDate(fileName) {
-  const match = /sugarista-(\d{4})(\d{2})(\d{2})\.log/.exec(fileName)
+  const match = /sugarista-(\d{4})(\d{2})(\d{2})(?:_(\d+))?\.log/.exec(fileName)
   if (!match) return fileName
   const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
-  return date.toLocaleDateString('fa-IR', { weekday: 'short', day: 'numeric', month: 'long' })
+  const label = date.toLocaleDateString('fa-IR', { weekday: 'short', day: 'numeric', month: 'long' })
+  // Size-rolled parts of the same day show up as _001, _002 …
+  return match[4] ? `${label} (بخش ${Number(match[4]).toLocaleString('fa-IR')})` : label
 }
+
+function isTodayFile(fileName) {
+  const match = /sugarista-(\d{4})(\d{2})(\d{2})/.exec(fileName)
+  if (!match) return false
+  const now = new Date()
+  return Number(match[1]) === now.getUTCFullYear() &&
+    Number(match[2]) === now.getUTCMonth() + 1 &&
+    Number(match[3]) === now.getUTCDate()
+}
+
+const BATCH_SIZES = [100, 200, 500]
 
 function formatEntryTime(timestampUtc) {
   const date = new Date(timestampUtc)
@@ -78,6 +91,8 @@ export function SystemLogsPage() {
   const [loadingEntries, setLoadingEntries] = useState(false)
   const [expandedEntry, setExpandedEntry] = useState(null)
   const [busyFile, setBusyFile] = useState('')
+  const [batchFileCount, setBatchFileCount] = useState(100)
+  const [batchEntryCount, setBatchEntryCount] = useState(100)
 
   const loadStatus = useCallback(async () => {
     try {
@@ -181,6 +196,58 @@ export function SystemLogsPage() {
         token: session.token,
       })
       setFlash(result?.message || 'فایل‌های قدیمی حذف شدند.')
+      setPage(1)
+      setExpandedEntry(null)
+      await loadFiles(session.token)
+      await loadEntries(session.token)
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setBusyFile('')
+      setTimeout(() => setFlash(''), 6000)
+    }
+  }
+
+  const applyDeleteOldestFilesBatch = async () => {
+    if (!window.confirm(
+      `حذف ${batchFileCount.toLocaleString('fa-IR')} فایل قدیمی‌ترین لاگ؟ فایل‌های امروز حفظ می‌شوند و فضا فوراً آزاد می‌شود.`)) {
+      return
+    }
+    setBusyFile('__batch__')
+    setError('')
+    setFlash('')
+    try {
+      const result = await apiRequest(`/admin/logging/files/batch?count=${batchFileCount}`, {
+        method: 'DELETE',
+        token: session.token,
+      })
+      setFlash(result?.message || 'فایل‌های قدیمی حذف شدند.')
+      setPage(1)
+      setExpandedEntry(null)
+      await loadFiles(session.token)
+      await loadEntries(session.token)
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setBusyFile('')
+      setTimeout(() => setFlash(''), 6000)
+    }
+  }
+
+  const applyDeleteOldestEntries = async () => {
+    if (!window.confirm(
+      `حذف ${batchEntryCount.toLocaleString('fa-IR')} ردیف قدیمی‌ترین از فایل «${formatFileDate(selectedFile)}»؟ بقیهٔ ردیف‌های فایل دست‌نخورده می‌مانند و این عمل بازگشت‌پذیر نیست.`)) {
+      return
+    }
+    setBusyFile('__entries__')
+    setError('')
+    setFlash('')
+    try {
+      const result = await apiRequest(`/admin/logging/files/${selectedFile}/entries/oldest?count=${batchEntryCount}`, {
+        method: 'DELETE',
+        token: session.token,
+      })
+      setFlash(result?.message || 'ردیف‌های قدیمی حذف شدند.')
       setPage(1)
       setExpandedEntry(null)
       await loadFiles(session.token)
@@ -380,6 +447,31 @@ export function SystemLogsPage() {
               ) : null}
             </div>
 
+            {canDeleteLogs && files.length > 1 ? (
+              <div className="log-batch-row">
+                <span className="log-batch-label">حذف دسته‌ای فایل‌های قدیمی:</span>
+                <select
+                  className="log-batch-select"
+                  value={batchFileCount}
+                  disabled={busyFile === '__batch__'}
+                  onChange={(event) => setBatchFileCount(Number(event.target.value))}
+                >
+                  {BATCH_SIZES.map((size) => (
+                    <option key={size} value={size}>{size.toLocaleString('fa-IR')} فایل</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="log-batch-apply"
+                  disabled={busyFile === '__batch__'}
+                  onClick={applyDeleteOldestFilesBatch}
+                >
+                  {busyFile === '__batch__' ? 'در حال حذف…' : `حذف ${batchFileCount.toLocaleString('fa-IR')} فایل قدیمی‌ترین`}
+                </button>
+                <span className="log-batch-hint">فایل‌های امروز همیشه حفظ می‌شوند — فضا بلافاصله آزاد می‌شود.</span>
+              </div>
+            ) : null}
+
             <div className="log-filters">
               <div className="log-level-chips" data-tip="system-logs.levels">
                 {LEVEL_FILTERS.map((filter) => {
@@ -438,6 +530,41 @@ export function SystemLogsPage() {
                 <Tip k="system-logs.search" />
               </div>
             </div>
+
+            {canDeleteLogs && selectedFile && entriesData && entriesData.totalMatching > 0 ? (
+              isTodayFile(selectedFile) ? (
+                <p className="log-batch-hint log-entry-batch-note">
+                  حذف دسته‌ای ردیف‌ها فقط برای فایل‌های روزهای قبل ممکن است؛ فایل امروز هنوز در حال نوشتن است.
+                </p>
+              ) : (
+                <div className="log-batch-row log-entry-batch">
+                  <span className="log-batch-label">حذف دسته‌ای قدیمی‌ترین ردیف‌های این فایل:</span>
+                  <select
+                    className="log-batch-select"
+                    value={batchEntryCount}
+                    disabled={busyFile === '__entries__'}
+                    onChange={(event) => setBatchEntryCount(Number(event.target.value))}
+                  >
+                    {BATCH_SIZES.map((size) => (
+                      <option key={size} value={size}>{size.toLocaleString('fa-IR')} ردیف</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="log-batch-apply"
+                    disabled={busyFile === '__entries__'}
+                    onClick={applyDeleteOldestEntries}
+                  >
+                    {busyFile === '__entries__'
+                      ? 'در حال حذف…'
+                      : `حذف ${batchEntryCount.toLocaleString('fa-IR')} ردیف قدیمی‌ترین`}
+                  </button>
+                  <span className="log-batch-hint">
+                    بقیهٔ ردیف‌ها دست‌نخورده می‌مانند؛ اگر تعداد انتخابی از کل ردیف‌ها بیشتر باشد، کل فایل حذف می‌شود.
+                  </span>
+                </div>
+              )
+            ) : null}
 
             <div className="log-entries">
               {loadingEntries ? (
@@ -505,6 +632,10 @@ export function SystemLogsPage() {
           {'\n'}
           • لاگ‌های تکراری پشت‌سرهم فشرده می‌شوند و فقط یک خلاصه ذخیره می‌شود.
           {'\n'}
+          • فایل‌های قدیمی را می‌توان تک‌تکی یا دسته‌ای (بسته‌های ۱۰۰ تا ۵۰۰ فایل یا ردیف) حذف کرد؛
+          ردیف‌های قدیمی‌ترین هر فایل هم قابل حذف بسته‌ای است و بقیهٔ فایل سالم می‌ماند.{'\n'}
+          • علاوه بر حذف دستی، سرور هر ۶ ساعت فایل‌های قدیمی‌تر از ۱۴ روز را خودکار پاک می‌کند
+          (قابل تغییر از تنظیمات سرور با LoggingInfrastructure__FileRetentionDays).{'\n'}
           • رخدادهای حساس (باز/بسته شدن مسیرها، تغییر رمز دیتابیس، تغییر سطح لاگ) در فایل audit جداگانه
           ثبت می‌شوند و هرگز حذف نمی‌شوند.
         </p>

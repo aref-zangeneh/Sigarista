@@ -105,6 +105,19 @@ public class AdminLoggingController(
         int DeletedFiles,
         string Message);
 
+    /// <summary>Bulk file deletion payload (with the disk space it freed).</summary>
+    public sealed record BatchDeleteResponse(
+        int DeletedFiles,
+        long FreedBytes,
+        string Message);
+
+    /// <summary>Bulk entry deletion payload (oldest N entries of one file).</summary>
+    public sealed record EntryDeleteResponse(
+        int DeletedEntries,
+        long FreedBytes,
+        bool FileDeleted,
+        string Message);
+
     /// <summary>
     /// All system log files, newest write first, each with its size and
     /// level distribution (for filter chips in the viewer).
@@ -160,24 +173,100 @@ public class AdminLoggingController(
     }
 
     /// <summary>
-    /// Deletes every log file except the current one (today's file stays, because
-    /// the writer keeps appending to it). Frees space taken by older days.
+    /// Bulk delete: removes the N oldest log files in one go (e.g. packs of
+    /// 100–500 for very chatty setups). Today's files — the ones the writer
+    /// is still appending to — are always kept. Useful when a misbehaving
+    /// day produced far more files than the viewer lists comfortably.
+    /// </summary>
+    [HttpDelete("files/batch")]
+    [RequirePermission(AdminPermissions.SystemLogs.Delete)]
+    public ActionResult<BatchDeleteResponse> DeleteOldestFilesBatch([FromQuery] int count = 100)
+    {
+        count = Math.Clamp(count, 1, 500);
+        var result = logFileStore.DeleteOldestFiles(count);
+
+        audit.Write(
+            "system_log_files_batch_deleted",
+            $"batch removed {result.DeletedFiles} oldest log file(s), freed {result.FreedBytes} bytes");
+
+        return Ok(new BatchDeleteResponse(
+            result.DeletedFiles,
+            result.FreedBytes,
+            result.DeletedFiles == 0
+                ? "فایل قدیمی‌ای برای حذف نبود (فایل‌های امروز حفظ می‌شوند)."
+                : $"{result.DeletedFiles} فایل قدیمی‌ترین حذف شد و {FormatBytes(result.FreedBytes)} فضا آزاد شد."));
+    }
+
+    /// <summary>
+    /// Bulk entry deletion: removes the N OLDEST entries inside one log file
+    /// (e.g. 100–500 at a time) by rewriting the file without their lines.
+    /// Only files of a past day can be trimmed — today's file is still being
+    /// written to and cannot be safely rewritten.
+    /// </summary>
+    [HttpDelete("files/{fileName}/entries/oldest")]
+    [RequirePermission(AdminPermissions.SystemLogs.Delete)]
+    public ActionResult<EntryDeleteResponse> DeleteOldestEntries(string fileName, [FromQuery] int count = 100)
+    {
+        count = Math.Clamp(count, 1, 500);
+
+        var result = logFileStore.DeleteOldestEntries(fileName, count);
+        if (!result.Success)
+        {
+            return result.Reason switch
+            {
+                "not-found" => NotFound(new { success = false, message = "فایل لاگ پیدا نشد." }),
+                "active-day" => BadRequest(new
+                {
+                    success = false,
+                    message = "فایل امروز در حال نوشتن است و نمی‌توان ردیف‌هایش را حذف کرد؛ فایل‌های روزهای قبل قابل حذف دسته‌ای هستند."
+                }),
+                _ => StatusCode(500, new { success = false, message = "حذف ردیف‌ها انجام نشد (خطای دیسک)." }),
+            };
+        }
+
+        audit.Write(
+            "system_log_entries_deleted",
+            $"removed {result.DeletedEntries} oldest entries from {fileName}, freed {result.FreedBytes} bytes" +
+            (result.FileDeleted ? " (file removed entirely)" : string.Empty));
+
+        var message = result.FileDeleted
+            ? $"همهٔ ردیف‌های فایل «{fileName}» ({result.DeletedEntries} ردیف) حذف شد و {FormatBytes(result.FreedBytes)} فضا آزاد شد."
+            : $"{result.DeletedEntries} ردیف قدیمی‌ترین حذف شد و {FormatBytes(result.FreedBytes)} فضا آزاد شد.";
+
+        return Ok(new EntryDeleteResponse(result.DeletedEntries, result.FreedBytes, result.FileDeleted, message));
+    }
+
+    /// <summary>
+    /// Deletes every log file of previous days (today's files — including any
+    /// size-rolled parts of today — stay, because the writer keeps appending
+    /// to them). Frees space taken by older days.
     /// </summary>
     [HttpDelete("files")]
     [RequirePermission(AdminPermissions.SystemLogs.Delete)]
     public ActionResult<DeleteResponse> DeleteOldFiles()
     {
-        var today = $"sugarista-{DateTime.UtcNow:yyyyMMdd}.log";
-        var removed = logFileStore.DeleteAllExcept(today);
+        var removed = logFileStore.DeleteAllExceptToday();
 
         audit.Write(
             "system_log_files_cleared",
-            $"removed {removed} old log file(s), kept {today}");
+            $"removed {removed} old log file(s), kept all of today's files");
 
         return Ok(new DeleteResponse(
             removed,
             removed == 0
                 ? "فایل قدیمی‌ای برای حذف نبود."
-                : $"{removed} فایل قدیمی حذف شد؛ فایل امروز ({today}) حفظ شد."));
+                : $"{removed} فایل قدیمی حذف شد؛ فایل‌های امروز حفظ شدند."));
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes <= 0)
+        {
+            return "0 KB";
+        }
+
+        return bytes < 1024 * 1024
+            ? $"{bytes / 1024.0:0} کیلوبایت"
+            : $"{bytes / (1024.0 * 1024.0):0.#} مگابایت";
     }
 }

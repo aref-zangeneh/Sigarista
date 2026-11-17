@@ -19,6 +19,7 @@ using Sugarista.Infrastructure.Auth;
 using Sugarista.Infrastructure.Data;
 using Sugarista.Infrastructure.Data.DbConnection;
 using Sugarista.Infrastructure.Data.Interceptors;
+using Sugarista.Infrastructure.Logging;
 using Sugarista.Infrastructure.Payments;
 using Sugarista.Infrastructure.Printing;
 using Sugarista.Infrastructure.Settings;
@@ -91,6 +92,12 @@ public static class DependencyInjection
         services.AddHostedService<CustomerWinBackTickerService>();
         services.AddHostedService<AbandonedCartTickerService>();
         services.AddHostedService<ReportScheduleRunnerService>();
+        // Daily-ish pruning of old system log files (LoggingInfrastructure:FileRetentionDays).
+        services.AddHostedService(sp => new SystemLogRetentionService(
+            sp.GetRequiredService<SystemLogFileStore>(),
+            configuration.GetSection(LoggingInfrastructureOptions.SectionName)
+                .Get<LoggingInfrastructureOptions>() ?? new LoggingInfrastructureOptions(),
+            sp.GetRequiredService<ILogger<SystemLogRetentionService>>()));
 
         var fallbackConnectionString = configuration.GetConnectionString("DefaultConnection");
 

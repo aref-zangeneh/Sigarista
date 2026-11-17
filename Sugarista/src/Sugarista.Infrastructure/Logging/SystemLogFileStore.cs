@@ -32,6 +32,25 @@ public sealed record SystemLogEntriesResult(
     IReadOnlyDictionary<string, int> LevelCounts,
     IReadOnlyList<string> Categories);
 
+/// <summary>Outcome of a bulk file deletion (admin batch or retention job).</summary>
+public sealed record SystemLogBatchDeleteResult(int DeletedFiles, long FreedBytes);
+
+/// <summary>Outcome of deleting the oldest N entries inside one log file.</summary>
+/// <param name="Success">False when nothing could be deleted (see Reason).</param>
+/// <param name="DeletedEntries">Entries actually removed.</param>
+/// <param name="FreedBytes">Disk bytes the operation freed.</param>
+/// <param name="FileDeleted">True when the file itself was removed (count ≥ all entries).</param>
+/// <param name="Reason">
+/// Machine-readable failure cause: "not-found", "active-day" (the writer is
+/// still appending to that day's file — rewriting it is unsafe), "io-error".
+/// </param>
+public sealed record SystemLogEntryDeleteResult(
+    bool Success,
+    int DeletedEntries,
+    long FreedBytes,
+    bool FileDeleted,
+    string? Reason = null);
+
 /// <summary>
 /// Reads the rolling Serilog compact-JSON files (sugarista-*.log) written by
 /// <see cref="SerilogLoggingInfrastructure"/> and turns them into browsable,
@@ -195,6 +214,240 @@ public sealed partial class SystemLogFileStore(LoggingDiagnostics diagnostics)
         }
 
         return removed;
+    }
+
+    /// <summary>
+    /// Extracts the day encoded in a log file name (sugarista-YYYYMMDD*.log).
+    /// Returns false for names without a parsable day part.
+    /// </summary>
+    public static bool TryGetFileDate(string fileName, out DateTime dateUtc)
+    {
+        dateUtc = DateTime.MinValue;
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        var match = DatePartRegex().Match(fileName);
+        if (!match.Success ||
+            !DateTime.TryParseExact(
+                match.Value,
+                "yyyyMMdd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out dateUtc))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Deletes the N oldest log files in one batch (the admin panel's bulk
+    /// delete). Files of the CURRENT day are always skipped — the Serilog
+    /// writer still holds them open, and deleting an open file on Linux
+    /// frees no space until restart while silently orphaning new writes.
+    /// Returns how many were removed and how many bytes that freed.
+    /// </summary>
+    public SystemLogBatchDeleteResult DeleteOldestFiles(int count)
+    {
+        count = Math.Max(1, count);
+
+        var today = DateTime.UtcNow.Date;
+        var candidates = ListFiles()
+            .Where(file => !(TryGetFileDate(file.FileName, out var day) && day >= today))
+            .OrderBy(file => file.LastWriteUtc)
+            .Take(count)
+            .ToList();
+
+        var removed = 0;
+        long freed = 0;
+        foreach (var candidate in candidates)
+        {
+            if (DeleteFile(candidate.FileName))
+            {
+                removed++;
+                freed += candidate.SizeBytes;
+            }
+        }
+
+        return new SystemLogBatchDeleteResult(removed, freed);
+    }
+
+    /// <summary>
+    /// Deletes every log file older than the given number of days (measured
+    /// from the day encoded in the file name). Used by the scheduled retention
+    /// job; safe to call at any frequency. Files that are still today's are
+    /// naturally excluded by the cutoff.
+    /// </summary>
+    public SystemLogBatchDeleteResult DeleteOlderThanDays(int days)
+    {
+        if (days <= 0)
+        {
+            return new SystemLogBatchDeleteResult(0, 0);
+        }
+
+        var cutoff = DateTime.UtcNow.Date.AddDays(-days);
+        var directory = diagnostics.LogDirectory;
+        if (!Directory.Exists(directory))
+        {
+            return new SystemLogBatchDeleteResult(0, 0);
+        }
+
+        var removed = 0;
+        long freed = 0;
+        foreach (var path in Directory.EnumerateFiles(directory, "sugarista-*.log").ToList())
+        {
+            var fileName = Path.GetFileName(path);
+            if (!FileNamePattern.IsMatch(fileName) ||
+                !TryGetFileDate(fileName, out var day) ||
+                day >= cutoff)
+            {
+                continue;
+            }
+
+            var size = new FileInfo(path).Length;
+            if (DeleteFile(fileName))
+            {
+                removed++;
+                freed += size;
+            }
+        }
+
+        return new SystemLogBatchDeleteResult(removed, freed);
+    }
+
+    /// <summary>
+    /// Deletes every log file whose name does not encode TODAY's day — keeps
+    /// all of today's files including any size-rolled parts of them.
+    /// Returns how many files were removed.
+    /// </summary>
+    public int DeleteAllExceptToday()
+    {
+        var today = DateTime.UtcNow.Date;
+        var directory = diagnostics.LogDirectory;
+        if (!Directory.Exists(directory))
+        {
+            return 0;
+        }
+
+        var removed = 0;
+        foreach (var path in Directory.EnumerateFiles(directory, "sugarista-*.log").ToList())
+        {
+            var fileName = Path.GetFileName(path);
+            if (!FileNamePattern.IsMatch(fileName) ||
+                (TryGetFileDate(fileName, out var day) && day >= today))
+            {
+                continue;
+            }
+
+            if (DeleteFile(fileName))
+            {
+                removed++;
+            }
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Deletes the oldest N entries INSIDE one closed log file by rewriting it
+    /// without their lines (the admin panel's entry-level batch delete, e.g.
+    /// packs of 100–500). The file's remaining lines are preserved byte-for-byte.
+    ///
+    /// Guards:
+    ///   • Only files of a PAST day are eligible — today's file is held open by
+    ///     the Serilog writer, and rewriting an open file loses new appends.
+    ///   • If the request covers every entry, the whole (closed) file is
+    ///     deleted instead — same effect, simpler and fully frees the space.
+    /// Returns false results for unknown files, today's file or I/O errors.
+    /// </summary>
+    public SystemLogEntryDeleteResult DeleteOldestEntries(string fileName, int count)
+    {
+        var path = ResolvePath(fileName);
+        if (path is null || !File.Exists(path))
+        {
+            return new SystemLogEntryDeleteResult(false, 0, 0, false, "not-found");
+        }
+
+        if (TryGetFileDate(fileName, out var day) && day >= DateTime.UtcNow.Date)
+        {
+            return new SystemLogEntryDeleteResult(false, 0, 0, false, "active-day");
+        }
+
+        count = Math.Max(1, count);
+
+        var info = new FileInfo(path);
+        var originalSize = info.Length;
+        var totalEntries = Load(fileName).Parsed.Entries.Count;
+
+        if (totalEntries == 0)
+        {
+            _cache.TryRemove(fileName, out _);
+            return new SystemLogEntryDeleteResult(true, 0, 0, false);
+        }
+
+        if (count >= totalEntries)
+        {
+            // Every entry is going away — deleting the closed file outright
+            // is equivalent, simpler and frees the whole size.
+            if (!DeleteFile(fileName))
+            {
+                return new SystemLogEntryDeleteResult(false, 0, 0, false, "io-error");
+            }
+
+            return new SystemLogEntryDeleteResult(true, totalEntries, originalSize, true);
+        }
+
+        var tempPath = path + ".tmp";
+        try
+        {
+            // Single pass: keep every raw line except the first `count` parsed
+            // entry lines. Blank and unparseable lines are kept as-is, so
+            // nothing outside the counted entries is ever touched.
+            var kept = new List<string>(capacity: totalEntries - count + 16);
+            var entryIndex = 0;
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var reader = new StreamReader(stream))
+            {
+                while (reader.ReadLine() is { } line)
+                {
+                    if (line.Length > 0 && TryParseLine(line) is not null)
+                    {
+                        entryIndex++;
+                        if (entryIndex <= count)
+                        {
+                            continue; // this is one of the oldest entries — drop it
+                        }
+                    }
+
+                    kept.Add(line);
+                }
+            }
+
+            File.WriteAllLines(tempPath, kept);
+            // Rename over the original: atomic on POSIX, keeps the file name
+            // (and therefore the store's validation regex) intact.
+            File.Move(tempPath, path, overwrite: true);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch
+            {
+                // best effort — the temp file lives next to the log anyway
+            }
+
+            return new SystemLogEntryDeleteResult(false, 0, 0, false, "io-error");
+        }
+
+        var newSize = new FileInfo(path).Length;
+        _cache.TryRemove(fileName, out _);
+        return new SystemLogEntryDeleteResult(true, count, Math.Max(0, originalSize - newSize), false);
     }
 
     private (string Path, ParsedFile Parsed) Load(string fileName)
@@ -426,8 +679,14 @@ public sealed partial class SystemLogFileStore(LoggingDiagnostics diagnostics)
         return "سایر";
     }
 
-    [GeneratedRegex(@"^sugarista-\d{8}\.log$", RegexOptions.CultureInvariant)]
+    // Size-rolled parts (sugarista-20261117_001.log) are real Serilog roll
+    // files and must be listable/deletable too — otherwise they accumulate
+    // invisibly while only the "free space" counter sees them.
+    [GeneratedRegex(@"^sugarista-\d{8}(_\d{3,})?\.log$", RegexOptions.CultureInvariant)]
     private static partial Regex SystemLogFileNameRegex();
+
+    [GeneratedRegex(@"(?<=sugarista-)\d{8}", RegexOptions.CultureInvariant)]
+    private static partial Regex DatePartRegex();
 
     /// <summary>{Name}, {Name:format}, {@Name}, {@@Name} — no positional holes.</summary>
     [GeneratedRegex(@"\{[@]?([A-Za-z_][A-Za-z0-9_]*)(?::[^}]+)?\}", RegexOptions.CultureInvariant)]

@@ -28,6 +28,14 @@ public sealed class LoggingInfrastructureOptions
     /// <summary>How many rolled files to keep. Default 7 → ≈140 MB worst case.</summary>
     public int FileSinkRetainedFiles { get; set; } = 7;
 
+    /// <summary>
+    /// How many DAYS of system log files to keep on disk regardless of the
+    /// writer's roll-based retention (which only prunes when a roll happens —
+    /// quiet days would otherwise accumulate forever). A daily background job
+    /// deletes day-files older than this. 0 disables the job. Default 14.
+    /// </summary>
+    public int FileRetentionDays { get; set; } = 14;
+
     /// <summary>Bounded queue between the request thread and the file writer.
     /// Full queue ⇒ events are DROPPED and counted, never blocking requests.
     /// Default 10,000 events (≈ a few MB of RAM at most, never unbounded).</summary>

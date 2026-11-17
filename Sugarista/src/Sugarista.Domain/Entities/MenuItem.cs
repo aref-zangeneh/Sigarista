@@ -43,7 +43,8 @@ public class MenuItem : BaseAuditableEntity
         string accent,
         string shortLabel,
         int displayOrder,
-        bool isActive = true)
+        bool isActive = true,
+        decimal? price = null)
     {
         Update(
             categoryId,
@@ -77,7 +78,8 @@ public class MenuItem : BaseAuditableEntity
             accent,
             shortLabel,
             displayOrder,
-            isActive);
+            isActive,
+            price);
     }
 
     public Guid CategoryId { get; private set; }
@@ -210,7 +212,8 @@ public class MenuItem : BaseAuditableEntity
         string accent,
         string shortLabel,
         int displayOrder,
-        bool isActive)
+        bool isActive,
+        decimal? price = null)
     {
         if (categoryId == Guid.Empty)
         {
@@ -254,9 +257,10 @@ public class MenuItem : BaseAuditableEntity
             throw new DomainException("Calories must be greater than or equal to zero.");
         }
 
-        if (!smallPrice.HasValue && !mediumPrice.HasValue && !largePrice.HasValue)
+        var hasSizePrice = smallPrice.HasValue || mediumPrice.HasValue || largePrice.HasValue;
+        if (!hasSizePrice && price is not > 0)
         {
-            throw new DomainException("At least one size price is required.");
+            throw new DomainException("At least one size price or a base price is required.");
         }
 
         CategoryId = categoryId;
@@ -278,7 +282,9 @@ public class MenuItem : BaseAuditableEntity
         LargeSpecialOfferPrice = largeSpecialOfferPrice;
         LargeVolume = NormalizeOptionalText(largeVolume);
         LargeName = NormalizeOptionalText(largeName);
-        Price = mediumPrice ?? smallPrice ?? largePrice ?? 0;
+        // Base price wins when provided (variant-less items like espresso);
+        // otherwise it is derived from the priced sizes like before.
+        Price = price is > 0 ? price.Value : (mediumPrice ?? smallPrice ?? largePrice ?? 0);
         SpecialOfferPrice = specialOfferPrice ?? mediumSpecialOfferPrice ?? smallSpecialOfferPrice ?? largeSpecialOfferPrice;
         TaxPercent = taxPercent;
         IsOrderable = isOrderable;

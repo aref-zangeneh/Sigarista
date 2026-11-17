@@ -1062,6 +1062,7 @@ export function AdminProvider({ children }) {
           shortLabel: menuItemForm.shortLabel,
           displayOrder: Number(menuItemForm.displayOrder),
           isActive: menuItemForm.isActive,
+          price: optionalNumber(menuItemForm.price),
         },
       })
 
@@ -1164,11 +1165,12 @@ export function AdminProvider({ children }) {
       calories: item.calories ?? '',
       allergens: joinList(item.allergens ?? []),
       volume: item.volume ?? '',
+      price: (item.smallPrice || item.mediumPrice || item.largePrice) ? '' : (item.price ?? ''),
       smallPrice: item.smallPrice ?? '',
       smallSpecialOfferPrice: item.smallSpecialOfferPrice ?? '',
       smallVolume: item.smallVolume ?? '',
       smallName: item.smallName ?? '',
-      mediumPrice: item.mediumPrice ?? item.price ?? '',
+      mediumPrice: item.mediumPrice ?? '',
       mediumSpecialOfferPrice: item.mediumSpecialOfferPrice ?? '',
       mediumVolume: item.mediumVolume ?? '',
       mediumName: item.mediumName ?? '',

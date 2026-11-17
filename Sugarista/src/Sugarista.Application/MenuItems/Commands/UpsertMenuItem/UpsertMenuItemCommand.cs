@@ -37,7 +37,8 @@ public record UpsertMenuItemCommand(
     string Accent,
     string ShortLabel,
     int DisplayOrder,
-    bool IsActive) : IRequest<Guid>;
+    bool IsActive,
+    decimal? Price = null) : IRequest<Guid>;
 
 public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCommand>
 {
@@ -65,9 +66,13 @@ public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCo
         RuleFor(command => command.LargeSpecialOfferPrice).GreaterThanOrEqualTo(0);
         RuleFor(command => command.LargeVolume).MaximumLength(100);
         RuleFor(command => command.LargeName).MaximumLength(60);
+        RuleFor(command => command.Price).GreaterThanOrEqualTo(0);
         RuleFor(command => command)
-            .Must(command => command.SmallPrice.HasValue || command.MediumPrice.HasValue || command.LargePrice.HasValue)
-            .WithMessage("At least one size price is required.");
+            .Must(command => command.SmallPrice.HasValue
+                || command.MediumPrice.HasValue
+                || command.LargePrice.HasValue
+                || command.Price is > 0)
+            .WithMessage("حداقل قیمت یکی از سایزها یا قیمت پایه (بدون سایز) را وارد کنید.");
         RuleFor(command => command.Accent).NotEmpty().MaximumLength(200);
         RuleFor(command => command.ShortLabel).NotEmpty().MaximumLength(10);
         RuleFor(command => command.DisplayOrder).GreaterThanOrEqualTo(0);
@@ -141,7 +146,8 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
                 request.Accent,
                 request.ShortLabel,
                 request.DisplayOrder,
-                request.IsActive);
+                request.IsActive,
+                request.Price);
         }
         else
         {
@@ -177,7 +183,8 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
                 request.Accent,
                 request.ShortLabel,
                 request.DisplayOrder,
-                request.IsActive);
+                request.IsActive,
+                request.Price);
 
             _dbContext.MenuItems.Add(menuItem);
             await _dbContext.SaveChangesAsync(cancellationToken);

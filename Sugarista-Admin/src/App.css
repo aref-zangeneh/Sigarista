@@ -1422,6 +1422,36 @@ select:disabled {
   color: var(--heading);
 }
 
+/* Base price row (variant-less menu items, e.g. espresso) */
+.form-row-base-price {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.form-row-base-price label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--heading);
+}
+
+.form-row-base-price input {
+  width: 170px;
+}
+
+.form-row-base-price .form-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+  flex: 1;
+  min-width: 200px;
+}
+
 .form-actions {
   display: flex;
   align-items: center;

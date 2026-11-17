@@ -4,6 +4,7 @@ import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
 import { DataTable, formatMoney } from '../components/DataTable'
 import { ImageUploader } from '../components/ImageUploader'
 import { MenuItemOptionGroupsPanel } from '../components/MenuItemOptionGroupsPanel'
+import { Tip } from '../components/Tip'
 import { buildMenuItemPricingColumns } from '../components/adminTableColumns'
 
 export function MenuItemsPage() {
@@ -235,6 +236,28 @@ export function MenuItemsPage() {
     
           <div className="form-section">
             <h4>قیمت‌گذاری و سایزها</h4>
+            <div className="form-row form-row-base-price">
+              <label>
+                <span>قیمت پایه (آیتم بدون سایز)</span>
+                <input
+                  className="ltr-input"
+                  type="number"
+                  min="0"
+                  placeholder="مثلاً اسپرسو: ۱۲۰۰۰۰"
+                  value={menuItemForm.price ?? ''}
+                  onChange={(event) =>
+                    setMenuItemForm((currentForm) => ({
+                      ...currentForm,
+                      price: event.target.value,
+                    }))
+                  }
+                />
+                <Tip k="menu-items.base_price" />
+              </label>
+              <p className="form-hint">
+                اگر آیتم سایز ندارد (مثل اسپرسو)، فقط همین قیمت را پر کنید؛ بخش سایزها را خالی بگذارید.
+              </p>
+            </div>
             <div className="variant-grid">
               {[
                 ['small', 'کوچک'],

@@ -61,6 +61,7 @@ export const emptyMenuItemForm = {
   shortLabel: '',
   displayOrder: 0,
   isActive: true,
+  price: '',
 }
 
 export const emptyAddonForm = {

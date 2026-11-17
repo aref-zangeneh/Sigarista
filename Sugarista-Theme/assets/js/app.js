@@ -3,6 +3,8 @@ document.addEventListener("alpine:init", () => {
   const CART_TOKEN_STORAGE_KEY = "sugarista_cart_token";
   const CART_TRACK_DEBOUNCE_MS = 1200;
   const PROFILE_STORAGE_KEY = "sugarista_profile_phone";
+  const NOTES_STORAGE_KEY = "sugarista_order_notes";
+  const NOTES_MEMO_STORAGE_KEY = "sugarista_order_notes_memo";
 
   Alpine.data("cafeMenu", () => ({
     apiBaseUrl: window.SUGARISTA_API_BASE_URL || "/api",
@@ -18,6 +20,13 @@ document.addEventListener("alpine:init", () => {
     cart: [],
     cartDrawerOpen: false,
     cartView: "cart",
+    notes: [],
+    notesMemo: "",
+    notesDrawerOpen: false,
+    notesViewMode: "list",
+    notesClearConfirm: false,
+    notesCopied: false,
+    notesCopyTimer: null,
     cartTrackTimer: null,
     cartProgressTimer: null,
     cartTokenValue: null,
@@ -151,6 +160,7 @@ document.addEventListener("alpine:init", () => {
       this.loadThemePref();
       this.applyTheme();
       this.loadCart();
+      this.loadNotes();
       this.restoreProfilePhone();
       this.initCustomerAuth(); // جلسهٔ لاگین موبایلی: تا بدون تایپ شماره، حساب فعال بماند
       this.handleRouteState();
@@ -734,6 +744,34 @@ document.addEventListener("alpine:init", () => {
     saveCart() {
       window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(this.cart));
     },
+    loadNotes() {
+      try {
+        const raw = window.localStorage.getItem(NOTES_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        this.notes = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        this.notes = [];
+      }
+      try {
+        this.notesMemo = window.localStorage.getItem(NOTES_MEMO_STORAGE_KEY) || "";
+      } catch {
+        this.notesMemo = "";
+      }
+    },
+    saveNotes() {
+      try {
+        window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(this.notes));
+      } catch {
+        // Storage disabled or private mode
+      }
+    },
+    saveNotesMemo() {
+      try {
+        window.localStorage.setItem(NOTES_MEMO_STORAGE_KEY, this.notesMemo || "");
+      } catch {
+        // Storage disabled or private mode
+      }
+    },
     cartToken() {
       if (this.cartTokenValue) {
         return this.cartTokenValue;
@@ -1272,6 +1310,53 @@ document.addEventListener("alpine:init", () => {
     get cartCount() {
       return this.cart.reduce((total, line) => total + line.quantity, 0);
     },
+    get notesCount() {
+      return this.notes.reduce((total, line) => total + line.quantity, 0);
+    },
+    get notesTotal() {
+      return this.notes.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
+    },
+    get modalNoteGuestOptions() {
+      return [1, 2, 3, 4, 5, 6].map((num) => `نفر ${this.toPersianNumber(num)}`);
+    },
+    get aggregatedCounterNotes() {
+      const map = new Map();
+      for (const line of this.notes) {
+        const groupKey = `${line.cartKey}__${(line.noteText || "").trim()}`;
+        if (!map.has(groupKey)) {
+          map.set(groupKey, {
+            groupKey,
+            persianName: line.persianName,
+            englishName: line.englishName,
+            sizeLabel: line.sizeLabel,
+            optionLabels: line.optionLabels || [],
+            customDrinkSummary: line.customDrinkSummary || [],
+            modifierLabels: line.modifierLabels || [],
+            noteText: line.noteText || "",
+            unitPrice: line.unitPrice,
+            quantity: 0,
+            guestTags: [],
+            noteKeys: [],
+            allChecked: true
+          });
+        }
+        const entry = map.get(groupKey);
+        entry.quantity += line.quantity;
+        entry.noteKeys.push(line.noteKey);
+        if (!line.checkedAtCounter) {
+          entry.allChecked = false;
+        }
+        if (line.noteTag) {
+          const tagLabel = line.quantity > 1
+            ? `${line.noteTag} (${this.toPersianNumber(line.quantity)})`
+            : line.noteTag;
+          if (!entry.guestTags.includes(tagLabel)) {
+            entry.guestTags.push(tagLabel);
+          }
+        }
+      }
+      return Array.from(map.values());
+    },
     get salesClosed() {
       return (
         this.settings.isOnlineSalesEnabled === false ||
@@ -1472,8 +1557,8 @@ document.addEventListener("alpine:init", () => {
         }
       });
     },
-    openAddToCartModal(item) {
-      if (!item.isOrderable || this.salesClosed) {
+    openAddToCartModal(item, mode = "cart") {
+      if (!item.isOrderable || (this.salesClosed && mode !== "note")) {
         return;
       }
 
@@ -1508,15 +1593,33 @@ document.addEventListener("alpine:init", () => {
 
       this.addToCartModal = {
         item,
+        mode: this.salesClosed ? "note" : mode,
         selectedSizeKey: defaultVariant?.key || null,
         selectedModifierIds: [],
         selectedOptionIds,
         quantity: 1,
         builderAmounts,
         builderSelected,
+        noteTag: "",
+        noteText: "",
         builderError: "",
         optionError: ""
       };
+    },
+    openAddToNoteModal(item) {
+      this.openAddToCartModal(item, "note");
+    },
+    selectModalNoteGuest(guestLabel) {
+      if (!this.addToCartModal) {
+        return;
+      }
+      this.addToCartModal.noteTag =
+        this.addToCartModal.noteTag === guestLabel ? "" : guestLabel;
+    },
+    noteQtyForItem(menuItemId) {
+      return this.notes
+        .filter((line) => line.menuItemId === menuItemId)
+        .reduce((sum, line) => sum + line.quantity, 0);
     },
     closeAddToCartModal() {
       this.addToCartModal = null;
@@ -1935,21 +2038,26 @@ document.addEventListener("alpine:init", () => {
       const optionPart = optionSignature ? `-opts-${optionSignature}` : "";
       return `${menuItemId}-${sizeKey || "default"}-${sortedModifiers}${builderPart}${optionPart}`;
     },
-    confirmAddToCart() {
-      if (!this.addToCartModal || this.salesClosed) {
-        return;
+    buildNoteKey(cartKey, noteTag = "", noteText = "") {
+      const tagPart = (noteTag || "").trim();
+      const textPart = (noteText || "").trim();
+      return `${cartKey}::tag:${tagPart}::note:${textPart}`;
+    },
+    buildValidatedModalLine() {
+      if (!this.addToCartModal) {
+        return null;
       }
 
       const validationError = this.builderValidationError();
       if (validationError) {
         this.addToCartModal.builderError = validationError;
-        return;
+        return null;
       }
 
       const optionValidationError = this.optionsValidationError();
       if (optionValidationError) {
         this.addToCartModal.optionError = optionValidationError;
-        return;
+        return null;
       }
 
       const { item, selectedSizeKey, selectedModifierIds, quantity } = this.addToCartModal;
@@ -1980,27 +2088,58 @@ document.addEventListener("alpine:init", () => {
         builderSignature,
         optionSignature
       );
-      const existingLine = this.cart.find((line) => line.cartKey === cartKey);
+
+      return {
+        cartKey,
+        menuItemId: item.id,
+        persianName: item.persianName || item.name,
+        englishName: item.englishName,
+        sizeKey: variant?.key || null,
+        sizeLabel: variant?.label || null,
+        unitPrice,
+        quantity,
+        modifierIds: [...selectedModifierIds],
+        modifierLabels,
+        optionIds: selectedOptionIds,
+        optionLabels,
+        customDrink,
+        customDrinkSummary: builderSummary,
+        builderSignature,
+        noteTag: (this.addToCartModal.noteTag || "").trim(),
+        noteText: (this.addToCartModal.noteText || "").trim()
+      };
+    },
+    confirmAddToCart() {
+      if (!this.addToCartModal || this.salesClosed) {
+        return;
+      }
+
+      const prepared = this.buildValidatedModalLine();
+      if (!prepared) {
+        return;
+      }
+
+      const existingLine = this.cart.find((line) => line.cartKey === prepared.cartKey);
 
       if (existingLine) {
-        existingLine.quantity += quantity;
+        existingLine.quantity += prepared.quantity;
       } else {
         this.cart.push({
-          cartKey,
-          menuItemId: item.id,
-          persianName: item.persianName || item.name,
-          englishName: item.englishName,
-          sizeKey: variant?.key || null,
-          sizeLabel: variant?.label || null,
-          unitPrice,
-          quantity,
-          modifierIds: [...selectedModifierIds],
-          modifierLabels,
-          optionIds: selectedOptionIds,
-          optionLabels,
-          customDrink,
-          customDrinkSummary: builderSummary,
-          builderSignature,
+          cartKey: prepared.cartKey,
+          menuItemId: prepared.menuItemId,
+          persianName: prepared.persianName,
+          englishName: prepared.englishName,
+          sizeKey: prepared.sizeKey,
+          sizeLabel: prepared.sizeLabel,
+          unitPrice: prepared.unitPrice,
+          quantity: prepared.quantity,
+          modifierIds: prepared.modifierIds,
+          modifierLabels: prepared.modifierLabels,
+          optionIds: prepared.optionIds,
+          optionLabels: prepared.optionLabels,
+          customDrink: prepared.customDrink,
+          customDrinkSummary: prepared.customDrinkSummary,
+          builderSignature: prepared.builderSignature,
           payerKey: null,
           payerLabel: null
         });
@@ -2013,6 +2152,248 @@ document.addEventListener("alpine:init", () => {
       this.loadPickupSchedule();
       this.closeAddToCartModal();
       this.openCartDrawer("cart");
+    },
+    confirmAddToNotes() {
+      const prepared = this.buildValidatedModalLine();
+      if (!prepared) {
+        return;
+      }
+
+      const noteKey = this.buildNoteKey(
+        prepared.cartKey,
+        prepared.noteTag,
+        prepared.noteText
+      );
+      const existingLine = this.notes.find((line) => line.noteKey === noteKey);
+
+      if (existingLine) {
+        existingLine.quantity += prepared.quantity;
+      } else {
+        this.notes.push({
+          noteKey,
+          cartKey: prepared.cartKey,
+          menuItemId: prepared.menuItemId,
+          persianName: prepared.persianName,
+          englishName: prepared.englishName,
+          sizeKey: prepared.sizeKey,
+          sizeLabel: prepared.sizeLabel,
+          unitPrice: prepared.unitPrice,
+          quantity: prepared.quantity,
+          modifierIds: prepared.modifierIds,
+          modifierLabels: prepared.modifierLabels,
+          optionIds: prepared.optionIds,
+          optionLabels: prepared.optionLabels,
+          customDrink: prepared.customDrink,
+          customDrinkSummary: prepared.customDrinkSummary,
+          builderSignature: prepared.builderSignature,
+          noteTag: prepared.noteTag,
+          noteText: prepared.noteText,
+          checkedAtCounter: false
+        });
+      }
+
+      this.saveNotes();
+      this.closeAddToCartModal();
+      this.openNotesDrawer("list");
+    },
+    openNotesDrawer(viewMode = "list") {
+      this.notesViewMode = viewMode;
+      this.notesClearConfirm = false;
+      this.notesDrawerOpen = true;
+    },
+    closeNotesDrawer() {
+      this.notesDrawerOpen = false;
+      this.notesClearConfirm = false;
+    },
+    setNotesViewMode(viewMode) {
+      this.notesViewMode = viewMode;
+    },
+    updateNoteQuantity(noteKey, delta) {
+      const line = this.notes.find((entry) => entry.noteKey === noteKey);
+      if (!line) {
+        return;
+      }
+
+      line.quantity += delta;
+      if (line.quantity <= 0) {
+        this.removeFromNotes(noteKey);
+        return;
+      }
+
+      this.saveNotes();
+    },
+    updateNoteLineGuest(noteKey, guestLabel) {
+      const line = this.notes.find((entry) => entry.noteKey === noteKey);
+      if (!line) {
+        return;
+      }
+
+      line.noteTag = line.noteTag === guestLabel ? "" : guestLabel;
+      line.noteKey = this.buildNoteKey(line.cartKey, line.noteTag, line.noteText);
+      this.saveNotes();
+    },
+    updateNoteLineText(noteKey, text) {
+      const line = this.notes.find((entry) => entry.noteKey === noteKey);
+      if (!line) {
+        return;
+      }
+
+      line.noteText = (text || "").trim();
+      line.noteKey = this.buildNoteKey(line.cartKey, line.noteTag, line.noteText);
+      this.saveNotes();
+    },
+    toggleNoteLineChecked(noteKey) {
+      const line = this.notes.find((entry) => entry.noteKey === noteKey);
+      if (!line) {
+        return;
+      }
+
+      line.checkedAtCounter = !line.checkedAtCounter;
+      this.saveNotes();
+    },
+    toggleCounterGroupChecked(groupKey) {
+      const group = this.aggregatedCounterNotes.find((entry) => entry.groupKey === groupKey);
+      if (!group) {
+        return;
+      }
+
+      const nextChecked = !group.allChecked;
+      this.notes.forEach((line) => {
+        if (group.noteKeys.includes(line.noteKey)) {
+          line.checkedAtCounter = nextChecked;
+        }
+      });
+      this.saveNotes();
+    },
+    removeFromNotes(noteKey) {
+      this.notes = this.notes.filter((line) => line.noteKey !== noteKey);
+      this.saveNotes();
+    },
+    promptClearNotes() {
+      this.notesClearConfirm = true;
+    },
+    cancelClearNotes() {
+      this.notesClearConfirm = false;
+    },
+    clearNotes() {
+      this.notes = [];
+      this.notesMemo = "";
+      this.notesClearConfirm = false;
+      this.saveNotes();
+      this.saveNotesMemo();
+    },
+    moveNotesToCart() {
+      if (this.salesClosed || !this.notes.length) {
+        return;
+      }
+
+      const itemNotes = [];
+      for (const noteLine of this.notes) {
+        const existing = this.cart.find((entry) => entry.cartKey === noteLine.cartKey);
+        if (existing) {
+          existing.quantity += noteLine.quantity;
+        } else {
+          this.cart.push({
+            cartKey: noteLine.cartKey,
+            menuItemId: noteLine.menuItemId,
+            persianName: noteLine.persianName,
+            englishName: noteLine.englishName,
+            sizeKey: noteLine.sizeKey,
+            sizeLabel: noteLine.sizeLabel,
+            unitPrice: noteLine.unitPrice,
+            quantity: noteLine.quantity,
+            modifierIds: [...(noteLine.modifierIds || [])],
+            modifierLabels: [...(noteLine.modifierLabels || [])],
+            optionIds: [...(noteLine.optionIds || [])],
+            optionLabels: [...(noteLine.optionLabels || [])],
+            customDrink: noteLine.customDrink || null,
+            customDrinkSummary: [...(noteLine.customDrinkSummary || [])],
+            builderSignature: noteLine.builderSignature || "",
+            payerKey: null,
+            payerLabel: null
+          });
+        }
+
+        if (noteLine.noteText || noteLine.noteTag) {
+          const prefix = noteLine.noteTag ? `${noteLine.noteTag} (${noteLine.persianName})` : noteLine.persianName;
+          if (noteLine.noteText) {
+            itemNotes.push(`${prefix}: ${noteLine.noteText}`);
+          }
+        }
+      }
+
+      const combinedNotes = [
+        this.checkoutForm.note.trim(),
+        ...itemNotes,
+        (this.notesMemo || "").trim()
+      ].filter(Boolean).join(" | ");
+
+      if (combinedNotes) {
+        this.checkoutForm.note = combinedNotes;
+      }
+
+      this.saveCart();
+      this.scheduleCartTracking();
+      this.appliedDiscount = null;
+      this.scheduleCartProgress();
+      this.loadPickupSchedule();
+      this.closeNotesDrawer();
+      this.openCartDrawer("cart");
+    },
+    formatNotesShareText() {
+      if (!this.notes.length) {
+        return "";
+      }
+
+      const lines = ["📝 یادداشت سفارش کافه:"];
+      this.notes.forEach((line, idx) => {
+        const details = [
+          line.sizeLabel,
+          ...(line.optionLabels || []),
+          ...(line.customDrinkSummary || []),
+          ...(line.modifierLabels || [])
+        ].filter(Boolean);
+        const detailStr = details.length ? ` (${details.join("، ")})` : "";
+        const tagStr = line.noteTag ? ` [${line.noteTag}]` : "";
+        const noteStr = line.noteText ? ` — توضیح: ${line.noteText}` : "";
+        lines.push(
+          `${this.toPersianNumber(idx + 1)}. ${this.toPersianNumber(line.quantity)}× ${line.persianName}${detailStr}${tagStr}${noteStr}`
+        );
+      });
+
+      if ((this.notesMemo || "").trim()) {
+        lines.push(`\n💬 یادداشت کلی: ${this.notesMemo.trim()}`);
+      }
+      lines.push(`\n💰 جمع تقریبی: ${this.formatPrice(this.notesTotal)}`);
+      return lines.join("\n");
+    },
+    async copyNotesToClipboard() {
+      const text = this.formatNotesShareText();
+      if (!text) {
+        return;
+      }
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const area = document.createElement("textarea");
+          area.value = text;
+          area.style.position = "fixed";
+          area.style.opacity = "0";
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand("copy");
+          document.body.removeChild(area);
+        }
+        this.notesCopied = true;
+        window.clearTimeout(this.notesCopyTimer);
+        this.notesCopyTimer = window.setTimeout(() => {
+          this.notesCopied = false;
+        }, 2200);
+      } catch {
+        this.notesCopied = false;
+      }
     },
     updateCartQuantity(cartKey, delta) {
       const line = this.cart.find((entry) => entry.cartKey === cartKey);

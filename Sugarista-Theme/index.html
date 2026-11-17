@@ -77,6 +77,16 @@
           <div class="menu-page-actions">
             <button
               type="button"
+              class="menu-page-icon-btn notes-trigger"
+              aria-label="یادداشت سفارش حضوری"
+              title="یادداشت سفارش حضوری"
+              @click="openNotesDrawer('list')"
+            >
+              <i class="bi bi-journal-text"></i>
+              <span class="notes-trigger-badge" x-show="notesCount > 0" x-text="toPersianNumber(notesCount)" x-cloak></span>
+            </button>
+            <button
+              type="button"
               class="menu-page-icon-btn profile-trigger"
               aria-label="کارت مهر و پروفایل من"
               @click="openProfile()"
@@ -329,6 +339,22 @@
                             >
                               <i class="bi bi-bag-plus"></i>
                               <span x-text="builderProfileForItem(item.id) ? 'سفارشی‌سازی و افزودن' : 'افزودن به سبد'"></span>
+                            </button>
+                            <button
+                              type="button"
+                              class="product-note-btn"
+                              :class="{ 'product-note-btn--active': noteQtyForItem(item.id) > 0 }"
+                              x-show="item.isOrderable"
+                              @click="openAddToNoteModal(item)"
+                            >
+                              <i class="bi" :class="noteQtyForItem(item.id) > 0 ? 'bi-journal-check' : 'bi-journal-plus'"></i>
+                              <span>یادداشت</span>
+                              <span
+                                class="product-note-badge"
+                                x-show="noteQtyForItem(item.id) > 0"
+                                x-text="toPersianNumber(noteQtyForItem(item.id))"
+                                x-cloak
+                              ></span>
                             </button>
                             <span class="product-unavailable" x-show="!item.isOrderable">فعلاً موجود نیست</span>
                           </div>
@@ -1033,6 +1059,10 @@
       >
         <div class="add-cart-modal-head">
           <div>
+            <span class="modal-mode-chip" x-show="addToCartModal?.mode === 'note'" x-cloak>
+              <i class="bi bi-journal-text"></i>
+              یادداشت سفارش حضوری
+            </span>
             <h3 id="add-cart-title" class="h5 mb-1" x-text="addToCartModal?.item?.name"></h3>
             <small class="english-name" x-text="addToCartModal?.item?.englishName"></small>
           </div>
@@ -1260,6 +1290,34 @@
             </div>
           </div>
 
+          <div class="mb-3 modal-note-box" :class="{ 'modal-note-box--highlighted': addToCartModal?.mode === 'note' }">
+            <div class="modal-note-head">
+              <label class="form-label mb-0" for="modal-item-note">
+                <i class="bi bi-people"></i>
+                <span>سفارش‌دهنده یا توضیح یادداشت (اختیاری)</span>
+              </label>
+              <small class="modal-note-active-tag" x-show="addToCartModal?.noteTag" x-text="addToCartModal?.noteTag"></small>
+            </div>
+            <div class="modal-note-guests" role="group" aria-label="انتخاب سریع نفر">
+              <template x-for="guestChip in modalNoteGuestOptions" :key="`modal-note-guest-${guestChip}`">
+                <button
+                  type="button"
+                  class="modal-note-guest-chip"
+                  :class="{ active: addToCartModal?.noteTag === guestChip }"
+                  @click="selectModalNoteGuest(guestChip)"
+                  x-text="guestChip"
+                ></button>
+              </template>
+            </div>
+            <input
+              id="modal-item-note"
+              type="text"
+              class="form-control form-control-sm mt-2"
+              placeholder="مثلاً: نام دوستتان، کم‌شیرین، با یخ کم..."
+              x-model="addToCartModal.noteText"
+            >
+          </div>
+
           <div class="mb-3">
             <label class="form-label">تعداد</label>
             <div class="qty-control qty-control-lg">
@@ -1284,11 +1342,339 @@
         </div>
 
         <div class="add-cart-modal-foot">
-          <button type="button" class="btn btn-dark rounded-pill w-100" @click="confirmAddToCart()">
-            افزودن به سبد
+          <div class="add-cart-modal-actions">
+            <button
+              type="button"
+              class="btn rounded-pill add-cart-submit-main"
+              :class="addToCartModal?.mode === 'note' ? 'btn-outline-dark' : 'btn-dark'"
+              x-show="!salesClosed"
+              @click="confirmAddToCart()"
+            >
+              <i class="bi bi-bag-plus"></i>
+              <span>افزودن به سبد</span>
+            </button>
+            <button
+              type="button"
+              class="btn rounded-pill add-cart-submit-note"
+              :class="addToCartModal?.mode === 'note' || salesClosed ? 'btn-note-primary w-100' : 'btn-note-secondary'"
+              @click="confirmAddToNotes()"
+            >
+              <i class="bi bi-journal-plus"></i>
+              <span x-text="addToCartModal?.mode === 'note' || salesClosed ? 'افزودن به یادداشت سفارش' : 'افزودن به یادداشت'"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- نوار شناور یادداشت سفارش حضوری -->
+    <div
+      class="notes-bar"
+      :class="{ 'notes-bar--above-cart': !salesClosed && cartCount > 0 }"
+      x-show="notesCount > 0 && !notesDrawerOpen && !cartDrawerOpen && !mockPayment && !splitMockPayment && !splitOrder && !orderSuccess"
+      x-cloak
+    >
+      <div class="container notes-bar-inner">
+        <div class="notes-bar-summary">
+          <span class="notes-bar-count" x-text="toPersianNumber(notesCount)"></span>
+          <div>
+            <strong x-text="formatPrice(notesTotal)"></strong>
+            <small>یادداشت سفارش (مراجعه به صندوق)</small>
+          </div>
+        </div>
+        <div class="notes-bar-actions">
+          <button type="button" class="btn btn-note-primary btn-sm rounded-pill px-3" @click="openNotesDrawer('counter')">
+            <i class="bi bi-display"></i>
+            <span>نمایش به صندوق</span>
+          </button>
+          <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3" @click="openNotesDrawer('list')">
+            مشاهده یادداشت
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- دراور یادداشت سفارش حضوری (Notes) -->
+    <div
+      class="notes-overlay"
+      x-show="notesDrawerOpen"
+      x-cloak
+      @click.self="closeNotesDrawer()"
+      @keydown.tab="trapFocus($event)"
+      @keydown.escape.window="closeNotesDrawer()"
+      x-effect="if (notesDrawerOpen) $nextTick(() => $refs.notesClose?.focus())"
+    >
+      <aside
+        class="notes-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notes-drawer-title"
+      >
+        <div class="notes-drawer-head">
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <h3 id="notes-drawer-title" class="h5 mb-1">یادداشت سفارش</h3>
+              <span class="notes-head-badge" x-show="notesCount > 0" x-text="toPersianNumber(notesCount) + ' مورد'"></span>
+            </div>
+            <p class="mb-0 text-secondary small">
+              لیست سفارش خود و دوستانتان را این‌جا نگه دارید و هنگام مراجعه به صندوق اعلام کنید.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-light btn-sm rounded-circle"
+            x-ref="notesClose"
+            aria-label="بستن یادداشت سفارش"
+            @click="closeNotesDrawer()"
+          >
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="notes-mode-tabs" x-show="notes.length > 0">
+          <button
+            type="button"
+            class="notes-mode-tab"
+            :class="{ active: notesViewMode === 'list' }"
+            @click="setNotesViewMode('list')"
+          >
+            <i class="bi bi-list-ul"></i>
+            <span>لیست و نفرات</span>
+          </button>
+          <button
+            type="button"
+            class="notes-mode-tab"
+            :class="{ active: notesViewMode === 'counter' }"
+            @click="setNotesViewMode('counter')"
+          >
+            <i class="bi bi-person-workspace"></i>
+            <span>نمای صندوق (تجمیعی)</span>
+          </button>
+        </div>
+
+        <div class="notes-drawer-body">
+          <template x-if="!notes.length">
+            <div class="cart-empty notes-empty">
+              <i class="bi bi-journal-bookmark"></i>
+              <p class="mb-1 fw-bold">یادداشت سفارش شما خالی است.</p>
+              <small class="text-secondary d-block mb-3">
+                روی دکمهٔ «یادداشت» کنار هر آیتم منو بزنید، اندازه و گزینه‌های دلخواه خود و دوستانتان را انتخاب کنید تا موقع سفارش در صندوق فراموش نشود.
+              </small>
+              <button type="button" class="btn btn-dark btn-sm rounded-pill px-4" @click="closeNotesDrawer()">
+                مرور منو و افزودن آیتم
+              </button>
+            </div>
+          </template>
+
+          <!-- حالت ۱: لیست جزئیات و ویرایش به تفکیک هر نفر -->
+          <div x-show="notes.length > 0 && notesViewMode === 'list'">
+            <template x-for="line in notes" :key="line.noteKey">
+              <article class="notes-line" :class="{ 'notes-line--checked': line.checkedAtCounter }">
+                <div class="notes-line-main">
+                  <div class="notes-line-title-row">
+                    <button
+                      type="button"
+                      class="notes-check-btn"
+                      :class="{ checked: line.checkedAtCounter }"
+                      :aria-label="line.checkedAtCounter ? 'برداشتن علامت' : 'علامت‌زدن به‌عنوان سفارش داده‌شده'"
+                      @click="toggleNoteLineChecked(line.noteKey)"
+                    >
+                      <i class="bi" :class="line.checkedAtCounter ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                    </button>
+                    <div>
+                      <strong x-text="line.persianName"></strong>
+                      <small class="english-name d-block" x-show="line.englishName" x-text="line.englishName"></small>
+                    </div>
+                  </div>
+
+                  <div class="notes-line-options">
+                    <span class="notes-opt-chip notes-opt-chip--size" x-show="line.sizeLabel" x-text="line.sizeLabel"></span>
+                    <template x-for="optLabel in (line.optionLabels || [])" :key="`${line.noteKey}-opt-${optLabel}`">
+                      <span class="notes-opt-chip" x-text="optLabel"></span>
+                    </template>
+                    <template x-for="builderLabel in (line.customDrinkSummary || [])" :key="`${line.noteKey}-bld-${builderLabel}`">
+                      <span class="notes-opt-chip notes-opt-chip--builder" x-text="builderLabel"></span>
+                    </template>
+                    <template x-for="modLabel in (line.modifierLabels || [])" :key="`${line.noteKey}-mod-${modLabel}`">
+                      <span class="notes-opt-chip notes-opt-chip--modifier" x-text="modLabel"></span>
+                    </template>
+                  </div>
+
+                  <div class="notes-line-person-row">
+                    <div class="notes-guest-pills">
+                      <template x-for="guestChip in modalNoteGuestOptions" :key="`${line.noteKey}-guest-${guestChip}`">
+                        <button
+                          type="button"
+                          class="notes-guest-pill"
+                          :class="{ active: line.noteTag === guestChip }"
+                          @click="updateNoteLineGuest(line.noteKey, guestChip)"
+                          x-text="guestChip"
+                        ></button>
+                      </template>
+                    </div>
+                    <input
+                      type="text"
+                      class="form-control form-control-sm notes-inline-input"
+                      placeholder="نام سفارش‌دهنده یا توضیح (مثلاً کم‌شیرین)..."
+                      :value="line.noteText || ''"
+                      @change="updateNoteLineText(line.noteKey, $event.target.value)"
+                    >
+                  </div>
+
+                  <strong class="notes-line-price" x-text="formatPrice(line.unitPrice * line.quantity)"></strong>
+                </div>
+
+                <div class="notes-line-actions">
+                  <div class="qty-control">
+                    <button type="button" aria-label="کاهش تعداد در یادداشت" @click="updateNoteQuantity(line.noteKey, -1)">−</button>
+                    <span x-text="toPersianNumber(line.quantity)"></span>
+                    <button type="button" aria-label="افزایش تعداد در یادداشت" @click="updateNoteQuantity(line.noteKey, 1)">+</button>
+                  </div>
+                  <button type="button" class="btn btn-link link-danger p-0 small" @click="removeFromNotes(line.noteKey)">
+                    حذف
+                  </button>
+                </div>
+              </article>
+            </template>
+
+            <div class="notes-memo-box mt-3">
+              <label class="form-label small fw-bold" for="notes-general-memo">
+                <i class="bi bi-pencil-square"></i>
+                <span>یادداشت کلی (مثلاً شماره میز یا توضیح به صندوق)</span>
+              </label>
+              <textarea
+                id="notes-general-memo"
+                class="form-control form-control-sm"
+                rows="2"
+                placeholder="اینجا هر توضیح اضافه‌ای دارید بنویسید..."
+                x-model="notesMemo"
+                @input="saveNotesMemo()"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- حالت ۲: نمای صندوق (درشت و تجمیع‌شده برای خواندن یا نشان دادن به صندوق‌دار) -->
+          <div x-show="notes.length > 0 && notesViewMode === 'counter'" class="notes-counter-view">
+            <div class="notes-counter-banner">
+              <i class="bi bi-shop"></i>
+              <div>
+                <strong>آمادهٔ سفارش در صندوق</strong>
+                <small class="d-block">آیتم‌های کاملاً مشابه تجمیع شده‌اند. با خواندن هر مورد می‌توانید روی آن بزنید تا تیک بخورد.</small>
+              </div>
+            </div>
+
+            <div class="notes-counter-list">
+              <template x-for="group in aggregatedCounterNotes" :key="`counter-group-${group.groupKey}`">
+                <div
+                  class="notes-counter-card"
+                  :class="{ 'notes-counter-card--checked': group.allChecked }"
+                  @click="toggleCounterGroupChecked(group.groupKey)"
+                  role="button"
+                  tabindex="0"
+                  @keydown.enter.prevent="toggleCounterGroupChecked(group.groupKey)"
+                  @keydown.space.prevent="toggleCounterGroupChecked(group.groupKey)"
+                >
+                  <div class="notes-counter-qty" x-text="toPersianNumber(group.quantity) + '×'"></div>
+                  <div class="notes-counter-info">
+                    <div class="notes-counter-title">
+                      <strong x-text="group.persianName"></strong>
+                      <span class="notes-counter-size" x-show="group.sizeLabel" x-text="group.sizeLabel"></span>
+                    </div>
+                    <div class="notes-counter-details" x-show="group.optionLabels.length || group.customDrinkSummary.length || group.modifierLabels.length">
+                      <template x-for="opt in group.optionLabels" :key="`c-opt-${group.groupKey}-${opt}`">
+                        <span class="notes-counter-chip" x-text="opt"></span>
+                      </template>
+                      <template x-for="bld in group.customDrinkSummary" :key="`c-bld-${group.groupKey}-${bld}`">
+                        <span class="notes-counter-chip notes-counter-chip--builder" x-text="bld"></span>
+                      </template>
+                      <template x-for="mod in group.modifierLabels" :key="`c-mod-${group.groupKey}-${mod}`">
+                        <span class="notes-counter-chip notes-counter-chip--modifier" x-text="mod"></span>
+                      </template>
+                    </div>
+                    <p class="notes-counter-note" x-show="group.noteText">
+                      <i class="bi bi-chat-right-text"></i>
+                      <span x-text="group.noteText"></span>
+                    </p>
+                    <div class="notes-counter-guests" x-show="group.guestTags.length">
+                      <i class="bi bi-people"></i>
+                      <span x-text="group.guestTags.join(' ، ')"></span>
+                    </div>
+                  </div>
+                  <div class="notes-counter-check">
+                    <i class="bi" :class="group.allChecked ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="notes-counter-memo" x-show="notesMemo && notesMemo.trim()">
+              <strong><i class="bi bi-sticky"></i> یادداشت کلی:</strong>
+              <p class="mb-0 mt-1" x-text="notesMemo"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="notes-drawer-foot" x-show="notes.length > 0">
+          <div class="notes-clear-confirm" x-show="notesClearConfirm" x-cloak>
+            <span>همهٔ آیتم‌های یادداشت پاک شوند؟</span>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-danger btn-sm rounded-pill px-3" @click="clearNotes()">
+                بله، پاک شود
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" @click="cancelClearNotes()">
+                انصراف
+              </button>
+            </div>
+          </div>
+
+          <div class="notes-drawer-total-row">
+            <div>
+              <small class="text-secondary d-block">جمع تقریبی یادداشت (<span x-text="toPersianNumber(notesCount)"></span> مورد)</small>
+              <strong class="fs-6" x-text="formatPrice(notesTotal)"></strong>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm rounded-pill"
+                @click="copyNotesToClipboard()"
+                title="کپی متن سفارش برای اشتراک‌گذاری"
+              >
+                <i class="bi" :class="notesCopied ? 'bi-check2' : 'bi-copy'"></i>
+                <span x-text="notesCopied ? 'کپی شد!' : 'کپی متن'"></span>
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-danger btn-sm rounded-pill"
+                x-show="!notesClearConfirm"
+                @click="promptClearNotes()"
+                title="پاک کردن یادداشت"
+              >
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="notes-drawer-actions-row">
+            <button
+              type="button"
+              class="btn btn-note-primary rounded-pill flex-grow-1"
+              @click="setNotesViewMode(notesViewMode === 'counter' ? 'list' : 'counter')"
+            >
+              <i class="bi" :class="notesViewMode === 'counter' ? 'bi-pencil' : 'bi-person-workspace'"></i>
+              <span x-text="notesViewMode === 'counter' ? 'بازگشت به ویرایش لیست' : 'نمایش درشت برای صندوق'"></span>
+            </button>
+            <button
+              type="button"
+              class="btn btn-dark rounded-pill"
+              x-show="!salesClosed"
+              @click="moveNotesToCart()"
+            >
+              <i class="bi bi-bag-check"></i>
+              <span>انتقال به سبد آنلاین</span>
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
 
     <!-- پاپ‌آپ ورود موبایلی: فقط شماره، بدون رمز و کد تایید. دکمهٔ skip برای
@@ -1934,6 +2320,15 @@
         <i class="bi bi-grid"></i>
         <span>منو</span>
       </a>
+      <button
+        type="button"
+        class="mobile-order-link"
+        :class="{ 'mobile-order-link--active': notesCount > 0 }"
+        @click="openNotesDrawer('list')"
+      >
+        <i class="bi bi-journal-text"></i>
+        <span x-text="notesCount > 0 ? 'یادداشت (' + toPersianNumber(notesCount) + ')' : 'یادداشت'"></span>
+      </button>
       <button type="button" class="mobile-order-link" x-show="!salesClosed" :class="{ 'mobile-order-link--active': cartCount > 0 }" @click="openCartDrawer('cart')">
         <i class="bi bi-basket"></i>
         <span x-text="cartCount > 0 ? toPersianNumber(cartCount) : 'سبد'"></span>

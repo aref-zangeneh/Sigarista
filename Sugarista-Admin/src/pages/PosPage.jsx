@@ -4,6 +4,7 @@ import { useAdmin } from '../context/AdminContext'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { formatDateTime, formatDuration, toPersianNumber } from '../utils/adminFormatters'
 import { hasPermission, PERMISSIONS, canSubmitPosOrder } from '../utils/adminPermissions'
+import { printPosReceipts } from '../utils/posReceipt'
 import { Tip } from '../components/Tip'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
@@ -142,7 +143,7 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
 }
 
 export function PosPage() {
-  const { session } = useAdmin()
+  const { session, siteSettings } = useAdmin()
   const searchRef = useRef(null)
 
   const [bootstrap, setBootstrap] = useState(null)
@@ -402,10 +403,30 @@ export function PosPage() {
         setMessage(`سفارش ${result.trackingCode} نگه‌داشته شد.`)
         resetCart()
       } else {
-        // Same as online orders: the backend already queued TWO thermal copies
-        // (customer + barista/kitchen) for the print agent — no browser print
-        // dialogs here, they duplicate the automatic print and break the flow.
-        setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد؛ دو فیش چاپ (مشتری + آشپزخانه) به صف چاپ ارسال شد.`)
+        // Browser print popup (restored): the cafe's production setup has no
+        // working print agent, so after payment we open the print dialog with
+        // customer + barista receipts. tryPrintAgent() is attempted first
+        // (127.0.0.1:9101) and the browser dialog is the fallback, so on
+        // machines WITH the local helper nothing changes.
+        const cartSnapshot = cart.map((line) => ({ ...line }))
+        try {
+          const printResult = await printPosReceipts({
+            result,
+            cart: cartSnapshot,
+            customerName,
+            customerPhone,
+            orderNote,
+            serviceType,
+            tableName: selectedTable?.name ?? null,
+            siteSettings,
+          })
+          const printLabel = printResult.method === 'agent' ? 'چاپ خودکار' : 'چاپ مرورگر'
+          setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد و رسید مشتری و باریستا (${printLabel}) ارسال شد.`)
+        } catch (printError) {
+          console.error(printError)
+          setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد، اما چاپ رسید با خطا مواجه شد.`)
+          setError(getReadableError(printError))
+        }
         resetCart()
       }
 

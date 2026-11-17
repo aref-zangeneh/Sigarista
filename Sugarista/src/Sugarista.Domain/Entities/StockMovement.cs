@@ -22,6 +22,14 @@ public class StockMovement : BaseEntity
 
     public InventoryStock Stock { get; private set; } = null!;
 
+    /// <summary>
+    /// Null → transaction on the main (per-ingredient) stock; set → transaction
+    /// inside that admin-defined warehouse (انبار).
+    /// </summary>
+    public Guid? WarehouseId { get; private set; }
+
+    public Warehouse? Warehouse { get; private set; }
+
     /// <summary>Positive for restocks/adjustments up, negative for deductions.</summary>
     public decimal Quantity { get; private set; }
 
@@ -47,7 +55,8 @@ public class StockMovement : BaseEntity
         string? sourceMenuItemName,
         Guid? orderId = null,
         Guid? orderLineId = null,
-        Guid? productionBatchId = null)
+        Guid? productionBatchId = null,
+        Guid? warehouseId = null)
     {
         return new StockMovement
         {
@@ -59,6 +68,7 @@ public class StockMovement : BaseEntity
             OrderId = orderId,
             OrderLineId = orderLineId,
             ProductionBatchId = productionBatchId,
+            WarehouseId = warehouseId,
             OccurredAt = DateTimeOffset.UtcNow,
         };
     }

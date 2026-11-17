@@ -10,7 +10,9 @@ public record StockMovementDto(
     string MovementType,
     string? Note,
     string? SourceMenuItemName,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    Guid? WarehouseId = null,
+    string? WarehouseName = null);
 
 public class GetStockHistoryQueryHandler : IRequestHandler<GetStockHistoryQuery, IReadOnlyCollection<StockMovementDto>>
 {
@@ -42,7 +44,9 @@ public class GetStockHistoryQueryHandler : IRequestHandler<GetStockHistoryQuery,
                 m.MovementType.ToString(),
                 m.Note,
                 m.SourceMenuItemName,
-                m.OccurredAt))
+                m.OccurredAt,
+                m.WarehouseId,
+                m.Warehouse != null ? m.Warehouse.Name : null))
             .ToListAsync(cancellationToken);
     }
 }

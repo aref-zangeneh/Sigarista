@@ -190,5 +190,9 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.AdminTooltip> AdminTooltips { get; }
 
+    DbSet<Sugarista.Domain.Entities.Warehouse> Warehouses { get; }
+
+    DbSet<Sugarista.Domain.Entities.WarehouseStock> WarehouseStocks { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

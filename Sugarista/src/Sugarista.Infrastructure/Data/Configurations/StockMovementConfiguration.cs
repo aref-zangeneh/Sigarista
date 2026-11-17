@@ -26,12 +26,20 @@ public class StockMovementConfiguration : IEntityTypeConfiguration<StockMovement
         builder.HasIndex(m => m.OrderId);
         builder.HasIndex(m => m.OrderLineId);
         builder.HasIndex(m => m.ProductionBatchId);
+        builder.HasIndex(m => m.WarehouseId);
 
         builder.HasOne(m => m.Stock)
             .WithMany(s => s.Movements)
             .HasForeignKey(m => m.IngredientId)
             .HasPrincipalKey(s => s.IngredientId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Warehouse-tagged transactions keep referencing their warehouse so a
+        // warehouse that already has transactions cannot be silently deleted.
+        builder.HasOne(m => m.Warehouse)
+            .WithMany()
+            .HasForeignKey(m => m.WarehouseId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(m => new { m.IngredientId, m.OccurredAt });
     }

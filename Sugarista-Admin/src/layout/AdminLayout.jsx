@@ -113,6 +113,12 @@ const ROUTE_ICONS = {
       <circle cx="17" cy="19" r="1.5" />
     </>,
   ),
+  warehouses: icon(
+    <>
+      <path d="M3 21V9l9-5 9 5v12" />
+      <path d="M7 21v-6h10v6M3 21h18M12 4v5M9 9h6" />
+    </>,
+  ),
   production: icon(
     <>
       <path d="M4 20V10l5 3V10l5 3V10l5 3v7z" />
@@ -192,7 +198,7 @@ const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'drink-builder', 'discounts', 'modifiers'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
-  { title: 'انبار', routes: ['inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
+  { title: 'انبار', routes: ['warehouses', 'inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'منابع انسانی', routes: ['hr'] },
   { title: 'مدیریت پیامک', routes: ['sms-dashboard', 'sms-send', 'sms-bulk', 'sms-contacts', 'sms-groups', 'sms-templates', 'sms-history', 'sms-providers', 'sms-settings'] },

@@ -110,6 +110,14 @@ public static class AdminPermissions
         public const string Create = "admin.inventory-purchases.create";
     }
 
+    public static class Warehouses
+    {
+        public const string View = "admin.warehouses.view";
+        public const string Create = "admin.warehouses.create";
+        public const string Update = "admin.warehouses.update";
+        public const string Delete = "admin.warehouses.delete";
+    }
+
     public static class Uploads
     {
         public const string Create = "admin.uploads.create";
@@ -268,6 +276,10 @@ public static class AdminPermissions
         new(Inventory.Update, "inventory", "update", "انبار موجودی", "تعدیل / آستانه"),
         new(InventoryPurchases.View, "inventory-purchases", "view", "خرید مواد", "مشاهده"),
         new(InventoryPurchases.Create, "inventory-purchases", "create", "خرید مواد", "ثبت خرید"),
+        new(Warehouses.View, "warehouses", "view", "انبارها", "مشاهدهٔ انبارها و موجودی آن‌ها"),
+        new(Warehouses.Create, "warehouses", "create", "انبارها", "تعریف انبار / انبارک جدید"),
+        new(Warehouses.Update, "warehouses", "update", "انبارها", "ویرایش انبار / انبارک"),
+        new(Warehouses.Delete, "warehouses", "delete", "انبارها", "حذف انبار / انبارک"),
         new(Uploads.Create, "uploads", "create", "آپلود فایل", "آپلود سند انبار"),
         new(Production.View, "production", "view", "تولید", "مشاهده"),
         new(Production.Create, "production", "create", "تولید", "ثبت تولید"),

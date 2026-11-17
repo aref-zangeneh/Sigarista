@@ -128,6 +128,12 @@ export const PERMISSIONS = {
     view: 'admin.inventory-purchases.view',
     create: 'admin.inventory-purchases.create',
   },
+  warehouses: {
+    view: 'admin.warehouses.view',
+    create: 'admin.warehouses.create',
+    update: 'admin.warehouses.update',
+    delete: 'admin.warehouses.delete',
+  },
   production: {
     view: 'admin.production.view',
     create: 'admin.production.create',

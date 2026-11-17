@@ -14,6 +14,7 @@
 export const TOOLTIP_PAGES = {
   pos: 'صندوق فروش',
   'tooltips-page': 'راهنماهای صفحه‌ها',
+  warehouses: 'انبارها',
 }
 
 export const TOOLTIP_REGISTRY = [
@@ -45,6 +46,18 @@ export const TOOLTIP_REGISTRY = [
 
   // ── راهنماهای صفحه‌ها ───────────────────────────────────────
   { key: 'tooltips-page.search', page: 'tooltips-page', label: 'جستجوی راهنماها', text: 'بین برچسب و متن همهٔ راهنماهای پنل جست‌وجو می‌کند.' },
+
+  // ── انبارها ─────────────────────────────────────────────────
+  { key: 'warehouses.list', page: 'warehouses', label: 'فهرست انبارها', text: 'همهٔ انبارها و انبارک‌ها. موجودی انبار اصلی سیستم از صفحهٔ «انبار موجودی» مدیریت می‌شود و دست‌نخورده می‌ماند.' },
+  { key: 'warehouses.name', page: 'warehouses', label: 'نام انبار', text: 'نام فارسی انبار که در فهرست و گزارش‌ها نمایش داده می‌شود؛ نام‌ها نباید تکراری باشند.' },
+  { key: 'warehouses.parent', page: 'warehouses', label: 'نوع (انبار / انبارک)', text: '«انبار اصلی» مستقل است؛ انتخاب یک انبار، این ردیف را به انبارک زیرمجموعهٔ همان انبار تبدیل می‌کند.' },
+  { key: 'warehouses.active', page: 'warehouses', label: 'فعال', text: 'انبار غیرفعال از انتخاب‌کننده‌ها پنهان می‌شود ولی تراکنش‌های قبلی حفظ می‌مانند.' },
+  { key: 'warehouses.tree', page: 'warehouses', label: 'درخت انبارها', text: 'انبارک‌ها با نشانگر ↳ زیر انبار والدشان نمایش داده می‌شوند. جستجو، فهرست را ساده و تخت می‌کند.' },
+  { key: 'warehouses.stock', page: 'warehouses', label: 'موجودی انبار', text: 'موجودی مواد اولیهٔ متصل به همین انبار — جدا از موجودی انبار اصلی.' },
+  { key: 'warehouses.link', page: 'warehouses', label: 'اتصال ماده', text: 'مادهٔ اولیه را به این انبار متصل و موجودی اولیه را ثبت می‌کند.' },
+  { key: 'warehouses.restock', page: 'warehouses', label: 'شارژ', text: 'افزودن به موجودی این انبار. تراکنش با نام انبار در تاریخچهٔ موجودی ثبت می‌شود.' },
+  { key: 'warehouses.adjust', page: 'warehouses', label: 'تعدیل', text: 'اصلاح دستی موجودی (عدد منفی = کاهش، مثلاً اتلاف یا حذف حسابی).' },
+  { key: 'warehouses.threshold', page: 'warehouses', label: 'آستانهٔ هشدار', text: 'اگر موجودی کمتر از این عدد شود، ردیف با رنگ هشدار مشخص می‌شود.' },
 ]
 
 const registryByKey = new Map(TOOLTIP_REGISTRY.map((entry) => [entry.key, entry]))

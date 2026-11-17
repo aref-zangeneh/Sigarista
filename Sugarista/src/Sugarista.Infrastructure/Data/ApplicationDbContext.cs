@@ -199,6 +199,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<AdminTooltip> AdminTooltips => Set<AdminTooltip>();
 
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+
+    public DbSet<WarehouseStock> WarehouseStocks => Set<WarehouseStock>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

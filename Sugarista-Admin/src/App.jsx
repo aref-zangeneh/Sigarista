@@ -23,6 +23,7 @@ import { RecipesPage } from './pages/RecipesPage'
 import { ProductWikiPage } from './pages/ProductWikiPage'
 import { InventoryPage } from './pages/InventoryPage'
 import { InventoryPurchasesPage } from './pages/InventoryPurchasesPage'
+import { WarehousesPage } from './pages/WarehousesPage'
 import { ProductionPage } from './pages/ProductionPage'
 import { RecordSalePage } from './pages/RecordSalePage'
 import { PosPage } from './pages/PosPage'
@@ -70,6 +71,7 @@ const pageComponents = {
   'product-wiki': ProductWikiPage,
   inventory: InventoryPage,
   'inventory-purchases': InventoryPurchasesPage,
+  warehouses: WarehousesPage,
   suppliers: SuppliersPage,
   production: ProductionPage,
   'record-sale': RecordSalePage,

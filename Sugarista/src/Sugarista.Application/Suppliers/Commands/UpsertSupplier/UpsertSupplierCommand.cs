@@ -10,7 +10,8 @@ public record UpsertSupplierCommand(
     string ContactName,
     string Notes,
     int DisplayOrder,
-    bool IsActive = true) : IRequest<Guid>;
+    bool IsActive = true,
+    IReadOnlyCollection<string>? PhoneNumbers = null) : IRequest<Guid>;
 
 public class UpsertSupplierCommandValidator : AbstractValidator<UpsertSupplierCommand>
 {
@@ -21,6 +22,9 @@ public class UpsertSupplierCommandValidator : AbstractValidator<UpsertSupplierCo
         RuleFor(c => c.ContactName).MaximumLength(120);
         RuleFor(c => c.Notes).MaximumLength(500);
         RuleFor(c => c.DisplayOrder).GreaterThanOrEqualTo(0);
+        RuleForEach(c => c.PhoneNumbers)
+            .MaximumLength(40)
+            .WithMessage("هر شماره تلفن حداکثر ۴۰ کاراکتر است.");
     }
 }
 
@@ -58,7 +62,8 @@ public class UpsertSupplierCommandHandler : IRequestHandler<UpsertSupplierComman
                 request.ContactName,
                 request.Notes,
                 request.DisplayOrder,
-                request.IsActive);
+                request.IsActive,
+                request.PhoneNumbers);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             return existing.Id;
@@ -70,7 +75,8 @@ public class UpsertSupplierCommandHandler : IRequestHandler<UpsertSupplierComman
             request.ContactName,
             request.Notes,
             request.DisplayOrder,
-            request.IsActive);
+            request.IsActive,
+            request.PhoneNumbers);
 
         _dbContext.Suppliers.Add(supplier);
         await _dbContext.SaveChangesAsync(cancellationToken);

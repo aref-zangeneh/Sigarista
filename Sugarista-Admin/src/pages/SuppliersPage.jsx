@@ -4,11 +4,21 @@ import { useAdmin } from '../context/AdminContext'
 const emptySupplierForm = {
   id: '',
   persianName: '',
-  phoneNumber: '',
+  phoneNumbers: [''],
   contactName: '',
   notes: '',
   displayOrder: 0,
   isActive: true,
+}
+
+const MAX_PHONE_NUMBERS = 10
+
+// Edit form always keeps at least one (possibly empty) phone input row.
+const phonesForEdit = (supplier) => {
+  const list = supplier.phoneNumbers?.length
+    ? supplier.phoneNumbers
+    : (supplier.phoneNumber ? [supplier.phoneNumber] : [])
+  return list.length ? list.slice(0, MAX_PHONE_NUMBERS) : ['']
 }
 
 export function SuppliersPage() {
@@ -18,6 +28,28 @@ export function SuppliersPage() {
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
   const [includeInactive, setIncludeInactive] = useState(true)
+
+  const setPhoneRow = (index, value) => {
+    setSupplierForm((currentForm) => ({
+      ...currentForm,
+      phoneNumbers: currentForm.phoneNumbers.map((phone, phoneIndex) =>
+        phoneIndex === index ? value : phone),
+    }))
+  }
+
+  const addPhoneRow = () => {
+    setSupplierForm((currentForm) => ({
+      ...currentForm,
+      phoneNumbers: [...currentForm.phoneNumbers, ''],
+    }))
+  }
+
+  const removePhoneRow = (index) => {
+    setSupplierForm((currentForm) => ({
+      ...currentForm,
+      phoneNumbers: currentForm.phoneNumbers.filter((_, phoneIndex) => phoneIndex !== index),
+    }))
+  }
 
   const loadSuppliers = useCallback(async () => {
     if (!session?.token) return
@@ -68,12 +100,16 @@ export function SuppliersPage() {
 
           try {
             const path = supplierForm.id ? `/admin/suppliers/${supplierForm.id}` : '/admin/suppliers'
+            const phoneNumbers = supplierForm.phoneNumbers
+              .map((phone) => phone.trim())
+              .filter(Boolean)
             await apiRequest(path, {
               method: supplierForm.id ? 'PUT' : 'POST',
               token: session.token,
               body: {
                 persianName: supplierForm.persianName,
-                phoneNumber: supplierForm.phoneNumber,
+                phoneNumber: phoneNumbers[0] ?? '',
+                phoneNumbers,
                 contactName: supplierForm.contactName,
                 notes: supplierForm.notes,
                 displayOrder: Number(supplierForm.displayOrder) || 0,
@@ -125,16 +161,43 @@ export function SuppliersPage() {
         </div>
 
         <div className="field-grid">
-          <label>
-            <span>شماره تماس (اختیاری)</span>
-            <input
-              className="ltr-input"
-              value={supplierForm.phoneNumber}
-              onChange={(event) =>
-                setSupplierForm((currentForm) => ({ ...currentForm, phoneNumber: event.target.value }))
-              }
-            />
-          </label>
+          <div>
+            <span className="phone-rows-label">شماره‌های تماس (اختیاری — اولین شماره، شماره اصلی است)</span>
+            <div className="phone-rows">
+              {supplierForm.phoneNumbers.map((phone, index) => (
+                <div key={index} className="phone-row">
+                  <input
+                    className="ltr-input"
+                    maxLength={40}
+                    inputMode="tel"
+                    placeholder={index === 0 ? 'شماره اصلی، مثلاً ۰۹۱۲۱۲۳۴۵۶۷' : 'شماره تماس دیگر'}
+                    value={phone}
+                    onChange={(event) => setPhoneRow(index, event.target.value)}
+                  />
+                  {supplierForm.phoneNumbers.length > 1 ? (
+                    <button
+                      type="button"
+                      className="phone-row-remove"
+                      title="حذف این شماره"
+                      onClick={() => removePhoneRow(index)}
+                    >
+                      −
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+              {supplierForm.phoneNumbers.length < MAX_PHONE_NUMBERS ? (
+                <button
+                  type="button"
+                  className="phone-row-add"
+                  title="افزودن شماره تماس دیگر"
+                  onClick={addPhoneRow}
+                >
+                  + افزودن شماره
+                </button>
+              ) : null}
+            </div>
+          </div>
           <label>
             <span>ترتیب نمایش</span>
             <input
@@ -212,7 +275,9 @@ export function SuppliersPage() {
                     {supplier.contactName ? <div className="table-subtext">ارتباط: {supplier.contactName}</div> : null}
                     {supplier.notes ? <div className="table-subtext">{supplier.notes}</div> : null}
                   </td>
-                  <td className="ltr-text">{supplier.phoneNumber || '—'}</td>
+                  <td className="ltr-text">
+                    {(supplier.phoneNumbers?.length ? supplier.phoneNumbers : (supplier.phoneNumber ? [supplier.phoneNumber] : [])).join(' • ') || '—'}
+                  </td>
                   <td>{new Intl.NumberFormat('fa-IR').format(supplier.ingredientCount ?? 0)}</td>
                   <td>{supplier.isActive ? 'فعال' : 'غیرفعال'}</td>
                   <td>
@@ -220,7 +285,7 @@ export function SuppliersPage() {
                       <button type="button" className="link-button" onClick={() => setSupplierForm({
                         id: supplier.id,
                         persianName: supplier.persianName,
-                        phoneNumber: supplier.phoneNumber ?? '',
+                        phoneNumbers: phonesForEdit(supplier),
                         contactName: supplier.contactName ?? '',
                         notes: supplier.notes ?? '',
                         displayOrder: supplier.displayOrder ?? 0,

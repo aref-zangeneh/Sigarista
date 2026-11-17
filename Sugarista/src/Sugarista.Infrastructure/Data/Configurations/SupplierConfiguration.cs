@@ -15,6 +15,10 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(s => s.PhoneNumber)
             .HasMaxLength(40);
 
+        builder.Property(s => s.PhoneNumbers)
+            .HasColumnType("text[]")
+            .IsRequired();
+
         builder.Property(s => s.ContactName)
             .HasMaxLength(120);
 

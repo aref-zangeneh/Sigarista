@@ -5262,6 +5262,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.PrimitiveCollection<string[]>("PhoneNumbers")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DisplayOrder");

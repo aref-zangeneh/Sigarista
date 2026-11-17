@@ -15,14 +15,19 @@ public class Supplier : BaseAuditableEntity
         string contactName,
         string notes,
         int displayOrder,
-        bool isActive = true)
+        bool isActive = true,
+        IReadOnlyCollection<string>? phoneNumbers = null)
     {
-        Update(persianName, phoneNumber, contactName, notes, displayOrder, isActive);
+        Update(persianName, phoneNumber, contactName, notes, displayOrder, isActive, phoneNumbers);
     }
 
     public string PersianName { get; private set; } = string.Empty;
 
+    /// <summary>Primary phone — kept as the first phone of <see cref="PhoneNumbers"/> for existing readers.</summary>
     public string PhoneNumber { get; private set; } = string.Empty;
+
+    /// <summary>All phone numbers (first one mirrors <see cref="PhoneNumber"/>).</summary>
+    public string[] PhoneNumbers { get; private set; } = [];
 
     public string ContactName { get; private set; } = string.Empty;
 
@@ -40,7 +45,8 @@ public class Supplier : BaseAuditableEntity
         string contactName,
         string notes,
         int displayOrder,
-        bool isActive)
+        bool isActive,
+        IReadOnlyCollection<string>? phoneNumbers = null)
     {
         if (string.IsNullOrWhiteSpace(persianName))
         {
@@ -53,10 +59,59 @@ public class Supplier : BaseAuditableEntity
         }
 
         PersianName = persianName.Trim();
-        PhoneNumber = (phoneNumber ?? string.Empty).Trim();
         ContactName = (contactName ?? string.Empty).Trim();
         Notes = (notes ?? string.Empty).Trim();
         DisplayOrder = displayOrder < 0 ? 0 : displayOrder;
         IsActive = isActive;
+
+        ApplyPhoneNumbers(phoneNumber, phoneNumbers);
     }
+
+    private void ApplyPhoneNumbers(string phoneNumber, IReadOnlyCollection<string>? phoneNumbers)
+    {
+        // Merge the legacy single field with the multi-phone list, then
+        // normalize: trim, drop empties, deduplicate, cap at 10 entries of 40 chars.
+        var candidates = new List<string>();
+        if (phoneNumbers is not null)
+        {
+            candidates.AddRange(phoneNumbers);
+        }
+        else if (!string.IsNullOrWhiteSpace(phoneNumber))
+        {
+            // Legacy callers without the list keep their single phone.
+            candidates.Add(phoneNumber);
+        }
+
+        var normalized = new List<string>();
+        foreach (var candidate in candidates)
+        {
+            var phone = (candidate ?? string.Empty).Trim();
+            if (phone.Length == 0 || phone.Length > 40)
+            {
+                continue;
+            }
+
+            if (normalized.Contains(phone, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            normalized.Add(phone);
+            if (normalized.Count == MaxPhoneNumbers)
+            {
+                break;
+            }
+        }
+
+        if (phoneNumbers is not null && normalized.Count == 0)
+        {
+            // An explicit (possibly empty) list that normalizes to nothing means "no phones".
+            normalized = [];
+        }
+
+        PhoneNumbers = [.. normalized];
+        PhoneNumber = normalized.Count > 0 ? normalized[0] : string.Empty;
+    }
+
+    private const int MaxPhoneNumbers = 10;
 }

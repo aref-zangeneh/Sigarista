@@ -631,6 +631,18 @@ export function buildRecipeColumns({ setRecipeState, session, apiRequest, setSav
     },
     { accessorKey: 'unit', header: 'واحد', meta: { className: 'ltr-text' } },
     {
+      id: 'showToCustomer',
+      header: 'نمایش به مشتری',
+      cell: ({ row }) => {
+        const shown = row.original.showToCustomer !== false
+        return shown ? (
+          <span className="recipe-visibility recipe-visible">نمایش داده می‌شود</span>
+        ) : (
+          <span className="recipe-visibility recipe-hidden">مخفی</span>
+        )
+      },
+    },
+    {
       id: 'actions',
       header: 'عملیات',
       enableSorting: false,
@@ -644,11 +656,54 @@ export function buildRecipeColumns({ setRecipeState, session, apiRequest, setSav
               onClick={() =>
                 setRecipeState((current) => ({
                   ...current,
-                  lineForm: { ingredientId: line.ingredientId, quantity: String(line.quantity) },
+                  lineForm: {
+                    ingredientId: line.ingredientId,
+                    quantity: String(line.quantity),
+                    showToCustomer: line.showToCustomer !== false,
+                  },
                 }))
               }
             >
               ویرایش مقدار
+            </button>
+            <button
+              type="button"
+              className="link-button"
+              onClick={async () => {
+                const menuItemId = recipeState?.selectedMenuItemId
+                if (!menuItemId) return
+                setSaving(true)
+                setError('')
+                setMessage('')
+                try {
+                  await apiRequest(`/admin/recipes/${menuItemId}`, {
+                    method: 'POST',
+                    token: session.token,
+                    body: {
+                      menuItemId,
+                      ingredientId: line.ingredientId,
+                      quantity: Number(line.quantity),
+                      showToCustomer: !(line.showToCustomer !== false),
+                    },
+                  })
+                  setRecipeState((current) => ({
+                    ...current,
+                    lines: current.lines.map((x) =>
+                      x.id === line.id ? { ...x, showToCustomer: !(x.showToCustomer !== false) } : x),
+                  }))
+                  setMessage(
+                    line.showToCustomer !== false
+                      ? `"${line.ingredientPersianName}" از منوی مشتری مخفی شد.`
+                      : `"${line.ingredientPersianName}" به مشتری نمایش داده می‌شود.`,
+                  )
+                } catch (requestError) {
+                  setError(getReadableError(requestError))
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              {line.showToCustomer !== false ? 'مخفی کردن' : 'نمایش به مشتری'}
             </button>
             <button
               type="button"

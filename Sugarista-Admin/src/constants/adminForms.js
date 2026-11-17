@@ -62,6 +62,7 @@ export const emptyMenuItemForm = {
   displayOrder: 0,
   isActive: true,
   price: '',
+  recipeLines: [],
 }
 
 export const emptyAddonForm = {
@@ -134,6 +135,7 @@ export const emptyIngredientForm = {
 export const emptyRecipeLineForm = {
   ingredientId: '',
   quantity: '',
+  showToCustomer: true,
 }
 
 export const emptyRecipeState = {

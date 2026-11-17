@@ -3415,3 +3415,13 @@ button.item-option-chip:disabled {
     padding: 0.55rem 0.65rem;
   }
 }
+
+/* ── Item contents (ingredient chips) in the product card ─────── */
+
+.product-ingredients {
+  align-items: center;
+}
+
+.product-ingredients .product-contents-label {
+  margin-left: 0.15rem;
+}

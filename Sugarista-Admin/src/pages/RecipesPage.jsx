@@ -137,6 +137,7 @@ export function RecipesPage() {
                       menuItemId: recipeState.selectedMenuItemId,
                       ingredientId: recipeState.lineForm.ingredientId,
                       quantity: Number(recipeState.lineForm.quantity),
+                      showToCustomer: recipeState.lineForm.showToCustomer !== false,
                     },
                   })
     
@@ -203,6 +204,19 @@ export function RecipesPage() {
                     }))
                   }
                 />
+              </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={recipeState.lineForm.showToCustomer !== false}
+                  onChange={(event) =>
+                    setRecipeState((current) => ({
+                      ...current,
+                      lineForm: { ...current.lineForm, showToCustomer: event.target.checked },
+                    }))
+                  }
+                />
+                <span>نمایش نام این ماده به مشتری در منو</span>
               </label>
               <button type="submit" disabled={saving}>
                 {saving ? 'در حال ذخیره...' : 'ذخیره در دستور پخت'}

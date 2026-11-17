@@ -1015,18 +1015,60 @@ export function AdminProvider({ children }) {
     }
   }
 
+  // Keeps the item's recipe (محتویات) in sync with the rows in the menu-item
+  // form: upserts every chosen ingredient, deletes the ones removed from the
+  // form. Same data as the "دستور پخت" page — one source of truth.
+  async function syncMenuItemContents(menuItemId, desiredLines) {
+    const desired = (desiredLines ?? []).filter((line) => line.ingredientId)
+
+    const current = normalizeRecipeResponse(
+      await apiRequest(`/admin/recipes/${menuItemId}`, { token: session.token }),
+    ).lines
+
+    const desiredIngredientIds = new Set(desired.map((line) => line.ingredientId))
+    for (const line of current) {
+      if (!desiredIngredientIds.has(line.ingredientId)) {
+        await apiRequest(`/admin/recipes/${line.id}`, { method: 'DELETE', token: session.token })
+      }
+    }
+
+    for (const line of desired) {
+      await apiRequest(`/admin/recipes/${menuItemId}`, {
+        method: 'POST',
+        token: session.token,
+        body: {
+          menuItemId,
+          ingredientId: line.ingredientId,
+          quantity: Number(line.quantity) > 0 ? Number(line.quantity) : 1,
+          showToCustomer: line.showToCustomer !== false,
+        },
+      })
+    }
+  }
+
   async function handleMenuItemSubmit(event) {
     event.preventDefault()
-    setSaving(true)
     setError('')
     setMessage('')
+
+    if (!menuItemForm.persianName?.trim()) {
+      setError('نام فارسی آیتم را وارد کنید.')
+      return
+    }
+
+    if (!menuItemForm.categoryId) {
+      setError('دسته‌بندی را انتخاب کنید.')
+      return
+    }
+
+    setSaving(true)
 
     try {
       const path = menuItemForm.id
         ? `/admin/menu-items/${menuItemForm.id}`
         : '/admin/menu-items'
 
-      await apiRequest(path, {
+      const savedItemId = await apiRequest(path, {
         method: menuItemForm.id ? 'PUT' : 'POST',
         token: session.token,
         body: {
@@ -1065,6 +1107,8 @@ export function AdminProvider({ children }) {
           price: optionalNumber(menuItemForm.price),
         },
       })
+
+      await syncMenuItemContents(savedItemId, menuItemForm.recipeLines)
 
       setMenuItemForm({
         ...emptyMenuItemForm,
@@ -1185,8 +1229,35 @@ export function AdminProvider({ children }) {
       shortLabel: item.shortLabel,
       displayOrder: item.displayOrder,
       isActive: item.isActive,
+      recipeLines: [],
     })
     navigate('/menu-items')
+
+    // Load the item's contents (recipe) into the form in the background —
+    // rows the admin then edits are synced back on save.
+    apiRequest(`/admin/recipes/${item.id}`, { token: session.token })
+      .then((payload) => normalizeRecipeResponse(payload))
+      .then((recipe) => {
+        setMenuItemForm((currentForm) => {
+          if (currentForm.id !== item.id) {
+            return currentForm
+          }
+          return {
+            ...currentForm,
+            recipeLines: recipe.lines.map((line) => ({
+              ingredientId: line.ingredientId,
+              quantity: String(line.quantity ?? ''),
+              showToCustomer: line.showToCustomer !== false,
+              ingredientPersianName: line.ingredientPersianName,
+              unit: line.unit,
+            })),
+          }
+        })
+      })
+      .catch(() => {
+        // Contents stay empty when they cannot be loaded; the admin can still
+        // edit everything else and save without touching them.
+      })
   }
 
   function editSalonTable(table) {
@@ -1340,8 +1411,9 @@ export function AdminProvider({ children }) {
         setError,
         setMessage,
         getReadableError,
+        recipeState,
       }),
-    [recipeState.lines, session],
+    [recipeState, session],
   )
 
   const inventoryColumns = useMemo(

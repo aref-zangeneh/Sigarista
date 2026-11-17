@@ -44,10 +44,17 @@ public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCo
 {
     public UpsertMenuItemCommandValidator()
     {
-        RuleFor(command => command.CategoryId).NotEmpty();
-        RuleFor(command => command.PersianName).NotEmpty().MaximumLength(200);
-        RuleFor(command => command.EnglishName).NotEmpty().MaximumLength(200);
-        RuleFor(command => command.Description).NotEmpty().MaximumLength(1000);
+        RuleFor(command => command.CategoryId)
+            .NotEmpty()
+            .WithMessage("انتخاب دسته‌بندی الزامی است.");
+        RuleFor(command => command.PersianName)
+            .NotEmpty()
+            .WithMessage("نام فارسی آیتم الزامی است.")
+            .MaximumLength(200);
+        // Everything besides the name is optional at definition time: an item
+        // can be drafted with just a name (and a category) and be completed later.
+        RuleFor(command => command.EnglishName).MaximumLength(200);
+        RuleFor(command => command.Description).MaximumLength(1000);
         RuleFor(command => command.ImageUrl).MaximumLength(1000);
         RuleFor(command => command.SpecialOfferPrice).GreaterThanOrEqualTo(0);
         RuleFor(command => command.TaxPercent).GreaterThanOrEqualTo(0);
@@ -67,14 +74,10 @@ public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCo
         RuleFor(command => command.LargeVolume).MaximumLength(100);
         RuleFor(command => command.LargeName).MaximumLength(60);
         RuleFor(command => command.Price).GreaterThanOrEqualTo(0);
-        RuleFor(command => command)
-            .Must(command => command.SmallPrice.HasValue
-                || command.MediumPrice.HasValue
-                || command.LargePrice.HasValue
-                || command.Price is > 0)
-            .WithMessage("حداقل قیمت یکی از سایزها یا قیمت پایه (بدون سایز) را وارد کنید.");
-        RuleFor(command => command.Accent).NotEmpty().MaximumLength(200);
-        RuleFor(command => command.ShortLabel).NotEmpty().MaximumLength(10);
+        // No price rule anymore: an item without any price is simply saved
+        // unpriced and the domain turns ordering off for it automatically.
+        RuleFor(command => command.Accent).MaximumLength(200);
+        RuleFor(command => command.ShortLabel).MaximumLength(10);
         RuleFor(command => command.DisplayOrder).GreaterThanOrEqualTo(0);
     }
 }

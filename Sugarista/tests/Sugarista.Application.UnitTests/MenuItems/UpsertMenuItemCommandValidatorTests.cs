@@ -56,11 +56,13 @@ public class UpsertMenuItemCommandValidatorTests
     }
 
     [Fact]
-    public void VariantLessItem_WithoutBasePrice_Fails()
+    public void VariantLessItem_WithoutBasePrice_Passes_PriceIsOptional()
     {
+        // An item can be drafted without any price; the domain then keeps
+        // ordering off until a price exists.
         var result = new UpsertMenuItemCommandValidator().Validate(ValidCommand());
 
-        Assert.False(result.IsValid);
+        Assert.True(result.IsValid);
     }
 
     [Fact]
@@ -77,5 +79,41 @@ public class UpsertMenuItemCommandValidatorTests
         var result = new UpsertMenuItemCommandValidator().Validate(ValidCommand(price: -1));
 
         Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void MissingPersianName_Fails()
+    {
+        var command = ValidCommand(price: 120_000) with { PersianName = "  " };
+
+        var result = new UpsertMenuItemCommandValidator().Validate(command);
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void MissingCategory_Fails()
+    {
+        var command = ValidCommand(price: 120_000) with { CategoryId = Guid.Empty };
+
+        var result = new UpsertMenuItemCommandValidator().Validate(command);
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void NameOnly_Item_Passes_AllOtherFieldsOptional()
+    {
+        var command = ValidCommand() with
+        {
+            EnglishName = "",
+            Description = "",
+            Accent = "",
+            ShortLabel = "",
+        };
+
+        var result = new UpsertMenuItemCommandValidator().Validate(command);
+
+        Assert.True(result.IsValid);
     }
 }

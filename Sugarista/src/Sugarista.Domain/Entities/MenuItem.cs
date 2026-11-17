@@ -229,10 +229,8 @@ public class MenuItem : BaseAuditableEntity
         ValidateTextLength(mediumName, "Medium size name", 60);
         ValidateTextLength(largeName, "Large size name", 60);
 
-        if (string.IsNullOrWhiteSpace(englishName))
-        {
-            throw new DomainException("Menu item English name is required.");
-        }
+        ValidateTextLength(englishName, "English name", 200);
+        ValidateTextLength(description, "Description", 1000);
 
         ValidateOptionalMoney(specialOfferPrice, "Special offer price");
         ValidateOptionalMoney(smallPrice, "Small price");
@@ -258,10 +256,11 @@ public class MenuItem : BaseAuditableEntity
         }
 
         var hasSizePrice = smallPrice.HasValue || mediumPrice.HasValue || largePrice.HasValue;
-        if (!hasSizePrice && price is not > 0)
-        {
-            throw new DomainException("At least one size price or a base price is required.");
-        }
+
+        // A price is optional at definition time (an item can be drafted with
+        // just a name and priced later) — but an unpriced item must never be
+        // orderable, otherwise it could be ordered for free.
+        var hasAnyPrice = hasSizePrice || price is > 0;
 
         CategoryId = categoryId;
         PersianName = persianName.Trim();
@@ -287,7 +286,7 @@ public class MenuItem : BaseAuditableEntity
         Price = price is > 0 ? price.Value : (mediumPrice ?? smallPrice ?? largePrice ?? 0);
         SpecialOfferPrice = specialOfferPrice ?? mediumSpecialOfferPrice ?? smallSpecialOfferPrice ?? largeSpecialOfferPrice;
         TaxPercent = taxPercent;
-        IsOrderable = isOrderable;
+        IsOrderable = isOrderable && hasAnyPrice;
         PreparingDurationMinutes = preparingDurationMinutes;
         Calories = calories;
         Allergens = NormalizeList(allergens);

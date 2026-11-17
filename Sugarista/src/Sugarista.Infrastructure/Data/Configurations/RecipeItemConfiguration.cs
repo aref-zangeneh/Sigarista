@@ -15,6 +15,9 @@ public class RecipeItemConfiguration : IEntityTypeConfiguration<RecipeItem>
         builder.Property(r => r.PreparationNote)
             .HasMaxLength(1000);
 
+        builder.Property(r => r.ShowToCustomer)
+            .IsRequired();
+
         builder.HasOne(r => r.MenuItem)
             .WithMany(m => m.RecipeItems)
             .HasForeignKey(r => r.MenuItemId)

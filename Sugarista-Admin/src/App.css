@@ -3450,3 +3450,73 @@ select:focus-visible {
 .phone-row-remove:hover {
   border-color: var(--primary, #8a5339);
 }
+
+/* ── Menu item contents (recipe lines in the item form) ───────── */
+
+.recipe-line-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.recipe-line-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.recipe-line-static {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  color: var(--heading, #333);
+}
+
+.recipe-line-qty {
+  width: 110px;
+  flex: none;
+}
+
+.recipe-line-show {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  flex: none;
+}
+
+.recipe-line-remove {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card, #fff);
+  font: inherit;
+  font-size: 1rem;
+  color: var(--danger, #c0392b);
+  cursor: pointer;
+}
+
+.recipe-line-remove:hover {
+  border-color: var(--danger, #c0392b);
+}
+
+.recipe-line-add {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.recipe-visibility {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.recipe-visible {
+  color: var(--success, #1e7d3c);
+}
+
+.recipe-hidden {
+  color: var(--danger, #c0392b);
+}

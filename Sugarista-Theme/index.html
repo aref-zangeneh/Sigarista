@@ -275,7 +275,7 @@
                           <div class="product-head">
                             <div class="product-names">
                               <h3 class="product-title" x-text="item.name"></h3>
-                              <p class="product-title-en" x-text="item.englishName"></p>
+                              <p class="product-title-en" x-show="item.englishName" x-text="item.englishName"></p>
                             </div>
                             <span class="product-badge" x-show="item.badge" x-text="item.badge"></span>
                           </div>
@@ -300,9 +300,16 @@
                           <span class="product-discount-badge" x-show="discountPercent(item)" x-text="toPersianNumber(discountPercent(item)) + '٪'"></span>
 
                           <p class="product-contents" x-show="item.description">
-                            <span class="product-contents-label">محتویات:</span>
+                            <span class="product-contents-label">توضیحات:</span>
                             <span x-text="item.description"></span>
                           </p>
+
+                          <div class="product-meta product-ingredients" x-show="item.contents && item.contents.length">
+                            <span class="product-contents-label">محتویات:</span>
+                            <template x-for="content in item.contents || []" :key="`${item.id}-content-${content.persianName}`">
+                              <span class="meta-chip" x-text="content.persianName"></span>
+                            </template>
+                          </div>
 
                           <div class="product-meta" x-show="itemMeta(item).length || (item.allergens && item.allergens.length)">
                             <template x-for="meta in itemMeta(item)" :key="`${item.id}-meta-${meta}`">

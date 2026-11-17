@@ -7,7 +7,8 @@ public record UpsertRecipeItemCommand(
     Guid MenuItemId,
     Guid IngredientId,
     decimal Quantity,
-    string? PreparationNote = null) : IRequest<Guid>;
+    string? PreparationNote = null,
+    bool ShowToCustomer = true) : IRequest<Guid>;
 
 public class UpsertRecipeItemCommandValidator : AbstractValidator<UpsertRecipeItemCommand>
 {
@@ -53,7 +54,7 @@ public class UpsertRecipeItemCommandHandler : IRequestHandler<UpsertRecipeItemCo
 
         if (existing is not null)
         {
-            existing.Update(request.MenuItemId, request.IngredientId, request.Quantity, request.PreparationNote);
+            existing.Update(request.MenuItemId, request.IngredientId, request.Quantity, request.PreparationNote, request.ShowToCustomer);
             await _dbContext.SaveChangesAsync(cancellationToken);
             return existing.Id;
         }
@@ -62,7 +63,8 @@ public class UpsertRecipeItemCommandHandler : IRequestHandler<UpsertRecipeItemCo
             request.MenuItemId,
             request.IngredientId,
             request.Quantity,
-            request.PreparationNote);
+            request.PreparationNote,
+            request.ShowToCustomer);
         _dbContext.RecipeItems.Add(recipeItem);
         await _dbContext.SaveChangesAsync(cancellationToken);
 

@@ -18,7 +18,8 @@ public record RecipeItemDto(
     string IngredientEnglishName,
     string Unit,
     decimal Quantity,
-    string? PreparationNote);
+    string? PreparationNote,
+    bool ShowToCustomer);
 
 public class GetMenuItemRecipeQueryHandler : IRequestHandler<GetMenuItemRecipeQuery, MenuItemRecipeDto>
 {
@@ -47,7 +48,8 @@ public class GetMenuItemRecipeQueryHandler : IRequestHandler<GetMenuItemRecipeQu
                 r.Ingredient.EnglishName,
                 r.Ingredient.Unit,
                 r.Quantity,
-                r.PreparationNote))
+                r.PreparationNote,
+                r.ShowToCustomer))
             .ToListAsync(cancellationToken);
 
         return new MenuItemRecipeDto(

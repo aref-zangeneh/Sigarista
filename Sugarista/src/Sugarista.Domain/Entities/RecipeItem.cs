@@ -9,9 +9,14 @@ public class RecipeItem : BaseAuditableEntity
     {
     }
 
-    public RecipeItem(Guid menuItemId, Guid ingredientId, decimal quantity, string? preparationNote = null)
+    public RecipeItem(
+        Guid menuItemId,
+        Guid ingredientId,
+        decimal quantity,
+        string? preparationNote = null,
+        bool showToCustomer = true)
     {
-        Update(menuItemId, ingredientId, quantity, preparationNote);
+        Update(menuItemId, ingredientId, quantity, preparationNote, showToCustomer);
     }
 
     public Guid MenuItemId { get; private set; }
@@ -26,7 +31,18 @@ public class RecipeItem : BaseAuditableEntity
 
     public string? PreparationNote { get; private set; }
 
-    public void Update(Guid menuItemId, Guid ingredientId, decimal quantity, string? preparationNote = null)
+    /// <summary>
+    /// When true, this content (the ingredient name only, never the internal
+    /// quantity/note) is shown to customers in the public digital menu.
+    /// </summary>
+    public bool ShowToCustomer { get; private set; } = true;
+
+    public void Update(
+        Guid menuItemId,
+        Guid ingredientId,
+        decimal quantity,
+        string? preparationNote = null,
+        bool showToCustomer = true)
     {
         if (menuItemId == Guid.Empty)
         {
@@ -47,5 +63,6 @@ public class RecipeItem : BaseAuditableEntity
         IngredientId = ingredientId;
         Quantity = quantity;
         PreparationNote = string.IsNullOrWhiteSpace(preparationNote) ? null : preparationNote.Trim();
+        ShowToCustomer = showToCustomer;
     }
 }

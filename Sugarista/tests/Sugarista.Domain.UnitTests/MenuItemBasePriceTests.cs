@@ -60,10 +60,17 @@ public class MenuItemBasePriceTests
     }
 
     [Fact]
-    public void VariantLessItem_WithoutAnyPrice_Throws()
+    public void VariantLessItem_WithoutAnyPrice_IsSavedUnpricedAndNotOrderable()
     {
-        Assert.Throws<DomainException>(() => CreateItem(price: null));
-        Assert.Throws<DomainException>(() => CreateItem(price: 0));
+        // Prices are optional at definition time; an unpriced item is saved with
+        // Price = 0 and ordering is automatically switched off.
+        var unpriced = CreateItem(price: null);
+        Assert.Equal(0, unpriced.Price);
+        Assert.False(unpriced.IsOrderable);
+
+        var zeroPriced = CreateItem(price: 0);
+        Assert.Equal(0, zeroPriced.Price);
+        Assert.False(zeroPriced.IsOrderable);
     }
 
     [Fact]
@@ -128,11 +135,11 @@ public class MenuItemBasePriceTests
     }
 
     [Fact]
-    public void Update_RemovingAllSizesAndBasePrice_Throws()
+    public void Update_RemovingAllSizesAndBasePrice_SavesUnpricedAndNotOrderable()
     {
         var item = CreateItem(price: null, medium: 90_000);
 
-        Assert.Throws<DomainException>(() => item.Update(
+        item.Update(
             item.CategoryId,
             item.PersianName,
             item.EnglishName,
@@ -164,6 +171,9 @@ public class MenuItemBasePriceTests
             item.Accent,
             item.ShortLabel,
             item.DisplayOrder,
-            item.IsActive));
+            item.IsActive);
+
+        Assert.Equal(0, item.Price);
+        Assert.False(item.IsOrderable);
     }
 }

@@ -47,7 +47,17 @@ public record PublicMenuItemDto(
     string Accent,
     string Short,
     int DisplayOrder,
-    IReadOnlyCollection<PublicMenuItemOptionGroupDto> OptionGroups);
+    IReadOnlyCollection<PublicMenuItemOptionGroupDto> OptionGroups,
+    IReadOnlyCollection<PublicMenuItemContentDto> Contents);
+
+/// <summary>
+/// Customer-facing contents of an item: the Persian/English names of the raw
+/// ingredients the admin chose to disclose. Quantities and preparation notes
+/// stay internal — customers never see them.
+/// </summary>
+public record PublicMenuItemContentDto(
+    string PersianName,
+    string? EnglishName);
 
 public record PublicMenuItemOptionGroupDto(
     Guid Id,
@@ -329,6 +339,45 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 ? [.. groups]
                 : [];
 
+        // Customer-visible contents: the names of ingredients the admin chose to
+        // disclose on the item's recipe. Packaging and hidden rows are never
+        // sent; quantities and preparation notes stay internal to the staff.
+        IReadOnlyDictionary<Guid, PublicMenuItemContentDto[]> contentsByItem;
+        try
+        {
+            var contentRows = await _dbContext.RecipeItems
+                .AsNoTracking()
+                .Where(recipeItem => recipeItem.ShowToCustomer && recipeItem.Ingredient.Kind == "ingredient")
+                .OrderBy(recipeItem => recipeItem.Ingredient.DisplayOrder)
+                .ThenBy(recipeItem => recipeItem.Ingredient.PersianName)
+                .Select(recipeItem => new
+                {
+                    recipeItem.MenuItemId,
+                    PersianName = recipeItem.Ingredient.PersianName,
+                    recipeItem.Ingredient.EnglishName
+                })
+                .ToListAsync(cancellationToken);
+
+            contentsByItem = contentRows
+                .GroupBy(row => row.MenuItemId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .Select(row => new PublicMenuItemContentDto(row.PersianName, row.EnglishName))
+                        .ToArray());
+        }
+        catch (Exception)
+        {
+            // Keep /api/menu working on databases that have not received the
+            // RecipeItems.ShowToCustomer migration yet.
+            contentsByItem = new Dictionary<Guid, PublicMenuItemContentDto[]>();
+        }
+
+        PublicMenuItemContentDto[] ContentsFor(Guid menuItemId) =>
+            contentsByItem.TryGetValue(menuItemId, out var contents)
+                ? [.. contents]
+                : [];
+
         // An option is orderable only when every one of its ingredient usages
         // can be satisfied once (per single item unit) from current stock.
         static bool IsOptionAvailable(
@@ -381,7 +430,8 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 item.Accent,
                 item.Short,
                 item.DisplayOrder,
-                OptionGroupsFor(item.Id));
+                OptionGroupsFor(item.Id),
+                ContentsFor(item.Id));
             })
             .ToList();
 

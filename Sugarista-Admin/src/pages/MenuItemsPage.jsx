@@ -108,6 +108,31 @@ export function MenuItemsPage() {
     setMarkupByItem((current) => ({ ...current, [itemId]: value }))
   }, [])
 
+  const addRecipeLine = () => {
+    setMenuItemForm((currentForm) => ({
+      ...currentForm,
+      recipeLines: [
+        ...(currentForm.recipeLines ?? []),
+        { ingredientId: '', quantity: '', showToCustomer: true },
+      ],
+    }))
+  }
+
+  const updateRecipeLine = (index, patch) => {
+    setMenuItemForm((currentForm) => ({
+      ...currentForm,
+      recipeLines: (currentForm.recipeLines ?? []).map((line, lineIndex) =>
+        lineIndex === index ? { ...line, ...patch } : line),
+    }))
+  }
+
+  const removeRecipeLine = (index) => {
+    setMenuItemForm((currentForm) => ({
+      ...currentForm,
+      recipeLines: (currentForm.recipeLines ?? []).filter((_, lineIndex) => lineIndex !== index),
+    }))
+  }
+
   const handleManualChange = useCallback((itemId, value) => {
     setManualByItem((current) => ({ ...current, [itemId]: value }))
   }, [])
@@ -421,6 +446,84 @@ export function MenuItemsPage() {
             </div>
           </div>
     
+          <div className="form-section">
+            <h4>محتویات (مواد اولیه)</h4>
+            <p className="form-hint">
+              مواد تشکیل‌دهندهٔ آیتم را از میان مواد اولیه انتخاب کنید. مواردی که «نمایش به مشتری» دارند
+              در منوی دیجیتال به مشتری نشان داده می‌شوند؛ مقدار مصرف هم مبنای کسر از انبار و قیمت‌گذاری خودکار است.
+            </p>
+            {(menuItemForm.recipeLines ?? []).length === 0 ? (
+              <p className="form-hint">هنوز ماده‌ای انتخاب نشده است.</p>
+            ) : null}
+            {(menuItemForm.recipeLines ?? []).map((line, index) => {
+              const selectedOption = (ingredientOptions ?? []).find(
+                (option) => option.id === line.ingredientId,
+              )
+              const pickableOptions = (ingredientOptions ?? []).filter(
+                (option) =>
+                  option.kind === 'ingredient' &&
+                  (option.isActive || option.id === line.ingredientId),
+              )
+
+              return (
+                <div key={index} className="recipe-line-row">
+                  {selectedOption || !line.ingredientId ? (
+                    <select
+                      value={line.ingredientId}
+                      onChange={(event) =>
+                        updateRecipeLine(index, { ingredientId: event.target.value })
+                      }
+                    >
+                      <option value="">-- انتخاب ماده --</option>
+                      {pickableOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.persianName} ({option.unit})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="recipe-line-static" title="این قلم در صفحه دستور پخت ثبت شده است">
+                      {line.ingredientPersianName || 'قلم ثبت‌شدهٔ قبلی'}
+                    </span>
+                  )}
+                  <input
+                    className="ltr-input recipe-line-qty"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    placeholder="مقدار"
+                    title="مقدار مصرف در هر عدد آیتم"
+                    value={line.quantity ?? ''}
+                    onChange={(event) =>
+                      updateRecipeLine(index, { quantity: event.target.value })
+                    }
+                  />
+                  <label className="recipe-line-show">
+                    <input
+                      type="checkbox"
+                      checked={line.showToCustomer !== false}
+                      onChange={(event) =>
+                        updateRecipeLine(index, { showToCustomer: event.target.checked })
+                      }
+                    />
+                    <span>نمایش به مشتری</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="recipe-line-remove"
+                    title="حذف این ماده"
+                    onClick={() => removeRecipeLine(index)}
+                  >
+                    −
+                  </button>
+                </div>
+              )
+            })}
+            <button type="button" className="ghost-button recipe-line-add" onClick={addRecipeLine}>
+              + افزودن ماده
+            </button>
+          </div>
+
           <div className="form-section">
             <h4>نمایش و وضعیت</h4>
             <label>

@@ -3929,6 +3929,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric(10,3)");
 
+                    b.Property<bool>("ShowToCustomer")
+                        .HasColumnType("boolean");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IngredientId");

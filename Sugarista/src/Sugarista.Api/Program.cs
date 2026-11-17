@@ -121,6 +121,7 @@ Log.Logger = loggingInfrastructure.Logger;
 builder.Host.UseSerilog(loggingInfrastructure.Logger, dispose: false);
 builder.Services.AddSingleton(loggingInfrastructure.Diagnostics);
 builder.Services.AddSingleton<IAuditLog>(staticAudit => loggingInfrastructure.Audit);
+builder.Services.AddSingleton<SystemLogFileStore>();
 
 var setupSecrets = appSetupStore.Load();
 var setupProvidedAdmin = setupSecrets.HasBootstrapAdmin;

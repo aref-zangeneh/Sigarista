@@ -210,6 +210,13 @@ public static class AdminPermissions
         public const string Delete = "admin.activity-logs.delete";
     }
 
+    /// <summary>Server system logs (Serilog files on disk), browsable from the admin panel.</summary>
+    public static class SystemLogs
+    {
+        public const string View = "admin.system-logs.view";
+        public const string Delete = "admin.system-logs.delete";
+    }
+
     public static class Sms
     {
         public const string ViewDashboard = "admin.sms.view-dashboard";
@@ -315,6 +322,8 @@ public static class AdminPermissions
         new(Tooltips.Update, "tooltips", "update", "راهنماهای صفحه‌ها", "ویرایش / غیرفعال‌سازی راهنماها"),
         new(ActivityLogs.View, "activity-logs", "view", "لاگ فعالیت‌ها", "مشاهدهٔ لاگ کاربران"),
         new(ActivityLogs.Delete, "activity-logs", "delete", "لاگ فعالیت‌ها", "پاک‌سازی لاگ‌های قدیمی"),
+        new(SystemLogs.View, "system-logs", "view", "لاگ‌های سیستمی", "مشاهدهٔ لاگ فنی سرور"),
+        new(SystemLogs.Delete, "system-logs", "delete", "لاگ‌های سیستمی", "حذف فایل‌های لاگ سرور"),
         new(Users.View, "admin-users", "view", "مدیریت کاربران", "مشاهده"),
         new(Users.Create, "admin-users", "create", "مدیریت کاربران", "ایجاد کاربر"),
         new(Users.Update, "admin-users", "update", "مدیریت کاربران", "ویرایش کاربر"),

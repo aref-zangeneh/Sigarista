@@ -16,6 +16,7 @@ export const TOOLTIP_PAGES = {
   'tooltips-page': 'راهنماهای صفحه‌ها',
   warehouses: 'انبارها',
   'menu-items': 'آیتم‌های منو',
+  'system-logs': 'لاگ‌های سیستمی',
 }
 
 export const TOOLTIP_REGISTRY = [
@@ -62,6 +63,14 @@ export const TOOLTIP_REGISTRY = [
   { key: 'warehouses.restock', page: 'warehouses', label: 'شارژ', text: 'افزودن به موجودی این انبار. تراکنش با نام انبار در تاریخچهٔ موجودی ثبت می‌شود.' },
   { key: 'warehouses.adjust', page: 'warehouses', label: 'تعدیل', text: 'اصلاح دستی موجودی (عدد منفی = کاهش، مثلاً اتلاف یا حذف حسابی).' },
   { key: 'warehouses.threshold', page: 'warehouses', label: 'آستانهٔ هشدار', text: 'اگر موجودی کمتر از این عدد شود، ردیف با رنگ هشدار مشخص می‌شود.' },
+
+  // ── لاگ‌های سیستمی ──────────────────────────────────────────
+  { key: 'system-logs.files', page: 'system-logs', label: 'فایل‌های لاگ', text: 'هر فایل یک روز لاگ سرور است (جدیدترین اول). اعداد کنار هر فایل، تعداد خطاها و هشدارهای همان روز را نشان می‌دهد.' },
+  { key: 'system-logs.levels', page: 'system-logs', label: 'سطح لاگ', text: 'خطا = مشکل واقعی، هشدار = قابل توجه، اطلاعات = رویداد عادی، دیباگ = جزئیات فنی. برای یافتن مشکل، روی «خطا» فیلتر کنید.' },
+  { key: 'system-logs.categories', page: 'system-logs', label: 'دسته', text: 'منبع رویداد: درخواست HTTP، اپلیکیشن شوگریستا، فریم‌ورک و… برای جداسازی لاگ‌های مربوط به هر بخش.' },
+  { key: 'system-logs.search', page: 'system-logs', label: 'جستجو', text: 'متن جستجو در پیام، جزئیات خطا و منبع رویداد بررسی می‌شود. مثلاً شماره سفارش یا نام یک endpoint را بنویسید.' },
+  { key: 'system-logs.detail', page: 'system-logs', label: 'جزئیات ردیف', text: 'کلیک روی هر ردیف، پیام کامل، منبع، جزئیات خطا (Exception) و اطلاعات فنی ردیف را باز می‌کند.' },
+  { key: 'system-logs.delete_file', page: 'system-logs', label: 'حذف فایل لاگ', text: 'فایل لاگ برای همیشه از دیسک حذف می‌شود و قابل بازیابی نیست. فایل روز جاری برای ادامهٔ ثبت لاگ حفظ می‌شود.' },
 ]
 
 const registryByKey = new Map(TOOLTIP_REGISTRY.map((entry) => [entry.key, entry]))

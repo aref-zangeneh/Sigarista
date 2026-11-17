@@ -173,8 +173,8 @@ export const PERMISSIONS = {
     update: 'admin.site-settings.update',
   },
   'system-logs': {
-    view: 'admin.site-settings.view',
-    update: 'admin.site-settings.update',
+    view: 'admin.system-logs.view',
+    delete: 'admin.system-logs.delete',
   },
   'sms-dashboard': {
     view: 'admin.sms.view-dashboard',

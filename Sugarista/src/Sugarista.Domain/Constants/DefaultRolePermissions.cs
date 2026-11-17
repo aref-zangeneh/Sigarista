@@ -85,6 +85,8 @@ public static class DefaultRolePermissions
         AdminPermissions.SiteSettings.Update,
         AdminPermissions.ActivityLogs.View,
         AdminPermissions.ActivityLogs.Delete,
+        AdminPermissions.SystemLogs.View,
+        AdminPermissions.SystemLogs.Delete,
     ];
 
     /// <summary>Sales floor: POS, orders, own dashboard. No finance, no HR, no inventory.</summary>

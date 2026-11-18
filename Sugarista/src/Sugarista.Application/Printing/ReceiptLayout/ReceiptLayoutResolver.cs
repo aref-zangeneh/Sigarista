@@ -50,6 +50,11 @@ public static class ReceiptLayoutResolver
             errors.Add("متن پانویس فیش مشتری حداکثر می‌تواند ۳۰۰ نویسه باشد.");
         }
 
+        if (patch.Footer?.ThanksText is { Length: > 150 })
+        {
+            errors.Add("متن سپاسگزاری فیش مشتری حداکثر می‌تواند ۱۵۰ نویسه باشد.");
+        }
+
         return new CustomerReceiptLayout(
             Header: new CustomerHeaderLayout(
                 header.ShowAddress ?? defaults.Header.ShowAddress,
@@ -66,7 +71,8 @@ public static class ReceiptLayoutResolver
                 : new CustomerFooterLayout(
                     patch.Footer.Text ?? defaults.Footer.Text,
                     patch.Footer.ShowThanks ?? defaults.Footer.ShowThanks,
-                    patch.Footer.ShowCafeName ?? defaults.Footer.ShowCafeName),
+                    patch.Footer.ShowCafeName ?? defaults.Footer.ShowCafeName,
+                    patch.Footer.ThanksText ?? defaults.Footer.ThanksText),
             Fonts: MergeFonts(patch.Fonts, defaults.Fonts, errors));
     }
 

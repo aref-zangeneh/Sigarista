@@ -891,6 +891,37 @@
   color: var(--pos-muted);
 }
 
+.pos-cart-chip--option {
+  background: rgba(183, 110, 121, 0.12);
+  border: 1px solid rgba(183, 110, 121, 0.35);
+  color: var(--pos-accent);
+}
+
+.pos-badge-required {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.pos-badge-optional {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--pos-surface);
+  color: var(--pos-muted);
+  border: 1px solid var(--pos-border);
+}
+
+.pos-modal-error {
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 4px 0 0;
+}
+
 .pos-cart-unit-price {
   font-size: 0.71rem;
   color: var(--pos-muted);

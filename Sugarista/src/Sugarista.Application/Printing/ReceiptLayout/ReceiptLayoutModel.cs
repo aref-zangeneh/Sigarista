@@ -66,7 +66,8 @@ public sealed record CustomerFooterLayout(
     /// <summary>Overrides SiteSettings.FooterText when non-empty.</summary>
     string Text,
     bool ShowThanks,
-    bool ShowCafeName);
+    bool ShowCafeName,
+    string? ThanksText = null);
 
 /// <summary>Font sizes (pt of the 384/576-dot bitmap) of the customer receipt.</summary>
 public sealed record ReceiptFontSizes(

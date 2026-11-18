@@ -86,7 +86,7 @@ const DEFAULT_LAYOUT = {
       })),
     },
     paymentRows: CUSTOMER_PAYMENT_ROWS.map((row) => row.key),
-    footer: { text: '', showThanks: true, showCafeName: true },
+    footer: { text: '', thanksText: 'از انتخاب شما سپاسگزاریم', showThanks: true, showCafeName: true },
     fonts: { header: 40, info: 22, item: 30, subtotal: 24, total: 36 },
   },
   barista: {
@@ -139,9 +139,10 @@ const SAMPLE_ORDER = {
       quantityLabel: '۲',
       unitPriceLabel: '۳۱۰٬۰۰۰',
       totalLabel: '۶۲۰٬۰۰۰',
-      modifierLabels: ['شیر بادام'],
+      modifierLabels: ['داغ سرو شود'],
       options: [
-        { optionName: '۱۰۰٪ عربیکا', priceDeltaLabel: '۱۲۰٬۰۰۰' },
+        { optionName: 'شیر بادام', priceDeltaLabel: '۳۰٬۰۰۰' },
+        { optionName: 'سیروپ فندق', priceDeltaLabel: '۲۰٬۰۰۰' },
       ],
       customDrinkSummary: [],
       payerLabel: null,
@@ -163,8 +164,11 @@ const SAMPLE_BARISTA_ITEMS = [
     sizeLabel: 'بزرگ',
     quantity: 2,
     quantityLabel: '۲',
-    modifierLabels: ['شیر بادام'],
-    options: [{ optionName: '۱۰۰٪ عربیکا', priceDeltaLabel: '۱۲۰٬۰۰۰' }],
+    modifierLabels: ['داغ سرو شود'],
+    options: [
+      { optionName: 'شیر بادام', priceDeltaLabel: '۳۰٬۰۰۰' },
+      { optionName: 'سیروپ فندق', priceDeltaLabel: '۲۰٬۰۰۰' },
+    ],
     customDrinkSummary: [],
     baristaNote: 'تک‌شات',
   },
@@ -387,7 +391,7 @@ function CustomerPreview({ layout }) {
 
       <div className="receipt-preview-divider" />
       {footer.text ? <div className="receipt-preview-center small">{footer.text}</div> : null}
-      {footer.showThanks ? <div className="receipt-preview-center bold">از انتخاب شما سپاسگزاریم</div> : null}
+      {footer.showThanks ? <div className="receipt-preview-center bold">{footer.thanksText || 'از انتخاب شما سپاسگزاریم'}</div> : null}
       {footer.showCafeName ? <div className="receipt-preview-center small">{o.cafeName}</div> : null}
       <p className="receipt-preview-hint">
         اندازه‌ها: تیتر {toPersianNumber(fonts.header)} • اطلاعات {toPersianNumber(fonts.info)} • آیتم {toPersianNumber(fonts.item)} • جمع {toPersianNumber(fonts.total)}
@@ -587,9 +591,18 @@ function CustomerEditor({ layout, update }) {
       <div className="receipt-layout-grid">
         <label className="receipt-layout-field">
           <span>متن پانویس (خالی = متن صفحهٔ تنظیمات)</span>
-          <input type="text" value={footer.text} onChange={(event) => update('customer.footer.text', event.target.value)} />
+          <input type="text" value={footer.text ?? ''} onChange={(event) => update('customer.footer.text', event.target.value)} />
         </label>
-        <ToggleField label="جملهٔ سپاسگزاری" value={footer.showThanks} onChange={(v) => update('customer.footer.showThanks', v)} />
+        <label className="receipt-layout-field">
+          <span>متن جملهٔ سپاسگزاری</span>
+          <input
+            type="text"
+            value={footer.thanksText ?? 'از انتخاب شما سپاسگزاریم'}
+            placeholder="از انتخاب شما سپاسگزاریم"
+            onChange={(event) => update('customer.footer.thanksText', event.target.value)}
+          />
+        </label>
+        <ToggleField label="نمایش جملهٔ سپاسگزاری" value={footer.showThanks} onChange={(v) => update('customer.footer.showThanks', v)} />
         <ToggleField label="نام کافه در انتها" value={footer.showCafeName} onChange={(v) => update('customer.footer.showCafeName', v)} />
       </div>
 

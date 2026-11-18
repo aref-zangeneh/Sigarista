@@ -31,11 +31,91 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
   const [baristaNote, setBaristaNote] = useState('')
   const [quantity, setQuantity] = useState(1)
 
+  const defaultOptionIds = useMemo(() => {
+    const ids = []
+    for (const group of item.optionGroups || []) {
+      for (const opt of group.options || []) {
+        if (opt.isDefault && opt.isAvailable !== false) {
+          ids.push(opt.id)
+        }
+      }
+    }
+    return ids
+  }, [item.optionGroups])
+
+  const [selectedOptionIds, setSelectedOptionIds] = useState(defaultOptionIds)
+  const [optionError, setOptionError] = useState('')
+
   useEscapeKey(true, onClose)
 
-  const unitPrice = resolveItemPrice(item, sizeKey)
+  const sortedOptionGroups = useMemo(() => {
+    const groups = item.optionGroups || []
+    return [...groups].sort((a, b) => {
+      if (a.isRequired !== b.isRequired) return a.isRequired ? -1 : 1
+      return (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+    })
+  }, [item.optionGroups])
+
+  function selectSingleOption(group, option) {
+    if (option.isAvailable === false) return
+    const groupOptionIds = (group.options || []).map((o) => o.id)
+    setSelectedOptionIds((prev) => [
+      ...prev.filter((id) => !groupOptionIds.includes(id)),
+      option.id,
+    ])
+    setOptionError('')
+  }
+
+  function toggleMultiOption(group, option) {
+    if (option.isAvailable === false) return
+    const isSelected = selectedOptionIds.includes(option.id)
+    if (isSelected) {
+      setSelectedOptionIds((prev) => prev.filter((id) => id !== option.id))
+      setOptionError('')
+      return
+    }
+    const groupOptionIds = (group.options || []).map((o) => o.id)
+    const count = selectedOptionIds.filter((id) => groupOptionIds.includes(id)).length
+    const max = group.maxSelections > 0 ? group.maxSelections : 1
+    if (count >= max) {
+      setOptionError(`حداکثر ${toPersianNumber(max)} گزینه از «${group.persianName}» قابل انتخاب است.`)
+      return
+    }
+    setSelectedOptionIds((prev) => [...prev, option.id])
+    setOptionError('')
+  }
+
+  const basePrice = resolveItemPrice(item, sizeKey)
+  const optionsTotal = useMemo(() => {
+    let total = 0
+    for (const group of item.optionGroups || []) {
+      for (const opt of group.options || []) {
+        if (selectedOptionIds.includes(opt.id)) {
+          total += Number(opt.priceDelta) || 0
+        }
+      }
+    }
+    return total
+  }, [item.optionGroups, selectedOptionIds])
+
+  const unitPrice = basePrice + optionsTotal
   const sizeLabel =
     item.variants?.find((variant) => variant.key === sizeKey)?.label || sizeKey || 'پیش‌فرض'
+
+  function validateOptions() {
+    for (const group of sortedOptionGroups) {
+      if (!group.isRequired) continue
+      const groupOptionIds = (group.options || []).map((o) => o.id)
+      const count = selectedOptionIds.filter((id) => groupOptionIds.includes(id)).length
+      const min = group.minSelections > 0 ? group.minSelections : 1
+      if (count < min) {
+        return min <= 1
+          ? `انتخاب یک گزینه از «${group.persianName}» الزامی است.`
+          : `حداقل ${toPersianNumber(min)} گزینه از «${group.persianName}» را انتخاب کنید.`
+      }
+    }
+    return null
+  }
 
   function toggleModifier(modifierId) {
     setSelectedModifiers((current) =>
@@ -43,6 +123,45 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
         ? current.filter((entry) => entry !== modifierId)
         : [...current, modifierId],
     )
+  }
+
+  function handleConfirm() {
+    const err = validateOptions()
+    if (err) {
+      setOptionError(err)
+      return
+    }
+
+    const selectedOptionObjects = (item.optionGroups || []).flatMap((g) =>
+      (g.options || [])
+        .filter((o) => selectedOptionIds.includes(o.id))
+        .map((o) => ({
+          id: o.id,
+          groupId: g.id,
+          groupName: g.persianName,
+          optionName: o.persianName,
+          priceDelta: Number(o.priceDelta) || 0,
+          priceDeltaLabel: Number(o.priceDelta) > 0 ? formatPrice(o.priceDelta) : null,
+        })),
+    )
+
+    onConfirm({
+      menuItemId: item.id,
+      name: item.persianName,
+      imageUrl: item.imageUrl,
+      sizeKey,
+      sizeLabel,
+      quantity,
+      unitPrice,
+      taxPercent: item.taxPercent ?? 0,
+      modifierIds: selectedModifiers,
+      modifierLabels: modifiers
+        .filter((modifier) => selectedModifiers.includes(modifier.id))
+        .map((modifier) => modifier.persianName),
+      optionIds: selectedOptionIds,
+      options: selectedOptionObjects,
+      baristaNote,
+    })
   }
 
   return (
@@ -86,6 +205,43 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
           </div>
         ) : null}
 
+        {sortedOptionGroups.map((group) => (
+          <div key={group.id} className="pos-modal-section">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ margin: 0 }}>{group.persianName}</label>
+              {group.isRequired ? (
+                <span className="pos-badge-required">الزامی</span>
+              ) : (
+                <span className="pos-badge-optional">دلخواه</span>
+              )}
+            </div>
+            <div className="pos-modifier-list">
+              {(group.options || []).map((option) => {
+                const isSelected = selectedOptionIds.includes(option.id)
+                const isSingle = group.selectionMode === 'Single' || group.maxSelections === 1
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    disabled={option.isAvailable === false}
+                    className={`pos-modifier-chip ${isSelected ? 'selected' : ''}`}
+                    onClick={() =>
+                      isSingle
+                        ? selectSingleOption(group, option)
+                        : toggleMultiOption(group, option)
+                    }
+                  >
+                    <span>{option.persianName}</span>
+                    {Number(option.priceDelta) > 0 ? (
+                      <small>+{formatPrice(option.priceDelta)} ت</small>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+
         {modifiers.length ? (
           <div className="pos-modal-section">
             <label>تغییرات آماده‌سازی</label>
@@ -114,6 +270,8 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
             placeholder="مثلاً: شکر کم، سس اضافه، داغ سرو شود..."
           />
         </div>
+
+        {optionError ? <p className="pos-modal-error">{optionError}</p> : null}
 
         <div className="pos-modal-qty-bar">
           <div className="pos-qty-stepper">
@@ -145,23 +303,7 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
           <button
             type="button"
             className="pos-primary-button"
-            onClick={() =>
-              onConfirm({
-                menuItemId: item.id,
-                name: item.persianName,
-                imageUrl: item.imageUrl,
-                sizeKey,
-                sizeLabel,
-                quantity,
-                unitPrice,
-                taxPercent: item.taxPercent ?? 0,
-                modifierIds: selectedModifiers,
-                modifierLabels: modifiers
-                  .filter((modifier) => selectedModifiers.includes(modifier.id))
-                  .map((modifier) => modifier.persianName),
-                baristaNote,
-              })
-            }
+            onClick={handleConfirm}
           >
             افزودن به سفارش
           </button>
@@ -569,7 +711,7 @@ export function PosPage() {
   }
 
   function addToCart(line) {
-    const cartKey = buildCartLineKey(line.menuItemId, line.sizeKey, line.modifierIds)
+    const cartKey = buildCartLineKey(line.menuItemId, line.sizeKey, line.modifierIds, line.optionIds)
     setCart((current) => {
       const existing = current.find((entry) => entry.cartKey === cartKey)
       if (existing) {
@@ -808,6 +950,26 @@ export function PosPage() {
 
   function quickAddProduct(item) {
     const sizeKey = resolveDefaultSizeKey(item)
+    const defaultOptionIds = []
+    const defaultOptionObjects = []
+    let optionsTotal = 0
+    for (const group of item.optionGroups || []) {
+      for (const opt of group.options || []) {
+        if (opt.isDefault && opt.isAvailable !== false) {
+          defaultOptionIds.push(opt.id)
+          defaultOptionObjects.push({
+            id: opt.id,
+            groupId: group.id,
+            groupName: group.persianName,
+            optionName: opt.persianName,
+            priceDelta: Number(opt.priceDelta) || 0,
+            priceDeltaLabel: Number(opt.priceDelta) > 0 ? formatPrice(opt.priceDelta) : null,
+          })
+          optionsTotal += Number(opt.priceDelta) || 0
+        }
+      }
+    }
+
     addToCart({
       menuItemId: item.id,
       name: item.persianName,
@@ -815,10 +977,12 @@ export function PosPage() {
       sizeKey,
       sizeLabel: item.variants?.find((variant) => variant.key === sizeKey)?.label ?? null,
       quantity: 1,
-      unitPrice: resolveItemPrice(item, sizeKey),
+      unitPrice: resolveItemPrice(item, sizeKey) + optionsTotal,
       taxPercent: item.taxPercent ?? 0,
       modifierIds: [],
       modifierLabels: [],
+      optionIds: defaultOptionIds,
+      options: defaultOptionObjects,
       baristaNote: '',
     })
   }
@@ -954,7 +1118,9 @@ export function PosPage() {
             <div className="pos-products">
               {filteredItems.map((item) => {
                 const inCartQty = cartQtyByItem.get(item.id) || 0
-                const hasSizesOrModifiers = Boolean(item.variants?.length || modifiers.length)
+                const hasSizesOrModifiers = Boolean(
+                  item.variants?.length || modifiers.length || item.optionGroups?.length,
+                )
                 const openItem = () =>
                   hasSizesOrModifiers ? setProductModal(item) : quickAddProduct(item)
 
@@ -1323,6 +1489,11 @@ export function PosPage() {
                           {line.sizeLabel ? (
                             <span className="pos-cart-chip">{line.sizeLabel}</span>
                           ) : null}
+                          {line.options?.map((opt, optIdx) => (
+                            <span key={opt.id || optIdx} className="pos-cart-chip pos-cart-chip--option">
+                              {typeof opt === 'string' ? opt : opt.optionName}
+                            </span>
+                          ))}
                           {line.modifierLabels?.map((mod) => (
                             <span key={mod} className="pos-cart-chip pos-cart-chip--mod">
                               {mod}

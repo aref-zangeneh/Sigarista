@@ -47,7 +47,7 @@ public sealed record ReceiptTotalsPatch(List<ReceiptTotalRowPatch>? Rows);
 public sealed record ReceiptTotalRowPatch(string Key, string? Label, bool? Visible);
 
 /// <summary>Partial footer block.</summary>
-public sealed record CustomerFooterPatch(string? Text, bool? ShowThanks, bool? ShowCafeName);
+public sealed record CustomerFooterPatch(string? Text, bool? ShowThanks, bool? ShowCafeName, string? ThanksText = null);
 
 /// <summary>Partial font sizes of the customer receipt.</summary>
 public sealed record ReceiptFontSizesPatch(int? Header, int? Info, int? Item, int? Subtotal, int? Total);

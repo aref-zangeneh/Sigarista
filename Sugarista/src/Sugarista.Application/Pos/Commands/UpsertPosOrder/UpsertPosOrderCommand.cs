@@ -5,6 +5,7 @@ using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Discounts.Security;
 using Sugarista.Application.DrinkBuilder;
+using Sugarista.Application.MenuItems.OptionGroups;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Commands.CreateOrderCheckout;
 using Sugarista.Application.Orders.Services;
@@ -28,7 +29,8 @@ public record PosOrderLineRequest(
     string? BaristaNote = null,
     string? PayerKey = null,
     string? PayerLabel = null,
-    DrinkBuilderLineRequest? CustomDrink = null);
+    DrinkBuilderLineRequest? CustomDrink = null,
+    IReadOnlyCollection<Guid>? OptionIds = null);
 
 public record UpsertPosOrderCommand(
     Guid? OrderId,
@@ -170,9 +172,9 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 splitBillMode,
                 request.GuestCount);
 
-            foreach (var (resolved, lineRequest, snapshot) in resolvedLines)
+            foreach (var (resolved, lineRequest, snapshot, optionSnapshot) in resolvedLines)
             {
-                order.AddLine(CreateLine(order.Id, resolved, lineRequest, snapshot));
+                order.AddLine(CreateLine(order.Id, resolved, lineRequest, snapshot, optionSnapshot));
             }
 
             if (isSplitBill && request.SplitShares is { Count: > 0 })
@@ -392,7 +394,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 
     private async Task ReplaceLinesAsync(
         Order order,
-        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot)> resolvedLines,
+        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot, MenuItemOptionSnapshot? optionSnapshot)> resolvedLines,
         CancellationToken cancellationToken)
     {
         foreach (var existingLine in order.Lines.ToList())
@@ -411,9 +413,9 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 
         order.Lines.Clear();
 
-        foreach (var (resolved, lineRequest, snapshot) in resolvedLines)
+        foreach (var (resolved, lineRequest, snapshot, optionSnapshot) in resolvedLines)
         {
-            var line = CreateLine(order.Id, resolved, lineRequest, snapshot);
+            var line = CreateLine(order.Id, resolved, lineRequest, snapshot, optionSnapshot);
             order.AddLine(line);
             _dbContext.OrderLines.Add(line);
         }
@@ -423,7 +425,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         Guid orderId,
         OrderPricing.ResolvedLine resolved,
         PosOrderLineRequest lineRequest,
-        DrinkBuilderSnapshot? snapshot) =>
+        DrinkBuilderSnapshot? snapshot,
+        MenuItemOptionSnapshot? optionSnapshot) =>
         new(
             orderId,
             resolved.MenuItemId,
@@ -439,9 +442,11 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             lineRequest.BaristaNote,
             resolved.TaxPercent,
             snapshot is null ? null : DrinkBuilderPricing.Serialize(snapshot),
-            snapshot?.SummaryLabels);
+            snapshot?.SummaryLabels,
+            resolved.OptionLabels,
+            optionSnapshot is { Components.Count: > 0 } ? MenuItemOptionPricing.Serialize(optionSnapshot) : null);
 
-    private async Task<IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot)>> ResolveLinesAsync(
+    private async Task<IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot, MenuItemOptionSnapshot? optionSnapshot)>> ResolveLinesAsync(
         IReadOnlyCollection<PosOrderLineRequest> items,
         CancellationToken cancellationToken)
     {
@@ -464,6 +469,17 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 .ToListAsync(cancellationToken);
 
         var modifiersById = modifiers.ToDictionary(modifier => modifier.Id);
+
+        var optionGroups = await _dbContext.MenuItemOptionGroups
+            .AsNoTracking()
+            .Include(group => group.Options)
+            .Where(group => menuItemIds.Contains(group.MenuItemId) && group.IsActive)
+            .OrderBy(group => group.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var optionGroupsByItem = optionGroups
+            .GroupBy(group => group.MenuItemId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<MenuItemOptionGroup>)group.ToList());
 
         var customDrinkItems = items
             .Where(item => item.CustomDrink is not null)
@@ -512,6 +528,25 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     modifiersById,
                     item.ModifierIds);
 
+                MenuItemOptionSnapshot? optionSnapshot = null;
+                if (item.OptionIds is { Count: > 0 } || optionGroupsByItem.ContainsKey(item.MenuItemId))
+                {
+                    optionSnapshot = MenuItemOptionPricing.Resolve(
+                        optionGroupsByItem.GetValueOrDefault(item.MenuItemId),
+                        item.OptionIds?
+                            .Select(optionId => new MenuItemOptionSelectionRequest(optionId))
+                            .ToList());
+
+                    if (optionSnapshot.Components.Count > 0)
+                    {
+                        resolved = resolved with
+                        {
+                            UnitPrice = Math.Round(resolved.UnitPrice + optionSnapshot.OptionsTotal, 2, MidpointRounding.AwayFromZero),
+                            OptionLabels = optionSnapshot.Labels,
+                        };
+                    }
+                }
+
                 DrinkBuilderSnapshot? snapshot = null;
                 if (item.CustomDrink is not null)
                 {
@@ -533,7 +568,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     };
                 }
 
-                return (resolved, item, snapshot);
+                return (resolved, item, snapshot, optionSnapshot);
             })
             .ToArray();
     }

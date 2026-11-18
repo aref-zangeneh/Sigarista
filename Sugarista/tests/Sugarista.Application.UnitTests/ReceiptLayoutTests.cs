@@ -42,7 +42,7 @@ public class ReceiptLayoutTests
                         FontSize: null),
                     Totals: null,
                     PaymentRows: null,
-                    Footer: new CustomerFooterPatch(Text: "با تشکر", ShowThanks: null, ShowCafeName: null),
+                    Footer: new CustomerFooterPatch(Text: "با تشکر", ShowThanks: null, ShowCafeName: null, ThanksText: "نوش جان"),
                     Fonts: null),
                 Barista: null));
 
@@ -53,6 +53,7 @@ public class ReceiptLayoutTests
         Assert.True(resolved.Customer.Items.ShowOptionPrices);
         Assert.True(resolved.Customer.Items.ShowUnitPriceNote); // null patch keeps the default
         Assert.Equal("با تشکر", resolved.Customer.Footer.Text);
+        Assert.Equal("نوش جان", resolved.Customer.Footer.ThanksText);
         Assert.Equal(
             ReceiptLayoutJsonParser.Serialize(ReceiptLayoutDefault.Barista()),
             ReceiptLayoutJsonParser.Serialize(resolved.Barista));

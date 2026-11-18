@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.DrinkBuilder;
+using Sugarista.Application.MenuItems.OptionGroups;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Pos;
@@ -46,8 +47,19 @@ internal static class PosOrderMapper
                 .ToArray());
     }
 
-    internal static PosOrderLineDto ToLine(OrderLine line) =>
-        new(
+    internal static PosOrderLineDto ToLine(OrderLine line)
+    {
+        IReadOnlyCollection<Guid> optionIds = [];
+        if (!string.IsNullOrWhiteSpace(line.OptionsJson))
+        {
+            var snapshot = MenuItemOptionPricing.Deserialize(line.OptionsJson);
+            if (snapshot?.Components is { Count: > 0 })
+            {
+                optionIds = snapshot.Components.Select(c => c.OptionId).ToArray();
+            }
+        }
+
+        return new(
             line.Id,
             line.MenuItemId,
             line.PersianName,
@@ -63,7 +75,10 @@ internal static class PosOrderMapper
             line.ModifierLabels,
             [],
             line.CustomDrinkSummary,
-            DrinkBuilderPricing.Deserialize(line.CustomizationJson));
+            DrinkBuilderPricing.Deserialize(line.CustomizationJson),
+            line.OptionLabels,
+            optionIds);
+    }
 
     internal static PosOrderSummaryDto ToSummary(Order order, IReadOnlyDictionary<Guid, string>? tableNames = null)
     {

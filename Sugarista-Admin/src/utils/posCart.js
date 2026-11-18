@@ -3,9 +3,10 @@ export function formatPrice(value) {
   return amount.toLocaleString('fa-IR')
 }
 
-export function buildCartLineKey(menuItemId, sizeKey, modifierIds = []) {
+export function buildCartLineKey(menuItemId, sizeKey, modifierIds = [], optionIds = []) {
   const modifiers = [...modifierIds].sort().join(',')
-  return `${menuItemId}:${sizeKey || 'default'}:${modifiers}`
+  const options = [...optionIds].sort().join(',')
+  return `${menuItemId}:${sizeKey || 'default'}:${modifiers}:${options}`
 }
 
 export function resolveItemPrice(item, sizeKey) {
@@ -61,6 +62,7 @@ export function buildUpsertPayload({
       sizeKey: line.sizeKey,
       quantity: line.quantity,
       modifierIds: line.modifierIds ?? [],
+      optionIds: line.optionIds ?? [],
       baristaNote: line.baristaNote?.trim() || null,
       payerKey: line.payerKey ?? null,
       payerLabel: line.payerLabel ?? null,
@@ -92,8 +94,9 @@ export function computeCartTotals(cart, deliveryFee = 0) {
 export function orderToCart(order, menuItems) {
   return (order.lines ?? []).map((line) => {
     const menuItem = menuItems.find((item) => item.id === line.menuItemId)
+    const optionIds = line.optionIds ?? []
     return {
-      cartKey: buildCartLineKey(line.menuItemId, line.sizeKey, line.modifierIds),
+      cartKey: buildCartLineKey(line.menuItemId, line.sizeKey, line.modifierIds, optionIds),
       menuItemId: line.menuItemId,
       name: line.persianName,
       imageUrl: menuItem?.imageUrl ?? null,
@@ -104,6 +107,8 @@ export function orderToCart(order, menuItems) {
       taxPercent: line.taxPercent ?? menuItem?.taxPercent ?? 0,
       modifierIds: line.modifierIds ?? [],
       modifierLabels: line.modifierLabels ?? [],
+      optionIds,
+      options: line.optionLabels?.map((label) => ({ optionName: label })) ?? [],
       baristaNote: line.baristaNote ?? '',
       payerKey: line.payerKey,
       payerLabel: line.payerLabel,

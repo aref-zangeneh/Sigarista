@@ -78,7 +78,9 @@ public record PosOrderLineDto(
     IReadOnlyCollection<string> ModifierLabels,
     IReadOnlyCollection<Guid> ModifierIds,
     IReadOnlyCollection<string> CustomDrinkSummary,
-    DrinkBuilderSnapshot? CustomDrink);
+    DrinkBuilderSnapshot? CustomDrink,
+    IReadOnlyCollection<string>? OptionLabels = null,
+    IReadOnlyCollection<Guid>? OptionIds = null);
 
 public record PosSplitShareDto(
     string PayerKey,

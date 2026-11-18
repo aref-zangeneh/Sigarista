@@ -40,6 +40,22 @@ public class AdminTooltipsController : ApiControllerBase
         return Ok(await Mediator.Send(new GetActiveTooltipOverridesQuery(), cancellationToken));
     }
 
+    /// <summary>
+    /// Public endpoint returning customer-menu tooltip overrides (keys starting
+    /// with <c>menu.</c>) so the digital menu can also refresh them directly.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("public")]
+    public async Task<ActionResult<IReadOnlyDictionary<string, string>>> GetPublic(
+        CancellationToken cancellationToken = default)
+    {
+        var all = await Mediator.Send(new GetActiveTooltipOverridesQuery(), cancellationToken);
+        var menuOnly = all
+            .Where(kv => kv.Key.StartsWith("menu.", StringComparison.Ordinal))
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+        return Ok(menuOnly);
+    }
+
     /// <summary>Creates or updates the override for one tooltip key.</summary>
     [HttpPut("{key}")]
     [RequirePermission(AdminPermissions.Tooltips.Update)]

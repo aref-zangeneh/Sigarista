@@ -16,7 +16,8 @@ export function TooltipsPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
-  const [activePage, setActivePage] = useState('pos')
+  const [activePage, setActivePage] = useState('customer-menu')
+  const [activeSection, setActiveSection] = useState('all')
   // Draft text per key while editing (falls back to current effective text)
   const [drafts, setDrafts] = useState({})
 
@@ -83,10 +84,8 @@ export function TooltipsPage() {
 
   async function toggleActive(entry) {
     const override = overrideByKey[entry.key]
-    if (!override) {
-      setError('برای غیرفعال‌سازی، اول متن راهنما را ذخیره کنید.')
-      return
-    }
+    const currentIsActive = override ? override.isActive : true
+    const effectiveText = (override?.text ?? draftFor(entry).trim()) || tooltipDefault(entry.key)
 
     setSavingKey(entry.key)
     setError('')
@@ -94,12 +93,12 @@ export function TooltipsPage() {
     try {
       await apiRequest(`/admin/tooltips/${encodeURIComponent(entry.key)}`, {
         method: 'PUT',
-        body: { key: entry.key, text: override.text, isActive: !override.isActive },
+        body: { key: entry.key, text: effectiveText, isActive: !currentIsActive },
         token: session.token,
       })
       await loadOverrides()
       reloadTipOverrides()
-      setMessage(`راهنمای «${entry.label}» ${!override.isActive ? 'فعال' : 'غیرفعال'} شد.`)
+      setMessage(`راهنمای «${entry.label}» ${!currentIsActive ? 'فعال' : 'غیرفعال'} شد.`)
     } catch (toggleError) {
       setError(getReadableError(toggleError))
     } finally {
@@ -133,21 +132,31 @@ export function TooltipsPage() {
 
   const pages = useMemo(() => [...new Set(TOOLTIP_REGISTRY.map((entry) => entry.page))], [])
 
+  const sectionsForActivePage = useMemo(() => {
+    const sections = TOOLTIP_REGISTRY
+      .filter((entry) => entry.page === activePage && entry.section)
+      .map((entry) => entry.section)
+    return [...new Set(sections)]
+  }, [activePage])
+
   const visibleEntries = useMemo(() => {
     const query = search.trim().toLowerCase()
     return TOOLTIP_REGISTRY.filter((entry) => {
       if (entry.page !== activePage) {
         return false
       }
+      if (activeSection !== 'all' && entry.section && entry.section !== activeSection) {
+        return false
+      }
       if (!query) {
         return true
       }
-      return [entry.label, entry.text, tooltipDefault(entry.key), entry.key]
+      return [entry.label, entry.section || '', entry.text, tooltipDefault(entry.key), entry.key]
         .join(' ')
         .toLowerCase()
         .includes(query)
     })
-  }, [search, activePage])
+  }, [search, activePage, activeSection])
 
   const customizedCount = overrides.filter((override) => override.text !== tooltipDefault(override.key)).length
 
@@ -155,9 +164,9 @@ export function TooltipsPage() {
     <div className="tooltips-page">
       <header className="tooltips-page-head">
         <div>
-          <h1>راهنماهای صفحه‌ها (Tooltip)</h1>
+          <h1>مدیریت راهنماها (Tooltip) — منوی مشتری و پنل ادمین</h1>
           <p>
-            متن هر راهنمای «؟» در پنل را از اینجا تغییر دهید یا راهنما را کلاً خاموش کنید.
+            متن راهنماهای بخش‌های مختلف «منوی دیجیتال مشتری» و «پنل ادمین» را بنویسید، ویرایش کنید یا هر کدام را خاموش کنید.
             {' '}
             {customizedCount > 0 ? `${customizedCount} راهنما سفارشی شده است.` : 'فعلاً همه روی متن پیش‌فرض هستند.'}
           </p>
@@ -171,23 +180,52 @@ export function TooltipsPage() {
       <div className="tooltips-toolbar">
         <input
           type="search"
-          placeholder="جستجو در راهنماها..."
+          placeholder="جستجو در عنوان، بخش یا متن راهنماها..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
         <div className="tooltips-page-tabs">
-          {pages.map((page) => (
+          {pages.map((page) => {
+            const count = TOOLTIP_REGISTRY.filter((e) => e.page === page).length
+            return (
+              <button
+                key={page}
+                type="button"
+                className={activePage === page ? 'active' : ''}
+                onClick={() => {
+                  setActivePage(page)
+                  setActiveSection('all')
+                }}
+              >
+                <span>{tooltipPageLabel(page)}</span>
+                <span className="tooltips-tab-count">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {sectionsForActivePage.length > 0 ? (
+        <div className="tooltips-section-chips" role="tablist" aria-label="فیلتر بخش‌های منوی مشتری">
+          <button
+            type="button"
+            className={activeSection === 'all' ? 'active' : ''}
+            onClick={() => setActiveSection('all')}
+          >
+            همه بخش‌ها
+          </button>
+          {sectionsForActivePage.map((section) => (
             <button
-              key={page}
+              key={section}
               type="button"
-              className={activePage === page ? 'active' : ''}
-              onClick={() => setActivePage(page)}
+              className={activeSection === section ? 'active' : ''}
+              onClick={() => setActiveSection(section)}
             >
-              {tooltipPageLabel(page)}
+              {section}
             </button>
           ))}
         </div>
-      </div>
+      ) : null}
 
       {loading ? <p className="tooltips-hint">در حال بارگذاری...</p> : null}
 
@@ -198,17 +236,24 @@ export function TooltipsPage() {
       <div className="tooltips-list">
         {visibleEntries.map((entry) => {
           const override = overrideByKey[entry.key]
+          const isActive = override ? override.isActive : true
           const customized = Boolean(override) && override.text !== tooltipDefault(entry.key)
+          const currentDraft = draftFor(entry)
           return (
             <article
               key={entry.key}
-              className={`tooltip-card ${override && !override.isActive ? 'tooltip-card-off' : ''}`}
+              className={`tooltip-card ${!isActive ? 'tooltip-card-off' : ''}`}
             >
               <div className="tooltip-card-head">
-                <strong>{entry.label}</strong>
-                <span className="tooltip-card-meta">
-                  {override ? (override.isActive ? 'فعال' : 'غیرفعال') : 'پیش‌فرض'}
-                  {customized ? ' · سفارشی' : ''}
+                <div className="tooltip-card-title-group">
+                  {entry.section ? (
+                    <span className="tooltip-card-section-badge">{entry.section}</span>
+                  ) : null}
+                  <strong>{entry.label}</strong>
+                </div>
+                <span className={`tooltip-card-status ${isActive ? 'is-on' : 'is-off'}`}>
+                  {isActive ? 'فعال در صفحه' : 'غیرفعال (مخفی)'}
+                  {customized ? ' · متن سفارشی' : ' · متن پیش‌فرض'}
                 </span>
               </div>
 
@@ -218,40 +263,48 @@ export function TooltipsPage() {
 
               <textarea
                 rows={2}
-                value={draftFor(entry)}
-                placeholder="متن راهنما..."
+                value={currentDraft}
+                placeholder="متن راهنما برای نمایش به کاربر..."
                 onChange={(event) => setDraft(entry.key, event.target.value)}
                 disabled={!canUpdate || savingKey === entry.key}
               />
+
+              {isActive && currentDraft.trim() ? (
+                <div className="tooltip-live-preview" aria-label="پیش‌نمایش راهنما">
+                  <span className="tooltip-live-preview-badge">؟</span>
+                  <div className="tooltip-live-preview-bubble">
+                    <small className="tooltip-live-preview-title">{entry.label}</small>
+                    <p>{currentDraft}</p>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="tooltip-card-actions">
                 <button
                   type="button"
                   className="tooltips-btn tooltips-btn-primary"
                   onClick={() => save(entry)}
-                  disabled={!canUpdate || savingKey === entry.key || draftFor(entry).trim() === (override?.text ?? tooltipDefault(entry.key))}
+                  disabled={!canUpdate || savingKey === entry.key || currentDraft.trim() === (override?.text ?? tooltipDefault(entry.key))}
                 >
-                  {savingKey === entry.key ? '...' : 'ذخیره'}
+                  {savingKey === entry.key ? '...' : 'ذخیره متن'}
+                </button>
+                <button
+                  type="button"
+                  className="tooltips-btn"
+                  onClick={() => toggleActive(entry)}
+                  disabled={!canUpdate || savingKey === entry.key}
+                >
+                  {isActive ? 'غیرفعال کن' : 'فعال کن'}
                 </button>
                 {override ? (
-                  <>
-                    <button
-                      type="button"
-                      className="tooltips-btn"
-                      onClick={() => toggleActive(entry)}
-                      disabled={!canUpdate || savingKey === entry.key}
-                    >
-                      {override.isActive ? 'غیرفعال کن' : 'فعال کن'}
-                    </button>
-                    <button
-                      type="button"
-                      className="tooltips-btn tooltips-btn-ghost"
-                      onClick={() => reset(entry)}
-                      disabled={!canUpdate || savingKey === entry.key}
-                    >
-                      بازنشانی به پیش‌فرض
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    className="tooltips-btn tooltips-btn-ghost"
+                    onClick={() => reset(entry)}
+                    disabled={!canUpdate || savingKey === entry.key}
+                  >
+                    بازنشانی به پیش‌فرض
+                  </button>
                 ) : null}
                 <code className="tooltip-card-key">{entry.key}</code>
               </div>

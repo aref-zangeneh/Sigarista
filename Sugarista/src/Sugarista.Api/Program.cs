@@ -146,6 +146,10 @@ if (effectiveSigningKey is null)
 jwtOptions.SigningKey = effectiveSigningKey;
 jwtOptions.Issuer = string.IsNullOrWhiteSpace(jwtOptions.Issuer) ? "Sugarista" : jwtOptions.Issuer;
 jwtOptions.Audience = string.IsNullOrWhiteSpace(jwtOptions.Audience) ? "SugaristaAdmin" : jwtOptions.Audience;
+if (jwtOptions.ExpirationMinutes <= 120)
+{
+    jwtOptions.ExpirationMinutes = JwtOptions.DefaultExpirationMinutes;
+}
 
 // And inject the same resolved values into DI (JwtTokenGenerator consumes
 // IOptions<JwtOptions>) so token issuing and validation always agree — even

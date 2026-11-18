@@ -1,10 +1,11 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAdmin } from '../context/AdminContext'
 import { tooltipDefault } from '../utils/tooltipRegistry'
 import './Tip.css'
 
 /**
- * Admin-defined help bubble.
+ * Admin-defined help bubble with smart fixed viewport positioning.
  *
  * Usage (self-closing, next to the element it explains):
  *   <label>پرداخت نقدی <Tip k="pos.cash_button" /></label>
@@ -18,7 +19,7 @@ import './Tip.css'
 export function Tip({ k: tipKey, side = 'top' }) {
   const { tipOverrides } = useAdmin()
   const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState(side)
+  const [coords, setCoords] = useState({ top: 0, left: 12, width: 250, placement: side })
   const anchorRef = useRef(null)
   const tooltipId = useId()
 
@@ -30,17 +31,59 @@ export function Tip({ k: tipKey, side = 'top' }) {
 
   const text = override || tooltipDefault(tipKey)
 
-  function show() {
+  function computePosition() {
     const rect = anchorRef.current?.getBoundingClientRect()
-    if (rect && rect.top < 120) {
-      setPosition('bottom')
-    } else if (rect && rect.bottom > window.innerHeight - 140) {
-      setPosition('top')
-    } else {
-      setPosition(side)
+    if (!rect) return
+    const vw = window.innerWidth || 360
+    const vh = window.innerHeight || 640
+    const margin = 12
+    const bubbleWidth = Math.min(268, vw - margin * 2)
+    const centerX = rect.left + rect.width / 2
+    const left = Math.max(margin, Math.min(vw - bubbleWidth - margin, Math.round(centerX - bubbleWidth / 2)))
+
+    let placement = side
+    if (rect.top < 130) {
+      placement = 'bottom'
+    } else if (rect.bottom > vh - 130) {
+      placement = 'top'
     }
+
+    const top = placement === 'bottom' ? Math.round(rect.bottom + 8) : Math.round(rect.top - 8)
+    setCoords({ top, left, width: bubbleWidth, placement })
+  }
+
+  function show() {
+    computePosition()
     setOpen(true)
   }
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    function onScrollOrResize() {
+      computePosition()
+    }
+    function onKeyDown(event) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    function onPointerDown(event) {
+      if (anchorRef.current && !anchorRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    window.addEventListener('scroll', onScrollOrResize, true)
+    window.addEventListener('resize', onScrollOrResize)
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true)
+      window.removeEventListener('resize', onScrollOrResize)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('pointerdown', onPointerDown)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   return (
     <span ref={anchorRef} className="tip-anchor" onMouseLeave={() => setOpen(false)}>
@@ -54,16 +97,33 @@ export function Tip({ k: tipKey, side = 'top' }) {
         onBlur={() => setOpen(false)}
         onClick={(event) => {
           event.preventDefault()
-          setOpen((current) => !current)
+          event.stopPropagation()
+          if (open) {
+            setOpen(false)
+          } else {
+            show()
+          }
         }}
       >
         ؟
       </button>
-      {open ? (
-        <span role="tooltip" id={tooltipId} className={`tip-bubble tip-bubble-${position}`}>
-          {text}
-        </span>
-      ) : null}
+      {open && typeof document !== 'undefined'
+        ? createPortal(
+            <span
+              role="tooltip"
+              id={tooltipId}
+              className={`tip-bubble tip-bubble-portal tip-bubble-${coords.placement}`}
+              style={{
+                top: `${coords.top}px`,
+                left: `${coords.left}px`,
+                width: `${coords.width}px`,
+              }}
+            >
+              {text}
+            </span>,
+            document.body,
+          )
+        : null}
     </span>
   )
 }

@@ -78,6 +78,9 @@
 }
 
 .tooltips-page-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 8px 16px;
@@ -85,8 +88,138 @@
   color: var(--text);
   font: inherit;
   font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background var(--transition-fast, 0.18s ease), color var(--transition-fast, 0.18s ease);
+}
+
+.tooltips-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  background: var(--tint);
+  color: inherit;
+}
+
+.tooltips-page-tabs button.active .tooltips-tab-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.tooltips-section-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  background: var(--tint);
+  border: 1px solid var(--border);
+}
+
+.tooltips-section-chips button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.tooltips-section-chips button:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.tooltips-section-chips button.active {
+  background: var(--heading);
+  color: var(--surface);
+}
+
+.tooltip-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tooltip-card-section-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--tint-strong, var(--tint));
+  color: var(--primary);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.tooltip-card-status {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.tooltip-card-status.is-on {
+  background: var(--ok-solid);
+  color: var(--ok);
+}
+
+.tooltip-card-status.is-off {
+  background: var(--bad-solid);
+  color: var(--bad);
+}
+
+.tooltip-live-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--tint);
+  border: 1px dashed var(--border);
+}
+
+.tooltip-live-preview-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.tooltip-live-preview-bubble {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tooltip-live-preview-title {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.tooltip-live-preview-bubble p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  color: var(--text);
 }
 
 .tooltips-page-tabs button:hover {

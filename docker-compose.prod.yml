@@ -42,7 +42,7 @@ services:
       Jwt__Issuer: ${JWT_ISSUER:-Sugarista}
       Jwt__Audience: ${JWT_AUDIENCE:-SugaristaAdmin}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-SugaristaProductionSigningKeyChangeMe1234567890}
-      Jwt__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-120}
+      Jwt__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-43200}
       AdminBootstrap__Username: ${ADMIN_BOOTSTRAP_USERNAME:-admin}
       AdminBootstrap__DisplayName: ${ADMIN_BOOTSTRAP_DISPLAY_NAME:-Sugarista Admin}
       AdminBootstrap__Password: ${ADMIN_BOOTSTRAP_PASSWORD:-ChangeMe123!}

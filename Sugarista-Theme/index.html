@@ -75,25 +75,55 @@
             </p>
           </div>
           <div class="menu-page-actions">
-            <button
-              type="button"
-              class="menu-page-icon-btn notes-trigger"
-              aria-label="یادداشت سفارش حضوری"
-              title="یادداشت سفارش حضوری"
-              @click="openNotesDrawer('list')"
-            >
-              <i class="bi bi-journal-text"></i>
-              <span class="notes-trigger-badge" x-show="notesCount > 0" x-text="toPersianNumber(notesCount)" x-cloak></span>
-            </button>
-            <button
-              type="button"
-              class="menu-page-icon-btn profile-trigger"
-              aria-label="کارت مهر و پروفایل من"
-              @click="openProfile()"
-            >
-              <i class="bi bi-person-badge"></i>
-              <span class="profile-trigger-dot" x-show="profile?.activeReward" x-cloak></span>
-            </button>
+            <div class="menu-action-with-tip">
+              <button
+                type="button"
+                class="menu-page-icon-btn notes-trigger"
+                aria-label="یادداشت سفارش حضوری"
+                title="یادداشت سفارش حضوری"
+                @click="openNotesDrawer('list')"
+              >
+                <i class="bi bi-journal-text"></i>
+                <span class="notes-trigger-badge" x-show="notesCount > 0" x-text="toPersianNumber(notesCount)" x-cloak></span>
+              </button>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--badge"
+                x-show="hasTip('menu.header.notes')"
+                x-cloak
+                :class="{ 'is-open': isTipOpen('menu.header.notes') }"
+                aria-label="راهنمای یادداشت سفارش حضوری"
+                @click.stop="toggleTip('menu.header.notes', $event)"
+                @mouseenter="hoverTip('menu.header.notes', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.header.notes', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
+            <div class="menu-action-with-tip">
+              <button
+                type="button"
+                class="menu-page-icon-btn profile-trigger"
+                aria-label="کارت مهر و پروفایل من"
+                @click="openProfile()"
+              >
+                <i class="bi bi-person-badge"></i>
+                <span class="profile-trigger-dot" x-show="profile?.activeReward" x-cloak></span>
+              </button>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--badge"
+                x-show="hasTip('menu.header.profile')"
+                x-cloak
+                :class="{ 'is-open': isTipOpen('menu.header.profile') }"
+                aria-label="راهنمای پروفایل و کارت مهر"
+                @click.stop="toggleTip('menu.header.profile', $event)"
+                @mouseenter="hoverTip('menu.header.profile', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.header.profile', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
             <a
               x-show="settings.instagramUrl"
               :href="instagramHref()"
@@ -225,7 +255,33 @@
                     @input="searchUserTyping = $event.target.value.length > 0"
                     aria-label="جستجو در منو"
                   >
+                  <button
+                    type="button"
+                    class="menu-tip-btn menu-tip-btn--inline"
+                    x-show="hasTip('menu.browse.search')"
+                    x-cloak
+                    :class="{ 'is-open': isTipOpen('menu.browse.search') }"
+                    aria-label="راهنمای جستجو در منو"
+                    @click.stop="toggleTip('menu.browse.search', $event)"
+                    @mouseenter="hoverTip('menu.browse.search', $event)"
+                    @mouseleave="leaveTip()"
+                    @focus="hoverTip('menu.browse.search', $event)"
+                    @blur="leaveTip()"
+                  >؟</button>
                 </div>
+                <button
+                  type="button"
+                  class="menu-tip-btn"
+                  x-show="hasTip('menu.browse.categories')"
+                  x-cloak
+                  :class="{ 'is-open': isTipOpen('menu.browse.categories') }"
+                  aria-label="راهنمای دسته‌بندی‌های منو"
+                  @click.stop="toggleTip('menu.browse.categories', $event)"
+                  @mouseenter="hoverTip('menu.browse.categories', $event)"
+                  @mouseleave="leaveTip()"
+                  @focus="hoverTip('menu.browse.categories', $event)"
+                  @blur="leaveTip()"
+                >؟</button>
                 <button
                   type="button"
                   class="btn btn-outline-secondary btn-sm rounded-pill reset-filters-btn"
@@ -242,7 +298,22 @@
         <div class="container menu-content">
           <section id="popular" class="featured-strip" x-show="!salesClosed && featuredItems.length && selectedCategory === 'all' && !search">
             <div class="featured-strip-head">
-              <h2 class="featured-strip-title" x-text="settings.popularTitle"></h2>
+              <div class="d-flex align-items-center gap-2">
+                <h2 class="featured-strip-title mb-0" x-text="settings.popularTitle"></h2>
+                <button
+                  type="button"
+                  class="menu-tip-btn"
+                  x-show="hasTip('menu.browse.popular')"
+                  x-cloak
+                  :class="{ 'is-open': isTipOpen('menu.browse.popular') }"
+                  aria-label="راهنمای پیشنهادهای سریع"
+                  @click.stop="toggleTip('menu.browse.popular', $event)"
+                  @mouseenter="hoverTip('menu.browse.popular', $event)"
+                  @mouseleave="leaveTip()"
+                  @focus="hoverTip('menu.browse.popular', $event)"
+                  @blur="leaveTip()"
+                >؟</button>
+              </div>
               <p class="featured-strip-copy mb-0" x-text="settings.popularDescription"></p>
             </div>
             <div class="featured-scroller">
@@ -289,10 +360,24 @@
                             </div>
                             <span class="product-badge" x-show="item.badge" x-text="item.badge"></span>
                           </div>
-                          <span class="product-builder-badge" x-show="builderProfileForItem(item.id)" x-cloak>
-                            <i class="bi bi-sliders" aria-hidden="true"></i>
-                            قابل سفارشی‌سازی
-                          </span>
+                          <div class="d-inline-flex align-items-center gap-1" x-show="builderProfileForItem(item.id)" x-cloak>
+                            <span class="product-builder-badge">
+                              <i class="bi bi-sliders" aria-hidden="true"></i>
+                              قابل سفارشی‌سازی
+                            </span>
+                            <button
+                              type="button"
+                              class="menu-tip-btn menu-tip-btn--sm"
+                              x-show="hasTip('menu.product.builder_badge')"
+                              :class="{ 'is-open': isTipOpen('menu.product.builder_badge') }"
+                              aria-label="راهنمای محصول قابل سفارشی‌سازی"
+                              @click.stop="toggleTip('menu.product.builder_badge', $event)"
+                              @mouseenter="hoverTip('menu.product.builder_badge', $event)"
+                              @mouseleave="leaveTip()"
+                              @focus="hoverTip('menu.product.builder_badge', $event)"
+                              @blur="leaveTip()"
+                            >؟</button>
+                          </div>
 
                           <div class="price-matrix" x-show="item.variants && item.variants.length">
                             <template x-for="variant in item.variants" :key="`${item.id}-${variant.key}`">
@@ -348,7 +433,7 @@
                               @click="openAddToNoteModal(item)"
                             >
                               <i class="bi" :class="noteQtyForItem(item.id) > 0 ? 'bi-journal-check' : 'bi-journal-plus'"></i>
-                              <span>یادداشت</span>
+                              <span x-text="noteQtyForItem(item.id) > 0 ? 'در یادداشت' : 'یادداشت'"></span>
                               <span
                                 class="product-note-badge"
                                 x-show="noteQtyForItem(item.id) > 0"
@@ -369,7 +454,22 @@
 
           <section class="addons-section" x-show="addons.length && selectedCategory === 'all' && !search">
             <div class="menu-group-head">
-              <h2 class="menu-group-title">افزودنی‌ها</h2>
+              <div class="d-flex align-items-center gap-2">
+                <h2 class="menu-group-title mb-0">افزودنی‌ها</h2>
+                <button
+                  type="button"
+                  class="menu-tip-btn"
+                  x-show="hasTip('menu.browse.addons')"
+                  x-cloak
+                  :class="{ 'is-open': isTipOpen('menu.browse.addons') }"
+                  aria-label="راهنمای افزودنی‌ها"
+                  @click.stop="toggleTip('menu.browse.addons', $event)"
+                  @mouseenter="hoverTip('menu.browse.addons', $event)"
+                  @mouseleave="leaveTip()"
+                  @focus="hoverTip('menu.browse.addons', $event)"
+                  @blur="leaveTip()"
+                >؟</button>
+              </div>
               <span class="menu-group-count">اضافات منو</span>
             </div>
             <div class="product-list">
@@ -524,8 +624,20 @@
 
         <div class="cart-drawer-body" x-show="cartView === 'cart'">
            <div class="cart-tier-progress" x-show="cart.length && tierProgressMessage" x-cloak>
-             <div class="cart-tier-progress-head">
+             <div class="cart-tier-progress-head d-flex align-items-center justify-content-between gap-2">
                <span x-text="tierProgressMessage"></span>
+               <button
+                 type="button"
+                 class="menu-tip-btn menu-tip-btn--sm"
+                 x-show="hasTip('menu.checkout.tier_progress')"
+                 :class="{ 'is-open': isTipOpen('menu.checkout.tier_progress') }"
+                 aria-label="راهنمای تخفیف پلکانی سبد"
+                 @click.stop="toggleTip('menu.checkout.tier_progress', $event)"
+                 @mouseenter="hoverTip('menu.checkout.tier_progress', $event)"
+                 @mouseleave="leaveTip()"
+                 @focus="hoverTip('menu.checkout.tier_progress', $event)"
+                 @blur="leaveTip()"
+               >؟</button>
              </div>
              <div class="cart-tier-progress-track" role="progressbar" :aria-valuenow="tierProgressPercent" aria-valuemin="0" aria-valuemax="100">
                <div class="cart-tier-progress-fill" :style="`width: ${tierProgressPercent}%`"></div>
@@ -670,11 +782,23 @@
               </div>
             </div>
           </div>
-          <div class="mb-3 split-toggle-card">
+          <div class="mb-3 split-toggle-card d-flex align-items-center justify-content-between gap-2">
             <label class="form-check-label d-flex align-items-center gap-2">
               <input type="checkbox" class="form-check-input mt-0" x-model="checkoutForm.isSplitBill" @change="handleSplitBillToggle()">
               <span>تسویه جداگانه (هر نفر سهم خود را جدا پرداخت کند)</span>
             </label>
+            <button
+              type="button"
+              class="menu-tip-btn menu-tip-btn--sm"
+              x-show="hasTip('menu.checkout.split_bill')"
+              :class="{ 'is-open': isTipOpen('menu.checkout.split_bill') }"
+              aria-label="راهنمای تسویه جداگانه"
+              @click.stop="toggleTip('menu.checkout.split_bill', $event)"
+              @mouseenter="hoverTip('menu.checkout.split_bill', $event)"
+              @mouseleave="leaveTip()"
+              @focus="hoverTip('menu.checkout.split_bill', $event)"
+              @blur="leaveTip()"
+            >؟</button>
           </div>
           <div class="mb-3" x-show="checkoutForm.isSplitBill">
             <label class="form-label" for="checkout-guest-count">تعداد مهمان</label>
@@ -851,7 +975,21 @@
             </div>
           </details>
           <div class="mb-3" x-show="pickupSchedule?.enabled" x-cloak>
-            <label class="form-label">زمان تحویل حضوری</label>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <label class="form-label mb-0">زمان تحویل حضوری</label>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.checkout.pickup_time')"
+                :class="{ 'is-open': isTipOpen('menu.checkout.pickup_time') }"
+                aria-label="راهنمای زمان تحویل حضوری"
+                @click.stop="toggleTip('menu.checkout.pickup_time', $event)"
+                @mouseenter="hoverTip('menu.checkout.pickup_time', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.checkout.pickup_time', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
             <div class="pickup-mode-row" role="group" aria-label="نوع زمان تحویل">
               <button
                 type="button"
@@ -925,15 +1063,29 @@
           <!-- کیف پول: شناسایی با شماره موبایل، بدون رمز و کد تایید -->
           <div class="checkout-wallet-box" x-show="!checkoutForm.isSplitBill && walletBalance > 0" x-cloak>
             <div class="checkout-wallet-head">
-              <label class="checkout-wallet-toggle" for="checkout-use-wallet">
-                <input
-                  id="checkout-use-wallet"
-                  type="checkbox"
-                  class="form-check-input mt-0"
-                  x-model="checkoutForm.useWallet"
-                >
-                <strong>پرداخت با کیف پول</strong>
-              </label>
+              <div class="d-flex align-items-center gap-2">
+                <label class="checkout-wallet-toggle" for="checkout-use-wallet">
+                  <input
+                    id="checkout-use-wallet"
+                    type="checkbox"
+                    class="form-check-input mt-0"
+                    x-model="checkoutForm.useWallet"
+                  >
+                  <strong>پرداخت با کیف پول</strong>
+                </label>
+                <button
+                  type="button"
+                  class="menu-tip-btn menu-tip-btn--sm"
+                  x-show="hasTip('menu.checkout.wallet')"
+                  :class="{ 'is-open': isTipOpen('menu.checkout.wallet') }"
+                  aria-label="راهنمای پرداخت با کیف پول"
+                  @click.stop="toggleTip('menu.checkout.wallet', $event)"
+                  @mouseenter="hoverTip('menu.checkout.wallet', $event)"
+                  @mouseleave="leaveTip()"
+                  @focus="hoverTip('menu.checkout.wallet', $event)"
+                  @blur="leaveTip()"
+                >؟</button>
+              </div>
               <span class="checkout-wallet-balance">
                 <span>موجودی: </span><strong x-text="formatPrice(walletBalance)"></strong>
               </span>
@@ -958,35 +1110,63 @@
 
           <!-- تخفیف لیوان شخصی -->
           <div class="checkout-benefit-box" x-show="checkoutPersonalCup" x-cloak>
-            <label class="checkout-wallet-toggle" for="checkout-personal-cup">
-              <input
-                id="checkout-personal-cup"
-                type="checkbox"
-                class="form-check-input mt-0"
-                x-model="checkoutForm.personalCup"
-              >
-              <strong>
-                لیوان شخصی آورده‌ام
-                (<span x-text="formatPrice(checkoutPersonalCup?.discountAmount ?? 0)"></span> تخفیف)
-              </strong>
-            </label>
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <label class="checkout-wallet-toggle" for="checkout-personal-cup">
+                <input
+                  id="checkout-personal-cup"
+                  type="checkbox"
+                  class="form-check-input mt-0"
+                  x-model="checkoutForm.personalCup"
+                >
+                <strong>
+                  لیوان شخصی آورده‌ام
+                  (<span x-text="formatPrice(checkoutPersonalCup?.discountAmount ?? 0)"></span> تخفیف)
+                </strong>
+              </label>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.checkout.personal_cup')"
+                :class="{ 'is-open': isTipOpen('menu.checkout.personal_cup') }"
+                aria-label="راهنمای تخفیف لیوان شخصی"
+                @click.stop="toggleTip('menu.checkout.personal_cup', $event)"
+                @mouseenter="hoverTip('menu.checkout.personal_cup', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.checkout.personal_cup', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
             <p class="checkout-wallet-note" x-text="checkoutPersonalCup?.deliveryNote"></p>
           </div>
 
           <!-- اشتراک ماهانه -->
           <div class="checkout-benefit-box" x-show="checkoutSubscription" x-cloak>
-            <label class="checkout-wallet-toggle" for="checkout-use-subscription">
-              <input
-                id="checkout-use-subscription"
-                type="checkbox"
-                class="form-check-input mt-0"
-                x-model="checkoutForm.useSubscription"
-              >
-              <strong>
-                استفاده از اشتراک
-                (<span x-text="checkoutSubscription?.packageName"></span>)
-              </strong>
-            </label>
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <label class="checkout-wallet-toggle" for="checkout-use-subscription">
+                <input
+                  id="checkout-use-subscription"
+                  type="checkbox"
+                  class="form-check-input mt-0"
+                  x-model="checkoutForm.useSubscription"
+                >
+                <strong>
+                  استفاده از اشتراک
+                  (<span x-text="checkoutSubscription?.packageName"></span>)
+                </strong>
+              </label>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.checkout.subscription')"
+                :class="{ 'is-open': isTipOpen('menu.checkout.subscription') }"
+                aria-label="راهنمای استفاده از اشتراک"
+                @click.stop="toggleTip('menu.checkout.subscription', $event)"
+                @mouseenter="hoverTip('menu.checkout.subscription', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.checkout.subscription', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
             <p class="checkout-wallet-note">
               <span x-text="`${toPersianNumber(checkoutSubscription?.remainingUses ?? 0)} استفاده باقی‌مانده`"></span>
               — امروز حداکثر
@@ -1059,10 +1239,42 @@
       >
         <div class="add-cart-modal-head">
           <div>
-            <span class="modal-mode-chip" x-show="addToCartModal?.mode === 'note'" x-cloak>
-              <i class="bi bi-journal-text"></i>
-              یادداشت سفارش حضوری
-            </span>
+            <div class="d-inline-flex align-items-center gap-1" x-show="addToCartModal?.mode === 'note'" x-cloak>
+              <span class="modal-mode-chip">
+                <i class="bi bi-journal-text"></i>
+                یادداشت سفارش حضوری
+              </span>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.product.note_btn')"
+                :class="{ 'is-open': isTipOpen('menu.product.note_btn') }"
+                aria-label="راهنمای افزودن به یادداشت"
+                @click.stop="toggleTip('menu.product.note_btn', $event)"
+                @mouseenter="hoverTip('menu.product.note_btn', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.product.note_btn', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
+            <div class="d-inline-flex align-items-center gap-1" x-show="addToCartModal?.mode !== 'note'" x-cloak>
+              <span class="modal-mode-chip modal-mode-chip--cart">
+                <i class="bi bi-bag-check"></i>
+                سفارش آنلاین
+              </span>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.product.add_btn')"
+                :class="{ 'is-open': isTipOpen('menu.product.add_btn') }"
+                aria-label="راهنمای سفارش آنلاین"
+                @click.stop="toggleTip('menu.product.add_btn', $event)"
+                @mouseenter="hoverTip('menu.product.add_btn', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.product.add_btn', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
             <h3 id="add-cart-title" class="h5 mb-1" x-text="addToCartModal?.item?.name"></h3>
             <small class="english-name" x-text="addToCartModal?.item?.englishName"></small>
           </div>
@@ -1079,7 +1291,21 @@
 
         <div class="add-cart-modal-body">
           <div class="mb-3" x-show="addToCartModal?.item?.variants?.length">
-            <label class="form-label">اندازه</label>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <label class="form-label mb-0">اندازه</label>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.modal.sizes')"
+                :class="{ 'is-open': isTipOpen('menu.modal.sizes') }"
+                aria-label="راهنمای انتخاب اندازه"
+                @click.stop="toggleTip('menu.modal.sizes', $event)"
+                @mouseenter="hoverTip('menu.modal.sizes', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.modal.sizes', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
             <div class="size-options">
               <template x-for="variant in (addToCartModal?.item?.variants || [])" :key="variant.key">
                 <button
@@ -1101,6 +1327,21 @@
                like toggle chips with the price delta on each row. -->
           <template x-if="modalOptionGroups().length">
             <div class="item-options" role="group" aria-label="گزینه‌های محصول">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="small fw-bold text-secondary">گزینه‌های محصول</span>
+                <button
+                  type="button"
+                  class="menu-tip-btn menu-tip-btn--sm"
+                  x-show="hasTip('menu.modal.options')"
+                  :class="{ 'is-open': isTipOpen('menu.modal.options') }"
+                  aria-label="راهنمای گزینه‌های محصول"
+                  @click.stop="toggleTip('menu.modal.options', $event)"
+                  @mouseenter="hoverTip('menu.modal.options', $event)"
+                  @mouseleave="leaveTip()"
+                  @focus="hoverTip('menu.modal.options', $event)"
+                  @blur="leaveTip()"
+                >؟</button>
+              </div>
               <template x-for="group in modalOptionGroups()" :key="`item-option-group-${group.id}`">
                 <div class="item-option-group" :class="{ required: group.isRequired }">
                   <div class="item-option-group-head">
@@ -1187,7 +1428,21 @@
           <template x-if="modalBuilderProfile()">
             <div class="drink-builder">
               <div class="drink-builder-head">
-                <strong x-text="modalBuilderProfile()?.name || 'نوشیدنی سفارشی'"></strong>
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                  <strong x-text="modalBuilderProfile()?.name || 'نوشیدنی سفارشی'"></strong>
+                  <button
+                    type="button"
+                    class="menu-tip-btn menu-tip-btn--sm"
+                    x-show="hasTip('menu.modal.builder')"
+                    :class="{ 'is-open': isTipOpen('menu.modal.builder') }"
+                    aria-label="راهنمای نوشیدنی سفارشی"
+                    @click.stop="toggleTip('menu.modal.builder', $event)"
+                    @mouseenter="hoverTip('menu.modal.builder', $event)"
+                    @mouseleave="leaveTip()"
+                    @focus="hoverTip('menu.modal.builder', $event)"
+                    @blur="leaveTip()"
+                  >؟</button>
+                </div>
                 <small>ترکیب دلخواه خود را بسازید؛ قیمت بلافاصله به‌روز می‌شود.</small>
               </div>
 
@@ -1276,7 +1531,21 @@
           </template>
 
           <div class="mb-3" x-show="modifiers.length">
-            <label class="form-label">تغییرات سفارش</label>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <label class="form-label mb-0">تغییرات سفارش</label>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.modal.modifiers')"
+                :class="{ 'is-open': isTipOpen('menu.modal.modifiers') }"
+                aria-label="راهنمای تغییرات سفارش"
+                @click.stop="toggleTip('menu.modal.modifiers', $event)"
+                @mouseenter="hoverTip('menu.modal.modifiers', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.modal.modifiers', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
             <div class="modifier-list">
               <template x-for="modifier in modifiers" :key="modifier.id">
                 <button
@@ -1292,10 +1561,24 @@
 
           <div class="mb-3 modal-note-box" :class="{ 'modal-note-box--highlighted': addToCartModal?.mode === 'note' }">
             <div class="modal-note-head">
-              <label class="form-label mb-0" for="modal-item-note">
-                <i class="bi bi-people"></i>
-                <span>سفارش‌دهنده یا توضیح یادداشت (اختیاری)</span>
-              </label>
+              <div class="d-flex align-items-center gap-2">
+                <label class="form-label mb-0" for="modal-item-note">
+                  <i class="bi bi-person-heart"></i>
+                  <span>برای چه‌کسی یا چه توضیحی؟ (اختیاری)</span>
+                </label>
+                <button
+                  type="button"
+                  class="menu-tip-btn menu-tip-btn--sm"
+                  x-show="hasTip('menu.modal.note_person')"
+                  :class="{ 'is-open': isTipOpen('menu.modal.note_person') }"
+                  aria-label="راهنمای انتخاب نفر و توضیح یادداشت"
+                  @click.stop="toggleTip('menu.modal.note_person', $event)"
+                  @mouseenter="hoverTip('menu.modal.note_person', $event)"
+                  @mouseleave="leaveTip()"
+                  @focus="hoverTip('menu.modal.note_person', $event)"
+                  @blur="leaveTip()"
+                >؟</button>
+              </div>
               <small class="modal-note-active-tag" x-show="addToCartModal?.noteTag" x-text="addToCartModal?.noteTag"></small>
             </div>
             <div class="modal-note-guests" role="group" aria-label="انتخاب سریع نفر">
@@ -1309,61 +1592,97 @@
                 ></button>
               </template>
             </div>
+            <div class="modal-note-presets mt-2" role="group" aria-label="توضیحات سریع">
+              <template x-for="preset in modalQuickNotePresets" :key="`modal-preset-${preset}`">
+                <button
+                  type="button"
+                  class="modal-note-preset-chip"
+                  :class="{ active: hasModalQuickPreset(preset) }"
+                  @click="toggleModalQuickPreset(preset)"
+                >
+                  <i class="bi" :class="hasModalQuickPreset(preset) ? 'bi-check2' : 'bi-plus'"></i>
+                  <span x-text="preset"></span>
+                </button>
+              </template>
+            </div>
             <input
               id="modal-item-note"
               type="text"
               class="form-control form-control-sm mt-2"
-              placeholder="مثلاً: نام دوستتان، کم‌شیرین، با یخ کم..."
+              placeholder="نام دلخواه یا توضیح دیگر (مثلاً علی، بدون خامه)..."
               x-model="addToCartModal.noteText"
             >
           </div>
 
-          <div class="mb-3">
-            <label class="form-label">تعداد</label>
-            <div class="qty-control qty-control-lg">
-              <button
-                type="button"
-                aria-label="کاهش تعداد"
-                @click="addToCartModal.quantity = Math.max(1, addToCartModal.quantity - 1)"
-              >−</button>
-              <span x-text="toPersianNumber(addToCartModal?.quantity ?? 1)"></span>
-              <button
-                type="button"
-                aria-label="افزایش تعداد"
-                @click="addToCartModal.quantity += 1"
-              >+</button>
+          <div class="modal-qty-price-row">
+            <div class="d-flex align-items-center gap-2">
+              <label class="form-label mb-0 fw-bold">تعداد</label>
+              <div class="qty-control qty-control-lg">
+                <button
+                  type="button"
+                  aria-label="کاهش تعداد"
+                  @click="addToCartModal.quantity = Math.max(1, addToCartModal.quantity - 1)"
+                >−</button>
+                <span x-text="toPersianNumber(addToCartModal?.quantity ?? 1)"></span>
+                <button
+                  type="button"
+                  aria-label="افزایش تعداد"
+                  @click="addToCartModal.quantity += 1"
+                >+</button>
+              </div>
             </div>
-          </div>
-
-          <div class="add-cart-price">
-            <span>قیمت</span>
-            <strong x-text="formatPrice(modalUnitPrice() * (addToCartModal?.quantity ?? 1))"></strong>
+            <div class="add-cart-price mb-0">
+              <span>جمع آیتم</span>
+              <strong x-text="formatPrice(modalUnitPrice() * (addToCartModal?.quantity ?? 1))"></strong>
+            </div>
           </div>
         </div>
 
         <div class="add-cart-modal-foot">
-          <div class="add-cart-modal-actions">
+          <div class="add-cart-modal-actions" :class="{ 'add-cart-modal-actions--note-first': addToCartModal?.mode === 'note' }">
             <button
               type="button"
               class="btn rounded-pill add-cart-submit-main"
-              :class="addToCartModal?.mode === 'note' ? 'btn-outline-dark' : 'btn-dark'"
+              :class="addToCartModal?.mode === 'note' ? 'btn-outline-dark add-cart-submit-compact' : 'btn-dark flex-grow-1'"
               x-show="!salesClosed"
               @click="confirmAddToCart()"
             >
               <i class="bi bi-bag-plus"></i>
-              <span>افزودن به سبد</span>
+              <span x-text="addToCartModal?.mode === 'note' ? 'سبد آنلاین' : 'افزودن به سبد خرید'"></span>
             </button>
             <button
               type="button"
               class="btn rounded-pill add-cart-submit-note"
-              :class="addToCartModal?.mode === 'note' || salesClosed ? 'btn-note-primary w-100' : 'btn-note-secondary'"
+              :class="addToCartModal?.mode === 'note' || salesClosed ? 'btn-note-primary flex-grow-1' : 'btn-note-secondary'"
               @click="confirmAddToNotes()"
             >
               <i class="bi bi-journal-plus"></i>
-              <span x-text="addToCartModal?.mode === 'note' || salesClosed ? 'افزودن به یادداشت سفارش' : 'افزودن به یادداشت'"></span>
+              <span x-text="addToCartModal?.mode === 'note' || salesClosed ? 'افزودن به یادداشت سفارش' : 'یادداشت'"></span>
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- بازخورد آنی افزودن به یادداشت (بدون باز شدن مزاحم دراور وسط انتخاب منو) -->
+    <div
+      class="note-toast"
+      x-show="noteToast && !notesDrawerOpen && !cartDrawerOpen"
+      x-cloak
+      role="status"
+      aria-live="polite"
+    >
+      <div class="note-toast-content">
+        <i class="bi bi-check-circle-fill"></i>
+        <span x-text="noteToast"></span>
+      </div>
+      <div class="note-toast-actions">
+        <button type="button" class="note-toast-btn" @click="openNotesDrawer('list'); dismissNoteToast()">
+          مشاهده یادداشت
+        </button>
+        <button type="button" class="note-toast-close" aria-label="بستن پیام" @click="dismissNoteToast()">
+          <i class="bi bi-x"></i>
+        </button>
       </div>
     </div>
 
@@ -1375,20 +1694,20 @@
       x-cloak
     >
       <div class="container notes-bar-inner">
-        <div class="notes-bar-summary">
+        <div class="notes-bar-summary" @click="openNotesDrawer('list')" role="button" tabindex="0">
           <span class="notes-bar-count" x-text="toPersianNumber(notesCount)"></span>
           <div>
             <strong x-text="formatPrice(notesTotal)"></strong>
-            <small>یادداشت سفارش (مراجعه به صندوق)</small>
+            <small>یادداشت سفارش حضوری</small>
           </div>
         </div>
         <div class="notes-bar-actions">
           <button type="button" class="btn btn-note-primary btn-sm rounded-pill px-3" @click="openNotesDrawer('counter')">
-            <i class="bi bi-display"></i>
+            <i class="bi bi-person-workspace"></i>
             <span>نمایش به صندوق</span>
           </button>
           <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3" @click="openNotesDrawer('list')">
-            مشاهده یادداشت
+            <span>لیست</span>
           </button>
         </div>
       </div>
@@ -1413,11 +1732,23 @@
         <div class="notes-drawer-head">
           <div>
             <div class="d-flex align-items-center gap-2">
-              <h3 id="notes-drawer-title" class="h5 mb-1">یادداشت سفارش</h3>
+              <h3 id="notes-drawer-title" class="h5 mb-1">یادداشت سفارش حضوری</h3>
               <span class="notes-head-badge" x-show="notesCount > 0" x-text="toPersianNumber(notesCount) + ' مورد'"></span>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.notes.drawer')"
+                :class="{ 'is-open': isTipOpen('menu.notes.drawer') }"
+                aria-label="راهنمای یادداشت سفارش حضوری"
+                @click.stop="toggleTip('menu.notes.drawer', $event)"
+                @mouseenter="hoverTip('menu.notes.drawer', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.notes.drawer', $event)"
+                @blur="leaveTip()"
+              >؟</button>
             </div>
             <p class="mb-0 text-secondary small">
-              لیست سفارش خود و دوستانتان را این‌جا نگه دارید و هنگام مراجعه به صندوق اعلام کنید.
+              سفارش خود و همراهانتان را این‌جا جمع کنید و در صندوق از روی صفحه بخوانید یا نشان دهید.
             </p>
           </div>
           <button
@@ -1431,25 +1762,39 @@
           </button>
         </div>
 
-        <div class="notes-mode-tabs" x-show="notes.length > 0">
+        <div class="notes-mode-tabs-wrap" x-show="notes.length > 0">
+          <div class="notes-mode-tabs">
+            <button
+              type="button"
+              class="notes-mode-tab"
+              :class="{ active: notesViewMode === 'list' }"
+              @click="setNotesViewMode('list')"
+            >
+              <i class="bi bi-list-ul"></i>
+              <span>لیست و نفرات</span>
+            </button>
+            <button
+              type="button"
+              class="notes-mode-tab"
+              :class="{ active: notesViewMode === 'counter' }"
+              @click="setNotesViewMode('counter')"
+            >
+              <i class="bi bi-person-workspace"></i>
+              <span>نمای صندوق (درشت)</span>
+            </button>
+          </div>
           <button
             type="button"
-            class="notes-mode-tab"
-            :class="{ active: notesViewMode === 'list' }"
-            @click="setNotesViewMode('list')"
-          >
-            <i class="bi bi-list-ul"></i>
-            <span>لیست و نفرات</span>
-          </button>
-          <button
-            type="button"
-            class="notes-mode-tab"
-            :class="{ active: notesViewMode === 'counter' }"
-            @click="setNotesViewMode('counter')"
-          >
-            <i class="bi bi-person-workspace"></i>
-            <span>نمای صندوق (تجمیعی)</span>
-          </button>
+            class="menu-tip-btn menu-tip-btn--sm"
+            x-show="hasTip('menu.notes.counter_mode')"
+            :class="{ 'is-open': isTipOpen('menu.notes.counter_mode') }"
+            aria-label="راهنمای نمای صندوق"
+            @click.stop="toggleTip('menu.notes.counter_mode', $event)"
+            @mouseenter="hoverTip('menu.notes.counter_mode', $event)"
+            @mouseleave="leaveTip()"
+            @focus="hoverTip('menu.notes.counter_mode', $event)"
+            @blur="leaveTip()"
+          >؟</button>
         </div>
 
         <div class="notes-drawer-body">
@@ -1458,7 +1803,7 @@
               <i class="bi bi-journal-bookmark"></i>
               <p class="mb-1 fw-bold">یادداشت سفارش شما خالی است.</p>
               <small class="text-secondary d-block mb-3">
-                روی دکمهٔ «یادداشت» کنار هر آیتم منو بزنید، اندازه و گزینه‌های دلخواه خود و دوستانتان را انتخاب کنید تا موقع سفارش در صندوق فراموش نشود.
+                روی دکمهٔ «یادداشت» کنار هر آیتم منو بزنید، سایز و گزینه‌های دلخواه خود و دوستانتان را انتخاب کنید تا موقع سفارش در صندوق چیزی فراموش نشود.
               </small>
               <button type="button" class="btn btn-dark btn-sm rounded-pill px-4" @click="closeNotesDrawer()">
                 مرور منو و افزودن آیتم
@@ -1466,9 +1811,53 @@
             </div>
           </template>
 
-          <!-- حالت ۱: لیست جزئیات و ویرایش به تفکیک هر نفر -->
+          <!-- حالت ۱: لیست تمیز و ساده به تفکیک هر نفر -->
           <div x-show="notes.length > 0 && notesViewMode === 'list'">
-            <template x-for="line in notes" :key="line.noteKey">
+            <!-- نوار فیلتر سریع نفرات (وقتی برای افراد مختلف تگ زده شده) -->
+            <div class="notes-person-filter" x-show="notePersonTabs.length > 0" x-cloak>
+              <div class="notes-person-filter-chips">
+                <button
+                  type="button"
+                  class="notes-person-filter-chip"
+                  :class="{ active: selectedNotePerson === 'all' }"
+                  @click="selectedNotePerson = 'all'"
+                >
+                  <span>همه</span>
+                  <small x-text="toPersianNumber(notesCount)"></small>
+                </button>
+                <template x-for="personTab in notePersonTabs" :key="`person-tab-${personTab.tag}`">
+                  <button
+                    type="button"
+                    class="notes-person-filter-chip"
+                    :class="{ active: selectedNotePerson === personTab.tag }"
+                    @click="selectedNotePerson = personTab.tag"
+                  >
+                    <i class="bi bi-person-fill"></i>
+                    <span x-text="personTab.tag"></span>
+                    <small x-text="toPersianNumber(personTab.count)"></small>
+                  </button>
+                </template>
+              </div>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.notes.person_filter')"
+                :class="{ 'is-open': isTipOpen('menu.notes.person_filter') }"
+                aria-label="راهنمای تفکیک نفرات"
+                @click.stop="toggleTip('menu.notes.person_filter', $event)"
+                @mouseenter="hoverTip('menu.notes.person_filter', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.notes.person_filter', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
+
+            <div class="notes-person-subtotal" x-show="selectedNotePerson !== 'all'" x-cloak>
+              <span>جمع سهم <strong x-text="selectedNotePerson"></strong>:</span>
+              <strong x-text="formatPrice(selectedPersonSubtotal)"></strong>
+            </div>
+
+            <template x-for="line in filteredNotesList" :key="line.noteKey">
               <article class="notes-line" :class="{ 'notes-line--checked': line.checkedAtCounter }">
                 <div class="notes-line-main">
                   <div class="notes-line-title-row">
@@ -1481,13 +1870,16 @@
                     >
                       <i class="bi" :class="line.checkedAtCounter ? 'bi-check-circle-fill' : 'bi-circle'"></i>
                     </button>
-                    <div>
-                      <strong x-text="line.persianName"></strong>
+                    <div class="notes-line-headings">
+                      <div class="d-flex align-items-baseline justify-content-between gap-2 flex-wrap">
+                        <strong x-text="line.persianName"></strong>
+                        <span class="notes-line-price" x-text="formatPrice(line.unitPrice * line.quantity)"></span>
+                      </div>
                       <small class="english-name d-block" x-show="line.englishName" x-text="line.englishName"></small>
                     </div>
                   </div>
 
-                  <div class="notes-line-options">
+                  <div class="notes-line-options" x-show="line.sizeLabel || (line.optionLabels && line.optionLabels.length) || (line.customDrinkSummary && line.customDrinkSummary.length) || (line.modifierLabels && line.modifierLabels.length)">
                     <span class="notes-opt-chip notes-opt-chip--size" x-show="line.sizeLabel" x-text="line.sizeLabel"></span>
                     <template x-for="optLabel in (line.optionLabels || [])" :key="`${line.noteKey}-opt-${optLabel}`">
                       <span class="notes-opt-chip" x-text="optLabel"></span>
@@ -1500,7 +1892,25 @@
                     </template>
                   </div>
 
-                  <div class="notes-line-person-row">
+                  <!-- تگ خلاصه نفر / توضیح (با یک لمس باز و ویرایش می‌شود تا صفحه شلوغ نشود) -->
+                  <div class="notes-line-meta-bar">
+                    <button
+                      type="button"
+                      class="notes-line-tag-trigger"
+                      :class="{ 'has-value': line.noteTag || line.noteText, 'is-editing': editingNoteKey === line.noteKey }"
+                      @click="toggleEditNoteLine(line.noteKey)"
+                    >
+                      <i class="bi" :class="line.noteTag || line.noteText ? 'bi-person-check-fill' : 'bi-plus-circle-dotted'"></i>
+                      <span x-show="line.noteTag" x-text="line.noteTag" class="fw-bold"></span>
+                      <span x-show="line.noteTag && line.noteText">·</span>
+                      <span x-show="line.noteText" x-text="line.noteText"></span>
+                      <span x-show="!line.noteTag && !line.noteText">افزودن نام نفر یا توضیح</span>
+                      <i class="bi bi-pencil-square ms-1 small opacity-75"></i>
+                    </button>
+                  </div>
+
+                  <!-- پنل ویرایش بازشونده فقط برای آیتم انتخابی -->
+                  <div class="notes-line-person-row" x-show="editingNoteKey === line.noteKey" x-cloak>
                     <div class="notes-guest-pills">
                       <template x-for="guestChip in modalNoteGuestOptions" :key="`${line.noteKey}-guest-${guestChip}`">
                         <button
@@ -1512,41 +1922,67 @@
                         ></button>
                       </template>
                     </div>
-                    <input
-                      type="text"
-                      class="form-control form-control-sm notes-inline-input"
-                      placeholder="نام سفارش‌دهنده یا توضیح (مثلاً کم‌شیرین)..."
-                      :value="line.noteText || ''"
-                      @change="updateNoteLineText(line.noteKey, $event.target.value)"
-                    >
+                    <div class="d-flex align-items-center gap-2">
+                      <input
+                        type="text"
+                        class="form-control form-control-sm notes-inline-input"
+                        placeholder="نام سفارش‌دهنده یا توضیح (مثلاً کم‌شیرین)..."
+                        :value="line.noteText || ''"
+                        @change="updateNoteLineText(line.noteKey, $event.target.value)"
+                        @keydown.enter.prevent="updateNoteLineText(line.noteKey, $event.target.value); editingNoteKey = null"
+                      >
+                      <button
+                        type="button"
+                        class="btn btn-dark btn-sm rounded-pill px-3 flex-shrink-0"
+                        @click="editingNoteKey = null"
+                      >
+                        تأیید
+                      </button>
+                    </div>
                   </div>
-
-                  <strong class="notes-line-price" x-text="formatPrice(line.unitPrice * line.quantity)"></strong>
                 </div>
 
                 <div class="notes-line-actions">
                   <div class="qty-control">
-                    <button type="button" aria-label="کاهش تعداد در یادداشت" @click="updateNoteQuantity(line.noteKey, -1)">−</button>
+                    <button
+                      type="button"
+                      :aria-label="line.quantity === 1 ? 'حذف از یادداشت' : 'کاهش تعداد در یادداشت'"
+                      @click="updateNoteQuantity(line.noteKey, -1)"
+                    >
+                      <i class="bi bi-trash3 text-danger" x-show="line.quantity === 1" style="font-size: 0.8rem;"></i>
+                      <span x-show="line.quantity > 1">−</span>
+                    </button>
                     <span x-text="toPersianNumber(line.quantity)"></span>
                     <button type="button" aria-label="افزایش تعداد در یادداشت" @click="updateNoteQuantity(line.noteKey, 1)">+</button>
                   </div>
-                  <button type="button" class="btn btn-link link-danger p-0 small" @click="removeFromNotes(line.noteKey)">
-                    حذف
-                  </button>
                 </div>
               </article>
             </template>
 
             <div class="notes-memo-box mt-3">
-              <label class="form-label small fw-bold" for="notes-general-memo">
-                <i class="bi bi-pencil-square"></i>
-                <span>یادداشت کلی (مثلاً شماره میز یا توضیح به صندوق)</span>
-              </label>
+              <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                <label class="form-label small fw-bold mb-0" for="notes-general-memo">
+                  <i class="bi bi-pencil-square"></i>
+                  <span>یادداشت کلی (مثلاً شماره میز یا توضیح به صندوق)</span>
+                </label>
+                <button
+                  type="button"
+                  class="menu-tip-btn menu-tip-btn--sm"
+                  x-show="hasTip('menu.notes.memo')"
+                  :class="{ 'is-open': isTipOpen('menu.notes.memo') }"
+                  aria-label="راهنمای یادداشت کلی"
+                  @click.stop="toggleTip('menu.notes.memo', $event)"
+                  @mouseenter="hoverTip('menu.notes.memo', $event)"
+                  @mouseleave="leaveTip()"
+                  @focus="hoverTip('menu.notes.memo', $event)"
+                  @blur="leaveTip()"
+                >؟</button>
+              </div>
               <textarea
                 id="notes-general-memo"
                 class="form-control form-control-sm"
                 rows="2"
-                placeholder="اینجا هر توضیح اضافه‌ای دارید بنویسید..."
+                placeholder="شماره میز، بیرون‌بر یا هر توضیح کلی دیگر..."
                 x-model="notesMemo"
                 @input="saveNotesMemo()"
               ></textarea>
@@ -1557,10 +1993,23 @@
           <div x-show="notes.length > 0 && notesViewMode === 'counter'" class="notes-counter-view">
             <div class="notes-counter-banner">
               <i class="bi bi-shop"></i>
-              <div>
-                <strong>آمادهٔ سفارش در صندوق</strong>
-                <small class="d-block">آیتم‌های کاملاً مشابه تجمیع شده‌اند. با خواندن هر مورد می‌توانید روی آن بزنید تا تیک بخورد.</small>
+              <div class="flex-grow-1">
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                  <strong>آمادهٔ اعلام به صندوق‌دار</strong>
+                  <span class="notes-counter-progress-badge" x-show="counterCheckedCount > 0">
+                    <span x-text="toPersianNumber(counterCheckedCount)"></span> از <span x-text="toPersianNumber(aggregatedCounterNotes.length)"></span> خوانده شد
+                  </span>
+                </div>
+                <small class="d-block">آیتم‌های مشابه تجمیع شده‌اند. هنگام خواندن هر ردیف روی آن بزنید تا تیک بخورد.</small>
               </div>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-dark rounded-pill flex-shrink-0"
+                x-show="counterCheckedCount > 0"
+                @click="resetCounterChecks()"
+              >
+                پاک‌کردن تیک‌ها
+              </button>
             </div>
 
             <div class="notes-counter-list">
@@ -1633,15 +2082,29 @@
               <strong class="fs-6" x-text="formatPrice(notesTotal)"></strong>
             </div>
             <div class="d-flex align-items-center gap-2">
-              <button
-                type="button"
-                class="btn btn-outline-secondary btn-sm rounded-pill"
-                @click="copyNotesToClipboard()"
-                title="کپی متن سفارش برای اشتراک‌گذاری"
-              >
-                <i class="bi" :class="notesCopied ? 'bi-check2' : 'bi-copy'"></i>
-                <span x-text="notesCopied ? 'کپی شد!' : 'کپی متن'"></span>
-              </button>
+              <div class="d-inline-flex align-items-center gap-1">
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm rounded-pill"
+                  @click="copyNotesToClipboard()"
+                  title="کپی متن سفارش برای اشتراک‌گذاری"
+                >
+                  <i class="bi" :class="notesCopied ? 'bi-check2' : 'bi-copy'"></i>
+                  <span x-text="notesCopied ? 'کپی شد!' : 'کپی متن'"></span>
+                </button>
+                <button
+                  type="button"
+                  class="menu-tip-btn menu-tip-btn--sm"
+                  x-show="hasTip('menu.notes.copy')"
+                  :class="{ 'is-open': isTipOpen('menu.notes.copy') }"
+                  aria-label="راهنمای کپی متن یادداشت"
+                  @click.stop="toggleTip('menu.notes.copy', $event)"
+                  @mouseenter="hoverTip('menu.notes.copy', $event)"
+                  @mouseleave="leaveTip()"
+                  @focus="hoverTip('menu.notes.copy', $event)"
+                  @blur="leaveTip()"
+                >؟</button>
+              </div>
               <button
                 type="button"
                 class="btn btn-outline-danger btn-sm rounded-pill"
@@ -1663,15 +2126,28 @@
               <i class="bi" :class="notesViewMode === 'counter' ? 'bi-pencil' : 'bi-person-workspace'"></i>
               <span x-text="notesViewMode === 'counter' ? 'بازگشت به ویرایش لیست' : 'نمایش درشت برای صندوق'"></span>
             </button>
-            <button
-              type="button"
-              class="btn btn-dark rounded-pill"
-              x-show="!salesClosed"
-              @click="moveNotesToCart()"
-            >
-              <i class="bi bi-bag-check"></i>
-              <span>انتقال به سبد آنلاین</span>
-            </button>
+            <div class="d-inline-flex align-items-center gap-1" x-show="!salesClosed">
+              <button
+                type="button"
+                class="btn btn-dark rounded-pill"
+                @click="moveNotesToCart()"
+              >
+                <i class="bi bi-bag-check"></i>
+                <span>انتقال به سبد آنلاین</span>
+              </button>
+              <button
+                type="button"
+                class="menu-tip-btn menu-tip-btn--sm"
+                x-show="hasTip('menu.notes.move_to_cart')"
+                :class="{ 'is-open': isTipOpen('menu.notes.move_to_cart') }"
+                aria-label="راهنمای انتقال یادداشت به سبد آنلاین"
+                @click.stop="toggleTip('menu.notes.move_to_cart', $event)"
+                @mouseenter="hoverTip('menu.notes.move_to_cart', $event)"
+                @mouseleave="leaveTip()"
+                @focus="hoverTip('menu.notes.move_to_cart', $event)"
+                @blur="leaveTip()"
+              >؟</button>
+            </div>
           </div>
         </div>
       </aside>
@@ -1782,7 +2258,21 @@
                 <!-- سطح عضویت -->
                 <div class="profile-tier-box" x-show="profile.membership">
                   <div class="profile-tier-head">
-                    <h3>سطح عضویت</h3>
+                    <div class="d-flex align-items-center gap-2">
+                      <h3>سطح عضویت</h3>
+                      <button
+                        type="button"
+                        class="menu-tip-btn menu-tip-btn--sm"
+                        x-show="hasTip('menu.profile.tier')"
+                        :class="{ 'is-open': isTipOpen('menu.profile.tier') }"
+                        aria-label="راهنمای سطح عضویت"
+                        @click.stop="toggleTip('menu.profile.tier', $event)"
+                        @mouseenter="hoverTip('menu.profile.tier', $event)"
+                        @mouseleave="leaveTip()"
+                        @focus="hoverTip('menu.profile.tier', $event)"
+                        @blur="leaveTip()"
+                      >؟</button>
+                    </div>
                     <span class="profile-tier-name" x-text="profile.membership?.tierName || 'مشتری پایه'"></span>
                   </div>
                   <p class="profile-tier-percent" x-show="profile.membership?.tierDiscountPercent > 0">
@@ -1856,7 +2346,21 @@
                 <!-- کیف پول و کش‌بک -->
                 <div class="profile-wallet-box" x-show="profile.wallet" x-cloak>
                   <div class="profile-wallet-head">
-                    <h3><i class="bi bi-wallet2"></i> کیف پول</h3>
+                    <div class="d-flex align-items-center gap-2">
+                      <h3><i class="bi bi-wallet2"></i> کیف پول</h3>
+                      <button
+                        type="button"
+                        class="menu-tip-btn menu-tip-btn--sm"
+                        x-show="hasTip('menu.profile.wallet')"
+                        :class="{ 'is-open': isTipOpen('menu.profile.wallet') }"
+                        aria-label="راهنمای کیف پول و کش‌بک"
+                        @click.stop="toggleTip('menu.profile.wallet', $event)"
+                        @mouseenter="hoverTip('menu.profile.wallet', $event)"
+                        @mouseleave="leaveTip()"
+                        @focus="hoverTip('menu.profile.wallet', $event)"
+                        @blur="leaveTip()"
+                      >؟</button>
+                    </div>
                     <span class="profile-wallet-balance" x-text="formatPrice(profile.wallet?.balance ?? 0)"></span>
                   </div>
                   <p class="profile-wallet-note" x-show="profile.wallet?.cashbackPercent > 0">
@@ -1938,8 +2442,22 @@
 
                 <!-- کارت مهر جاری -->
                 <div class="profile-stamps-box">
-                  <h3>
-                    کارت مهر فعلی
+                  <h3 class="d-flex align-items-center justify-content-between gap-2">
+                    <span class="d-inline-flex align-items-center gap-2">
+                      <span>کارت مهر فعلی</span>
+                      <button
+                        type="button"
+                        class="menu-tip-btn menu-tip-btn--sm"
+                        x-show="hasTip('menu.profile.stamps')"
+                        :class="{ 'is-open': isTipOpen('menu.profile.stamps') }"
+                        aria-label="راهنمای کارت مهر دیجیتال"
+                        @click.stop="toggleTip('menu.profile.stamps', $event)"
+                        @mouseenter="hoverTip('menu.profile.stamps', $event)"
+                        @mouseleave="leaveTip()"
+                        @focus="hoverTip('menu.profile.stamps', $event)"
+                        @blur="leaveTip()"
+                      >؟</button>
+                    </span>
                     <span class="profile-stamps-count" x-show="profile.stampCardEnabled"
                       x-text="`${toPersianNumber(profile.currentCardStamps)} از ${toPersianNumber(profile.ordersPerCard)} مهر`"></span>
                   </h3>
@@ -2341,6 +2859,43 @@
         <i class="bi bi-telephone"></i>
         <span x-text="settings.footerCallLabel"></span>
       </a>
+    </div>
+
+    <!-- پورتال تک‌نمونه‌ای راهنماهای منوی مشتری (Smart Cross-Device Tooltip Portal) -->
+    <div
+      id="menu-tooltip-portal"
+      class="menu-tip-portal"
+      :class="{
+        'is-visible': Boolean(activeTip),
+        'is-pinned': Boolean(activeTip?.pinned),
+        'is-bottom': activeTip?.placement === 'bottom',
+        'is-top': activeTip?.placement !== 'bottom'
+      }"
+      x-show="activeTip"
+      x-cloak
+      role="tooltip"
+      :style="activeTipStyle"
+      @mouseenter="keepTipAlive()"
+      @mouseleave="leaveTip()"
+      @click.outside="closeTip()"
+      @keydown.escape.window="closeTip()"
+    >
+      <span class="menu-tip-portal-arrow" aria-hidden="true"></span>
+      <div class="menu-tip-portal-head">
+        <span class="menu-tip-portal-badge">
+          <i class="bi bi-stars" aria-hidden="true"></i>
+          <strong x-text="activeTip?.label || 'راهنمای منو'"></strong>
+        </span>
+        <button
+          type="button"
+          class="menu-tip-portal-close"
+          aria-label="بستن راهنما"
+          @click.stop="closeTip()"
+        >
+          <i class="bi bi-x" aria-hidden="true"></i>
+        </button>
+      </div>
+      <p class="menu-tip-portal-body mb-0" x-text="activeTip?.text"></p>
     </div>
   </div>
 

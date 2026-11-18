@@ -133,6 +133,7 @@ public record SiteSettingsDto
     public string AbandonedCartSmsTemplate { get; init; } = string.Empty;
     public string AbandonedCartEmailSubject { get; init; } = string.Empty;
     public string AbandonedCartEmailTemplate { get; init; } = string.Empty;
+    public IReadOnlyDictionary<string, string> MenuTooltips { get; init; } = new Dictionary<string, string>();
 }
 
 public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery, SiteSettingsDto>
@@ -278,9 +279,19 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
             throw new InvalidOperationException("Site settings were not found.");
         }
 
+        var menuTooltips = await _dbContext.AdminTooltips
+            .AsNoTracking()
+            .Where(tooltip => tooltip.Key.StartsWith("menu."))
+            .Select(tooltip => new { tooltip.Key, tooltip.Text, tooltip.IsActive })
+            .ToDictionaryAsync(
+                entry => entry.Key,
+                entry => entry.IsActive ? entry.Text : string.Empty,
+                cancellationToken);
+
         return settings with
         {
-            IsOnlineOrderingAvailable = PaymentAvailability.IsOnlinePaymentConfigured(_paymentOptions)
+            IsOnlineOrderingAvailable = PaymentAvailability.IsOnlinePaymentConfigured(_paymentOptions),
+            MenuTooltips = menuTooltips
         };
     }
 }

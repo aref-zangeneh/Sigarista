@@ -237,7 +237,7 @@ a {
   flex: 1;
 }
 
-.search-box i {
+.search-box > i {
   position: absolute;
   top: 50%;
   inset-inline-start: 0.9rem;
@@ -249,6 +249,7 @@ a {
 .search-box .form-control {
   min-height: 44px;
   padding-inline-start: 2.5rem;
+  padding-inline-end: 2.35rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -3504,11 +3505,18 @@ button.item-option-chip:disabled {
   font-weight: 700;
 }
 
+.modal-mode-chip--cart {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
 .modal-note-box {
-  padding: 0.75rem;
+  padding: 0.8rem;
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius-md);
   background: var(--bg);
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .modal-note-box--highlighted {
@@ -3522,13 +3530,13 @@ button.item-option-chip:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.45rem;
-  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.84rem;
   font-weight: 700;
 }
 
 .modal-note-active-tag {
-  padding: 0.1rem 0.55rem;
+  padding: 0.12rem 0.55rem;
   border-radius: 999px;
   background: var(--accent);
   color: #fff;
@@ -3536,14 +3544,15 @@ button.item-option-chip:disabled {
   font-weight: 700;
 }
 
-.modal-note-guests {
+.modal-note-guests,
+.modal-note-presets {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
 }
 
 .modal-note-guest-chip {
-  padding: 0.28rem 0.65rem;
+  padding: 0.28rem 0.68rem;
   border-radius: 999px;
   border: 1px solid var(--line-strong);
   background: var(--surface);
@@ -3566,6 +3575,46 @@ button.item-option-chip:disabled {
   color: #fff;
 }
 
+.modal-note-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px dashed var(--line-strong);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modal-note-preset-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.modal-note-preset-chip.active {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.modal-qty-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
 .add-cart-modal-actions {
   display: flex;
   align-items: center;
@@ -3573,12 +3622,20 @@ button.item-option-chip:disabled {
   width: 100%;
 }
 
+.add-cart-modal-actions--note-first {
+  flex-direction: row-reverse;
+}
+
 .add-cart-submit-main {
-  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
+}
+
+.add-cart-submit-compact {
+  flex: 0 0 auto;
+  padding-inline: 0.9rem;
 }
 
 .add-cart-submit-note {
@@ -3586,6 +3643,71 @@ button.item-option-chip:disabled {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
+}
+
+/* ── Instant Note Toast Pill ── */
+.note-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(120px + env(safe-area-inset-bottom));
+  z-index: 1060;
+  width: min(calc(100% - 24px), 440px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--surface);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+  animation: tip-portal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.note-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.note-toast-content i {
+  color: #34d399;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.note-toast-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.note-toast-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.note-toast-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.75;
+  padding: 0.15rem;
+  line-height: 1;
+  font-size: 1.05rem;
+  cursor: pointer;
 }
 
 .btn-note-primary {
@@ -3717,14 +3839,132 @@ button.item-option-chip:disabled {
   font-weight: 800;
 }
 
-.notes-mode-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem;
+.notes-mode-tabs-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.6rem 1.15rem;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
+}
+
+.notes-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+}
+
+.notes-person-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--line);
+}
+
+.notes-person-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.notes-person-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notes-person-filter-chip small {
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.68rem;
+}
+
+.notes-person-filter-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.notes-person-filter-chip.active small {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.notes-person-subtotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
+.notes-line-headings {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.notes-line-meta-bar {
+  margin-top: 0.45rem;
+}
+
+.notes-line-tag-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px dashed var(--line-strong);
+  background: var(--bg);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  max-width: 100%;
+}
+
+.notes-line-tag-trigger:hover,
+.notes-line-tag-trigger.is-editing {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.notes-line-tag-trigger.has-value {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.notes-counter-progress-badge {
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .notes-mode-tab {
@@ -4090,5 +4330,226 @@ button.item-option-chip:disabled {
 
   .notes-bar--above-cart {
     bottom: 58px;
+  }
+}
+
+/* ============================================================
+   Customer Digital Menu Tooltip System (Cross-Device Portal)
+   ============================================================ */
+
+.menu-action-with-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.menu-tip-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(154, 107, 47, 0.35);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+/* Invisible 36x36 touch target expansion for effortless mobile tapping */
+.menu-tip-btn::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 999px;
+}
+
+.menu-tip-btn--sm {
+  width: 20px;
+  height: 20px;
+  font-size: 0.7rem;
+}
+
+.menu-tip-btn--badge {
+  position: absolute;
+  bottom: -4px;
+  left: -4px;
+  width: 18px;
+  height: 18px;
+  font-size: 0.65rem;
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--muted);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  z-index: 2;
+}
+
+.menu-tip-btn--inline {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.menu-tip-btn--inline:hover,
+.menu-tip-btn--inline.is-open {
+  transform: translateY(-50%) scale(1.06);
+}
+
+.menu-tip-btn:hover,
+.menu-tip-btn:focus-visible,
+.menu-tip-btn.is-open {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(154, 107, 47, 0.32);
+}
+
+.menu-tip-btn:not(.menu-tip-btn--inline):hover,
+.menu-tip-btn:not(.menu-tip-btn--inline).is-open {
+  transform: scale(1.08);
+}
+
+.menu-tip-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Single Fixed Glassmorphic Popover Portal ── */
+.menu-tip-portal {
+  position: fixed;
+  z-index: 2150;
+  max-width: calc(100vw - 24px);
+  padding: 0.75rem 0.9rem;
+  border-radius: 16px;
+  background: rgba(24, 24, 27, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.14);
+  text-align: right;
+  direction: rtl;
+  pointer-events: auto;
+  will-change: transform, opacity;
+  animation: tip-portal-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root[data-theme="dark"] .menu-tip-portal {
+  background: rgba(38, 38, 44, 0.96);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+}
+
+.menu-tip-portal.is-top {
+  transform: translateY(-100%);
+}
+
+.menu-tip-portal.is-bottom {
+  transform: translateY(0);
+}
+
+.menu-tip-portal-arrow {
+  position: absolute;
+  left: var(--tip-arrow-x, 50%);
+  width: 11px;
+  height: 11px;
+  background: inherit;
+  transform: translateX(-50%) rotate(45deg);
+  pointer-events: none;
+}
+
+.menu-tip-portal.is-top .menu-tip-portal-arrow {
+  bottom: -6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.menu-tip-portal.is-bottom .menu-tip-portal-arrow {
+  top: -6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.menu-tip-portal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.menu-tip-portal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  color: #fbbf24;
+}
+
+.menu-tip-portal-badge strong {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.menu-tip-portal-close {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.menu-tip-portal-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.menu-tip-portal-body {
+  font-size: 0.81rem;
+  line-height: 1.72;
+  color: rgba(248, 250, 252, 0.94);
+  white-space: pre-wrap;
+}
+
+@keyframes tip-portal-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-tip-portal,
+  .note-toast,
+  .menu-tip-btn {
+    animation: none;
+    transition: none;
   }
 }

@@ -6,6 +6,125 @@ document.addEventListener("alpine:init", () => {
   const NOTES_STORAGE_KEY = "sugarista_order_notes";
   const NOTES_MEMO_STORAGE_KEY = "sugarista_order_notes_memo";
 
+  const DEFAULT_MENU_TOOLTIPS = {
+    "menu.header.notes": {
+      label: "یادداشت سفارش حضوری",
+      text: "سفارش خود و دوستانتان را بدون نیاز به پرداخت آنلاین اینجا یادداشت کنید تا هنگام مراجعه به صندوق راحت اعلام کنید."
+    },
+    "menu.header.profile": {
+      label: "کارت مهر و پروفایل مشتری",
+      text: "فقط با وارد کردن شماره موبایل، کارت مهر دیجیتال، امتیاز وفاداری، موجودی کیف پول و تخفیف‌های خود را ببینید."
+    },
+    "menu.browse.categories": {
+      label: "دسته‌بندی‌های منو",
+      text: "برای پرش سریع به هر بخش از منو، روی دسته‌بندی دلخواه بزنید."
+    },
+    "menu.browse.search": {
+      label: "جستجوی هوشمند منو",
+      text: "نام فارسی یا انگلیسی آیتم، طعم یا ترکیبات (مثل کارامل، اسپرسو، بدون قند) را جستجو کنید."
+    },
+    "menu.browse.popular": {
+      label: "پیشنهادهای سریع",
+      text: "محبوب‌ترین آیتم‌های کافه برای انتخاب سریع؛ با لمس هر مورد پنجره افزودن باز می‌شود."
+    },
+    "menu.browse.addons": {
+      label: "افزودنی‌های منو",
+      text: "افزودنی‌ها و سیروپ‌های جانبی که می‌توانید در کنار نوشیدنی یا سفارش خود انتخاب کنید."
+    },
+    "menu.product.builder_badge": {
+      label: "محصول قابل سفارشی‌سازی",
+      text: "این محصول قابلیت تنظیم دقیق ترکیبات (شات قهوه، نوع شیر، سیروپ و دما) به سلیقه شما را دارد؛ قیمت به‌صورت آنی محاسبه می‌شود."
+    },
+    "menu.product.note_btn": {
+      label: "افزودن به یادداشت حضوری",
+      text: "برای سفارش حضوری در کافه: آیتم را با سایز و گزینه‌های دلخواه به «یادداشت سفارش» اضافه کنید تا موقع خواندن در صندوق چیزی از قلم نیفتد."
+    },
+    "menu.product.add_btn": {
+      label: "سفارش آنلاین",
+      text: "برای ثبت و پرداخت آنلاین سفارش و دریافت کد پیگیری."
+    },
+    "menu.modal.sizes": {
+      label: "انتخاب اندازه",
+      text: "اندازه دلخواه خود را انتخاب کنید؛ قیمت بر اساس سایز به‌روز می‌شود."
+    },
+    "menu.modal.options": {
+      label: "گزینه‌های محصول",
+      text: "بخش‌های «اجباری» برای ثبت آیتم ضروری هستند و بخش‌های «دلخواه» به انتخاب شما اضافه می‌شوند."
+    },
+    "menu.modal.builder": {
+      label: "ساخت نوشیدنی سفارشی",
+      text: "مقدار هر ترکیب را با اسلایدر یا دکمه‌ها تغییر دهید؛ جمع قیمت در لحظه محاسبه می‌شود."
+    },
+    "menu.modal.modifiers": {
+      label: "تغییرات سفارش",
+      text: "تغییرات دلخواه آماده‌سازی برای باریستا را با یک لمس انتخاب کنید."
+    },
+    "menu.modal.note_person": {
+      label: "انتخاب نفر و توضیح",
+      text: "مشخص کنید این آیتم برای کدام یک از همراهان شماست (مثلاً نفر ۲) یا چه توضیحی دارد تا در لیست یادداشت تفکیک شود."
+    },
+    "menu.notes.drawer": {
+      label: "یادداشت سفارش حضوری",
+      text: "این دفترچه دیجیتال روی گوشی شما ذخیره می‌شود. سفارش خود و دوستانتان را اینجا جمع کنید و هنگام مراجعه به صندوق از روی «نمای صندوق» بخوانید یا نشان دهید."
+    },
+    "menu.notes.counter_mode": {
+      label: "نمای صندوق (تجمیعی)",
+      text: "آیتم‌های کاملاً مشابه را با هم جمع می‌کند و با فونت درشت نمایش می‌دهد تا صندوقدار در یک نگاه ببیند. با لمس هر ردیف می‌توانید آن را تیک بزنید."
+    },
+    "menu.notes.person_filter": {
+      label: "تفکیک بر اساس نفرات",
+      text: "وقتی برای چند نفر آیتم یادداشت کرده‌اید، با زدن روی نام هر نفر می‌توانید فقط سفارش و جمع سهم همان نفر را ببینید."
+    },
+    "menu.notes.memo": {
+      label: "یادداشت کلی",
+      text: "شماره میز یا هر نکته کلی که می‌خواهید به صندوقدار بگویید را اینجا بنویسید."
+    },
+    "menu.notes.move_to_cart": {
+      label: "انتقال به سبد آنلاین",
+      text: "اگر تصمیم گرفتید به‌جای مراجعه به صندوق، سفارش را آنلاین پرداخت کنید، همه آیتم‌های یادداشت با یک لمس وارد سبد خرید می‌شوند."
+    },
+    "menu.notes.copy": {
+      label: "کپی متن سفارش",
+      text: "متن مرتب‌شده لیست سفارش و جمع قیمت را کپی می‌کند تا در تلگرام یا واتساپ برای دوستانتان بفرستید."
+    },
+    "menu.checkout.tier_progress": {
+      label: "تخفیف پلکانی سبد",
+      text: "با رسیدن جمع سبد خرید به سقف مشخص‌شده، تخفیف پلکانی به‌صورت خودکار روی سفارش شما اعمال می‌شود."
+    },
+    "menu.checkout.split_bill": {
+      label: "تسویه جداگانه (تقسیم دنگ)",
+      text: "سفارش مشترک میز را بر اساس آیتم، درصد یا مبلغ دلخواه بین دوستان تقسیم کنید تا هر کس سهم خود را جداگانه پرداخت کند."
+    },
+    "menu.checkout.pickup_time": {
+      label: "زمان تحویل حضوری",
+      text: "می‌توانید سفارش را برای «در اسرع وقت» یا یک بازه زمانی مشخص از قبل رزرو کنید تا دقیقاً موقع رسیدنتان آماده باشد."
+    },
+    "menu.checkout.wallet": {
+      label: "پرداخت با کیف پول",
+      text: "از موجودی کیف پول و کش‌بک‌های قبلی خود برای پرداخت سریع سفارش استفاده کنید."
+    },
+    "menu.checkout.personal_cup": {
+      label: "تخفیف لیوان شخصی",
+      text: "اگر ماگ یا لیوان شخصی همراه دارید این گزینه را فعال کنید تا تخفیف حامی محیط‌زیست کسر شود."
+    },
+    "menu.checkout.subscription": {
+      label: "اشتراک ماهانه",
+      text: "مشتریان دارای بسته اشتراک فعال می‌توانند سهمیه روزانه خود را روی سفارش اعمال کنند."
+    },
+    "menu.profile.stamps": {
+      label: "کارت مهر دیجیتال",
+      text: "با هر سفارش پرداخت‌شده یک مهر دیجیتال دریافت می‌کنید؛ با تکمیل کارت، جایزه تخفیف سفارش بعدی فعال می‌شود."
+    },
+    "menu.profile.tier": {
+      label: "سطح عضویت",
+      text: "بر اساس مجموع خریدهای شما، سطح عضویت ارتقا یافته و تخفیف دائمی روی همه سفارش‌ها اعمال می‌شود."
+    },
+    "menu.profile.wallet": {
+      label: "کیف پول و کش‌بک",
+      text: "درصدی از مبلغ هر خرید به‌عنوان کش‌بک به کیف پول شما برمی‌گردد و در خریدهای بعدی قابل استفاده است."
+    }
+  };
+
   Alpine.data("cafeMenu", () => ({
     apiBaseUrl: window.SUGARISTA_API_BASE_URL || "/api",
     loading: true,
@@ -27,6 +146,16 @@ document.addEventListener("alpine:init", () => {
     notesClearConfirm: false,
     notesCopied: false,
     notesCopyTimer: null,
+    selectedNotePerson: "all",
+    editingNoteKey: null,
+    noteToast: "",
+    noteToastTimer: null,
+    resolvedTooltips: {},
+    activeTip: null,
+    tipCloseTimer: null,
+    tipHoverTimer: null,
+    tipTriggerEl: null,
+    tipScrollCleanup: null,
     cartTrackTimer: null,
     cartProgressTimer: null,
     cartTokenValue: null,
@@ -146,7 +275,8 @@ document.addEventListener("alpine:init", () => {
       timeZoneId: "Asia/Tehran",
       lightThemeStartHour: 6,
       darkThemeStartHour: 20,
-      allowManualThemeOverride: true
+      allowManualThemeOverride: true,
+      menuTooltips: {}
     },
     // --- theme (light/dark by café time, manual override persisted) ---
     themePref: null,
@@ -157,6 +287,7 @@ document.addEventListener("alpine:init", () => {
     searchTypeTimer: null,
     searchUserTyping: false,
     async init() {
+      this.syncMenuTooltips();
       this.loadThemePref();
       this.applyTheme();
       this.loadCart();
@@ -202,6 +333,7 @@ document.addEventListener("alpine:init", () => {
         // then renders no customisation controls at all.
         this.drinkBuilders = menuData.drinkBuilders || [];
         this.settings = { ...this.settings, ...settingsData };
+        this.syncMenuTooltips();
         this.applyPageMetadata();
         this.setupTheme();
         this.initSearchTypewriter();
@@ -1317,7 +1449,43 @@ document.addEventListener("alpine:init", () => {
       return this.notes.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
     },
     get modalNoteGuestOptions() {
-      return [1, 2, 3, 4, 5, 6].map((num) => `نفر ${this.toPersianNumber(num)}`);
+      return ["من", ...[2, 3, 4, 5, 6].map((num) => `نفر ${this.toPersianNumber(num)}`)];
+    },
+    get modalQuickNotePresets() {
+      return ["کم‌شیرین", "یخ کم", "داغ", "بیرون‌بر", "شیر جو"];
+    },
+    get notePersonTabs() {
+      const counts = new Map();
+      for (const line of this.notes) {
+        const tag = (line.noteTag || "").trim();
+        if (tag) {
+          counts.set(tag, (counts.get(tag) || 0) + line.quantity);
+        }
+      }
+      return Array.from(counts.entries()).map(([tag, count]) => ({ tag, count }));
+    },
+    get filteredNotesList() {
+      if (this.selectedNotePerson === "all") {
+        return this.notes;
+      }
+      return this.notes.filter((line) => (line.noteTag || "").trim() === this.selectedNotePerson);
+    },
+    get selectedPersonSubtotal() {
+      if (this.selectedNotePerson === "all") {
+        return this.notesTotal;
+      }
+      return this.notes
+        .filter((line) => (line.noteTag || "").trim() === this.selectedNotePerson)
+        .reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+    },
+    get counterCheckedCount() {
+      return this.aggregatedCounterNotes.filter((group) => group.allChecked).length;
+    },
+    get activeTipStyle() {
+      if (!this.activeTip) {
+        return "";
+      }
+      return `top:${this.activeTip.top}px;left:${this.activeTip.left}px;width:${this.activeTip.width}px;--tip-arrow-x:${this.activeTip.arrowX}px;`;
     },
     get aggregatedCounterNotes() {
       const map = new Map();
@@ -1615,6 +1783,182 @@ document.addEventListener("alpine:init", () => {
       }
       this.addToCartModal.noteTag =
         this.addToCartModal.noteTag === guestLabel ? "" : guestLabel;
+    },
+    hasModalQuickPreset(preset) {
+      if (!this.addToCartModal) {
+        return false;
+      }
+      const parts = (this.addToCartModal.noteText || "")
+        .split("،")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return parts.includes(preset);
+    },
+    toggleModalQuickPreset(preset) {
+      if (!this.addToCartModal) {
+        return;
+      }
+      const parts = (this.addToCartModal.noteText || "")
+        .split("،")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (parts.includes(preset)) {
+        this.addToCartModal.noteText = parts.filter((p) => p !== preset).join("، ");
+      } else {
+        parts.push(preset);
+        this.addToCartModal.noteText = parts.join("، ");
+      }
+    },
+    /* ── Smart Cross-Device Customer Tooltips ────────────────────────────── */
+    syncMenuTooltips() {
+      const overrides = this.settings?.menuTooltips || {};
+      const next = {};
+      for (const [key, def] of Object.entries(DEFAULT_MENU_TOOLTIPS)) {
+        const override = overrides[key];
+        if (override === "") {
+          // Explicitly disabled by admin in Admin Panel
+          continue;
+        }
+        const effectiveText = (typeof override === "string" && override.trim()) ? override.trim() : def.text;
+        if (effectiveText) {
+          next[key] = { label: def.label, text: effectiveText };
+        }
+      }
+      this.resolvedTooltips = next;
+      if (this.activeTip && !this.resolvedTooltips[this.activeTip.key]) {
+        this.closeTip();
+      }
+    },
+    hasTip(key) {
+      return Boolean(this.resolvedTooltips?.[key]?.text);
+    },
+    isTipOpen(key) {
+      return this.activeTip?.key === key;
+    },
+    repositionActiveTip() {
+      if (!this.activeTip || !this.tipTriggerEl) {
+        return;
+      }
+      if (!document.body.contains(this.tipTriggerEl)) {
+        this.closeTip();
+        return;
+      }
+      const rect = this.tipTriggerEl.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) {
+        this.closeTip();
+        return;
+      }
+      const vw = window.innerWidth || document.documentElement.clientWidth || 360;
+      const vh = window.innerHeight || document.documentElement.clientHeight || 640;
+      const margin = 12;
+      const bubbleWidth = Math.min(300, vw - margin * 2);
+      const triggerCenterX = rect.left + rect.width / 2;
+      const idealLeft = triggerCenterX - bubbleWidth / 2;
+      const left = Math.max(margin, Math.min(vw - bubbleWidth - margin, Math.round(idealLeft)));
+      const arrowX = Math.max(18, Math.min(bubbleWidth - 18, Math.round(triggerCenterX - left)));
+      const spaceAbove = rect.top;
+      const spaceBelow = vh - rect.bottom;
+      const placement = spaceAbove < 145 && spaceBelow > spaceAbove ? "bottom" : "top";
+      const top = placement === "bottom" ? Math.round(rect.bottom + 10) : Math.round(rect.top - 10);
+
+      this.activeTip = {
+        ...this.activeTip,
+        top,
+        left,
+        width: bubbleWidth,
+        arrowX,
+        placement
+      };
+    },
+    bindTipViewportListeners() {
+      this.unbindTipViewportListeners();
+      let rafId = null;
+      const onViewportChange = () => {
+        if (rafId) return;
+        rafId = window.requestAnimationFrame(() => {
+          rafId = null;
+          this.repositionActiveTip();
+        });
+      };
+      window.addEventListener("scroll", onViewportChange, { capture: true, passive: true });
+      window.addEventListener("resize", onViewportChange, { passive: true });
+      this.tipScrollCleanup = () => {
+        if (rafId) window.cancelAnimationFrame(rafId);
+        window.removeEventListener("scroll", onViewportChange, { capture: true });
+        window.removeEventListener("resize", onViewportChange);
+      };
+    },
+    unbindTipViewportListeners() {
+      if (this.tipScrollCleanup) {
+        this.tipScrollCleanup();
+        this.tipScrollCleanup = null;
+      }
+    },
+    openTipForTrigger(key, triggerEl, pinned = false) {
+      const entry = this.resolvedTooltips?.[key];
+      if (!entry || !triggerEl) {
+        return;
+      }
+      window.clearTimeout(this.tipCloseTimer);
+      window.clearTimeout(this.tipHoverTimer);
+      this.tipTriggerEl = triggerEl;
+      this.activeTip = {
+        key,
+        label: entry.label,
+        text: entry.text,
+        pinned,
+        top: 0,
+        left: 12,
+        width: 280,
+        arrowX: 140,
+        placement: "top"
+      };
+      this.repositionActiveTip();
+      this.bindTipViewportListeners();
+    },
+    toggleTip(key, event) {
+      const triggerEl = event?.currentTarget;
+      if (this.activeTip?.key === key && this.activeTip?.pinned) {
+        this.closeTip();
+        return;
+      }
+      this.openTipForTrigger(key, triggerEl, true);
+    },
+    hoverTip(key, event) {
+      if (window.matchMedia && !window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+        return;
+      }
+      const triggerEl = event?.currentTarget;
+      if (this.activeTip?.key === key && this.activeTip?.pinned) {
+        return;
+      }
+      window.clearTimeout(this.tipCloseTimer);
+      window.clearTimeout(this.tipHoverTimer);
+      this.tipHoverTimer = window.setTimeout(() => {
+        this.openTipForTrigger(key, triggerEl, false);
+      }, 60);
+    },
+    keepTipAlive() {
+      window.clearTimeout(this.tipCloseTimer);
+    },
+    leaveTip() {
+      window.clearTimeout(this.tipHoverTimer);
+      if (this.activeTip?.pinned) {
+        return;
+      }
+      window.clearTimeout(this.tipCloseTimer);
+      this.tipCloseTimer = window.setTimeout(() => {
+        if (!this.activeTip?.pinned) {
+          this.closeTip();
+        }
+      }, 150);
+    },
+    closeTip() {
+      window.clearTimeout(this.tipCloseTimer);
+      window.clearTimeout(this.tipHoverTimer);
+      this.activeTip = null;
+      this.tipTriggerEl = null;
+      this.unbindTipViewportListeners();
     },
     noteQtyForItem(menuItemId) {
       return this.notes
@@ -2194,19 +2538,45 @@ document.addEventListener("alpine:init", () => {
 
       this.saveNotes();
       this.closeAddToCartModal();
-      this.openNotesDrawer("list");
+      this.showNoteToast(`«${prepared.persianName}» به یادداشت سفارش اضافه شد`);
+    },
+    showNoteToast(message) {
+      this.noteToast = message;
+      window.clearTimeout(this.noteToastTimer);
+      this.noteToastTimer = window.setTimeout(() => {
+        this.noteToast = "";
+      }, 3600);
+    },
+    dismissNoteToast() {
+      window.clearTimeout(this.noteToastTimer);
+      this.noteToast = "";
     },
     openNotesDrawer(viewMode = "list") {
       this.notesViewMode = viewMode;
       this.notesClearConfirm = false;
+      this.editingNoteKey = null;
+      this.dismissNoteToast();
+      this.closeTip();
       this.notesDrawerOpen = true;
     },
     closeNotesDrawer() {
       this.notesDrawerOpen = false;
       this.notesClearConfirm = false;
+      this.editingNoteKey = null;
+      this.closeTip();
     },
     setNotesViewMode(viewMode) {
       this.notesViewMode = viewMode;
+      this.editingNoteKey = null;
+    },
+    toggleEditNoteLine(noteKey) {
+      this.editingNoteKey = this.editingNoteKey === noteKey ? null : noteKey;
+    },
+    resetCounterChecks() {
+      this.notes.forEach((line) => {
+        line.checkedAtCounter = false;
+      });
+      this.saveNotes();
     },
     updateNoteQuantity(noteKey, delta) {
       const line = this.notes.find((entry) => entry.noteKey === noteKey);
@@ -2228,8 +2598,12 @@ document.addEventListener("alpine:init", () => {
         return;
       }
 
+      const wasEditing = this.editingNoteKey === noteKey;
       line.noteTag = line.noteTag === guestLabel ? "" : guestLabel;
       line.noteKey = this.buildNoteKey(line.cartKey, line.noteTag, line.noteText);
+      if (wasEditing) {
+        this.editingNoteKey = line.noteKey;
+      }
       this.saveNotes();
     },
     updateNoteLineText(noteKey, text) {
@@ -2238,8 +2612,12 @@ document.addEventListener("alpine:init", () => {
         return;
       }
 
+      const wasEditing = this.editingNoteKey === noteKey;
       line.noteText = (text || "").trim();
       line.noteKey = this.buildNoteKey(line.cartKey, line.noteTag, line.noteText);
+      if (wasEditing) {
+        this.editingNoteKey = line.noteKey;
+      }
       this.saveNotes();
     },
     toggleNoteLineChecked(noteKey) {
@@ -2267,6 +2645,15 @@ document.addEventListener("alpine:init", () => {
     },
     removeFromNotes(noteKey) {
       this.notes = this.notes.filter((line) => line.noteKey !== noteKey);
+      if (this.editingNoteKey === noteKey) {
+        this.editingNoteKey = null;
+      }
+      if (
+        this.selectedNotePerson !== "all" &&
+        !this.notes.some((line) => (line.noteTag || "").trim() === this.selectedNotePerson)
+      ) {
+        this.selectedNotePerson = "all";
+      }
       this.saveNotes();
     },
     promptClearNotes() {
@@ -2279,6 +2666,8 @@ document.addEventListener("alpine:init", () => {
       this.notes = [];
       this.notesMemo = "";
       this.notesClearConfirm = false;
+      this.selectedNotePerson = "all";
+      this.editingNoteKey = null;
       this.saveNotes();
       this.saveNotesMemo();
     },

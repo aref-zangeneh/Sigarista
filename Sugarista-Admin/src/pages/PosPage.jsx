@@ -4,7 +4,12 @@ import { useAdmin } from '../context/AdminContext'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { formatDateTime, formatDuration, toPersianNumber } from '../utils/adminFormatters'
 import { hasPermission, PERMISSIONS, canSubmitPosOrder } from '../utils/adminPermissions'
-import { printPosReceipts } from '../utils/posReceipt'
+import {
+  buildPosReceiptBundle,
+  fetchPosReceiptPreviews,
+  fetchPrintAgentHealth,
+  printPosReceipts,
+} from '../utils/posReceipt'
 import { Tip } from '../components/Tip'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
@@ -142,6 +147,249 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
   )
 }
 
+function PosPrintModal({ bundle, onClose, onPrinted }) {
+  const printButtonRef = useRef(null)
+  const [printCustomer, setPrintCustomer] = useState(true)
+  const [printBarista, setPrintBarista] = useState(true)
+  const [agentHealth, setAgentHealth] = useState({
+    connected: true,
+    printerName: 'GA-E200I',
+    printerReady: true,
+    paperWidthMm: 80,
+    printableWidthMm: 72,
+  })
+  const [previews, setPreviews] = useState(null)
+  const [printing, setPrinting] = useState(false)
+  const [printError, setPrintError] = useState('')
+
+  useEscapeKey(!printing, onClose)
+
+  useEffect(() => {
+    let active = true
+    printButtonRef.current?.focus()
+
+    fetchPrintAgentHealth().then((health) => {
+      if (active) setAgentHealth(health)
+    })
+
+    fetchPosReceiptPreviews(bundle).then((data) => {
+      if (active && data) setPreviews(data)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [bundle])
+
+  const selectedCopies = useMemo(() => {
+    const list = []
+    if (printCustomer) list.push('customer')
+    if (printBarista) list.push('barista')
+    return list
+  }, [printCustomer, printBarista])
+
+  const handlePrint = useCallback(
+    async (forceBrowser = false) => {
+      if (printing || selectedCopies.length === 0) return
+      setPrinting(true)
+      setPrintError('')
+      try {
+        const res = await printPosReceipts(bundle, {
+          copies: selectedCopies,
+          forceBrowser,
+        })
+        onPrinted(res)
+      } catch (err) {
+        setPrintError(getReadableError(err))
+        setPrinting(false)
+      }
+    },
+    [bundle, onPrinted, printing, selectedCopies],
+  )
+
+  useEffect(() => {
+    function onModalKeyDown(event) {
+      if (event.key === 'Enter' && !printing && selectedCopies.length > 0) {
+        if (event.target.tagName === 'BUTTON' && event.target !== printButtonRef.current) {
+          return
+        }
+        event.preventDefault()
+        handlePrint(false)
+      }
+    }
+    window.addEventListener('keydown', onModalKeyDown)
+    return () => window.removeEventListener('keydown', onModalKeyDown)
+  }, [handlePrint, printing, selectedCopies.length])
+
+  const { customer, barista } = bundle
+
+  return (
+    <div className="pos-modal-backdrop" onClick={() => !printing && onClose()}>
+      <div
+        className="pos-modal pos-print-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pos-print-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="pos-print-modal-header">
+          <div>
+            <h3 id="pos-print-modal-title">چاپ فیش سفارش #{customer.trackingCode}</h3>
+            <p>تنظیمات چاپگر حرارتی از پیش تعریف شده است؛ فقط دکمهٔ «چاپ فیش» (یا Enter) را بزنید.</p>
+          </div>
+          <span
+            className={`pos-print-status-badge ${agentHealth.connected && agentHealth.printerReady ? 'ready' : 'fallback'}`}
+          >
+            {agentHealth.connected && agentHealth.printerReady
+              ? `چاپگر ${agentHealth.printerName || 'GA-E200I'} آماده (ESC/POS مستقیم)`
+              : agentHealth.connected
+                ? `چاپگر ${agentHealth.printerName || 'GA-E200I'} (بررسی صف)`
+                : 'چاپ مرورگر'}
+          </span>
+        </div>
+
+        <div className="pos-print-settings-bar">
+          <div className="pos-print-setting-item">
+            <span className="pos-print-setting-label">چاپگر مقصد</span>
+            <strong>{agentHealth.printerName || 'GA-E200I'} (حرارتی ۸۰ میلی‌متر)</strong>
+          </div>
+          <div className="pos-print-setting-item">
+            <span className="pos-print-setting-label">اندازه و برش کاغذ</span>
+            <strong>عرض ۷۲ میلی‌متر (۵۷۶ نقطه) · برش خودکار</strong>
+          </div>
+          <div className="pos-print-setting-item pos-print-copies-toggle">
+            <span className="pos-print-setting-label">نسخه‌های چاپ</span>
+            <div className="pos-print-checkboxes">
+              <label className="pos-print-check">
+                <input
+                  type="checkbox"
+                  checked={printCustomer}
+                  onChange={(e) => setPrintCustomer(e.target.checked)}
+                  disabled={printing}
+                />
+                <span>فیش مشتری</span>
+              </label>
+              <label className="pos-print-check">
+                <input
+                  type="checkbox"
+                  checked={printBarista}
+                  onChange={(e) => setPrintBarista(e.target.checked)}
+                  disabled={printing}
+                />
+                <span>فیش آشپزخانه / باریستا</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="pos-print-previews-grid">
+          {printCustomer ? (
+            <div className="pos-receipt-preview-card">
+              <div className="pos-receipt-preview-badge">۱. فیش مشتری</div>
+              {previews?.customerPng ? (
+                <img
+                  src={previews.customerPng}
+                  alt="پیش‌نمایش فیش مشتری"
+                  className="pos-receipt-preview-img"
+                />
+              ) : (
+                <div className="pos-receipt-paper">
+                  <div className="pos-receipt-center pos-receipt-brand">{customer.cafeName}</div>
+                  {customer.address ? <div className="pos-receipt-center pos-receipt-muted">{customer.address}</div> : null}
+                  {customer.contactPhone ? <div className="pos-receipt-center pos-receipt-muted">{customer.contactPhone}</div> : null}
+                  <div className="pos-receipt-divider" />
+                  <div className="pos-receipt-row"><span>کد سفارش</span><strong>#{customer.trackingCode}</strong></div>
+                  <div className="pos-receipt-row"><span>زمان</span><span>{customer.printedAt}</span></div>
+                  <div className="pos-receipt-row"><span>نوع</span><span>{customer.service}{customer.table ? ` · میز ${customer.table}` : ''}</span></div>
+                  <div className="pos-receipt-row"><span>مشتری</span><span>{customer.guestName}</span></div>
+                  {customer.note ? <div className="pos-receipt-meta">یادداشت: {customer.note}</div> : null}
+                  <div className="pos-receipt-divider" />
+                  {customer.lines.map((line, idx) => (
+                    <div key={idx} className="pos-receipt-item">
+                      <div className="pos-receipt-row">
+                        <strong>{line.quantityLabel} × {line.name}</strong>
+                        <span>{formatPrice(line.lineTotal)}</span>
+                      </div>
+                      {line.descriptor ? <div className="pos-receipt-meta">{line.descriptor}</div> : null}
+                    </div>
+                  ))}
+                  <div className="pos-receipt-divider" />
+                  {customer.deliveryFee > 0 ? (
+                    <div className="pos-receipt-row"><span>هزینه ارسال</span><span>{formatPrice(customer.deliveryFee)}</span></div>
+                  ) : null}
+                  {customer.taxTotal > 0 ? (
+                    <div className="pos-receipt-row"><span>مالیات</span><span>{formatPrice(customer.taxTotal)}</span></div>
+                  ) : null}
+                  <div className="pos-receipt-row pos-receipt-total">
+                    <span>مبلغ نهایی</span>
+                    <span>{formatPrice(customer.totalAmount)} تومان</span>
+                  </div>
+                  <div className="pos-receipt-row"><span>روش پرداخت</span><span>{customer.paymentMethod}</span></div>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {printBarista ? (
+            <div className="pos-receipt-preview-card">
+              <div className="pos-receipt-preview-badge">۲. فیش آشپزخانه / باریستا</div>
+              {previews?.baristaPng ? (
+                <img
+                  src={previews.baristaPng}
+                  alt="پیش‌نمایش فیش آشپزخانه"
+                  className="pos-receipt-preview-img"
+                />
+              ) : (
+                <div className="pos-receipt-paper">
+                  <div className="pos-receipt-center pos-receipt-brand">فیش باریستا</div>
+                  <div className="pos-receipt-center pos-receipt-ticket-code">#{barista.trackingCode}</div>
+                  <div className="pos-receipt-row"><span>زمان</span><span>{barista.printedAt}</span></div>
+                  <div className="pos-receipt-row"><span>نوع</span><strong>{barista.service}{barista.table ? ` · میز ${barista.table}` : ''}</strong></div>
+                  <div className="pos-receipt-row"><span>مشتری</span><span>{barista.guestName}</span></div>
+                  {barista.note ? <div className="pos-receipt-barista-note">یادداشت سفارش: {barista.note}</div> : null}
+                  <div className="pos-receipt-divider" />
+                  {barista.lines.map((line, idx) => (
+                    <div key={idx} className="pos-receipt-item">
+                      <strong>{line.quantityLabel} × {line.name}</strong>
+                      {line.sizeLabel ? <div className="pos-receipt-meta">اندازه: {line.sizeLabel}</div> : null}
+                      {line.modifierLabels?.length ? <div className="pos-receipt-meta">تغییرات: {line.modifierLabels.join('، ')}</div> : null}
+                      {line.baristaNote ? <div className="pos-receipt-barista-note">! {line.baristaNote}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        {printError ? <p className="pos-action-feedback pos-feedback-error">{printError}</p> : null}
+
+        <div className="pos-print-modal-actions">
+          <button
+            type="button"
+            className="pos-secondary-button"
+            onClick={onClose}
+            disabled={printing}
+          >
+            بستن (Esc)
+          </button>
+          <button
+            ref={printButtonRef}
+            type="button"
+            className="pos-primary-button pos-print-confirm-button"
+            onClick={() => handlePrint(false)}
+            disabled={printing || selectedCopies.length === 0}
+          >
+            {printing
+              ? 'در حال چاپ فیش‌ها…'
+              : `چاپ فیش (${printCustomer && printBarista ? 'مشتری + آشپزخانه' : printCustomer ? 'فقط مشتری' : 'فقط آشپزخانه'}) ↵`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function PosPage() {
   const { session, siteSettings } = useAdmin()
   const searchRef = useRef(null)
@@ -156,6 +404,7 @@ export function PosPage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [sidePanel, setSidePanel] = useState('cart')
   const [productModal, setProductModal] = useState(null)
+  const [printModal, setPrintModal] = useState(null)
 
   const [orderId, setOrderId] = useState(null)
   const [trackingCode, setTrackingCode] = useState('')
@@ -197,6 +446,9 @@ export function PosPage() {
 
   useEffect(() => {
     function onKeyDown(event) {
+      if (printModal || productModal) {
+        return
+      }
       if (event.target.matches('input, textarea, select') && event.key !== 'F2' && event.key !== 'F4' && event.key !== 'F5') {
         return
       }
@@ -403,36 +655,63 @@ export function PosPage() {
         setMessage(`سفارش ${result.trackingCode} نگه‌داشته شد.`)
         resetCart()
       } else {
-        // Browser print popup (restored): the cafe's production setup has no
-        // working print agent, so after payment we open the print dialog with
-        // customer + barista receipts. tryPrintAgent() is attempted first
-        // (127.0.0.1:9101) and the browser dialog is the fallback, so on
-        // machines WITH the local helper nothing changes.
         const cartSnapshot = cart.map((line) => ({ ...line }))
-        try {
-          const printResult = await printPosReceipts({
-            result,
-            cart: cartSnapshot,
-            customerName,
-            customerPhone,
-            orderNote,
-            serviceType,
-            tableName: selectedTable?.name ?? null,
-            siteSettings,
-          })
-          const printLabel = printResult.method === 'agent' ? 'چاپ خودکار' : 'چاپ مرورگر'
-          setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد و رسید مشتری و باریستا (${printLabel}) ارسال شد.`)
-        } catch (printError) {
-          console.error(printError)
-          setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد، اما چاپ رسید با خطا مواجه شد.`)
-          setError(getReadableError(printError))
-        }
+        const bundle = buildPosReceiptBundle({
+          result,
+          cart: cartSnapshot,
+          customerName,
+          customerPhone,
+          orderNote,
+          serviceType,
+          tableName: selectedTable?.name ?? null,
+          deliveryMethodName: selectedDeliveryMethod?.persianName ?? null,
+          deliveryFee,
+          taxTotal: cartTotals.taxTotal,
+          subtotalAmount: cartTotals.subtotal,
+          siteSettings,
+        })
+        setPrintModal({ bundle })
+        setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد. برای چاپ فیش مشتری و آشپزخانه، دکمهٔ «چاپ فیش» را بزنید.`)
         resetCart()
       }
 
       await loadBootstrap()
     } catch (submitError) {
       setError(getReadableError(submitError))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function reprintOrder(id) {
+    setSubmitting(true)
+    setError('')
+    try {
+      const order = await apiRequest(`/admin/pos/orders/${id}`, { token: session.token })
+      const loadedCart = orderToCart(order, items)
+      const tableObj = bootstrap?.tables?.find((t) => t.id === order.salonTableId) ?? null
+      const deliveryObj = (deliveryOptions ?? []).find((d) => d.id === order.deliveryMethodId) ?? null
+      const bundle = buildPosReceiptBundle({
+        result: {
+          trackingCode: order.trackingCode,
+          totalAmount: order.totalAmount,
+          paymentMethod: order.paymentMethod,
+        },
+        cart: loadedCart,
+        customerName: order.customerName === 'مهمان' ? '' : order.customerName,
+        customerPhone: order.customerPhone === 'POS' ? '' : order.customerPhone,
+        orderNote: order.note ?? '',
+        serviceType: order.serviceType ?? 'TakeAway',
+        tableName: tableObj?.name ?? order.salonTableName ?? null,
+        deliveryMethodName: deliveryObj?.persianName ?? null,
+        deliveryFee: order.deliveryFee ?? deliveryObj?.deliveryFee ?? 0,
+        taxTotal: order.taxTotal ?? 0,
+        siteSettings,
+        createdAt: order.createdAt,
+      })
+      setPrintModal({ bundle })
+    } catch (reprintError) {
+      setError(getReadableError(reprintError))
     } finally {
       setSubmitting(false)
     }
@@ -870,7 +1149,8 @@ export function PosPage() {
                       <small>{formatDateTime(order.createdAt)}</small>
                     </div>
                     <div className="pos-panel-toggle">
-                      <button type="button" className="pos-primary-button" onClick={() => loadOrder(order.id)}>بارگذاری</button>
+                      <button type="button" className="pos-primary-button" onClick={() => reprintOrder(order.id)}>چاپ فیش</button>
+                      <button type="button" className="pos-secondary-button" onClick={() => loadOrder(order.id)}>بارگذاری</button>
                       <button type="button" className="pos-secondary-button" onClick={() => copyOrder(order.id)}>سفارش مجدد</button>
                     </div>
                   </div>
@@ -954,6 +1234,19 @@ export function PosPage() {
           modifiers={modifiers}
           onClose={() => setProductModal(null)}
           onConfirm={addToCart}
+        />
+      ) : null}
+
+      {printModal ? (
+        <PosPrintModal
+          bundle={printModal.bundle}
+          onClose={() => setPrintModal(null)}
+          onPrinted={(printResult) => {
+            const code = printModal.bundle.trackingCode
+            const printLabel = printResult.method === 'agent' ? 'چاپگر حرارتی کافه' : 'چاپ مرورگر'
+            setPrintModal(null)
+            setMessage(`فیش مشتری و آشپزخانه سفارش #${code} (${printLabel}) با موفقیت چاپ شد.`)
+          }}
         />
       ) : null}
     </div>

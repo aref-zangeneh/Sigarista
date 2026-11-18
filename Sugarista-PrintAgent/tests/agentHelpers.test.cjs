@@ -11,7 +11,15 @@
  */
 
 const assert = require("node:assert");
-const { parseLpRequestId, listQueuedJobIds, isQueueDisabled, buildWarmupPrimer } = require("../agent-helpers.cjs");
+const {
+  parseLpRequestId,
+  listQueuedJobIds,
+  isQueueDisabled,
+  buildWarmupPrimer,
+  toPersianDigits,
+  formatMoneyPersian,
+  normalizePrintRequest,
+} = require("../agent-helpers.cjs");
 
 let passed = 0;
 function test(name, fn) {
@@ -103,6 +111,77 @@ test("primer contains only print-safe bytes (NULs + ESC/@ pairs)", () => {
   // glyph per reset — never a garbled receipt.
   const strayCount = Array.from(primer).filter((b) => b === 0x40).length;
   assert.strictEqual(strayCount, 4, "exactly the 4 ESC @ payload bytes");
+});
+
+/* ── normalizePrintRequest ─────────────────────────────────────────────── */
+
+test("normalizePrintRequest converts POS customer+barista bundle into render.py payload", () => {
+  const { payload, copies, trackingCode } = normalizePrintRequest({
+    customer: {
+      cafeName: "شوگاریستا",
+      address: "تهران",
+      contactPhone: "021-12345678",
+      trackingCode: "SG-POS123",
+      printedAt: "1405/08/27, 15:30",
+      guestName: "علی",
+      guestPhone: "09120000000",
+      service: "داخل سالن",
+      table: "۴",
+      note: "سفارش ویژه",
+      paymentMethod: "کارت",
+      totalAmount: 360000,
+      lines: [
+        {
+          name: "لاته",
+          quantity: 2,
+          unitPrice: 180000,
+          lineTotal: 360000,
+        },
+      ],
+    },
+    barista: {
+      trackingCode: "SG-POS123",
+      lines: [
+        {
+          name: "لاته",
+          sizeLabel: "بزرگ",
+          quantity: 2,
+          modifierLabels: ["شیر جو"],
+          baristaNote: "کم‌شیرین",
+        },
+      ],
+    },
+  });
+
+  assert.strictEqual(trackingCode, "SG-POS123");
+  assert.deepStrictEqual(copies, ["customer", "barista"]);
+  assert.strictEqual(payload.header.cafeName, "شوگاریستا");
+  assert.strictEqual(payload.order.code, "SG-POS123");
+  assert.strictEqual(payload.order.tableLabel, "۴");
+  assert.strictEqual(payload.items.length, 1);
+  assert.strictEqual(payload.items[0].name, "لاته");
+  assert.strictEqual(payload.items[0].sizeLabel, "بزرگ");
+  assert.strictEqual(payload.items[0].quantityLabel, "۲");
+  assert.deepStrictEqual(payload.items[0].modifierLabels, ["شیر جو"]);
+  assert.strictEqual(payload.items[0].baristaNote, "کم‌شیرین");
+  assert.strictEqual(payload.items[0].unitPriceLabel, formatMoneyPersian(180000));
+  assert.strictEqual(payload.totals.totalLabel, toPersianDigits("360٬000"));
+});
+
+test("normalizePrintRequest preserves direct render.py payload and custom copies filter", () => {
+  const rawPayload = {
+    header: { cafeName: "Sugarista" },
+    order: { code: "SG-DIRECT" },
+    items: [{ name: "اسپرسو", quantity: 1, quantityLabel: "۱" }],
+    totals: { totalLabel: "۱۰۰٬۰۰۰" },
+  };
+  const { payload, copies, trackingCode } = normalizePrintRequest({
+    payload: rawPayload,
+    copies: ["barista"],
+  });
+  assert.strictEqual(trackingCode, "SG-DIRECT");
+  assert.deepStrictEqual(copies, ["barista"]);
+  assert.strictEqual(payload.order.code, "SG-DIRECT");
 });
 
 console.log(`✓ agent-helpers: ${passed}/${passed} tests passed`);

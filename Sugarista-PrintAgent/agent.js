@@ -15,13 +15,20 @@
 "use strict";
 
 const fs = require("node:fs");
+const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 const { execFile } = require("node:child_process");
 const { promisify } = require("node:util");
 
 const execFileAsync = promisify(execFile);
-const { parseLpRequestId, listQueuedJobIds, isQueueDisabled, buildWarmupPrimer } = require("./agent-helpers.cjs");
+const {
+  parseLpRequestId,
+  listQueuedJobIds,
+  isQueueDisabled,
+  buildWarmupPrimer,
+  normalizePrintRequest,
+} = require("./agent-helpers.cjs");
 
 const BASE_DIR = __dirname;
 const CONFIG_PATH = path.join(BASE_DIR, "config.json");
@@ -29,6 +36,7 @@ const RENDER_PY = path.join(BASE_DIR, "render.py");
 const VENV_PYTHON = path.join(BASE_DIR, "venv", "bin", "python");
 const TMP_DIR = path.join(os.tmpdir(), "sugarista-print-agent");
 
+const DEFAULT_LOCAL_PORT = Number(process.env.POS_PRINT_PORT || 9101);
 const MAX_ATTEMPTS = 3;
 const DRAIN_POLL_MS = 300;
 // Let the printer finish cutting/feeding the previous job before streaming a
@@ -41,6 +49,63 @@ const STUCK_QUEUE_COOLDOWN_MS = 25_000;
 // Set while the printer/queue is considered unavailable (stuck-queue failure);
 // claim polling pauses until it elapses.
 let stuckQueueCooldownUntil = 0;
+
+// Orders printed via the local HTTP endpoint (POST /print from POS popup) or
+// currently open in the POS print popup (POST /preview) so background polling
+// on localhost never races or double-prints the same order.
+const recentlyPrintedOrders = new Map();
+const popupHeldOrders = new Map();
+const PRINTED_ORDER_TTL_MS = 30 * 60 * 1000;
+const POPUP_HOLD_TTL_MS = 5 * 60 * 1000;
+
+let printQueueChain = Promise.resolve();
+
+function withPrintLock(taskFn) {
+  const next = printQueueChain.then(taskFn, taskFn);
+  printQueueChain = next.catch(() => {});
+  return next;
+}
+
+function rememberPrintedOrder(code) {
+  if (!code || code === "—" || code === "receipt") return;
+  const now = Date.now();
+  recentlyPrintedOrders.set(code, now + PRINTED_ORDER_TTL_MS);
+  popupHeldOrders.delete(code);
+  for (const [k, exp] of recentlyPrintedOrders.entries()) {
+    if (exp < now) recentlyPrintedOrders.delete(k);
+  }
+}
+
+function holdOrderForPopup(code) {
+  if (!code || code === "—" || code === "receipt") return;
+  const now = Date.now();
+  popupHeldOrders.set(code, now + POPUP_HOLD_TTL_MS);
+  for (const [k, exp] of popupHeldOrders.entries()) {
+    if (exp < now) popupHeldOrders.delete(k);
+  }
+}
+
+function isOrderAlreadyPrinted(code) {
+  if (!code) return false;
+  const exp = recentlyPrintedOrders.get(code);
+  if (!exp) return false;
+  if (exp < Date.now()) {
+    recentlyPrintedOrders.delete(code);
+    return false;
+  }
+  return true;
+}
+
+function isOrderHeldInPopup(code) {
+  if (!code) return false;
+  const exp = popupHeldOrders.get(code);
+  if (!exp) return false;
+  if (exp < Date.now()) {
+    popupHeldOrders.delete(code);
+    return false;
+  }
+  return true;
+}
 
 /** Raised when the CUPS queue cannot play our bytes right now — retry later. */
 class QueueStuckError extends Error {}
@@ -62,10 +127,11 @@ function loadConfig() {
   const config = {
     serverUrl: String(raw.serverUrl || "http://localhost").replace(/\/+$/, ""),
     apiKey: String(raw.apiKey || ""),
-    printerName: String(raw.printerName || ""),
+    printerName: String(raw.printerName || "GA-E200I"),
     pollSeconds: Number(raw.pollSeconds || 4),
     maxJobsPerPoll: Number(raw.maxJobsPerPoll || 10),
-    printTimeoutSeconds: Number(raw.printTimeoutSeconds || 60)
+    printTimeoutSeconds: Number(raw.printTimeoutSeconds || 60),
+    localPort: Number(raw.localPort || DEFAULT_LOCAL_PORT),
   };
   if (!config.apiKey) throw new Error("config.json is missing apiKey");
   return config;
@@ -93,22 +159,27 @@ async function apiFetch(config, pathName, options = {}) {
   return response.json();
 }
 
-async function renderReceipt(payload, copyType) {
+async function renderReceipt(payload, copyType, ext = "escpos") {
   fs.mkdirSync(TMP_DIR, { recursive: true });
-  const safeCode = String(payload?.order?.code || "receipt").replace(/[^A-Za-z0-9-]/g, "");
-  const stamp = Date.now();
-  const payloadPath = path.join(TMP_DIR, `${safeCode}-${copyType}-${stamp}.json`);
-  const escposPath = path.join(TMP_DIR, `${safeCode}-${copyType}-${stamp}.escpos`);
+  const normalizedCopy = String(copyType || "customer").toLowerCase() === "barista" ? "barista" : "customer";
+  const payloadWithCopy = {
+    ...payload,
+    copyType: normalizedCopy === "barista" ? "Barista" : "Customer",
+  };
+  const safeCode = String(payload?.order?.code || "receipt").replace(/[^A-Za-z0-9-]/g, "") || "receipt";
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const payloadPath = path.join(TMP_DIR, `${safeCode}-${normalizedCopy}-${stamp}.json`);
+  const outPath = path.join(TMP_DIR, `${safeCode}-${normalizedCopy}-${stamp}.${ext}`);
 
-  fs.writeFileSync(payloadPath, JSON.stringify(payload), "utf8");
+  fs.writeFileSync(payloadPath, JSON.stringify(payloadWithCopy), "utf8");
 
   try {
-    await execFileAsync(pythonPath(), [RENDER_PY, payloadPath, escposPath], { timeout: 30_000 });
+    await execFileAsync(pythonPath(), [RENDER_PY, payloadPath, outPath], { timeout: 30_000 });
   } finally {
     fs.rmSync(payloadPath, { force: true });
   }
 
-  return escposPath;
+  return outPath;
 }
 
 async function healQueueAfterError(config) {
@@ -281,6 +352,242 @@ async function markJobResult(config, job, ok, error) {
   }
 }
 
+async function printDirectPayload(config, payload, copies, trackingCode) {
+  return withPrintLock(async () => {
+    let lastError = null;
+    const targetCopies = Array.isArray(copies) && copies.length ? copies : ["customer", "barista"];
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+      const escposPaths = [];
+      try {
+        if (attempt === 1) {
+          await sleep(300);
+          await waitForIdleQueue(config);
+        } else {
+          await healQueueAfterError(config);
+        }
+
+        for (const copy of targetCopies) {
+          escposPaths.push(await renderReceipt(payload, copy, "escpos"));
+        }
+
+        const combinedPath = escposPaths[0].replace(/\.escpos$/, "-combined.escpos");
+        const stream = await Promise.all(escposPaths.map((p) => fs.promises.readFile(p)));
+        const primer = buildWarmupPrimer();
+        fs.writeFileSync(combinedPath, Buffer.concat([primer, ...stream]));
+
+        const { jobId, verified } = await printEscpos(config, combinedPath);
+        if (verified) {
+          log(`  [POS HTTP] job ${jobId} drained — physically printed (${targetCopies.join(" + ")}) for ${trackingCode}.`);
+        }
+
+        escposPaths.forEach((p) => fs.rmSync(p, { force: true }));
+        fs.rmSync(combinedPath, { force: true });
+        rememberPrintedOrder(trackingCode);
+        return {
+          ok: true,
+          method: "escpos-raw",
+          printer: config.printerName,
+          copies: targetCopies,
+          trackingCode,
+          jobId,
+          verified,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+        const stuck = error instanceof QueueStuckError;
+        escposPaths.forEach((p) => fs.rmSync(p, { force: true }));
+        log(`  [POS HTTP] attempt ${attempt}/${MAX_ATTEMPTS} failed for ${trackingCode}: ${lastError}`);
+        if (stuck) {
+          break;
+        }
+        if (attempt < MAX_ATTEMPTS) {
+          await sleep(1000 * attempt);
+        }
+      }
+    }
+
+    throw new Error(lastError || "Print failed");
+  });
+}
+
+async function renderPreviewImages(payload) {
+  const [customerPath, baristaPath] = await Promise.all([
+    renderReceipt(payload, "customer", "png"),
+    renderReceipt(payload, "barista", "png"),
+  ]);
+  try {
+    const [customerBuf, baristaBuf] = await Promise.all([
+      fs.promises.readFile(customerPath),
+      fs.promises.readFile(baristaPath),
+    ]);
+    return {
+      customerPng: `data:image/png;base64,${customerBuf.toString("base64")}`,
+      baristaPng: `data:image/png;base64,${baristaBuf.toString("base64")}`,
+    };
+  } finally {
+    fs.rmSync(customerPath, { force: true });
+    fs.rmSync(baristaPath, { force: true });
+  }
+}
+
+function setCorsAndPnaHeaders(req, res) {
+  const origin = req.headers.origin || "*";
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Agent-Key");
+  res.setHeader("Access-Control-Allow-Private-Network", "true");
+  res.setHeader("Vary", "Origin");
+}
+
+function sendJson(req, res, statusCode, data) {
+  setCorsAndPnaHeaders(req, res);
+  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(data));
+}
+
+async function readRequestJson(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  if (!chunks.length) return {};
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+async function getPrinterHealth(config) {
+  try {
+    const { stdout } = await execFileAsync("lpstat", ["-p", config.printerName], { timeout: 5_000 });
+    const disabled = isQueueDisabled(stdout);
+    return {
+      ok: true,
+      printerName: config.printerName,
+      customerPrinter: config.printerName,
+      baristaPrinter: config.printerName,
+      printerReady: !disabled,
+      printerStatus: disabled ? "disabled" : "ready",
+      paperWidthMm: 80,
+      printableWidthMm: 72,
+      dotsPerRow: 576,
+      dpi: 203,
+      format: "escpos-raw",
+      autoCut: true,
+    };
+  } catch (err) {
+    return {
+      ok: true,
+      printerName: config.printerName,
+      customerPrinter: config.printerName,
+      baristaPrinter: config.printerName,
+      printerReady: false,
+      printerStatus: "offline",
+      paperWidthMm: 80,
+      printableWidthMm: 72,
+      dotsPerRow: 576,
+      dpi: 203,
+      format: "escpos-raw",
+      autoCut: true,
+      warning: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+function startLocalHttpServer(config) {
+  const port = config.localPort || DEFAULT_LOCAL_PORT;
+  const server = http.createServer(async (req, res) => {
+    setCorsAndPnaHeaders(req, res);
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    const urlPath = (req.url || "/").split("?")[0];
+
+    try {
+      if (req.method === "GET" && urlPath === "/health") {
+        const health = await getPrinterHealth(config);
+        sendJson(req, res, 200, { ...health, port });
+        return;
+      }
+
+      if (req.method === "POST" && urlPath === "/preview") {
+        const body = await readRequestJson(req);
+        const { payload, trackingCode } = normalizePrintRequest(body);
+        if (body.holdAutoPrint !== false && trackingCode) {
+          holdOrderForPopup(trackingCode);
+        }
+        const previews = await renderPreviewImages(payload);
+        sendJson(req, res, 200, {
+          ok: true,
+          trackingCode,
+          ...previews,
+        });
+        return;
+      }
+
+      if (req.method === "POST" && urlPath === "/print") {
+        const body = await readRequestJson(req);
+        const { payload, copies, trackingCode } = normalizePrintRequest(body);
+        log(`[POS HTTP] Printing ${copies.join(" + ")} for order ${trackingCode}…`);
+        const result = await printDirectPayload(config, payload, copies, trackingCode);
+        sendJson(req, res, 200, result);
+        return;
+      }
+
+      if (req.method === "POST" && urlPath === "/test") {
+        const { payload, copies, trackingCode } = normalizePrintRequest({
+          customer: {
+            cafeName: "شوگاریستا",
+            address: "تهران",
+            contactPhone: "021-00000000",
+            trackingCode: "TEST-001",
+            printedAt: new Date().toLocaleString("fa-IR", { timeZone: "Asia/Tehran" }),
+            guestName: "مهمان",
+            service: "سرو در محل",
+            table: "۱",
+            paymentMethod: "نقدی (صندوق)",
+            totalAmount: 180000,
+            lines: [
+              {
+                name: "لاته",
+                sizeLabel: "متوسط",
+                quantity: 1,
+                unitPrice: 180000,
+                lineTotal: 180000,
+                modifierLabels: ["شیر بادام"],
+                baristaNote: "شکر کم",
+              },
+            ],
+          },
+        });
+        const result = await printDirectPayload(config, payload, copies, trackingCode);
+        sendJson(req, res, 200, result);
+        return;
+      }
+
+      sendJson(req, res, 404, { ok: false, error: "Not found" });
+    } catch (error) {
+      log(`[POS HTTP] Error on ${req.method} ${urlPath}:`, error instanceof Error ? error.message : error);
+      sendJson(req, res, 500, {
+        ok: false,
+        error: error instanceof Error ? error.message : "Print agent error",
+      });
+    }
+  });
+
+  server.on("error", (err) => {
+    log(`WARNING: Local HTTP print server on 127.0.0.1:${port} error: ${err.message}`);
+  });
+
+  server.listen(port, "127.0.0.1", () => {
+    log(`  local HTTP : http://127.0.0.1:${port} (CORS + Private Network Access enabled for POS popup)`);
+  });
+
+  return server;
+}
+
 async function pollOnce(config) {
   if (stuckQueueCooldownUntil > Date.now()) {
     return 0;
@@ -304,18 +611,37 @@ async function pollOnce(config) {
   }
 
   for (const group of groups) {
+    const orderCode = group[0].orderTrackingCode;
     const labels = group
       .map((j) => copyTypeOf(j))
       .join(" + ");
-    log(`Printing ${labels} for order ${group[0].orderTrackingCode} as one job…`);
-    const result = await processJobGroup(config, group);
+
+    // If this order was already printed directly via the POS print popup (POST /print),
+    // mark the DB jobs as printed immediately so it never prints twice.
+    if (isOrderAlreadyPrinted(orderCode)) {
+      log(`Order ${orderCode} already printed via POS popup — marking ${labels} as printed.`);
+      for (const job of group) {
+        await markJobResult(config, job, true, null);
+      }
+      continue;
+    }
+
+    // If the order is currently open in the POS print popup on localhost, skip
+    // background auto-printing so the user controls printing from the popup.
+    if (isOrderHeldInPopup(orderCode)) {
+      log(`Order ${orderCode} is open in POS print popup — deferring background print.`);
+      continue;
+    }
+
+    log(`Printing ${labels} for order ${orderCode} as one job…`);
+    const result = await withPrintLock(() => processJobGroup(config, group));
     if (result.stuck) {
       // Printer/queue unavailable — leave the DB jobs pending so the next
       // polls retry from scratch once the queue is healthy again (the bytes
       // sitting in a recovered queue are exactly what prints as garbage).
       stuckQueueCooldownUntil = Date.now() + STUCK_QUEUE_COOLDOWN_MS;
       log(
-        `  ⏸ printer/queue stuck for ${group[0].orderTrackingCode} (${result.error}) — ` +
+        `  ⏸ printer/queue stuck for ${orderCode} (${result.error}) — ` +
         `jobs stay pending; will retry in ~${STUCK_QUEUE_COOLDOWN_MS / 1000}s.`
       );
       break;
@@ -324,9 +650,10 @@ async function pollOnce(config) {
       await markJobResult(config, job, result.ok, result.error);
     }
     if (result.ok) {
-      log(`  ✓ printed ${labels} for ${group[0].orderTrackingCode} (cut between copies)`);
+      rememberPrintedOrder(orderCode);
+      log(`  ✓ printed ${labels} for ${orderCode} (cut between copies)`);
     } else {
-      log(`  ✗ gave up on ${labels} for ${group[0].orderTrackingCode}: ${result.error}`);
+      log(`  ✗ gave up on ${labels} for ${orderCode}: ${result.error}`);
     }
   }
   return jobs.length;
@@ -366,6 +693,8 @@ async function main() {
     log(count === 0 ? "Queue empty — nothing to print." : `Done — processed ${count} job(s).`);
     return;
   }
+
+  startLocalHttpServer(config);
 
   while (!stopping) {
     try {

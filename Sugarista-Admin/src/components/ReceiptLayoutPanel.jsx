@@ -86,7 +86,7 @@ const DEFAULT_LAYOUT = {
       })),
     },
     paymentRows: CUSTOMER_PAYMENT_ROWS.map((row) => row.key),
-    footer: { text: '', thanksText: 'از انتخاب شما سپاسگزاریم', showThanks: true, showCafeName: true },
+    footer: { text: '', thanksText: 'FEEL QUALITY AS YOU DRINK', showThanks: true, showCafeName: true },
     fonts: { header: 40, info: 22, item: 30, subtotal: 24, total: 36 },
   },
   barista: {
@@ -391,7 +391,7 @@ function CustomerPreview({ layout }) {
 
       <div className="receipt-preview-divider" />
       {footer.text ? <div className="receipt-preview-center small">{footer.text}</div> : null}
-      {footer.showThanks ? <div className="receipt-preview-center bold">{footer.thanksText || 'از انتخاب شما سپاسگزاریم'}</div> : null}
+      {footer.showThanks ? <div className="receipt-preview-center bold">{footer.thanksText || 'FEEL QUALITY AS YOU DRINK'}</div> : null}
       {footer.showCafeName ? <div className="receipt-preview-center small">{o.cafeName}</div> : null}
       <p className="receipt-preview-hint">
         اندازه‌ها: تیتر {toPersianNumber(fonts.header)} • اطلاعات {toPersianNumber(fonts.info)} • آیتم {toPersianNumber(fonts.item)} • جمع {toPersianNumber(fonts.total)}
@@ -597,8 +597,8 @@ function CustomerEditor({ layout, update }) {
           <span>متن جملهٔ سپاسگزاری</span>
           <input
             type="text"
-            value={footer.thanksText ?? 'از انتخاب شما سپاسگزاریم'}
-            placeholder="از انتخاب شما سپاسگزاریم"
+            value={footer.thanksText ?? 'FEEL QUALITY AS YOU DRINK'}
+            placeholder="FEEL QUALITY AS YOU DRINK"
             onChange={(event) => update('customer.footer.thanksText', event.target.value)}
           />
         </label>

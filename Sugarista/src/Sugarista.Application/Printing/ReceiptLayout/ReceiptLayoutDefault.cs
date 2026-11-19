@@ -33,7 +33,7 @@ public static class ReceiptLayoutDefault
             ReceiptLayoutKeys.PaymentRowReference,
             ReceiptLayoutKeys.PaymentRowPaid,
         ],
-        Footer: new CustomerFooterLayout(Text: string.Empty, ShowThanks: true, ShowCafeName: true, ThanksText: "از انتخاب شما سپاسگزاریم"),
+        Footer: new CustomerFooterLayout(Text: string.Empty, ShowThanks: true, ShowCafeName: true, ThanksText: "FEEL QUALITY AS YOU DRINK"),
         Fonts: new ReceiptFontSizes(Header: 40, Info: 22, Item: 30, Subtotal: 24, Total: 36));
 
     public static ReceiptItemsLayout CustomerItems() => new(

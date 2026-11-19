@@ -805,9 +805,9 @@ public class ApplicationDbContextSeeder
             // hours or marketing copy. The owner fills these in from the admin UI.
             _dbContext.SiteSettings.Add(new SiteSettings
             {
-                CafeName = "کافه",
-                BrowserTitle = "منوی دیجیتال کافه",
-                BrandTitle = "منوی دیجیتال",
+                CafeName = "کافه شوگریستا",
+                BrowserTitle = "کافه شوگریستا",
+                BrandTitle = "شوگریستا",
                 IsOnlineSalesEnabled = false,
                 OnlineSalesNotice = "سفارش آنلاین پس از پیکربندی درگاه پرداخت فعال می‌شود."
             });

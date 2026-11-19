@@ -403,7 +403,7 @@ function buildCustomerBodyHtml(receipt) {
     ${receipt.taxTotal > 0 ? `<div class="row"><span>مالیات</span><span>${escapeHtml(formatPrice(receipt.taxTotal))}</span></div>` : ''}
     <div class="row total"><span>مبلغ نهایی</span><span>${escapeHtml(formatPrice(receipt.totalAmount))} تومان</span></div>
     <div class="row"><span>روش پرداخت</span><span>${escapeHtml(receipt.paymentMethod)}</span></div>
-    <div class="center muted" style="margin-top:10px;">${escapeHtml(receipt.layout?.customer?.footer?.thanksText || 'از انتخاب شما سپاسگزاریم')}</div>
+    <div class="center muted" style="margin-top:10px;">${escapeHtml(receipt.layout?.customer?.footer?.thanksText || 'FEEL QUALITY AS YOU DRINK')}</div>
   `
 }
 

@@ -670,7 +670,7 @@ def customer_receipt(payload) -> Receipt:
     if footer_text:
         r.centered(footer_text, 22, gap=5)
     if footer.get("showThanks", True):
-        thanks_text = footer.get("thanksText") or "از انتخاب شما سپاسگزاریم"
+        thanks_text = footer.get("thanksText") or "FEEL QUALITY AS YOU DRINK"
         r.centered(thanks_text, 26, bold=True, gap=8)
     if footer.get("showCafeName", True):
         r.centered(header.get("cafeName") or "Sugarista", 20, gap=4)

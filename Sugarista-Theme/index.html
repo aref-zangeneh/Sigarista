@@ -36,40 +36,18 @@
   <link rel="preload" href="assets/fonts/YekanBakh-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
-<body x-data="cafeMenu()" x-init="init()">
+<body x-data="cafeMenu()" x-init="init()" :class="{ 'has-cart': !salesClosed && cartCount > 0, 'has-notes': notesCount > 0 }">
   <a class="skip-link" href="#menu">رفتن به منو</a>
-  <button
-    type="button"
-    class="theme-toggle"
-    x-show="settings.allowManualThemeOverride !== false"
-    x-cloak
-    @click="toggleTheme()"
-    :aria-label="themeIsDark ? 'فعال کردن تم روشن' : 'فعال کردن تم تیره'"
-    :title="themeIsDark ? 'تم روشن' : 'تم تیره'"
-  >
-    <i class="bi" :class="themeIsDark ? 'bi-sun' : 'bi-moon-stars'"></i>
-  </button>
-  <button
-    type="button"
-    class="theme-auto-reset"
-    x-show="settings.allowManualThemeOverride !== false && themePref?.mode === 'manual'"
-    x-cloak
-    @click="resetThemeToAuto()"
-    title="بازگشت به تم خودکار بر اساس ساعت کافه"
-    aria-label="بازگشت به تم خودکار"
-  >
-    <i class="bi bi-clock-history"></i>
-    خودکار
-  </button>
   <div class="page-shell">
     <header class="menu-page-header">
       <div class="container">
         <div class="menu-page-header-inner">
           <div class="menu-page-brand">
-            <p class="menu-page-eyebrow" x-text="settings.eyebrow"></p>
+            <p class="menu-page-eyebrow" x-show="settings.eyebrow" x-text="settings.eyebrow"></p>
             <h1 class="menu-page-title" x-text="settings.brandTitle"></h1>
-            <p class="menu-page-subtitle" x-text="settings.brandSubtitle"></p>
-            <p class="menu-page-hours" x-show="settings.heroHours">
+            <p class="menu-page-subtitle" x-show="settings.brandSubtitle" x-text="settings.brandSubtitle"></p>
+            <p class="menu-page-hours" x-show="settings.heroHours" x-cloak>
+              <span class="hours-dot" aria-hidden="true"></span>
               <i class="bi bi-clock"></i>
               <span x-text="settings.heroHours"></span>
             </p>
@@ -105,6 +83,7 @@
                 type="button"
                 class="menu-page-icon-btn profile-trigger"
                 aria-label="کارت مهر و پروفایل من"
+                title="کارت مهر و پروفایل"
                 @click="openProfile()"
               >
                 <i class="bi bi-person-badge"></i>
@@ -124,6 +103,29 @@
                 @blur="leaveTip()"
               >؟</button>
             </div>
+            <button
+              type="button"
+              class="menu-page-icon-btn theme-toggle"
+              x-show="settings.allowManualThemeOverride !== false"
+              x-cloak
+              @click="toggleTheme()"
+              :aria-label="themeIsDark ? 'فعال کردن تم روشن' : 'فعال کردن تم تیره'"
+              :title="themeIsDark ? 'تم روشن' : 'تم تیره'"
+            >
+              <i class="bi" :class="themeIsDark ? 'bi-sun' : 'bi-moon-stars'"></i>
+            </button>
+            <button
+              type="button"
+              class="theme-auto-reset"
+              x-show="settings.allowManualThemeOverride !== false && themePref?.mode === 'manual'"
+              x-cloak
+              @click="resetThemeToAuto()"
+              title="بازگشت به تم خودکار بر اساس ساعت کافه"
+              aria-label="بازگشت به تم خودکار"
+            >
+              <i class="bi bi-clock-history"></i>
+              <span>خودکار</span>
+            </button>
             <a
               x-show="settings.instagramUrl"
               :href="instagramHref()"
@@ -131,6 +133,7 @@
               rel="noreferrer"
               class="menu-page-icon-btn"
               aria-label="اینستاگرام"
+              title="اینستاگرام"
             >
               <i class="bi bi-instagram"></i>
             </a>
@@ -138,25 +141,31 @@
               x-show="settings.contactPhone"
               :href="callHref()"
               class="menu-page-icon-btn menu-page-icon-btn--primary"
-              aria-label="تماس"
+              aria-label="تماس با کافه"
+              title="تماس با کافه"
             >
               <i class="bi bi-telephone"></i>
             </a>
           </div>
         </div>
 
-        <div class="alert alert-light border-0 rounded-3 mb-0 mt-3" x-show="loading" role="status" aria-live="polite">
-          در حال بارگذاری منو...
-        </div>
         <div
           class="alert alert-danger border-0 rounded-3 mb-0 mt-3"
           x-show="error"
           x-text="error"
+          x-cloak
           role="alert"
           aria-live="assertive"
         ></div>
       </div>
     </header>
+
+    <div class="sales-notice" x-show="salesClosed && salesNoticeText" x-cloak role="status" aria-live="polite">
+      <div class="container sales-notice-inner">
+        <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+        <p x-text="salesNoticeText"></p>
+      </div>
+    </div>
 
     <!-- بنر ایونت و مناسبت: تصویر + تیتر اختیاری + لینک اختیاری و بازهٔ نمایش
          اختیاری — کنترل کامل از پنل ادمین. غیرفعال = کلاً از صفحه حذف می‌شود. -->
@@ -196,7 +205,7 @@
         </div>
       </section>
       <section id="menu" class="menu-section" tabindex="-1">
-        <div class="menu-sticky-shell">
+        <div class="menu-sticky-shell" :class="{ 'is-scrolled': stickyScrolled }">
           <div class="container">
             <div class="menu-sticky-nav">
               <div class="category-tabs" role="tablist" aria-label="دسته‌بندی منو">
@@ -206,13 +215,14 @@
                   class="category-tab"
                   :class="{ active: selectedCategory === 'all' }"
                   :aria-selected="selectedCategory === 'all'"
-                  @click="setCategory('all')"
+                  @click="selectCategoryTab('all', $event)"
                   @keydown.arrow-left.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i+1)%tabs.length].focus()"
                   @keydown.arrow-right.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i-1+tabs.length)%tabs.length].focus()"
                   @keydown.home.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[0].focus()"
                   @keydown.end.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[tabs.length-1].focus()"
                 >
-                  همه
+                  <i class="bi bi-grid-fill" aria-hidden="true"></i>
+                  <span>همه</span>
                 </button>
                 <template x-for="category in categories" :key="category.id">
                   <button
@@ -221,7 +231,7 @@
                     class="category-tab"
                     :class="{ active: selectedCategory === category.id, 'category-tab--with-image': category.imageUrl }"
                     :aria-selected="selectedCategory === category.id"
-                    @click="setCategory(category.id)"
+                    @click="selectCategoryTab(category.id, $event)"
                     @keydown.arrow-left.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i+1)%tabs.length].focus()"
                     @keydown.arrow-right.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; const i=tabs.indexOf($el); tabs[(i-1+tabs.length)%tabs.length].focus()"
                     @keydown.home.prevent="const tabs=[...$el.parentElement.querySelectorAll('[role=tab]')]; tabs[0].focus()"
@@ -234,18 +244,19 @@
                         alt=""
                         loading="lazy"
                         decoding="async"
-                        width="34"
-                        height="34"
+                        width="36"
+                        height="36"
                         aria-hidden="true"
                       />
                     </template>
                     <span x-text="category.label"></span>
+                    <span class="category-tab-count" x-text="toPersianNumber(countForCategory(category.id))"></span>
                   </button>
                 </template>
               </div>
 
               <div class="menu-search-row">
-                <div class="search-box">
+                <div class="search-box" :class="{ 'has-query': (search || '').length > 0 }">
                   <i class="bi bi-search"></i>
                   <input
                     type="search"
@@ -255,6 +266,16 @@
                     @input="searchUserTyping = $event.target.value.length > 0"
                     aria-label="جستجو در منو"
                   >
+                  <button
+                    type="button"
+                    class="search-clear-btn"
+                    x-show="(search || '').length > 0"
+                    x-cloak
+                    aria-label="پاک کردن جستجو"
+                    @click="clearSearch()"
+                  >
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                  </button>
                   <button
                     type="button"
                     class="menu-tip-btn menu-tip-btn--inline"
@@ -286,9 +307,10 @@
                   type="button"
                   class="btn btn-outline-secondary btn-sm rounded-pill reset-filters-btn"
                   x-show="hasFilters"
+                  x-cloak
                   @click="resetFilters()"
                 >
-                  پاک کردن
+                  پاک کردن فیلتر
                 </button>
               </div>
             </div>
@@ -296,9 +318,73 @@
         </div>
 
         <div class="container menu-content">
-          <section id="popular" class="featured-strip" x-show="!salesClosed && featuredItems.length && selectedCategory === 'all' && !search">
+          <div class="menu-skeleton" x-show="loading" role="status" aria-live="polite">
+            <span class="sr-only">در حال بارگذاری منو...</span>
+            <div class="menu-skeleton-head skeleton-shimmer"></div>
+            <div class="menu-skeleton-grid">
+              <div class="menu-skeleton-card">
+                <div class="menu-skeleton-main">
+                  <div class="menu-skeleton-img skeleton-shimmer"></div>
+                  <div class="menu-skeleton-lines">
+                    <span class="skeleton-line skeleton-line--lg skeleton-shimmer"></span>
+                    <span class="skeleton-line skeleton-line--sm skeleton-shimmer"></span>
+                    <span class="skeleton-line skeleton-line--md skeleton-shimmer"></span>
+                  </div>
+                </div>
+                <div class="menu-skeleton-foot">
+                  <span class="skeleton-pill skeleton-shimmer"></span>
+                  <span class="skeleton-pill skeleton-pill--btn skeleton-shimmer"></span>
+                </div>
+              </div>
+              <div class="menu-skeleton-card">
+                <div class="menu-skeleton-main">
+                  <div class="menu-skeleton-img skeleton-shimmer"></div>
+                  <div class="menu-skeleton-lines">
+                    <span class="skeleton-line skeleton-line--lg skeleton-shimmer"></span>
+                    <span class="skeleton-line skeleton-line--sm skeleton-shimmer"></span>
+                    <span class="skeleton-line skeleton-line--md skeleton-shimmer"></span>
+                  </div>
+                </div>
+                <div class="menu-skeleton-foot">
+                  <span class="skeleton-pill skeleton-shimmer"></span>
+                  <span class="skeleton-pill skeleton-pill--btn skeleton-shimmer"></span>
+                </div>
+              </div>
+              <div class="menu-skeleton-card">
+                <div class="menu-skeleton-main">
+                  <div class="menu-skeleton-img skeleton-shimmer"></div>
+                  <div class="menu-skeleton-lines">
+                    <span class="skeleton-line skeleton-line--lg skeleton-shimmer"></span>
+                    <span class="skeleton-line skeleton-line--sm skeleton-shimmer"></span>
+                    <span class="skeleton-line skeleton-line--md skeleton-shimmer"></span>
+                  </div>
+                </div>
+                <div class="menu-skeleton-foot">
+                  <span class="skeleton-pill skeleton-shimmer"></span>
+                  <span class="skeleton-pill skeleton-pill--btn skeleton-shimmer"></span>
+                </div>
+              </div>
+              <div class="menu-skeleton-card">
+                <div class="menu-skeleton-main">
+                  <div class="menu-skeleton-img skeleton-shimmer"></div>
+                  <div class="menu-skeleton-lines">
+                    <span class="skeleton-line skeleton-line--lg skeleton-shimmer"></span>
+                    <span class="skeleton-line skeleton-line--sm skeleton-shimmer"></span>
+                    <span class="skeleton-line skeleton-line--md skeleton-shimmer"></span>
+                  </div>
+                </div>
+                <div class="menu-skeleton-foot">
+                  <span class="skeleton-pill skeleton-shimmer"></span>
+                  <span class="skeleton-pill skeleton-pill--btn skeleton-shimmer"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <section id="popular" class="featured-strip" x-show="!loading && featuredItems.length && selectedCategory === 'all' && !search" x-cloak>
             <div class="featured-strip-head">
               <div class="d-flex align-items-center gap-2">
+                <span class="featured-strip-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
                 <h2 class="featured-strip-title mb-0" x-text="settings.popularTitle"></h2>
                 <button
                   type="button"
@@ -314,24 +400,59 @@
                   @blur="leaveTip()"
                 >؟</button>
               </div>
-              <p class="featured-strip-copy mb-0" x-text="settings.popularDescription"></p>
+              <p class="featured-strip-copy mb-0" x-show="settings.popularDescription" x-text="settings.popularDescription"></p>
             </div>
             <div class="featured-scroller">
               <template x-for="item in featuredItems" :key="`featured-${item.id}`">
                 <button
                   type="button"
-                  class="featured-chip"
-                  @click="openAddToCartModal(item)"
-                  x-show="item.isOrderable && !salesClosed"
+                  class="featured-card"
+                  @click="openProductCard(item)"
+                  x-show="item.isOrderable"
                 >
-                  <span class="featured-chip-name" x-text="item.name"></span>
-                  <span class="featured-chip-price" x-text="formatPriceCompact(displayPrice(item))"></span>
+                  <div class="featured-card-media">
+                    <template x-if="item.imageUrl">
+                      <img :src="item.imageUrl" :alt="item.name" loading="lazy" decoding="async">
+                    </template>
+                    <template x-if="!item.imageUrl">
+                      <div class="featured-card-fallback" :style="item.accent ? `background:${item.accent}` : ''">
+                        <i class="bi bi-cup-hot" aria-hidden="true"></i>
+                        <span x-text="item.short"></span>
+                      </div>
+                    </template>
+                    <span class="featured-card-discount" x-show="discountPercent(item)" x-text="toPersianNumber(discountPercent(item)) + '٪ تخفیف'"></span>
+                    <span class="featured-card-badge" x-show="item.badge && !discountPercent(item)" x-text="item.badge"></span>
+                  </div>
+                  <div class="featured-card-body">
+                    <span class="featured-card-name" x-text="item.name"></span>
+                    <div class="featured-card-foot">
+                      <span class="featured-card-price">
+                        <strong x-text="formatPriceCompact(displayPrice(item))"></strong>
+                        <small>تومان</small>
+                      </span>
+                      <span class="featured-card-plus" aria-hidden="true">
+                        <i class="bi bi-plus-lg"></i>
+                      </span>
+                    </div>
+                  </div>
                 </button>
               </template>
             </div>
           </section>
 
-          <div class="group-stack" x-show="filteredGroups.length">
+          <div class="menu-filter-status" x-show="!loading && hasFilters" x-cloak>
+            <span>
+              نمایش
+              <strong x-text="toPersianNumber(filteredItems.length) + ' مورد'"></strong>
+              <span x-show="selectedCategory !== 'all'">در <strong x-text="activeCategoryLabel"></strong></span>
+              <span x-show="search">برای «<strong x-text="search"></strong>»</span>
+            </span>
+            <button type="button" class="menu-filter-reset-link" @click="resetFilters()">
+              نمایش همه منو
+            </button>
+          </div>
+
+          <div class="group-stack" x-show="!loading && filteredGroups.length">
             <template x-for="group in filteredGroups" :key="group.id">
               <section class="menu-group" :id="`group-${group.id}`">
                 <div class="menu-group-head">
@@ -341,16 +462,42 @@
 
                 <div class="product-list">
                   <template x-for="item in group.items" :key="item.id">
-                    <article class="product-card">
-                      <div class="product-card-layout">
-                        <template x-if="item.imageUrl">
-                          <img class="product-thumb" :src="item.imageUrl" :alt="item.name" loading="lazy">
-                        </template>
-                        <template x-if="!item.imageUrl">
-                          <div class="product-thumb product-thumb-fallback" :style="`background:${item.accent}`">
-                            <span x-text="item.short"></span>
-                          </div>
-                        </template>
+                    <article
+                      class="product-card"
+                      :class="{
+                        'product-card--in-cart': cartQtyForItem(item.id) > 0,
+                        'product-card--unavailable': !item.isOrderable
+                      }"
+                    >
+                      <div
+                        class="product-card-main"
+                        :class="{ 'is-clickable': item.isOrderable }"
+                        @click="openProductCard(item)"
+                      >
+                        <div class="product-media">
+                          <template x-if="item.imageUrl">
+                            <img class="product-thumb" :src="item.imageUrl" :alt="item.name" loading="lazy" decoding="async">
+                          </template>
+                          <template x-if="!item.imageUrl">
+                            <div class="product-thumb product-thumb-fallback" :style="item.accent ? `background:${item.accent}` : ''">
+                              <i class="bi bi-cup-hot" aria-hidden="true"></i>
+                              <span x-text="item.short"></span>
+                            </div>
+                          </template>
+                          <span class="product-media-discount" x-show="discountPercent(item)" x-text="toPersianNumber(discountPercent(item)) + '٪ تخفیف'"></span>
+                          <span class="product-media-badge" x-show="item.badge && !discountPercent(item)" x-text="item.badge"></span>
+                          <button
+                            type="button"
+                            class="product-media-zoom"
+                            x-show="item.imageUrl"
+                            aria-label="بزرگ‌نمایی تصویر محصول"
+                            title="بزرگ‌نمایی تصویر"
+                            @click.stop="openImageLightbox(item)"
+                          >
+                            <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                            <span x-show="itemImages(item).length > 1" x-text="toPersianNumber(itemImages(item).length)"></span>
+                          </button>
+                        </div>
 
                         <div class="product-body">
                           <div class="product-head">
@@ -358,46 +505,38 @@
                               <h3 class="product-title" x-text="item.name"></h3>
                               <p class="product-title-en" x-show="item.englishName" x-text="item.englishName"></p>
                             </div>
-                            <span class="product-badge" x-show="item.badge" x-text="item.badge"></span>
+                            <span class="product-badge" x-show="item.badge && discountPercent(item)" x-text="item.badge"></span>
                           </div>
-                          <div class="d-inline-flex align-items-center gap-1" x-show="builderProfileForItem(item.id)" x-cloak>
-                            <span class="product-builder-badge">
-                              <i class="bi bi-sliders" aria-hidden="true"></i>
-                              قابل سفارشی‌سازی
+
+                          <div class="product-tags-row" x-show="builderProfileForItem(item.id) || (item.optionGroups && item.optionGroups.length)" x-cloak>
+                            <div class="product-builder-wrap" x-show="builderProfileForItem(item.id)">
+                              <span class="product-builder-badge">
+                                <i class="bi bi-sliders" aria-hidden="true"></i>
+                                قابل سفارشی‌سازی
+                              </span>
+                              <button
+                                type="button"
+                                class="menu-tip-btn menu-tip-btn--sm"
+                                x-show="hasTip('menu.product.builder_badge')"
+                                :class="{ 'is-open': isTipOpen('menu.product.builder_badge') }"
+                                aria-label="راهنمای محصول قابل سفارشی‌سازی"
+                                @click.stop="toggleTip('menu.product.builder_badge', $event)"
+                                @mouseenter="hoverTip('menu.product.builder_badge', $event)"
+                                @mouseleave="leaveTip()"
+                                @focus="hoverTip('menu.product.builder_badge', $event)"
+                                @blur="leaveTip()"
+                              >؟</button>
+                            </div>
+                            <span
+                              class="product-options-hint"
+                              x-show="item.optionGroups && item.optionGroups.length && !builderProfileForItem(item.id)"
+                            >
+                              <i class="bi bi-ui-checks" aria-hidden="true"></i>
+                              با گزینه‌های قابل انتخاب
                             </span>
-                            <button
-                              type="button"
-                              class="menu-tip-btn menu-tip-btn--sm"
-                              x-show="hasTip('menu.product.builder_badge')"
-                              :class="{ 'is-open': isTipOpen('menu.product.builder_badge') }"
-                              aria-label="راهنمای محصول قابل سفارشی‌سازی"
-                              @click.stop="toggleTip('menu.product.builder_badge', $event)"
-                              @mouseenter="hoverTip('menu.product.builder_badge', $event)"
-                              @mouseleave="leaveTip()"
-                              @focus="hoverTip('menu.product.builder_badge', $event)"
-                              @blur="leaveTip()"
-                            >؟</button>
                           </div>
 
-                          <div class="price-matrix" x-show="item.variants && item.variants.length">
-                            <template x-for="variant in item.variants" :key="`${item.id}-${variant.key}`">
-                              <div class="price-matrix-row">
-                                <span class="price-matrix-size" x-text="variant.label"></span>
-                                <span class="price-matrix-value" x-text="formatPriceCompact(variantDisplayPrice(variant))"></span>
-                              </div>
-                            </template>
-                          </div>
-
-                          <div class="price-single" x-show="!item.variants || !item.variants.length">
-                            <span class="price-single-value" x-text="formatPriceCompact(displayPrice(item))"></span>
-                            <span class="price-single-old" x-show="hasOffer(item)" x-text="formatPriceCompact(item.price)"></span>
-                          </div>
-                          <span class="product-discount-badge" x-show="discountPercent(item)" x-text="toPersianNumber(discountPercent(item)) + '٪'"></span>
-
-                          <p class="product-contents" x-show="item.description">
-                            <span class="product-contents-label">توضیحات:</span>
-                            <span x-text="item.description"></span>
-                          </p>
+                          <p class="product-contents" x-show="item.description" x-text="item.description"></p>
 
                           <div class="product-meta product-ingredients" x-show="item.contents && item.contents.length">
                             <span class="product-contents-label">محتویات:</span>
@@ -411,38 +550,76 @@
                               <span class="meta-chip" x-text="meta"></span>
                             </template>
                             <template x-for="allergen in item.allergens || []" :key="`${item.id}-allergen-${allergen}`">
-                              <span class="meta-chip meta-chip-alert" x-text="allergen"></span>
+                              <span class="meta-chip meta-chip-alert">
+                                <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+                                <span x-text="allergen"></span>
+                              </span>
+                            </template>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="product-foot">
+                        <div class="product-price-zone">
+                          <div class="price-matrix" x-show="item.variants && item.variants.length">
+                            <template x-for="variant in item.variants" :key="`${item.id}-${variant.key}`">
+                              <button
+                                type="button"
+                                class="price-matrix-row"
+                                :class="`size-${variant.key}`"
+                                :disabled="!item.isOrderable"
+                                @click="openAddToCartModal(item, salesClosed ? 'note' : 'cart', variant.key)"
+                              >
+                                <span class="price-matrix-size" x-text="variant.label"></span>
+                                <span class="price-matrix-values">
+                                  <span class="price-matrix-value" x-text="formatPriceCompact(variantDisplayPrice(variant))"></span>
+                                  <small class="price-currency">تومان</small>
+                                </span>
+                                <span class="price-matrix-old" x-show="variantHasOffer(variant)" x-text="formatPriceCompact(variant.price)"></span>
+                              </button>
                             </template>
                           </div>
 
-                          <div class="product-foot">
-                            <button
-                              type="button"
-                              class="product-add-btn"
-                              x-show="item.isOrderable && !salesClosed"
-                              @click="openAddToCartModal(item)"
-                            >
-                              <i class="bi bi-bag-plus"></i>
-                              <span x-text="builderProfileForItem(item.id) ? 'سفارشی‌سازی و افزودن' : 'افزودن به سبد'"></span>
-                            </button>
-                            <button
-                              type="button"
-                              class="product-note-btn"
-                              :class="{ 'product-note-btn--active': noteQtyForItem(item.id) > 0 }"
-                              x-show="item.isOrderable"
-                              @click="openAddToNoteModal(item)"
-                            >
-                              <i class="bi" :class="noteQtyForItem(item.id) > 0 ? 'bi-journal-check' : 'bi-journal-plus'"></i>
-                              <span x-text="noteQtyForItem(item.id) > 0 ? 'در یادداشت' : 'یادداشت'"></span>
-                              <span
-                                class="product-note-badge"
-                                x-show="noteQtyForItem(item.id) > 0"
-                                x-text="toPersianNumber(noteQtyForItem(item.id))"
-                                x-cloak
-                              ></span>
-                            </button>
-                            <span class="product-unavailable" x-show="!item.isOrderable">فعلاً موجود نیست</span>
+                          <div class="price-single" x-show="!item.variants || !item.variants.length">
+                            <span class="price-single-value" x-text="formatPriceCompact(displayPrice(item))"></span>
+                            <span class="price-currency">تومان</span>
+                            <span class="price-single-old" x-show="hasOffer(item)" x-text="formatPriceCompact(item.price)"></span>
                           </div>
+                        </div>
+
+                        <div class="product-actions-zone">
+                          <button
+                            type="button"
+                            class="product-add-btn"
+                            x-show="item.isOrderable && !salesClosed"
+                            @click="openAddToCartModal(item)"
+                          >
+                            <i class="bi bi-bag-plus"></i>
+                            <span x-text="builderProfileForItem(item.id) ? 'سفارشی‌سازی و افزودن' : 'افزودن به سبد'"></span>
+                            <span
+                              class="product-cart-badge"
+                              x-show="cartQtyForItem(item.id) > 0"
+                              x-text="toPersianNumber(cartQtyForItem(item.id))"
+                              x-cloak
+                            ></span>
+                          </button>
+                          <button
+                            type="button"
+                            class="product-note-btn"
+                            :class="{ 'product-note-btn--active': noteQtyForItem(item.id) > 0 }"
+                            x-show="item.isOrderable"
+                            @click="openAddToNoteModal(item)"
+                          >
+                            <i class="bi" :class="noteQtyForItem(item.id) > 0 ? 'bi-journal-check' : 'bi-journal-plus'"></i>
+                            <span x-text="noteQtyForItem(item.id) > 0 ? 'در یادداشت' : 'یادداشت'"></span>
+                            <span
+                              class="product-note-badge"
+                              x-show="noteQtyForItem(item.id) > 0"
+                              x-text="toPersianNumber(noteQtyForItem(item.id))"
+                              x-cloak
+                            ></span>
+                          </button>
+                          <span class="product-unavailable" x-show="!item.isOrderable">فعلاً موجود نیست</span>
                         </div>
                       </div>
                     </article>
@@ -452,7 +629,7 @@
             </template>
           </div>
 
-          <section class="addons-section" x-show="addons.length && selectedCategory === 'all' && !search">
+          <section class="addons-section" x-show="!loading && addons.length && selectedCategory === 'all' && !search" x-cloak>
             <div class="menu-group-head">
               <div class="d-flex align-items-center gap-2">
                 <h2 class="menu-group-title mb-0">افزودنی‌ها</h2>
@@ -480,14 +657,15 @@
                       <div class="product-head">
                         <div class="product-names">
                           <h3 class="product-title" x-text="addon.persianName"></h3>
-                          <p class="product-title-en" x-text="addon.englishName"></p>
+                          <p class="product-title-en" x-show="addon.englishName" x-text="addon.englishName"></p>
                         </div>
                       </div>
                       <p class="product-contents" x-show="addon.description" x-text="addon.description"></p>
                       <div class="price-single">
-                        <span class="price-single-value" x-text="formatPriceCompact(addon.price)"></span>
+                        <span class="price-single-value" x-text="formatPriceCompact(addon.specialOfferPrice || addon.price)"></span>
+                        <span class="price-currency">تومان</span>
                         <template x-if="addon.specialOfferPrice">
-                          <span class="price-single-offer" x-text="formatPriceCompact(addon.specialOfferPrice)"></span>
+                          <span class="price-single-old" x-text="formatPriceCompact(addon.price)"></span>
                         </template>
                       </div>
                       <template x-if="addon.specialOfferPrice">
@@ -500,7 +678,7 @@
             </div>
           </section>
 
-          <div class="empty-state text-center py-5" x-show="!filteredGroups.length">
+          <div class="empty-state text-center py-5" x-show="!loading && !filteredGroups.length" x-cloak>
             <div class="empty-icon mx-auto mb-3">
               <i class="bi bi-search"></i>
             </div>
@@ -543,15 +721,15 @@
 
               <div class="visit-meta">
                 <div x-show="settings.address">
-                  <span>آدرس</span>
+                  <span><i class="bi bi-geo-alt me-1" aria-hidden="true"></i>آدرس</span>
                   <strong x-text="settings.address"></strong>
                 </div>
                 <div x-show="settings.breakfastHours">
-                  <span>سرو صبحانه</span>
+                  <span><i class="bi bi-sunrise me-1" aria-hidden="true"></i>سرو صبحانه</span>
                   <strong x-text="settings.breakfastHours"></strong>
                 </div>
                 <div x-show="settings.takeawayStatus">
-                  <span>بیرون‌بر</span>
+                  <span><i class="bi bi-bag-check me-1" aria-hidden="true"></i>بیرون‌بر</span>
                   <strong x-text="settings.takeawayStatus"></strong>
                 </div>
               </div>
@@ -1227,7 +1405,7 @@
       x-cloak
       @click.self="closeAddToCartModal()"
       @keydown.tab="trapFocus($event)"
-      @keydown.escape.window="closeAddToCartModal()"
+      @keydown.escape.window="if (!imageLightbox) closeAddToCartModal()"
       x-effect="if (addToCartModal) $nextTick(() => $refs.addCartClose?.focus())"
     >
       <div
@@ -1290,6 +1468,56 @@
         </div>
 
         <div class="add-cart-modal-body">
+          <div class="modal-product-hero" x-show="modalActiveImage()" x-cloak>
+            <button
+              type="button"
+              class="modal-product-hero-btn"
+              aria-label="بزرگ‌نمایی تصویر محصول"
+              @click="openImageLightbox(addToCartModal.item, addToCartModal.activeImageIndex || 0)"
+            >
+              <img :src="modalActiveImage()" :alt="addToCartModal?.item?.name || ''" decoding="async">
+              <span class="modal-product-hero-zoom">
+                <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                بزرگ‌نمایی
+              </span>
+            </button>
+            <div class="modal-gallery-thumbs" x-show="itemImages(addToCartModal?.item).length > 1">
+              <template x-for="(imgUrl, imgIndex) in itemImages(addToCartModal?.item)" :key="`modal-gal-${imgIndex}`">
+                <button
+                  type="button"
+                  class="modal-gallery-thumb"
+                  :class="{ active: (addToCartModal?.activeImageIndex || 0) === imgIndex }"
+                  :aria-label="`تصویر ${toPersianNumber(imgIndex + 1)}`"
+                  @click="selectModalImage(imgIndex)"
+                >
+                  <img :src="imgUrl" alt="" loading="lazy">
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <div
+            class="modal-product-details"
+            x-show="addToCartModal?.item?.description || (addToCartModal?.item?.contents && addToCartModal.item.contents.length) || (addToCartModal?.item?.allergens && addToCartModal.item.allergens.length)"
+            x-cloak
+          >
+            <p class="modal-product-desc" x-show="addToCartModal?.item?.description" x-text="addToCartModal?.item?.description"></p>
+            <div class="product-meta product-ingredients" x-show="addToCartModal?.item?.contents && addToCartModal.item.contents.length">
+              <span class="product-contents-label">ترکیبات:</span>
+              <template x-for="content in (addToCartModal?.item?.contents || [])" :key="`modal-content-${content.persianName}`">
+                <span class="meta-chip" x-text="content.persianName"></span>
+              </template>
+            </div>
+            <div class="product-meta" x-show="addToCartModal?.item?.allergens && addToCartModal.item.allergens.length">
+              <template x-for="allergen in (addToCartModal?.item?.allergens || [])" :key="`modal-allergen-${allergen}`">
+                <span class="meta-chip meta-chip-alert">
+                  <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+                  <span x-text="allergen"></span>
+                </span>
+              </template>
+            </div>
+          </div>
+
           <div class="mb-3" x-show="addToCartModal?.item?.variants?.length">
             <div class="d-flex align-items-center gap-2 mb-1">
               <label class="form-label mb-0">اندازه</label>
@@ -1610,7 +1838,8 @@
               type="text"
               class="form-control form-control-sm mt-2"
               placeholder="نام دلخواه یا توضیح دیگر (مثلاً علی، بدون خامه)..."
-              x-model="addToCartModal.noteText"
+              :value="addToCartModal?.noteText || ''"
+              @input="if (addToCartModal) addToCartModal.noteText = $event.target.value"
             >
           </div>
 
@@ -2844,12 +3073,24 @@
         :class="{ 'mobile-order-link--active': notesCount > 0 }"
         @click="openNotesDrawer('list')"
       >
-        <i class="bi bi-journal-text"></i>
-        <span x-text="notesCount > 0 ? 'یادداشت (' + toPersianNumber(notesCount) + ')' : 'یادداشت'"></span>
+        <span class="mobile-order-icon-wrap">
+          <i class="bi bi-journal-text"></i>
+          <span class="mobile-order-badge" x-show="notesCount > 0" x-text="toPersianNumber(notesCount)" x-cloak></span>
+        </span>
+        <span>یادداشت</span>
       </button>
-      <button type="button" class="mobile-order-link" x-show="!salesClosed" :class="{ 'mobile-order-link--active': cartCount > 0 }" @click="openCartDrawer('cart')">
-        <i class="bi bi-basket"></i>
-        <span x-text="cartCount > 0 ? toPersianNumber(cartCount) : 'سبد'"></span>
+      <button
+        type="button"
+        class="mobile-order-link"
+        x-show="!salesClosed"
+        :class="{ 'mobile-order-link--active': cartCount > 0 }"
+        @click="openCartDrawer('cart')"
+      >
+        <span class="mobile-order-icon-wrap">
+          <i class="bi bi-basket"></i>
+          <span class="mobile-order-badge" x-show="cartCount > 0" x-text="toPersianNumber(cartCount)" x-cloak></span>
+        </span>
+        <span>سبد خرید</span>
       </button>
       <a
         x-show="settings.contactPhone"
@@ -2859,6 +3100,93 @@
         <i class="bi bi-telephone"></i>
         <span x-text="settings.footerCallLabel"></span>
       </a>
+    </div>
+
+    <button
+      type="button"
+      class="scroll-top-btn"
+      x-show="showScrollTop && !cartDrawerOpen && !notesDrawerOpen && !addToCartModal && !profileOpen && !imageLightbox"
+      x-cloak
+      @click="scrollToTop()"
+      aria-label="بازگشت به بالای منو"
+      title="بازگشت به بالا"
+    >
+      <i class="bi bi-arrow-up" aria-hidden="true"></i>
+    </button>
+
+    <div
+      class="image-lightbox-overlay"
+      x-show="imageLightbox"
+      x-cloak
+      @click.self="closeImageLightbox()"
+      @keydown.escape.window="closeImageLightbox()"
+      @keydown.arrow-left.window="if (imageLightbox && imageLightbox.images.length > 1) stepLightboxImage(1)"
+      @keydown.arrow-right.window="if (imageLightbox && imageLightbox.images.length > 1) stepLightboxImage(-1)"
+    >
+      <div class="image-lightbox-card" role="dialog" aria-modal="true" aria-label="پیش‌نمایش تصویر محصول">
+        <button
+          type="button"
+          class="image-lightbox-close"
+          aria-label="بستن پیش‌نمایش"
+          @click="closeImageLightbox()"
+        >
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+
+        <div class="image-lightbox-stage">
+          <img
+            :src="imageLightbox?.images?.[imageLightbox?.activeIndex || 0]"
+            :alt="imageLightbox?.item?.name || ''"
+          >
+          <button
+            type="button"
+            class="image-lightbox-nav image-lightbox-nav--prev"
+            x-show="(imageLightbox?.images?.length || 0) > 1"
+            aria-label="تصویر قبلی"
+            @click="stepLightboxImage(-1)"
+          >
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+          </button>
+          <button
+            type="button"
+            class="image-lightbox-nav image-lightbox-nav--next"
+            x-show="(imageLightbox?.images?.length || 0) > 1"
+            aria-label="تصویر بعدی"
+            @click="stepLightboxImage(1)"
+          >
+            <i class="bi bi-chevron-left" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="image-lightbox-thumbs" x-show="(imageLightbox?.images?.length || 0) > 1">
+          <template x-for="(imgUrl, idx) in (imageLightbox?.images || [])" :key="`lb-${idx}`">
+            <button
+              type="button"
+              class="image-lightbox-thumb"
+              :class="{ active: imageLightbox?.activeIndex === idx }"
+              :aria-label="`تصویر ${toPersianNumber(idx + 1)}`"
+              @click="imageLightbox.activeIndex = idx"
+            >
+              <img :src="imgUrl" alt="">
+            </button>
+          </template>
+        </div>
+
+        <div class="image-lightbox-caption">
+          <div>
+            <strong x-text="imageLightbox?.item?.name"></strong>
+            <p class="mb-0" x-show="imageLightbox?.item?.description" x-text="imageLightbox?.item?.description"></p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-dark btn-sm rounded-pill px-3 flex-shrink-0"
+            x-show="imageLightbox?.item?.isOrderable && !addToCartModal"
+            @click="const item = imageLightbox.item; closeImageLightbox(); openProductCard(item)"
+          >
+            انتخاب و افزودن
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- پورتال تک‌نمونه‌ای راهنماهای منوی مشتری (Smart Cross-Device Tooltip Portal) -->

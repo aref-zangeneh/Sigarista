@@ -219,6 +219,11 @@ document.addEventListener("alpine:init", () => {
     flashSaleTimer: null,
     flashSaleRemaining: "",
     addToCartModal: null,
+    imageLightbox: null,
+    showScrollTop: false,
+    stickyScrolled: false,
+    scrollListenerBound: false,
+    _onWindowScroll: null,
     mockPayment: null,
     splitOrder: null,
     splitMockPayment: null,
@@ -290,6 +295,7 @@ document.addEventListener("alpine:init", () => {
       this.syncMenuTooltips();
       this.loadThemePref();
       this.applyTheme();
+      this.bindPageScrollListener();
       this.loadCart();
       this.loadNotes();
       this.restoreProfilePhone();
@@ -319,10 +325,13 @@ document.addEventListener("alpine:init", () => {
         }));
         this.items = menuData.items.map((item) => ({
           ...item,
+          imageUrl: this.absoluteImageUrl(item.imageUrl),
           tags: item.tags || [],
           allergens: item.allergens || [],
           variants: item.variants || [],
-          galleryImageUrls: item.galleryImageUrls || []
+          galleryImageUrls: (item.galleryImageUrls || [])
+            .map((url) => this.absoluteImageUrl(url))
+            .filter(Boolean)
         }));
         this.addons = (menuData.addons || []).map((addon) => ({
           ...addon,
@@ -455,6 +464,25 @@ document.addEventListener("alpine:init", () => {
     destroy() {
       if (this.themeTimer) clearInterval(this.themeTimer);
       if (this.searchTypeTimer) clearTimeout(this.searchTypeTimer);
+      if (this.scrollListenerBound && this._onWindowScroll) {
+        window.removeEventListener("scroll", this._onWindowScroll);
+        this.scrollListenerBound = false;
+      }
+    },
+    bindPageScrollListener() {
+      if (this.scrollListenerBound) {
+        return;
+      }
+      this.scrollListenerBound = true;
+      this._onWindowScroll = () => {
+        this.stickyScrolled = window.scrollY > 90;
+        this.showScrollTop = window.scrollY > 420;
+      };
+      window.addEventListener("scroll", this._onWindowScroll, { passive: true });
+      this._onWindowScroll();
+    },
+    scrollToTop() {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     },
     /* ── search placeholder typewriter ──
        Types real item names from the menu inside the search box placeholder,
@@ -1417,10 +1445,13 @@ document.addEventListener("alpine:init", () => {
         }));
         this.items = (menuData.items || []).map((item) => ({
           ...item,
+          imageUrl: this.absoluteImageUrl(item.imageUrl),
           tags: item.tags || [],
           allergens: item.allergens || [],
           variants: item.variants || [],
-          galleryImageUrls: item.galleryImageUrls || []
+          galleryImageUrls: (item.galleryImageUrls || [])
+            .map((url) => this.absoluteImageUrl(url))
+            .filter(Boolean)
         }));
         this.addons = (menuData.addons || []).map((addon) => ({
           ...addon,
@@ -1644,7 +1675,43 @@ document.addEventListener("alpine:init", () => {
     },
     resetFilters() {
       this.search = "";
+      this.searchUserTyping = false;
       this.selectedCategory = "all";
+    },
+    clearSearch() {
+      this.search = "";
+      this.searchUserTyping = false;
+    },
+    selectCategoryTab(categoryId, event) {
+      this.setCategory(categoryId);
+      event?.currentTarget?.scrollIntoView?.({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest"
+      });
+    },
+    itemImages(item) {
+      if (!item) {
+        return [];
+      }
+      return Array.from(
+        new Set([item.imageUrl, ...(item.galleryImageUrls || [])].filter(Boolean))
+      );
+    },
+    cartQtyForItem(menuItemId) {
+      return this.cart
+        .filter((line) => line.menuItemId === menuItemId)
+        .reduce((sum, line) => sum + line.quantity, 0);
+    },
+    openProductCard(item) {
+      if (!item || !item.isOrderable) {
+        return;
+      }
+      if (this.salesClosed) {
+        this.openAddToNoteModal(item);
+      } else {
+        this.openAddToCartModal(item);
+      }
     },
     openCartDrawer(view = "cart") {
       if (this.salesClosed) {
@@ -1725,12 +1792,16 @@ document.addEventListener("alpine:init", () => {
         }
       });
     },
-    openAddToCartModal(item, mode = "cart") {
+    openAddToCartModal(item, mode = "cart", initialSizeKey = null) {
       if (!item.isOrderable || (this.salesClosed && mode !== "note")) {
         return;
       }
 
       const defaultVariant = this.defaultVariantForItem(item);
+      const selectedSizeKey =
+        initialSizeKey && item.variants?.some((v) => v.key === initialSizeKey)
+          ? initialSizeKey
+          : defaultVariant?.key || null;
       const builderProfile = this.builderProfileForItem(item.id);
       const builderAmounts = {};
       const builderSelected = [];
@@ -1762,10 +1833,11 @@ document.addEventListener("alpine:init", () => {
       this.addToCartModal = {
         item,
         mode: this.salesClosed ? "note" : mode,
-        selectedSizeKey: defaultVariant?.key || null,
+        selectedSizeKey,
         selectedModifierIds: [],
         selectedOptionIds,
         quantity: 1,
+        activeImageIndex: 0,
         builderAmounts,
         builderSelected,
         noteTag: "",
@@ -1773,6 +1845,42 @@ document.addEventListener("alpine:init", () => {
         builderError: "",
         optionError: ""
       };
+    },
+    selectModalImage(index) {
+      if (!this.addToCartModal) {
+        return;
+      }
+      this.addToCartModal.activeImageIndex = index;
+    },
+    modalActiveImage() {
+      const images = this.itemImages(this.addToCartModal?.item);
+      if (!images.length) {
+        return null;
+      }
+      const idx = this.addToCartModal?.activeImageIndex || 0;
+      return images[idx] || images[0];
+    },
+    openImageLightbox(item, startIndex = 0) {
+      const images = this.itemImages(item);
+      if (!images.length) {
+        return;
+      }
+      const safeIndex = Math.max(0, Math.min(startIndex, images.length - 1));
+      this.imageLightbox = {
+        item,
+        images,
+        activeIndex: safeIndex
+      };
+    },
+    closeImageLightbox() {
+      this.imageLightbox = null;
+    },
+    stepLightboxImage(delta) {
+      if (!this.imageLightbox?.images?.length) {
+        return;
+      }
+      const len = this.imageLightbox.images.length;
+      this.imageLightbox.activeIndex = (this.imageLightbox.activeIndex + delta + len) % len;
     },
     openAddToNoteModal(item) {
       this.openAddToCartModal(item, "note");

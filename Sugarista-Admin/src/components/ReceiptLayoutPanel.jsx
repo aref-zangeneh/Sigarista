@@ -3,21 +3,21 @@ import { useCallback, useEffect, useState } from 'react'
 // ── Key catalogs (must mirror the backend whitelists) ────────────────────────
 
 const CUSTOMER_HEADER_ROWS = [
-  { key: 'code', label: 'کد سفارش' },
-  { key: 'createdAt', label: 'تاریخ و ساعت سفارش' },
-  { key: 'channel', label: 'نوع سفارش (آنلاین/حضوری)' },
-  { key: 'service', label: 'شیوهٔ سرو' },
-  { key: 'table', label: 'میز' },
-  { key: 'pickupTime', label: 'زمان تحویل آماده' },
-  { key: 'customerName', label: 'نام مشتری' },
-  { key: 'customerPhone', label: 'شمارهٔ مشتری' },
-  { key: 'note', label: 'یادداشت سفارش' },
+  { key: 'code', label: 'شماره سفارش' },
+  { key: 'createdAt', label: 'تاریخ و زمان ثبت' },
+  { key: 'channel', label: 'نوع سفارش (حضوری / آنلاین)' },
+  { key: 'service', label: 'شیوهٔ پذیرایی (سالن / بیرون‌بر)' },
+  { key: 'table', label: 'شماره میز' },
+  { key: 'pickupTime', label: 'زمان آماده‌سازی / تحویل' },
+  { key: 'customerName', label: 'مشتری گرامی' },
+  { key: 'customerPhone', label: 'شماره همراه' },
+  { key: 'note', label: 'توضیحات مهمان' },
 ]
 
 const CUSTOMER_PAYMENT_ROWS = [
-  { key: 'paymentMethod', label: 'روش پرداخت' },
-  { key: 'reference', label: 'کد پیگیری پرداخت' },
-  { key: 'amountPaid', label: 'فقط مبلغ پرداخت‌شده (چندپرداختی)' },
+  { key: 'paymentMethod', label: 'شیوهٔ پرداخت' },
+  { key: 'reference', label: 'کد رهگیری بانکی' },
+  { key: 'amountPaid', label: 'مبلغ تسویه‌شده' },
 ]
 
 const BARISTA_INFO_ROWS = [
@@ -25,40 +25,40 @@ const BARISTA_INFO_ROWS = [
   { key: 'createdAt', label: 'زمان ثبت سفارش' },
   { key: 'channel', label: 'نوع سفارش' },
   { key: 'service', label: 'شیوهٔ سرو' },
-  { key: 'table', label: 'میز' },
+  { key: 'table', label: 'شماره میز' },
   { key: 'customerName', label: 'نام مشتری' },
-  { key: 'customerPhone', label: 'شمارهٔ مشتری' },
+  { key: 'customerPhone', label: 'شماره همراه' },
   { key: 'paymentMethod', label: 'روش پرداخت' },
 ]
 
 const CUSTOMER_SUB_LINES = [
-  { key: 'size', label: 'اندازهٔ نوشیدنی' },
-  { key: 'options', label: 'گروه‌های آپشن' },
-  { key: 'modifiers', label: 'افزودنی‌ها' },
+  { key: 'size', label: 'اندازه' },
+  { key: 'options', label: 'گزینه‌ها و طعم‌ها (شیر بادام، سیروپ...)' },
+  { key: 'modifiers', label: 'تغییرات آماده‌سازی' },
   { key: 'customDrink', label: 'سفارشی‌سازی نوشیدنی‌ساز' },
-  { key: 'payer', label: 'سهم پرداخت‌کننده (تقسیم صورت‌حساب)' },
+  { key: 'payer', label: 'سهم پرداخت‌کننده (دنگ صورت‌حساب)' },
 ]
 
 const BARISTA_SUB_LINES = [
-  { key: 'size', label: 'اندازهٔ نوشیدنی' },
-  { key: 'modifiers', label: 'افزودنی‌ها' },
-  { key: 'options', label: 'گروه‌های آپشن' },
+  { key: 'size', label: 'اندازه' },
+  { key: 'modifiers', label: 'تغییرات آماده‌سازی' },
+  { key: 'options', label: 'گزینه‌ها و طعم‌ها' },
   { key: 'customDrink', label: 'سفارشی‌سازی نوشیدنی‌ساز' },
   { key: 'baristaNote', label: 'یادداشت برای باریستا' },
 ]
 
 const COLUMN_LABELS = {
-  name: 'نام آیتم',
+  name: 'شرح اقلام',
   qty: 'تعداد (اینلاین «۲ ×»)',
-  unitPrice: 'قیمت واحد',
-  total: 'جمع خط',
+  unitPrice: 'فی (تومان)',
+  total: 'جمع کل (تومان)',
 }
 
 const TOTAL_LABELS = {
-  subtotal: 'جمع اقلام',
-  deliveryFee: 'هزینه ارسال',
-  tax: 'مالیات',
-  total: 'مبلغ نهایی',
+  subtotal: 'جمع کل اقلام',
+  deliveryFee: 'هزینه ارسال / پیک',
+  tax: 'مالیات بر ارزش افزوده',
+  total: 'مبلغ قابل پرداخت',
 }
 
 const DEFAULT_LAYOUT = {
@@ -69,8 +69,8 @@ const DEFAULT_LAYOUT = {
       columns: [
         { key: 'name', label: '', visible: true, widthPct: null },
         { key: 'qty', label: 'تعداد', visible: true, widthPct: null },
-        { key: 'unitPrice', label: 'واحد', visible: false, widthPct: null },
-        { key: 'total', label: 'جمع', visible: true, widthPct: null },
+        { key: 'unitPrice', label: 'فی', visible: false, widthPct: null },
+        { key: 'total', label: 'جمع کل', visible: true, widthPct: null },
       ],
       subLines: CUSTOMER_SUB_LINES.map((row) => row.key),
       showHeaderRow: false,
@@ -86,7 +86,7 @@ const DEFAULT_LAYOUT = {
       })),
     },
     paymentRows: CUSTOMER_PAYMENT_ROWS.map((row) => row.key),
-    footer: { text: '', thanksText: 'FEEL QUALITY AS YOU DRINK', showThanks: true, showCafeName: true },
+    footer: { text: '', thanksText: 'نوش جان! از میزبانی شما خرسندیم ✨', showThanks: true, showCafeName: true },
     fonts: { header: 40, info: 22, item: 30, subtotal: 24, total: 36 },
   },
   barista: {
@@ -118,27 +118,27 @@ function toPersianNumber(value) {
 const SAMPLE_ORDER = {
   cafeName: 'کافه شوگریستا',
   address: 'تهران، خیابان ولیعصر، پلاک ۱۲',
-  phone: '۰۲۱-۱۲۳۴۵۶۷',
+  phone: '۰۲۱-۲۲۰۰۳۳۰۰',
   code: 'SG-K2B7PX',
-  createdAtLabel: '۱۴۰۵/۰۸/۱۷ — ۱۸:۳۰',
-  paidAtLabel: '۱۴۰۵/۰۸/۱۷ — ۱۸:۳۲',
-  channelLabel: 'سفارش آنلاین',
-  serviceLabel: 'سرو در محل',
+  createdAtLabel: '۱۴۰۵/۰۸/۲۹ — ۱۸:۳۰',
+  paidAtLabel: '۱۴۰۵/۰۸/۲۹ — ۱۸:۳۲',
+  channelLabel: 'سفارش حضوری (صندوق)',
+  serviceLabel: 'سرو در سالن',
   tableLabel: '۴',
-  pickupAtLabel: '۱۴۰۵/۰۸/۱۷ — ۱۹:۰۰',
+  pickupAtLabel: '۱۴۰۵/۰۸/۲۹ — ۱۸:۴۵',
   customerName: 'علی رضایی',
   customerPhone: '۰۹۱۲۰۰۰۰۰۰۰',
-  note: 'ممنوع‌اللاکتوز',
-  paymentLabel: 'پرداخت آنلاین',
-  reference: 'ref-88213',
+  note: 'کم‌شیرین سرو شود',
+  paymentLabel: 'کارت‌خوان (پوز)',
+  reference: '۸۸۲۱۳-بانک ملت',
   items: [
     {
       name: 'لاته',
       sizeLabel: 'بزرگ',
       quantity: 2,
       quantityLabel: '۲',
-      unitPriceLabel: '۳۱۰٬۰۰۰',
-      totalLabel: '۶۲۰٬۰۰۰',
+      unitPriceLabel: '۳۵۰٬۰۰۰',
+      totalLabel: '۷۰۰٬۰۰۰',
       modifierLabels: ['داغ سرو شود'],
       options: [
         { optionName: 'شیر بادام', priceDeltaLabel: '۳۰٬۰۰۰' },
@@ -150,11 +150,11 @@ const SAMPLE_ORDER = {
     },
   ],
   totals: {
-    subtotalLabel: '۶۲۰٬۰۰۰',
-    deliveryFeeLabel: '۳۰٬۰۰۰',
-    taxLabel: '۶۲٬۰۰۰',
-    totalLabel: '۷۱۲٬۰۰۰',
-    amountPaidLabel: '۳۵۶٬۰۰۰',
+    subtotalLabel: '۷۰۰٬۰۰۰',
+    deliveryFeeLabel: null,
+    taxLabel: '۷۰٬۰۰۰',
+    totalLabel: '۷۷۰٬۰۰۰',
+    amountPaidLabel: '۷۷۰٬۰۰۰',
   },
 }
 
@@ -308,15 +308,15 @@ function CustomerPreview({ layout }) {
   const optionText = item.options
     .map((option) =>
       items.showOptionPrices && option.priceDeltaLabel
-        ? `${option.optionName} (+${option.priceDeltaLabel})`
-        : option.optionName,
+        ? `▫ ${option.optionName} (+${option.priceDeltaLabel} ت)`
+        : `▫ ${option.optionName}`,
     )
 
   const subLines = []
   for (const key of items.subLines) {
-    if (key === 'size' && item.sizeLabel) subLines.push(item.sizeLabel)
+    if (key === 'size' && item.sizeLabel) subLines.push(`اندازه: ${item.sizeLabel}`)
     else if (key === 'options') subLines.push(...optionText)
-    else if (key === 'modifiers') subLines.push(...item.modifierLabels)
+    else if (key === 'modifiers') subLines.push(...item.modifierLabels.map((m) => `▫ ${m}`))
     else if (key === 'customDrink' && item.customDrinkSummary?.length) subLines.push(...item.customDrinkSummary)
     else if (key === 'payer' && item.payerLabel) subLines.push(`سهم ${item.payerLabel}`)
     else if (key === 'baristaNote' && item.baristaNote) subLines.push(`! ${item.baristaNote}`)
@@ -325,21 +325,26 @@ function CustomerPreview({ layout }) {
   return (
     <div className="receipt-preview-paper" style={{ fontSize: `${scale}rem` }}>
       <div className="receipt-preview-center bold big">{o.cafeName}</div>
+      <div className="receipt-preview-center" style={{ fontSize: '0.85em', color: '#555', marginBottom: 4 }}>صورت‌حساب سفارش</div>
       {header.showAddress ? <div className="receipt-preview-center small">{o.address}</div> : null}
-      {header.showPhone ? <div className="receipt-preview-center small">تلفن: {o.phone}</div> : null}
+      {header.showPhone ? <div className="receipt-preview-center small">تلفن تماس: {o.phone}</div> : null}
       <div className="receipt-preview-divider double" />
 
       {headerRows.map((rowKey, rowIndex) => {
         const rowId = `${rowKey}-${rowIndex}`
-        if (rowKey === 'code') return <PreviewRow key={rowId} right="کد سفارش" left={o.code} bold />
-        if (rowKey === 'createdAt') return <PreviewRow key={rowId} right={o.createdAtLabel} />
-        if (rowKey === 'channel') return <PreviewRow key={rowId} right={o.channelLabel} />
-        if (rowKey === 'service') return <PreviewRow key={rowId} right={o.serviceLabel} />
-        if (rowKey === 'table') return <PreviewRow key={rowId} right={`میز ${o.tableLabel}`} />
-        if (rowKey === 'pickupTime') return <PreviewRow key={rowId} right="تحویل" left={o.pickupAtLabel} bold />
-        if (rowKey === 'customerName') return <PreviewRow key={rowId} right={o.customerName} />
-        if (rowKey === 'customerPhone') return <PreviewRow key={rowId} right={o.customerPhone} />
-        if (rowKey === 'note') return <div key={rowId} className="receipt-preview-note">یادداشت: {o.note}</div>
+        if (rowKey === 'code') return (
+          <div key={rowId} style={{ border: '1.5px solid #000', borderRadius: 6, padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', margin: '4px 0', letterSpacing: '0.5px' }}>
+            شماره سفارش: #{o.code}
+          </div>
+        )
+        if (rowKey === 'createdAt') return <PreviewRow key={rowId} right="تاریخ و زمان" left={o.createdAtLabel} />
+        if (rowKey === 'channel') return <PreviewRow key={rowId} right="نوع سفارش" left={o.channelLabel} />
+        if (rowKey === 'service') return <PreviewRow key={rowId} right="شیوهٔ پذیرایی" left={o.serviceLabel} bold />
+        if (rowKey === 'table') return <PreviewRow key={rowId} right="شماره میز" left={`میز شماره ${o.tableLabel}`} bold />
+        if (rowKey === 'pickupTime') return <PreviewRow key={rowId} right="زمان تحویل" left={o.pickupAtLabel} bold />
+        if (rowKey === 'customerName') return <PreviewRow key={rowId} right="مشتری گرامی" left={o.customerName} />
+        if (rowKey === 'customerPhone') return <PreviewRow key={rowId} right="شماره همراه" left={o.customerPhone} />
+        if (rowKey === 'note') return <div key={rowId} className="receipt-preview-note">توضیحات مهمان: {o.note}</div>
         return null
       })}
       <div className="receipt-preview-divider" />
@@ -348,7 +353,7 @@ function CustomerPreview({ layout }) {
         <div className="receipt-preview-cols-head">
           {columns.filter((column) => column.key === 'unitPrice' || column.key === 'total').map((column) => (
             <em key={column.key} style={column.widthPct ? { width: `${column.widthPct}%` } : undefined}>
-              {column.label || (column.key === 'unitPrice' ? 'واحد' : 'جمع')}
+              {column.label || (column.key === 'unitPrice' ? 'فی' : 'جمع کل')}
             </em>
           ))}
         </div>
@@ -365,34 +370,39 @@ function CustomerPreview({ layout }) {
           <div className="receipt-preview-unit-price">{item.unitPriceLabel}</div>
         ) : null}
         {subLines.length > 0 ? (
-          <div className="receipt-preview-sublines">{subLines.join(' • ')}</div>
+          <div className="receipt-preview-sublines">{subLines.join('  ·  ')}</div>
         ) : null}
         {items.showUnitPriceNote && !columns.some((column) => column.key === 'unitPrice') && item.quantity > 1 ? (
-          <div className="receipt-preview-sublines">واحد: {item.unitPriceLabel}</div>
+          <div className="receipt-preview-sublines">نرخ واحد (فی): {item.unitPriceLabel} تومان</div>
         ) : null}
       </div>
       <div className="receipt-preview-divider" />
 
       {totals.rows.map((row) => {
         if (!row.visible) return null
-        if (row.key === 'subtotal') return <PreviewRow key="subtotal" right={row.label || TOTAL_LABELS.subtotal} left={o.totals.subtotalLabel} />
-        if (row.key === 'deliveryFee') return <PreviewRow key="deliveryFee" right={row.label || TOTAL_LABELS.deliveryFee} left={o.totals.deliveryFeeLabel} />
-        if (row.key === 'tax') return <PreviewRow key="tax" right={row.label || TOTAL_LABELS.tax} left={o.totals.taxLabel} />
-        if (row.key === 'total') return <PreviewRow key="total" right={row.label || TOTAL_LABELS.total} left={o.totals.totalLabel} bold big />
+        if (row.key === 'subtotal') return <PreviewRow key="subtotal" right={row.label || TOTAL_LABELS.subtotal} left={`${o.totals.subtotalLabel} ت`} />
+        if (row.key === 'deliveryFee') return <PreviewRow key="deliveryFee" right={row.label || TOTAL_LABELS.deliveryFee} left={o.totals.deliveryFeeLabel ? `${o.totals.deliveryFeeLabel} ت` : null} />
+        if (row.key === 'tax') return <PreviewRow key="tax" right={row.label || TOTAL_LABELS.tax} left={`${o.totals.taxLabel} ت`} />
+        if (row.key === 'total') return (
+          <div key="total" style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '4px 0', margin: '4px 0' }}>
+            <PreviewRow right={row.label || TOTAL_LABELS.total} left={`${o.totals.totalLabel} تومان`} bold big />
+          </div>
+        )
         return null
       })}
 
       {paymentRows.map((rowKey) => {
-        if (rowKey === 'paymentMethod') return <PreviewRow key={rowKey} right="روش پرداخت" left={o.paymentLabel} />
-        if (rowKey === 'reference') return <div key={rowKey} className="receipt-preview-note">شمارهٔ پیگیری: {o.reference}</div>
-        if (rowKey === 'amountPaid') return <PreviewRow key={rowKey} right="پرداخت شده" left={o.totals.amountPaidLabel} small />
+        if (rowKey === 'paymentMethod') return <PreviewRow key={rowKey} right="شیوهٔ پرداخت" left={o.paymentLabel} />
+        if (rowKey === 'reference') return <PreviewRow key={rowKey} right="کد رهگیری بانکی" left={o.reference} />
+        if (rowKey === 'amountPaid') return <PreviewRow key={rowKey} right="وضعیت پرداخت" left={`${o.totals.amountPaidLabel} تومان (تسویه شد)`} bold small />
         return null
       })}
 
       <div className="receipt-preview-divider" />
       {footer.text ? <div className="receipt-preview-center small">{footer.text}</div> : null}
-      {footer.showThanks ? <div className="receipt-preview-center bold">{footer.thanksText || 'FEEL QUALITY AS YOU DRINK'}</div> : null}
-      {footer.showCafeName ? <div className="receipt-preview-center small">{o.cafeName}</div> : null}
+      {footer.showThanks ? <div className="receipt-preview-center bold">{footer.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'}</div> : null}
+      {footer.showCafeName ? <div className="receipt-preview-center small">« {o.cafeName} »</div> : null}
+      <div className="receipt-preview-center" style={{ fontSize: '0.7em', color: '#888', marginTop: 4 }}>· · · · · · · · · · · ·</div>
       <p className="receipt-preview-hint">
         اندازه‌ها: تیتر {toPersianNumber(fonts.header)} • اطلاعات {toPersianNumber(fonts.info)} • آیتم {toPersianNumber(fonts.item)} • جمع {toPersianNumber(fonts.total)}
       </p>

@@ -461,36 +461,48 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
               ) : (
                 <div className="pos-receipt-paper">
                   <div className="pos-receipt-center pos-receipt-brand">{customer.cafeName}</div>
+                  <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.8rem', marginBottom: 6 }}>صورت‌حساب سفارش</div>
                   {customer.address ? <div className="pos-receipt-center pos-receipt-muted">{customer.address}</div> : null}
-                  {customer.contactPhone ? <div className="pos-receipt-center pos-receipt-muted">{customer.contactPhone}</div> : null}
-                  <div className="pos-receipt-divider" />
-                  <div className="pos-receipt-row"><span>کد سفارش</span><strong>#{customer.trackingCode}</strong></div>
-                  <div className="pos-receipt-row"><span>زمان</span><span>{customer.printedAt}</span></div>
-                  <div className="pos-receipt-row"><span>نوع</span><span>{customer.service}{customer.table ? ` · میز ${customer.table}` : ''}</span></div>
-                  <div className="pos-receipt-row"><span>مشتری</span><span>{customer.guestName}</span></div>
-                  {customer.note ? <div className="pos-receipt-meta">یادداشت: {customer.note}</div> : null}
+                  {customer.contactPhone ? <div className="pos-receipt-center pos-receipt-muted">تلفن تماس: {customer.contactPhone}</div> : null}
+                  <div className="pos-receipt-divider" style={{ borderTop: '2px solid #000' }} />
+                  <div style={{ border: '1.5px solid #000', borderRadius: 6, padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', margin: '6px 0', fontSize: '0.88rem' }}>
+                    شماره سفارش: #{customer.trackingCode}
+                  </div>
+                  <div className="pos-receipt-row"><span>تاریخ و زمان</span><span>{customer.printedAt}</span></div>
+                  <div className="pos-receipt-row"><span>شیوهٔ پذیرایی</span><strong>{customer.service}{customer.table ? ` · میز شماره ${customer.table}` : ''}</strong></div>
+                  <div className="pos-receipt-row"><span>مشتری گرامی</span><span>{customer.guestName}</span></div>
+                  {customer.note ? <div className="pos-receipt-meta" style={{ marginTop: 4 }}>توضیحات مهمان: {customer.note}</div> : null}
                   <div className="pos-receipt-divider" />
                   {customer.lines.map((line, idx) => (
-                    <div key={idx} className="pos-receipt-item">
+                    <div key={idx} className="pos-receipt-item" style={{ marginBottom: 6 }}>
                       <div className="pos-receipt-row">
                         <strong>{line.quantityLabel} × {line.name}</strong>
-                        <span>{formatPrice(line.lineTotal)}</span>
+                        <span>{formatPrice(line.lineTotal)} ت</span>
                       </div>
-                      {line.descriptor ? <div className="pos-receipt-meta">{line.descriptor}</div> : null}
+                      {line.descriptor ? <div className="pos-receipt-meta" style={{ paddingRight: 6 }}>{line.descriptor}</div> : null}
+                      {line.quantity > 1 ? <div className="pos-receipt-meta" style={{ paddingRight: 6, fontSize: '0.75rem', color: '#666' }}>(نرخ واحد: {formatPrice(line.unitPrice)} تومان)</div> : null}
                     </div>
                   ))}
                   <div className="pos-receipt-divider" />
+                  <div className="pos-receipt-row"><span>جمع کل اقلام</span><span>{formatPrice(customer.subtotalAmount)} تومان</span></div>
                   {customer.deliveryFee > 0 ? (
-                    <div className="pos-receipt-row"><span>هزینه ارسال</span><span>{formatPrice(customer.deliveryFee)}</span></div>
+                    <div className="pos-receipt-row"><span>هزینه ارسال / پیک</span><span>{formatPrice(customer.deliveryFee)} تومان</span></div>
                   ) : null}
                   {customer.taxTotal > 0 ? (
-                    <div className="pos-receipt-row"><span>مالیات</span><span>{formatPrice(customer.taxTotal)}</span></div>
+                    <div className="pos-receipt-row"><span>مالیات بر ارزش افزوده</span><span>{formatPrice(customer.taxTotal)} تومان</span></div>
                   ) : null}
-                  <div className="pos-receipt-row pos-receipt-total">
-                    <span>مبلغ نهایی</span>
-                    <span>{formatPrice(customer.totalAmount)} تومان</span>
+                  <div className="pos-receipt-row pos-receipt-total" style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '6px 0', margin: '6px 0' }}>
+                    <span>مبلغ قابل پرداخت</span>
+                    <strong>{formatPrice(customer.totalAmount)} تومان</strong>
                   </div>
-                  <div className="pos-receipt-row"><span>روش پرداخت</span><span>{customer.paymentMethod}</span></div>
+                  <div className="pos-receipt-row" style={{ marginTop: 6 }}><span>شیوهٔ پرداخت</span><span>{customer.paymentMethod}</span></div>
+                  <div className="pos-receipt-row" style={{ fontWeight: 'bold' }}><span>وضعیت پرداخت</span><span>تسویه شد ✓</span></div>
+                  <div className="pos-receipt-divider" style={{ borderTop: '1px dotted #000', margin: '8px 0' }} />
+                  <div className="pos-receipt-center" style={{ fontWeight: 'bold', fontSize: '0.85rem', margin: '4px 0' }}>
+                    {customer.layout?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'}
+                  </div>
+                  <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.75rem' }}>« {customer.cafeName} »</div>
+                  <div className="pos-receipt-center pos-receipt-muted" style={{ letterSpacing: '3px', fontSize: '0.7rem', marginTop: 4 }}>· · · · · · · · · · · ·</div>
                 </div>
               )}
             </div>

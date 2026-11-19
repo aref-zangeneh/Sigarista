@@ -153,13 +153,13 @@ public class ReceiptPrintJobService : IPrintJobService
             .ToList();
 
         var channelLabel = order.Channel == OrderChannel.Pos
-            ? (!order.IsSplitBill ? "سفارش صندوق (POS)" : "سفارش صندوق (POS)")
+            ? "سفارش حضوری (صندوق)"
             : "سفارش آنلاین";
 
         var serviceLabel = order.ServiceType switch
         {
-            PosServiceType.DineIn => "سرو در محل",
-            PosServiceType.TakeAway => "بیرون‌بر",
+            PosServiceType.DineIn => "سرو در سالن",
+            PosServiceType.TakeAway => "سفارش بیرون‌بر",
             _ => deliveryLabel is null ? null : $"ارسال با {deliveryLabel}"
         };
 
@@ -170,10 +170,10 @@ public class ReceiptPrintJobService : IPrintJobService
 
         var paymentLabel = order.PaymentMethod switch
         {
-            PosPaymentMethod.Cash => "نقدی (صندوق)",
-            PosPaymentMethod.Card => "کارت (صندوق)",
-            PosPaymentMethod.OnlineGateway => "پرداخت آنلاین",
-            _ => order.Channel == OrderChannel.Pos ? "پرداخت صندوق" : "پرداخت آنلاین"
+            PosPaymentMethod.Cash => "پرداخت نقدی",
+            PosPaymentMethod.Card => "کارت‌خوان (پوز)",
+            PosPaymentMethod.OnlineGateway => "درگاه پرداخت اینترنتی",
+            _ => order.Channel == OrderChannel.Pos ? "پرداخت صندوق" : "پرداخت اینترنتی"
         };
 
         var reference = order.Payments

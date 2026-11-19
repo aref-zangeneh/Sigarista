@@ -208,12 +208,34 @@ class Receipt:
         if style == "double":
             self.draw.line([(MARGIN, y), (WIDTH - MARGIN, y)], fill=0, width=3)
             self.draw.line([(MARGIN, y + 6), (WIDTH - MARGIN, y + 6)], fill=0, width=2)
+        elif style == "solid":
+            self.draw.line([(MARGIN, y), (WIDTH - MARGIN, y)], fill=0, width=2)
+        elif style == "dotted":
+            x = MARGIN + 4
+            while x < WIDTH - MARGIN - 4:
+                self.draw.ellipse([(x, y - 1), (x + 3, y + 2)], fill=0)
+                x += 10
         else:
             x = MARGIN
             while x < WIDTH - MARGIN:
                 self.draw.line([(x, y), (min(x + 9, WIDTH - MARGIN), y)], fill=0, width=2)
                 x += 16
         self.y += 22
+
+    def badge_box(self, title: str, code: str, size: int = 28, gap: int = 12):
+        """Draw an elegant rounded box highlighting the order code."""
+        box_h = size + 34
+        self._ensure(box_h + gap)
+        y0 = self.y + 4
+        y1 = y0 + box_h
+        x0 = MARGIN + 4
+        x1 = WIDTH - MARGIN - 4
+        self.draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=12, outline=0, width=2)
+        full_text = f"{title}: {code}"
+        visual = rtl(full_text)
+        w = visual_width(visual, size, True)
+        draw_visual(self.draw, (WIDTH - w) / 2, y0 + 10, visual, size, True)
+        self.y = y1 + gap
 
     def gap(self, pixels=10):
         self.y += pixels
@@ -355,14 +377,14 @@ def option_text(item: dict, layout_items: dict) -> list[str]:
                 continue
             price = option.get("priceDeltaLabel")
             if show_prices and price:
-                lines.append(f"{name} (+{price})")
+                lines.append(f"▫ {name} (+{price} ت)")
             else:
-                lines.append(name)
+                lines.append(f"▫ {name}")
         return lines
     # Legacy payload fallback.
     labels = item.get("optionLabels")
     if isinstance(labels, list):
-        return [str(label) for label in labels if label]
+        return [f"▫ {str(label)}" for label in labels if label]
     return []
 
 
@@ -372,15 +394,15 @@ def sub_lines(item: dict, sub_line_keys: list[str], layout_items: dict) -> list[
     for key in sub_line_keys:
         if key == "size":
             if item.get("sizeLabel"):
-                lines.append(str(item["sizeLabel"]))
+                lines.append(f"اندازه: {item['sizeLabel']}")
         elif key == "options":
             lines.extend(option_text(item, layout_items))
         elif key == "modifiers":
             for modifier in item.get("modifierLabels") or []:
-                lines.append(str(modifier))
+                lines.append(f"▫ {modifier}")
         elif key == "customDrink":
             for summary in item.get("customDrinkSummary") or []:
-                lines.append(str(summary))
+                lines.append(f"▫ {summary}")
         elif key == "payer":
             if item.get("payerLabel"):
                 lines.append(f"سهم {item['payerLabel']}")
@@ -415,30 +437,41 @@ def service_with_table(order: dict) -> str:
 def customer_header_row(contract, payload, order: dict, key: str) -> None:
     r, size = contract
     if key == "code":
-        r.row("کد سفارش", order.get("code", ""), size=30, bold=True, gap=12)
+        code = order.get("code", "")
+        if code:
+            r.badge_box("شماره سفارش", f"#{code}", size=26, gap=10)
     elif key == "createdAt":
-        r.row(order.get("createdAtLabel", ""), "", size=size)
+        created = order.get("createdAtLabel", "")
+        if created:
+            r.row("تاریخ و زمان ثبت", created, size=size)
     elif key == "channel":
-        r.row(order.get("channelLabel", ""), "", size=size)
+        channel = order.get("channelLabel", "")
+        if channel:
+            r.row("نوع سفارش", channel, size=size)
     elif key == "service":
         service = service_with_table(order)
         if service:
-            r.row(service, "", size=size)
+            r.row("شیوهٔ پذیرایی", service, size=size, bold=True)
     elif key == "table":
-        if order.get("tableLabel"):
-            r.row(f"میز {order['tableLabel']}", "", size=size)
+        table = order.get("tableLabel")
+        if table:
+            r.row("شماره میز", f"میز {table}", size=size, bold=True)
     elif key == "pickupTime":
-        if order.get("pickupAtLabel"):
-            r.row("تحویل", order["pickupAtLabel"], size=size, bold=True)
+        pickup = order.get("pickupAtLabel")
+        if pickup:
+            r.row("زمان آماده‌سازی", pickup, size=size, bold=True)
     elif key == "customerName":
-        if order.get("customerName"):
-            r.row(order["customerName"], "", size=size)
+        name = order.get("customerName")
+        if name:
+            r.row("مشتری گرامی", name, size=size)
     elif key == "customerPhone":
-        if order.get("customerPhone"):
-            r.row(order["customerPhone"], "", size=size)
+        phone = order.get("customerPhone")
+        if phone:
+            r.row("شماره همراه", phone, size=size)
     elif key == "note":
-        if order.get("note"):
-            r.paragraph(f"یادداشت: {order['note']}", size=22)
+        note = order.get("note")
+        if note:
+            r.paragraph(f"توضیحات مهمان: {note}", size=22, bold=False, indent=10)
 
 
 def barista_info_row(contract, payload, order: dict, key: str) -> None:
@@ -584,8 +617,13 @@ def draw_items_table(r: Receipt, payload: dict, items: list[dict], layout_data: 
             and item.get("unitPriceLabel")
             and item.get("quantity", 1) > 1
         ):
-            r.paragraph(f"واحد: {item['unitPriceLabel']}", size=20, indent=20, gap=4)
-        r.gap(6)
+            r.paragraph(f"نرخ واحد (فی): {item['unitPriceLabel']} تومان", size=20, indent=16, gap=4)
+        if index < len(items) - 1 and not is_barista:
+            r.gap(4)
+            r.divider("dotted")
+            r.gap(2)
+        else:
+            r.gap(6)
 
 
 # Default detail lines per copy (classic layout).
@@ -603,26 +641,29 @@ def customer_receipt(payload) -> Receipt:
     totals = payload.get("totals", {})
     fonts_header = font_size(layout_data, "header", 40)
 
-    r.centered(header.get("cafeName") or "Sugarista", fonts_header, bold=True, gap=12)
-    header_section = layout_data.get("header", {}) if isinstance(layout_data.get("header"), dict) else {}
+    cafe_name = header.get("cafeName") or "کافه شوگاریستا"
+    r.centered(cafe_name, fonts_header, bold=True, gap=6)
     fonts_info = font_size(layout_data, "info", 22)
+    r.centered("صورت‌حساب سفارش", fonts_info, bold=False, gap=8)
+
+    header_section = layout_data.get("header", {}) if isinstance(layout_data.get("header"), dict) else {}
     if header_section.get("showAddress", True) and header.get("address"):
-        r.centered(header["address"], fonts_info, gap=4)
+        r.centered(header["address"], max(18, fonts_info - 2), gap=4)
     if header_section.get("showPhone", True) and header.get("contactPhone"):
-        r.centered(f"تلفن: {header['contactPhone']}", fonts_info, gap=4)
+        r.centered(f"تلفن تماس: {header['contactPhone']}", max(18, fonts_info - 2), gap=6)
     r.gap(4)
     r.divider("double")
-    r.gap(4)
+    r.gap(6)
 
     for row_key in info_rows(layout_data, "headerRows", list(DEFAULT_CUSTOMER_HEADER_ROW_LABELS)):
         customer_header_row((r, fonts_info), payload, order, row_key)
     r.gap(4)
-    r.divider()
-    r.gap(4)
+    r.divider("dashed")
+    r.gap(6)
 
     draw_items_table(r, payload, items, layout_data)
 
-    r.divider()
+    r.divider("dashed")
     r.gap(4)
 
     # Admin-configured totals rows.
@@ -630,10 +671,10 @@ def customer_receipt(payload) -> Receipt:
     rows = totals_section.get("rows")
     if not isinstance(rows, list) or not rows:
         rows = [
-            {"key": "subtotal", "label": "جمع اقلام", "visible": True},
-            {"key": "deliveryFee", "label": "هزینه ارسال", "visible": True},
-            {"key": "tax", "label": "مالیات", "visible": True},
-            {"key": "total", "label": "مبلغ نهایی", "visible": True},
+            {"key": "subtotal", "label": "جمع کل اقلام", "visible": True},
+            {"key": "deliveryFee", "label": "هزینه ارسال / پیک", "visible": True},
+            {"key": "tax", "label": "مالیات بر ارزش افزوده", "visible": True},
+            {"key": "total", "label": "مبلغ قابل پرداخت", "visible": True},
         ]
     subtotal_font = font_size(layout_data, "subtotal", 24)
     total_font = font_size(layout_data, "total", 36)
@@ -643,37 +684,48 @@ def customer_receipt(payload) -> Receipt:
         key = row.get("key")
         label = str(row.get("label") or "")
         if key == "subtotal" and totals.get("subtotalLabel"):
-            r.row(label or "جمع اقلام", totals["subtotalLabel"], size=subtotal_font)
+            r.row(label or "جمع کل اقلام", f"{totals['subtotalLabel']} ت", size=subtotal_font)
         elif key == "deliveryFee" and totals.get("deliveryFeeLabel"):
-            r.row(label or "هزینه ارسال", totals["deliveryFeeLabel"], size=subtotal_font)
+            r.row(label or "هزینه ارسال / پیک", f"{totals['deliveryFeeLabel']} ت", size=subtotal_font)
         elif key == "tax" and totals.get("taxLabel"):
-            r.row(label or "مالیات", totals["taxLabel"], size=subtotal_font)
+            r.row(label or "مالیات بر ارزش افزوده", f"{totals['taxLabel']} ت", size=subtotal_font)
         elif key == "total":
-            r.row(label or "مبلغ نهایی", totals.get("totalLabel", ""), size=total_font, bold=True, gap=16)
+            r.gap(4)
+            r.divider("double")
+            r.gap(2)
+            total_val = totals.get("totalLabel", "")
+            val_display = f"{total_val} تومان" if total_val and not str(total_val).endswith("تومان") else total_val
+            r.row(label or "مبلغ قابل پرداخت", val_display, size=total_font, bold=True, gap=14)
+            r.divider("double")
+            r.gap(4)
 
     for row_key in info_rows(layout_data, "paymentRows", ["paymentMethod", "reference", "amountPaid"]):
         if row_key == "paymentMethod":
-            r.row("روش پرداخت", order.get("paymentLabel", ""), size=fonts_info)
+            method = order.get("paymentLabel") or "کارت‌خوان (پوز)"
+            r.row("شیوهٔ پرداخت", method, size=fonts_info)
         elif row_key == "reference":
-            if order.get("reference"):
-                r.paragraph(f"شماره پیگیری: {order['reference']}", size=20)
+            ref = order.get("reference")
+            if ref:
+                r.row("کد رهگیری بانکی", str(ref), size=fonts_info)
         elif row_key == "amountPaid":
             amount_paid = totals.get("amountPaidLabel")
-            if amount_paid and amount_paid != totals.get("totalLabel"):
-                r.row("پرداخت شده", amount_paid, size=fonts_info)
+            if amount_paid:
+                paid_display = f"{amount_paid} تومان (تسویه شد)" if not str(amount_paid).endswith("تومان") else f"{amount_paid} (تسویه شد)"
+                r.row("وضعیت پرداخت", paid_display, size=fonts_info, bold=True)
 
-    r.gap(8)
-    r.divider()
-    r.gap(4)
+    r.gap(6)
+    r.divider("dotted")
+    r.gap(6)
     footer = layout_data.get("footer", {}) if isinstance(layout_data.get("footer"), dict) else {}
     footer_text = footer.get("text") or payload.get("footerText")
     if footer_text:
-        r.centered(footer_text, 22, gap=5)
+        r.centered(footer_text, 22, gap=6)
     if footer.get("showThanks", True):
-        thanks_text = footer.get("thanksText") or "FEEL QUALITY AS YOU DRINK"
-        r.centered(thanks_text, 26, bold=True, gap=8)
+        thanks_text = footer.get("thanksText") or "نوش جان! از میزبانی شما خرسندیم ✨"
+        r.centered(thanks_text, 24, bold=True, gap=8)
     if footer.get("showCafeName", True):
-        r.centered(header.get("cafeName") or "Sugarista", 20, gap=4)
+        r.centered(f"« {cafe_name} »", 20, bold=False, gap=4)
+    r.centered("· · · · · · · · · · · ·", 18, gap=4)
     return r
 
 

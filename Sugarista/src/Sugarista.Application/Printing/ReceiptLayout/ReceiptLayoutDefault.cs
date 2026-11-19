@@ -22,10 +22,10 @@ public static class ReceiptLayoutDefault
         Items: CustomerItems(),
         Totals: new ReceiptTotalsLayout(
         [
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowSubtotal, "جمع اقلام", true),
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowDeliveryFee, "هزینه ارسال", true),
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTax, "مالیات", true),
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTotal, "مبلغ نهایی", true),
+            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowSubtotal, "جمع کل اقلام", true),
+            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowDeliveryFee, "هزینه ارسال / پیک", true),
+            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTax, "مالیات بر ارزش افزوده", true),
+            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTotal, "مبلغ قابل پرداخت", true),
         ]),
         PaymentRows:
         [
@@ -33,7 +33,7 @@ public static class ReceiptLayoutDefault
             ReceiptLayoutKeys.PaymentRowReference,
             ReceiptLayoutKeys.PaymentRowPaid,
         ],
-        Footer: new CustomerFooterLayout(Text: string.Empty, ShowThanks: true, ShowCafeName: true, ThanksText: "FEEL QUALITY AS YOU DRINK"),
+        Footer: new CustomerFooterLayout(Text: string.Empty, ShowThanks: true, ShowCafeName: true, ThanksText: "نوش جان! از میزبانی شما خرسندیم ✨"),
         Fonts: new ReceiptFontSizes(Header: 40, Info: 22, Item: 30, Subtotal: 24, Total: 36));
 
     public static ReceiptItemsLayout CustomerItems() => new(

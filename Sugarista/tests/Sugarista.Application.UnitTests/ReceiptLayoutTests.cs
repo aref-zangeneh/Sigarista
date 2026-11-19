@@ -163,7 +163,7 @@ public class ReceiptLayoutTests
         var resolved = ReceiptLayoutResolver.Resolve(new ReceiptLayoutPatch(null, null));
 
         Assert.Equal(
-            new ReceiptTotalRowLayout("total", "مبلغ نهایی", true),
+            new ReceiptTotalRowLayout("total", "مبلغ قابل پرداخت", true),
             resolved.Customer.Totals.Rows.First(row => row.Key == "total"));
     }
 

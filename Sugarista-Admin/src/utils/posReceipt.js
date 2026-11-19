@@ -1,16 +1,16 @@
 import { formatPrice } from './posCart.js'
 
 const PAYMENT_LABELS = {
-  Cash: 'نقدی (صندوق)',
-  PayCash: 'نقدی (صندوق)',
-  Card: 'کارت (صندوق)',
-  PayCard: 'کارت (صندوق)',
-  OnlineGateway: 'پرداخت آنلاین',
+  Cash: 'پرداخت نقدی',
+  PayCash: 'پرداخت نقدی',
+  Card: 'کارت‌خوان (پوز)',
+  PayCard: 'کارت‌خوان (پوز)',
+  OnlineGateway: 'درگاه پرداخت آنلاین',
 }
 
 const SERVICE_LABELS = {
-  DineIn: 'سرو در محل',
-  TakeAway: 'بیرون‌بر',
+  DineIn: 'سرو در سالن',
+  TakeAway: 'سفارش بیرون‌بر',
 }
 
 const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
@@ -143,7 +143,7 @@ export function buildPosReceiptBundle(input) {
   const paymentMethod = paymentLabel(result?.paymentMethod ?? input?.paymentMethod)
   const service = serviceLabel(serviceType, deliveryMethodName)
   const rawGuestName = normalizeText(customerName)
-  const guestName = rawGuestName || 'مهمان'
+  const guestName = rawGuestName || 'مهمان گرامی'
   const rawPhone = normalizeText(customerPhone)
   const guestPhone = rawPhone.toUpperCase() === 'POS' ? '' : rawPhone
   const table = normalizeText(tableName)
@@ -188,7 +188,7 @@ export function buildPosReceiptBundle(input) {
 
   const customer = {
     type: 'customer',
-    title: 'فیش مشتری',
+    title: 'صورت‌حساب سفارش',
     cafeName,
     address,
     contactPhone,
@@ -232,10 +232,10 @@ export function buildPosReceiptBundle(input) {
     },
     order: {
       code: trackingCode,
-      channelLabel: 'سفارش صندوق (POS)',
+      channelLabel: 'سفارش حضوری (صندوق)',
       serviceLabel: service || null,
       tableLabel: table || null,
-      customerName: rawGuestName && rawGuestName !== 'مهمان' ? rawGuestName : null,
+      customerName: rawGuestName && rawGuestName !== 'مهمان' && rawGuestName !== 'مهمان گرامی' ? rawGuestName : null,
       customerPhone: guestPhone || null,
       note: note || null,
       createdAtLabel: printedAt,
@@ -317,10 +317,10 @@ export function formatCustomerReceiptText(receipt) {
   })
 
   lines.push(divider(width))
-  lines.push(padLine('جمع کل', `${formatPrice(receipt.totalAmount)} تومان`, width))
-  lines.push(`پرداخت: ${receipt.paymentMethod}`)
+  lines.push(padLine('مبلغ قابل پرداخت', `${formatPrice(receipt.totalAmount)} تومان`, width))
+  lines.push(`شیوهٔ پرداخت: ${receipt.paymentMethod}`)
   lines.push('')
-  lines.push('با تشکر از حضور شما')
+  lines.push('نوش جان! از میزبانی شما خرسندیم ✨')
   lines.push('')
 
   return lines.join('\n')
@@ -378,32 +378,39 @@ function escapeHtml(value) {
 function buildCustomerBodyHtml(receipt) {
   return `
     <div class="center brand">${escapeHtml(receipt.cafeName)}</div>
+    <div class="center section-title" style="font-size:12px;color:#444;margin-bottom:6px;">${escapeHtml(receipt.title)}</div>
     ${receipt.address ? `<div class="center muted">${escapeHtml(receipt.address)}</div>` : ''}
-    ${receipt.contactPhone ? `<div class="center muted">${escapeHtml(receipt.contactPhone)}</div>` : ''}
-    <div class="divider"></div>
-    <div class="center section-title">${escapeHtml(receipt.title)}</div>
-    <div class="row"><span>کد سفارش</span><strong>#${escapeHtml(receipt.trackingCode)}</strong></div>
-    <div class="row"><span>زمان</span><span>${escapeHtml(receipt.printedAt)}</span></div>
-    <div class="row"><span>نوع سفارش</span><span>${escapeHtml(receipt.service)}${receipt.table ? ` · میز ${escapeHtml(receipt.table)}` : ''}</span></div>
-    <div class="row"><span>مشتری</span><span>${escapeHtml(receipt.guestName)}</span></div>
-    ${receipt.guestPhone ? `<div class="row"><span>تلفن</span><span>${escapeHtml(receipt.guestPhone)}</span></div>` : ''}
-    ${receipt.note ? `<div class="line-meta">یادداشت: ${escapeHtml(receipt.note)}</div>` : ''}
+    ${receipt.contactPhone ? `<div class="center muted">تلفن تماس: ${escapeHtml(receipt.contactPhone)}</div>` : ''}
+    <div class="divider" style="border-top:2px solid #000;"></div>
+    <div class="ticket-badge">شماره سفارش: #${escapeHtml(receipt.trackingCode)}</div>
+    <div class="row"><span>تاریخ و ساعت</span><span>${escapeHtml(receipt.printedAt)}</span></div>
+    <div class="row"><span>شیوهٔ پذیرایی</span><strong>${escapeHtml(receipt.service)}${receipt.table ? ` · میز شماره ${escapeHtml(receipt.table)}` : ''}</strong></div>
+    <div class="row"><span>مشتری گرامی</span><span>${escapeHtml(receipt.guestName)}</span></div>
+    ${receipt.guestPhone ? `<div class="row"><span>شماره همراه</span><span>${escapeHtml(receipt.guestPhone)}</span></div>` : ''}
+    ${receipt.note ? `<div class="line-meta" style="margin-top:4px;">توضیحات مهمان: ${escapeHtml(receipt.note)}</div>` : ''}
     <div class="divider"></div>
     ${receipt.lines
       .map(
         (line) => `
           <div class="line-title">${escapeHtml(toPersianDigits(line.quantity))} × ${escapeHtml(line.name)}</div>
-          ${line.descriptor ? `<div class="line-meta">${escapeHtml(line.descriptor)}</div>` : ''}
-          <div class="row"><span>${escapeHtml(formatPrice(line.unitPrice))}</span><span>${escapeHtml(formatPrice(line.lineTotal))}</span></div>
+          ${line.descriptor ? `<div class="line-meta" style="padding-right:8px;">${escapeHtml(line.descriptor)}</div>` : ''}
+          ${line.quantity > 1 ? `<div class="line-meta" style="padding-right:8px;font-size:10px;color:#555;">(نرخ واحد: ${escapeHtml(formatPrice(line.unitPrice))} تومان)</div>` : ''}
+          <div class="row" style="margin-top:2px;"><span>جمع:</span><strong>${escapeHtml(formatPrice(line.lineTotal))} تومان</strong></div>
         `,
       )
       .join('')}
     <div class="divider"></div>
-    ${receipt.deliveryFee > 0 ? `<div class="row"><span>هزینه ارسال</span><span>${escapeHtml(formatPrice(receipt.deliveryFee))}</span></div>` : ''}
-    ${receipt.taxTotal > 0 ? `<div class="row"><span>مالیات</span><span>${escapeHtml(formatPrice(receipt.taxTotal))}</span></div>` : ''}
-    <div class="row total"><span>مبلغ نهایی</span><span>${escapeHtml(formatPrice(receipt.totalAmount))} تومان</span></div>
-    <div class="row"><span>روش پرداخت</span><span>${escapeHtml(receipt.paymentMethod)}</span></div>
-    <div class="center muted" style="margin-top:10px;">${escapeHtml(receipt.layout?.customer?.footer?.thanksText || 'FEEL QUALITY AS YOU DRINK')}</div>
+    <div class="row"><span>جمع کل اقلام</span><span>${escapeHtml(formatPrice(receipt.subtotalAmount))} تومان</span></div>
+    ${receipt.deliveryFee > 0 ? `<div class="row"><span>هزینه ارسال / پیک</span><span>${escapeHtml(formatPrice(receipt.deliveryFee))} تومان</span></div>` : ''}
+    ${receipt.taxTotal > 0 ? `<div class="row"><span>مالیات بر ارزش افزوده</span><span>${escapeHtml(formatPrice(receipt.taxTotal))} تومان</span></div>` : ''}
+    <div class="row total"><span>مبلغ قابل پرداخت</span><span>${escapeHtml(formatPrice(receipt.totalAmount))} تومان</span></div>
+    <div class="row" style="margin-top:6px;"><span>شیوهٔ پرداخت</span><span>${escapeHtml(receipt.paymentMethod)}</span></div>
+    <div class="row" style="font-weight:700;"><span>وضعیت پرداخت</span><span>تسویه شد ✓</span></div>
+    <div class="divider" style="border-top:1px dotted #000;margin:10px 0;"></div>
+    ${receipt.footerText ? `<div class="center muted" style="margin-bottom:4px;">${escapeHtml(receipt.footerText)}</div>` : ''}
+    <div class="center" style="font-weight:700;font-size:12px;margin:6px 0;">${escapeHtml(receipt.layout?.customer?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨')}</div>
+    <div class="center muted" style="font-size:10px;">« ${escapeHtml(receipt.cafeName)} »</div>
+    <div class="center muted" style="letter-spacing:3px;font-size:9px;margin-top:4px;">· · · · · · · · · · · ·</div>
   `
 }
 
@@ -478,9 +485,23 @@ function wrapReceiptHtmlDocument(title, bodyHtml) {
       letter-spacing: 1px;
       margin: 6px 0;
     }
-    .total {
-      font-size: 14px;
+    .ticket-badge {
+      border: 1.5px solid #000;
+      border-radius: 6px;
+      padding: 4px 8px;
+      text-align: center;
       font-weight: 800;
+      font-size: 13px;
+      margin: 6px 0;
+    }
+    .total {
+      font-size: 15px;
+      font-weight: 800;
+      border-top: 2px solid #000;
+      border-bottom: 2px solid #000;
+      padding: 5px 0;
+      margin: 6px 0;
+    }
       margin-top: 4px;
     }
   </style>

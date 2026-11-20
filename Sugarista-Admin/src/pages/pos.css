@@ -410,10 +410,18 @@
   z-index: 2;
 }
 
-.pos-product-variant-tag {
+.pos-product-tags {
   position: absolute;
   top: 8px;
   right: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  z-index: 2;
+}
+
+.pos-product-variant-tag,
+.pos-product-option-tag {
   padding: 2px 7px;
   border-radius: 999px;
   background: var(--pos-surface);
@@ -421,7 +429,12 @@
   color: var(--pos-muted);
   font-size: 0.68rem;
   font-weight: 700;
-  z-index: 2;
+}
+
+.pos-product-option-tag {
+  background: var(--pos-green-soft);
+  border-color: rgba(31, 77, 47, 0.28);
+  color: var(--pos-green);
 }
 
 /* ── Sidebar (Order & Checkout Panel) ─────────────────────── */
@@ -897,6 +910,29 @@
   color: var(--pos-accent);
 }
 
+.pos-option-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.pos-option-group-head label {
+  margin: 0;
+}
+
+.pos-option-group-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pos-group-hint {
+  font-size: 0.68rem;
+  color: var(--pos-muted);
+}
+
 .pos-badge-required {
   font-size: 0.68rem;
   padding: 1px 6px;
@@ -913,6 +949,39 @@
   background: var(--pos-surface);
   color: var(--pos-muted);
   border: 1px solid var(--pos-border);
+}
+
+.pos-modifier-chip--low-stock {
+  border-style: dashed;
+}
+
+.pos-option-stock-warn {
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.14);
+  color: #b45309;
+}
+
+.pos-modifier-chip.selected .pos-option-stock-warn {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.pos-edit-options-btn--missing {
+  border-style: solid;
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.pos-edit-options-btn--missing:hover {
+  border-color: #b91c1c;
+  background: rgba(220, 38, 38, 0.14);
+  color: #b91c1c;
 }
 
 .pos-modal-error {

@@ -91,10 +91,55 @@ export function computeCartTotals(cart, deliveryFee = 0) {
   }
 }
 
+export function findMissingRequiredOptionGroup(menuItem, selectedOptionIds = []) {
+  const groups = menuItem?.optionGroups ?? []
+  if (!groups.length) {
+    return null
+  }
+
+  const selectedSet = new Set(selectedOptionIds ?? [])
+  const ordered = [...groups].sort((a, b) => {
+    if (a.isRequired !== b.isRequired) return a.isRequired ? -1 : 1
+    return (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+  })
+
+  for (const group of ordered) {
+    const min = group.minSelections > 0 ? group.minSelections : (group.isRequired ? 1 : 0)
+    if (min <= 0) {
+      continue
+    }
+    const count = (group.options ?? []).filter((opt) => selectedSet.has(opt.id)).length
+    if (count < min) {
+      return { group, min, count }
+    }
+  }
+
+  return null
+}
+
 export function orderToCart(order, menuItems) {
   return (order.lines ?? []).map((line) => {
     const menuItem = menuItems.find((item) => item.id === line.menuItemId)
     const optionIds = line.optionIds ?? []
+    const resolvedOptions =
+      optionIds.length && menuItem?.optionGroups?.length
+        ? menuItem.optionGroups.flatMap((group) =>
+            (group.options ?? [])
+              .filter((opt) => optionIds.includes(opt.id))
+              .map((opt) => ({
+                id: opt.id,
+                groupId: group.id,
+                groupName: group.persianName,
+                optionName: opt.persianName,
+                priceDelta: Number(opt.priceDelta) || 0,
+                priceDeltaLabel: Number(opt.priceDelta) > 0 ? formatPrice(opt.priceDelta) : null,
+              })),
+          )
+        : []
+    const options = resolvedOptions.length
+      ? resolvedOptions
+      : (line.optionLabels?.map((label) => ({ optionName: label })) ?? [])
+
     return {
       cartKey: buildCartLineKey(line.menuItemId, line.sizeKey, line.modifierIds, optionIds),
       menuItemId: line.menuItemId,
@@ -108,7 +153,7 @@ export function orderToCart(order, menuItems) {
       modifierIds: line.modifierIds ?? [],
       modifierLabels: line.modifierLabels ?? [],
       optionIds,
-      options: line.optionLabels?.map((label) => ({ optionName: label })) ?? [],
+      options,
       baristaNote: line.baristaNote ?? '',
       payerKey: line.payerKey,
       payerLabel: line.payerLabel,

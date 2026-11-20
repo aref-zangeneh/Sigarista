@@ -3038,7 +3038,8 @@ select:focus-visible {
 }
 
 .receipt-layout-field input[type='text'],
-.receipt-layout-field input[type='number'] {
+.receipt-layout-field input[type='number'],
+.receipt-layout-field input[data-numeric-input='true'] {
   padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

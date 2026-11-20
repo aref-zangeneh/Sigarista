@@ -11,6 +11,7 @@ using Sugarista.Application.Assets.SetAssetStatus;
 using Sugarista.Application.Assets.UpdateCafeAsset;
 using Sugarista.Application.Assets.UploadAssetPhoto;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Common.Text;
 using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
@@ -116,7 +117,7 @@ public class AdminAssetsController : ApiControllerBase
         var upload = new StoredFileUpload(stream, file.FileName, file.ContentType, file.Length);
 
         return Ok(await Mediator.Send(
-            new UploadAssetPhotoCommand(id, upload, caption),
+            new UploadAssetPhotoCommand(id, upload, DigitNormalizer.ToEnglishDigits(caption)),
             cancellationToken));
     }
 

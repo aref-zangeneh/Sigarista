@@ -1,5 +1,14 @@
+import { toEnglishDigits } from './persianDigits'
+
 export function toPersianNumber(value) {
-  return new Intl.NumberFormat('fa-IR').format(value)
+  if (value === null || value === undefined || value === '') {
+    return '۰'
+  }
+  const normalized = typeof value === 'string' ? Number(toEnglishDigits(value)) : Number(value)
+  if (!Number.isFinite(normalized)) {
+    return String(value)
+  }
+  return new Intl.NumberFormat('fa-IR').format(normalized)
 }
 
 export function formatDuration(minutes) {

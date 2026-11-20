@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import { ensureJalaliDatePickerStarted } from './utils/jalaliDatePickerSetup'
-import { installPersianDigitNormalizer } from './utils/persianDigits'
+import { installPersianDisplayObserver } from './utils/persianDigits'
 import App from './App.jsx'
 
 // انتخاب تم ذخیره‌شده قبل از اولین رندر، تا صفحه فلش نزند
@@ -12,8 +12,8 @@ if (storedTheme === 'dark' || storedTheme === 'light') {
   document.documentElement.dataset.theme = storedTheme
 }
 
-// اعداد فارسی تایپ‌شده در فیلدها، سراسری و در لحظه به انگلیسی تبدیل می‌شوند
-installPersianDigitNormalizer()
+// نمایش تمام اعداد رابط کاربری به فارسی و جلوگیری از نشت رقم لاتین در متن‌های نمایشی
+installPersianDisplayObserver()
 
 ensureJalaliDatePickerStarted()
 

@@ -13,6 +13,7 @@ export function LoginPage() {
             <span>نام کاربری</span>
             <input
               className="ltr-input"
+              data-latin-digits="true"
               value={loginForm.username}
               onChange={(event) =>
                 setLoginForm((currentForm) => ({ ...currentForm, username: event.target.value }))

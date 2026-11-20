@@ -158,7 +158,7 @@ export function SmsProvidersPage() {
           </div>
           <div className="sms-row">
             <label>API Base URL (اختیاری)
-              <input dir="ltr" value={form.baseUrl} onChange={(event) => setForm({ ...form, baseUrl: event.target.value })} placeholder="پیش‌فرض خود Provider" />
+              <input dir="ltr" data-latin-digits="true" value={form.baseUrl} onChange={(event) => setForm({ ...form, baseUrl: event.target.value })} placeholder="پیش‌فرض خود Provider" />
             </label>
             <label>Timeout (ثانیه)
               <input type="number" min={3} max={120} value={form.timeoutSeconds} onChange={(event) => setForm({ ...form, timeoutSeconds: event.target.value })} />
@@ -171,7 +171,7 @@ export function SmsProvidersPage() {
             </label>
             <label>
               Username (اختیاری){form.id ? ' (خالی = حفظ فعلی)' : ''}
-              <input dir="ltr" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} autoComplete="new-password" />
+              <input dir="ltr" data-latin-digits="true" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} autoComplete="new-password" />
             </label>
             <label>
               Password (اختیاری){form.id ? ' (خالی = حفظ فعلی)' : ''}
@@ -179,12 +179,12 @@ export function SmsProvidersPage() {
             </label>
           </div>
           <label>تنظیمات اضافهٔ Provider (JSON اختیاری)
-            <input dir="ltr" value={form.extraSettingsJson} onChange={(event) => setForm({ ...form, extraSettingsJson: event.target.value })} placeholder='{"key": "value"}' />
+            <input dir="ltr" data-latin-digits="true" value={form.extraSettingsJson} onChange={(event) => setForm({ ...form, extraSettingsJson: event.target.value })} placeholder='{"key": "value"}' />
           </label>
           <label>
             کلید Webhook گزارش تحویل {form.id ? '(خالی = حفظ مقدار فعلی)' : '(خالی = تولید خودکار)'}
             <div className="sms-row" style={{ flex: 'initial' }}>
-              <input dir="ltr" value={form.deliveryWebhookSecret} onChange={(event) => setForm({ ...form, deliveryWebhookSecret: event.target.value })} placeholder="خالی برای تولید خودکار" />
+              <input dir="ltr" data-latin-digits="true" value={form.deliveryWebhookSecret} onChange={(event) => setForm({ ...form, deliveryWebhookSecret: event.target.value })} placeholder="خالی برای تولید خودکار" />
               <button
                 type="button"
                 className="sms-inline-btn"

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Sugarista.Application.Common.Text;
 
 namespace Sugarista.Application.Sms;
 
@@ -20,17 +21,8 @@ public static class SmsTextUtilities
             return null;
         }
 
-        var digits = new string(input.Trim()
-            .Replace('۰', '0')
-            .Replace('۱', '1')
-            .Replace('۲', '2')
-            .Replace('۳', '3')
-            .Replace('۴', '4')
-            .Replace('۵', '5')
-            .Replace('۶', '6')
-            .Replace('۷', '7')
-            .Replace('۸', '8')
-            .Replace('۹', '9')
+        var normalizedInput = DigitNormalizer.ToEnglishDigits(input.Trim()) ?? string.Empty;
+        var digits = new string(normalizedInput
             .Where(char.IsDigit)
             .ToArray());
 

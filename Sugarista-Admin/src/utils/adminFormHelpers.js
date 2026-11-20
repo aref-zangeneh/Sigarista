@@ -1,3 +1,5 @@
+import { toEnglishDigits } from './persianDigits'
+
 export function splitTags(tagValue) {
   return tagValue
     .split(',')
@@ -25,5 +27,5 @@ export function optionalNumber(value) {
     return null
   }
 
-  return Number(value)
+  return Number(toEnglishDigits(String(value)))
 }

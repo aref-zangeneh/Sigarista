@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { useAdmin } from '../context/AdminContext'
+import { toEnglishDigits } from '../utils/persianDigits'
 import {
   SMS_KIND_LABELS,
   SMS_SEND_TYPE_LABELS,
@@ -72,7 +73,7 @@ export function SmsHistoryPage() {
   const exportCsv = async () => {
     try {
       const params = new URLSearchParams()
-      if (filters.mobile.trim()) params.set('mobile', filters.mobile.trim())
+      if (filters.mobile.trim()) params.set('mobile', toEnglishDigits(filters.mobile.trim()))
       if (filters.providerId) params.set('providerId', filters.providerId)
       if (filters.status) params.set('status', filters.status)
       if (filters.kind) params.set('kind', filters.kind)

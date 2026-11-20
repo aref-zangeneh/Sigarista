@@ -15,6 +15,7 @@ import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
   buildCartLineKey,
   buildUpsertPayload,
+  findMissingRequiredOptionGroup,
   formatPrice,
   computeCartTotals,
   orderToCart,
@@ -25,25 +26,38 @@ import './pos.css'
 
 const EMPTY_SPLIT = { isSplitBill: false, splitBillMode: 'ByItem', guestCount: 2, splitShares: [] }
 
-function ProductModal({ item, modifiers, onClose, onConfirm }) {
-  const [sizeKey, setSizeKey] = useState(resolveDefaultSizeKey(item))
-  const [selectedModifiers, setSelectedModifiers] = useState([])
-  const [baristaNote, setBaristaNote] = useState('')
-  const [quantity, setQuantity] = useState(1)
+function ProductModal({ item, initialLine = null, modifiers, onClose, onConfirm }) {
+  const [sizeKey, setSizeKey] = useState(initialLine?.sizeKey ?? resolveDefaultSizeKey(item))
+  const [selectedModifiers, setSelectedModifiers] = useState(initialLine?.modifierIds ?? [])
+  const [baristaNote, setBaristaNote] = useState(initialLine?.baristaNote ?? '')
+  const [quantity, setQuantity] = useState(initialLine?.quantity ?? 1)
 
-  const defaultOptionIds = useMemo(() => {
-    const ids = []
-    for (const group of item.optionGroups || []) {
-      for (const opt of group.options || []) {
-        if (opt.isDefault && opt.isAvailable !== false) {
-          ids.push(opt.id)
+  const initialOptionIds = useMemo(() => {
+    const groups = item.optionGroups || []
+    const activeIds = new Set(groups.flatMap((group) => (group.options || []).map((opt) => opt.id)))
+    const existing = (initialLine?.optionIds || []).filter((id) => activeIds.has(id))
+    const ids = [...existing]
+
+    for (const group of groups) {
+      const groupOptionIds = (group.options || []).map((opt) => opt.id)
+      const alreadyPicked = ids.some((id) => groupOptionIds.includes(id))
+      if (alreadyPicked) {
+        continue
+      }
+      // For new lines (or required groups missing a valid selection), pre-select configured defaults.
+      const isRequiredGroup = group.isRequired || group.minSelections > 0
+      if (!initialLine || isRequiredGroup) {
+        for (const opt of group.options || []) {
+          if (opt.isDefault) {
+            ids.push(opt.id)
+          }
         }
       }
     }
     return ids
-  }, [item.optionGroups])
+  }, [item.optionGroups, initialLine])
 
-  const [selectedOptionIds, setSelectedOptionIds] = useState(defaultOptionIds)
+  const [selectedOptionIds, setSelectedOptionIds] = useState(initialOptionIds)
   const [optionError, setOptionError] = useState('')
 
   useEscapeKey(true, onClose)
@@ -57,8 +71,17 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
   }, [item.optionGroups])
 
   function selectSingleOption(group, option) {
-    if (option.isAvailable === false) return
     const groupOptionIds = (group.options || []).map((o) => o.id)
+    const isRequiredGroup = group.isRequired || group.minSelections > 0
+    const isAlreadySelected = selectedOptionIds.includes(option.id)
+
+    // Allow toggling off an optional single-choice option if clicked again.
+    if (isAlreadySelected && !isRequiredGroup) {
+      setSelectedOptionIds((prev) => prev.filter((id) => id !== option.id))
+      setOptionError('')
+      return
+    }
+
     setSelectedOptionIds((prev) => [
       ...prev.filter((id) => !groupOptionIds.includes(id)),
       option.id,
@@ -67,7 +90,6 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
   }
 
   function toggleMultiOption(group, option) {
-    if (option.isAvailable === false) return
     const isSelected = selectedOptionIds.includes(option.id)
     if (isSelected) {
       setSelectedOptionIds((prev) => prev.filter((id) => id !== option.id))
@@ -100,18 +122,22 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
 
   const unitPrice = basePrice + optionsTotal
   const sizeLabel =
-    item.variants?.find((variant) => variant.key === sizeKey)?.label || sizeKey || 'پیش‌فرض'
+    item.variants?.find((variant) => variant.key === sizeKey)?.label || sizeKey || null
 
   function validateOptions() {
+    const missing = findMissingRequiredOptionGroup(item, selectedOptionIds)
+    if (missing) {
+      return missing.min <= 1
+        ? `انتخاب حداقل یک گزینه از «${missing.group.persianName}» الزامی است.`
+        : `حداقل ${toPersianNumber(missing.min)} گزینه از «${missing.group.persianName}» را انتخاب کنید.`
+    }
     for (const group of sortedOptionGroups) {
-      if (!group.isRequired) continue
-      const groupOptionIds = (group.options || []).map((o) => o.id)
-      const count = selectedOptionIds.filter((id) => groupOptionIds.includes(id)).length
-      const min = group.minSelections > 0 ? group.minSelections : 1
-      if (count < min) {
-        return min <= 1
-          ? `انتخاب یک گزینه از «${group.persianName}» الزامی است.`
-          : `حداقل ${toPersianNumber(min)} گزینه از «${group.persianName}» را انتخاب کنید.`
+      if (group.maxSelections > 0) {
+        const groupOptionIds = (group.options || []).map((o) => o.id)
+        const count = selectedOptionIds.filter((id) => groupOptionIds.includes(id)).length
+        if (count > group.maxSelections) {
+          return `حداکثر ${toPersianNumber(group.maxSelections)} گزینه از «${group.persianName}» قابل انتخاب است.`
+        }
       }
     }
     return null
@@ -205,42 +231,60 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
           </div>
         ) : null}
 
-        {sortedOptionGroups.map((group) => (
-          <div key={group.id} className="pos-modal-section">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label style={{ margin: 0 }}>{group.persianName}</label>
-              {group.isRequired ? (
-                <span className="pos-badge-required">الزامی</span>
-              ) : (
-                <span className="pos-badge-optional">دلخواه</span>
-              )}
+        {sortedOptionGroups.map((group) => {
+          const isRequiredGroup = group.isRequired || group.minSelections > 0
+          const isSingle = group.selectionMode === 'Single' || group.maxSelections === 1
+          return (
+            <div key={group.id} className="pos-modal-section">
+              <div className="pos-option-group-head">
+                <label>{group.persianName}</label>
+                <div className="pos-option-group-badges">
+                  {!isSingle && group.maxSelections > 1 ? (
+                    <span className="pos-group-hint">
+                      حداکثر {toPersianNumber(group.maxSelections)} مورد
+                    </span>
+                  ) : null}
+                  {isRequiredGroup ? (
+                    <span className="pos-badge-required">الزامی</span>
+                  ) : (
+                    <span className="pos-badge-optional">دلخواه</span>
+                  )}
+                </div>
+              </div>
+              <div className="pos-modifier-list">
+                {(group.options || []).map((option) => {
+                  const isSelected = selectedOptionIds.includes(option.id)
+                  const isLowStock = option.isAvailable === false
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`pos-modifier-chip ${isSelected ? 'selected' : ''} ${isLowStock ? 'pos-modifier-chip--low-stock' : ''}`}
+                      onClick={() =>
+                        isSingle
+                          ? selectSingleOption(group, option)
+                          : toggleMultiOption(group, option)
+                      }
+                      title={
+                        isLowStock
+                          ? 'موجودی ثبت‌شدهٔ انبار برای این گزینه کم است، اما در صندوق قابل انتخاب است'
+                          : undefined
+                      }
+                    >
+                      <span>{option.persianName}</span>
+                      {Number(option.priceDelta) > 0 ? (
+                        <small>+{formatPrice(option.priceDelta)} ت</small>
+                      ) : null}
+                      {isLowStock ? (
+                        <em className="pos-option-stock-warn">کمبود موجودی</em>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-            <div className="pos-modifier-list">
-              {(group.options || []).map((option) => {
-                const isSelected = selectedOptionIds.includes(option.id)
-                const isSingle = group.selectionMode === 'Single' || group.maxSelections === 1
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    disabled={option.isAvailable === false}
-                    className={`pos-modifier-chip ${isSelected ? 'selected' : ''}`}
-                    onClick={() =>
-                      isSingle
-                        ? selectSingleOption(group, option)
-                        : toggleMultiOption(group, option)
-                    }
-                  >
-                    <span>{option.persianName}</span>
-                    {Number(option.priceDelta) > 0 ? (
-                      <small>+{formatPrice(option.priceDelta)} ت</small>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ))}
+          )
+        })}
 
         {modifiers.length ? (
           <div className="pos-modal-section">
@@ -305,7 +349,7 @@ function ProductModal({ item, modifiers, onClose, onConfirm }) {
             className="pos-primary-button"
             onClick={handleConfirm}
           >
-            افزودن به سفارش
+            {initialLine ? 'ذخیره تغییرات' : 'افزودن به سفارش'}
           </button>
         </div>
       </div>
@@ -722,9 +766,28 @@ export function PosPage() {
     setExpandedLineNoteKey(null)
   }
 
-  function addToCart(line) {
+  function addToCart(line, replaceCartKey = null) {
     const cartKey = buildCartLineKey(line.menuItemId, line.sizeKey, line.modifierIds, line.optionIds)
     setCart((current) => {
+      if (replaceCartKey) {
+        const withoutOld = current.filter((entry) => entry.cartKey !== replaceCartKey)
+        const existing = withoutOld.find((entry) => entry.cartKey === cartKey)
+        if (existing) {
+          return withoutOld.map((entry) =>
+            entry.cartKey === cartKey
+              ? {
+                  ...entry,
+                  quantity: entry.quantity + line.quantity,
+                  baristaNote: line.baristaNote || entry.baristaNote,
+                }
+              : entry,
+          )
+        }
+        return current.map((entry) =>
+          entry.cartKey === replaceCartKey ? { ...entry, ...line, cartKey } : entry,
+        )
+      }
+
       const existing = current.find((entry) => entry.cartKey === cartKey)
       if (existing) {
         return current.map((entry) =>
@@ -741,6 +804,7 @@ export function PosPage() {
       return [...current, { ...line, cartKey }]
     })
     setProductModal(null)
+    setError('')
   }
 
   function updateLineQuantity(cartKey, delta) {
@@ -809,6 +873,20 @@ export function PosPage() {
       return
     }
 
+    // Ensure every cart line satisfies its item's required option groups before calling the API.
+    for (const line of cart) {
+      const menuItem = items.find((entry) => entry.id === line.menuItemId)
+      const missing = findMissingRequiredOptionGroup(menuItem, line.optionIds)
+      if (missing && menuItem) {
+        setError(
+          `برای «${menuItem.persianName}» انتخاب حداقل ${missing.min <= 1 ? 'یک' : toPersianNumber(missing.min)} گزینه از «${missing.group.persianName}» الزامی است.`,
+        )
+        setMessage('')
+        setProductModal({ item: menuItem, initialLine: line })
+        return
+      }
+    }
+
     setSubmitting(true)
     setError('')
     setMessage('')
@@ -860,7 +938,7 @@ export function PosPage() {
           deliveryMethodName: selectedDeliveryMethod?.persianName ?? null,
           deliveryFee,
           taxTotal: cartTotals.taxTotal,
-          subtotalAmount: cartTotals.subtotal,
+          subtotalAmount: cartTotals.itemsTotal,
           siteSettings,
         })
         setPrintModal({ bundle })
@@ -1130,11 +1208,14 @@ export function PosPage() {
             <div className="pos-products">
               {filteredItems.map((item) => {
                 const inCartQty = cartQtyByItem.get(item.id) || 0
+                const hasOptionGroups = Boolean(item.optionGroups?.length)
                 const hasSizesOrModifiers = Boolean(
-                  item.variants?.length || modifiers.length || item.optionGroups?.length,
+                  item.variants?.length || modifiers.length || hasOptionGroups,
                 )
                 const openItem = () =>
-                  hasSizesOrModifiers ? setProductModal(item) : quickAddProduct(item)
+                  hasSizesOrModifiers
+                    ? setProductModal({ item, initialLine: null })
+                    : quickAddProduct(item)
 
                 return (
                   <article
@@ -1147,10 +1228,19 @@ export function PosPage() {
                         {toPersianNumber(inCartQty)}
                       </span>
                     ) : null}
-                    {item.variants?.length > 1 ? (
-                      <span className="pos-product-variant-tag">
-                        {toPersianNumber(item.variants.length)} سایز
-                      </span>
+                    {item.variants?.length > 1 || hasOptionGroups ? (
+                      <div className="pos-product-tags">
+                        {item.variants?.length > 1 ? (
+                          <span className="pos-product-variant-tag">
+                            {toPersianNumber(item.variants.length)} سایز
+                          </span>
+                        ) : null}
+                        {hasOptionGroups ? (
+                          <span className="pos-product-option-tag">
+                            {toPersianNumber(item.optionGroups.length)} گزینه
+                          </span>
+                        ) : null}
+                      </div>
                     ) : null}
                     <div className="pos-product-media">
                       {item.imageUrl ? (
@@ -1480,6 +1570,14 @@ export function PosPage() {
               {cart.map((line) => {
                 const showNoteInput =
                   expandedLineNoteKey === line.cartKey || Boolean(line.baristaNote)
+                const menuItem = items.find((entry) => entry.id === line.menuItemId)
+                const canEditOptions = Boolean(
+                  menuItem &&
+                    (menuItem.variants?.length ||
+                      modifiers.length ||
+                      menuItem.optionGroups?.length),
+                )
+                const missingRequired = findMissingRequiredOptionGroup(menuItem, line.optionIds)
                 return (
                   <div key={line.cartKey} className="pos-cart-line">
                     <div className="pos-cart-line-top">
@@ -1540,6 +1638,17 @@ export function PosPage() {
                       </div>
 
                       <div className="pos-cart-line-tools">
+                        {canEditOptions ? (
+                          <button
+                            type="button"
+                            className={`pos-note-toggle-btn ${missingRequired ? 'pos-edit-options-btn--missing' : ''}`}
+                            onClick={() => setProductModal({ item: menuItem, initialLine: line })}
+                          >
+                            {missingRequired
+                              ? `⚠ انتخاب «${missingRequired.group.persianName}»`
+                              : '⚙ گزینه‌ها'}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className={`pos-note-toggle-btn ${showNoteInput ? 'active' : ''}`}
@@ -1787,10 +1896,12 @@ export function PosPage() {
 
       {productModal ? (
         <ProductModal
-          item={productModal}
+          key={productModal.initialLine?.cartKey || productModal.item.id}
+          item={productModal.item}
+          initialLine={productModal.initialLine}
           modifiers={modifiers}
           onClose={() => setProductModal(null)}
-          onConfirm={addToCart}
+          onConfirm={(line) => addToCart(line, productModal.initialLine?.cartKey ?? null)}
         />
       ) : null}
 

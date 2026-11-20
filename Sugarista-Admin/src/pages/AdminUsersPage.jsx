@@ -263,6 +263,7 @@ export function AdminUsersPage() {
               <span>نام کاربری</span>
               <input
                 className="ltr-input"
+                data-latin-digits="true"
                 value={form.username}
                 onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
                 required
@@ -272,7 +273,7 @@ export function AdminUsersPage() {
           ) : (
             <label>
               <span>نام کاربری</span>
-              <input className="ltr-input" value={form.username} disabled />
+              <input className="ltr-input" data-latin-digits="true" value={form.username} disabled />
             </label>
           )}
 
@@ -526,6 +527,7 @@ export function AdminUsersPage() {
                     <span>نام نقش (لاتین) *</span>
                     <input
                       className="ltr-input"
+                      data-latin-digits="true"
                       value={roleEditor.name}
                       disabled={Boolean(roleEditor.id)}
                       required={!roleEditor.id}

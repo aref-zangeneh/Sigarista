@@ -292,6 +292,7 @@ document.addEventListener("alpine:init", () => {
     searchTypeTimer: null,
     searchUserTyping: false,
     async init() {
+      window.SugaristaDigits?.installThemePersianDigits();
       this.syncMenuTooltips();
       this.loadThemePref();
       this.applyTheme();
@@ -692,7 +693,7 @@ document.addEventListener("alpine:init", () => {
       return Math.max(0, Math.round(final * 100) / 100);
     },
     get walletBalance() {
-      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      const digits = this.toEnglishDigits(this.checkoutForm.customerPhone || "").replace(/\D/g, "");
       if (this.checkoutWallet?.phone === digits) {
         return Math.max(0, Number(this.checkoutWallet.wallet?.balance) || 0);
       }
@@ -702,7 +703,7 @@ document.addEventListener("alpine:init", () => {
       return this.cart.length > 0 && !this.checkoutForm.isSplitBill && this.walletBalance > 0;
     },
     get walletPaymentMaxPercent() {
-      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      const digits = this.toEnglishDigits(this.checkoutForm.customerPhone || "").replace(/\D/g, "");
       if (this.checkoutWallet?.phone === digits) {
         const percent = Number(this.checkoutWallet.wallet?.paymentMaxPercent);
         return percent > 0 && percent <= 100 ? percent : 100;
@@ -717,21 +718,21 @@ document.addEventListener("alpine:init", () => {
       return Math.min(this.walletBalance, this.finalAmount, capped);
     },
     get checkoutPersonalCup() {
-      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      const digits = this.toEnglishDigits(this.checkoutForm.customerPhone || "").replace(/\D/g, "");
       if (this.checkoutWallet?.phone === digits && this.checkoutWallet.personalCup?.enabled) {
         return this.checkoutWallet.personalCup;
       }
       return null;
     },
     get checkoutSubscription() {
-      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      const digits = this.toEnglishDigits(this.checkoutForm.customerPhone || "").replace(/\D/g, "");
       if (this.checkoutWallet?.phone === digits && this.checkoutWallet.subscription) {
         return this.checkoutWallet.subscription;
       }
       return null;
     },
     get checkoutGroup() {
-      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      const digits = this.toEnglishDigits(this.checkoutForm.customerPhone || "").replace(/\D/g, "");
       if (this.checkoutWallet?.phone === digits && this.checkoutWallet.group) {
         return this.checkoutWallet.group;
       }
@@ -961,12 +962,12 @@ document.addEventListener("alpine:init", () => {
     // ── کارت مهر / پروفایل مشتری ─────────────────────────────────────────
     restoreProfilePhone() {
       try {
-        const phone = window.localStorage.getItem(PROFILE_STORAGE_KEY) || "";
+        const phone = this.toEnglishDigits(window.localStorage.getItem(PROFILE_STORAGE_KEY) || "");
         if (phone) {
           this.profilePhone = phone;
-          this.profilePhoneInput = phone;
+          this.profilePhoneInput = this.toPersianDigits(phone);
           if (!this.checkoutForm.customerPhone.trim()) {
-            this.checkoutForm.customerPhone = phone;
+            this.checkoutForm.customerPhone = this.toPersianDigits(phone);
           }
         }
       } catch {
@@ -1020,7 +1021,7 @@ document.addEventListener("alpine:init", () => {
       this.authPopupOpen = !dismissed && !storedPhone;
     },
     async submitAuthPhone() {
-      const digits = (this.authPhoneInput || "").replace(/\D/g, "");
+      const digits = this.toEnglishDigits(this.authPhoneInput || "").replace(/\D/g, "");
       if (digits.length < 8) {
         this.authPopupError = "شماره موبایل معتبر وارد کنید.";
         return;
@@ -1035,7 +1036,7 @@ document.addEventListener("alpine:init", () => {
         const response = await fetch(`${this.apiBaseUrl}/customers/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phoneNumber: phoneDigits })
+          body: this.jsonBody({ phoneNumber: phoneDigits })
         });
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
@@ -1044,7 +1045,7 @@ document.addEventListener("alpine:init", () => {
         const result = await response.json();
         this.customerSession = result.customer;
         this.profilePhone = result.customer.phoneNumber;
-        this.profilePhoneInput = result.customer.phoneNumber;
+        this.profilePhoneInput = this.toPersianDigits(result.customer.phoneNumber);
         try {
           window.localStorage.setItem(PROFILE_STORAGE_KEY, result.customer.phoneNumber);
         } catch {
@@ -1114,7 +1115,7 @@ document.addEventListener("alpine:init", () => {
       return Array.from({ length: total }, (_, index) => index < filled);
     },
     async submitProfilePhone() {
-      const digits = (this.profilePhoneInput || "").replace(/\D/g, "");
+      const digits = this.toEnglishDigits(this.profilePhoneInput || "").replace(/\D/g, "");
       if (digits.length < 8) {
         this.profileError = "شماره موبایل معتبر وارد کنید.";
         return;
@@ -1148,7 +1149,7 @@ document.addEventListener("alpine:init", () => {
         const response = await fetch(`${this.apiBaseUrl}/customers/profile/birthday`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: this.jsonBody({
             phoneNumber: this.profilePhone,
             dateOfBirth: this.birthdayDraft
           })
@@ -1179,7 +1180,7 @@ document.addEventListener("alpine:init", () => {
         const response = await fetch(`${this.apiBaseUrl}/customers/profile`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phoneNumber: this.profilePhone })
+          body: this.jsonBody({ phoneNumber: this.profilePhone })
         });
         if (!response.ok) {
           throw new Error("خطا در دریافت پروفایل.");
@@ -1223,7 +1224,7 @@ document.addEventListener("alpine:init", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           keepalive: true,
-          body: JSON.stringify({
+          body: this.jsonBody({
             cartToken: this.cartToken(),
             customerName: this.checkoutForm.customerName.trim() || null,
             phoneNumber: this.checkoutForm.customerPhone.trim() || null,
@@ -1265,7 +1266,7 @@ document.addEventListener("alpine:init", () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           keepalive: true,
-          body: JSON.stringify({
+          body: this.jsonBody({
             lines: this.cart.map((line) => ({
               menuItemId: line.menuItemId,
               categoryId: null,
@@ -1427,7 +1428,9 @@ document.addEventListener("alpine:init", () => {
         const hours = Math.floor(diff / 3600000);
         const minutes = Math.floor((diff % 3600000) / 60000);
         const seconds = Math.floor((diff % 60000) / 1000);
-        this.flashSaleRemaining = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        this.flashSaleRemaining = this.toPersianDigits(
+          `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+        );
       };
       tick();
       this.flashSaleTimer = window.setInterval(tick, 1000);
@@ -1743,7 +1746,7 @@ document.addEventListener("alpine:init", () => {
     // شناسایی مشتری فقط با شماره موبایل است: موجودی کیف پول همان‌جا که شماره
     // تایپ/تغییر می‌کند بی‌صدا از پروفایل گرفته می‌شود (بدون رمز و کد تایید).
     async loadCheckoutWallet() {
-      const digits = (this.checkoutForm.customerPhone || "").replace(/\D/g, "");
+      const digits = this.toEnglishDigits(this.checkoutForm.customerPhone || "").replace(/\D/g, "");
       if (digits.length < 8) {
         this.checkoutWallet = null;
         this.checkoutForm.useWallet = false;
@@ -1755,7 +1758,7 @@ document.addEventListener("alpine:init", () => {
         const response = await fetch(`${this.apiBaseUrl}/customers/profile`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phoneNumber: digits })
+          body: this.jsonBody({ phoneNumber: digits })
         });
         const payload = response.ok ? await response.json() : null;
         // باکس به شماره‌ای که درخواست با آن ساخته شده قفل است تا اگر کاربر
@@ -2953,14 +2956,14 @@ document.addEventListener("alpine:init", () => {
         // created, so an abandoned checkout can still be reminded about.
         await this.trackCart();
 
-        const discountCode = this.checkoutForm.discountCode.trim();
+        const discountCode = this.toEnglishDigits(this.checkoutForm.discountCode || "").trim();
         let discountAmount = 0;
 
         if (discountCode) {
           const previewResponse = await fetch(`${this.apiBaseUrl}/discounts/preview`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+            body: this.jsonBody({
               code: discountCode,
               deliveryFee: 0,
               channel: "online",
@@ -3004,30 +3007,31 @@ document.addEventListener("alpine:init", () => {
                 payerLabel: share.payerLabel,
                 sharePercentage:
                   this.checkoutForm.splitBillMode === "ByPercentage"
-                    ? Number(share.sharePercentage)
+                    ? Number(this.toEnglishDigits(String(share.sharePercentage ?? ""))) || 0
                     : null,
                 shareAmount:
                   this.checkoutForm.splitBillMode === "ByCustomAmount"
-                    ? Number(share.shareAmount)
+                    ? Number(this.toEnglishDigits(String(share.shareAmount ?? ""))) || 0
                     : null
               }))
             : null;
 
         // مشتریِ لاگین‌شده: نام از پروفایلش (یا شماره‌اش وقتی هنوز نامی ثبت
         // نکرده) همراه سفارش می‌رود تا فرم هر بار خالی نپرسد.
+        const normalizedCustomerPhone = this.toEnglishDigits(this.checkoutForm.customerPhone || "").trim();
         const sessionCustomerName = this.checkoutForm.customerName.trim() ||
           (this.profile?.persianName || this.customerSession?.persianName || "").trim() ||
-          this.checkoutForm.customerPhone.trim();
+          normalizedCustomerPhone;
 
         const response = await fetch(`${this.apiBaseUrl}/orders/checkout`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: this.jsonBody({
             customerName: sessionCustomerName,
-            customerPhone: this.checkoutForm.customerPhone.trim(),
+            customerPhone: normalizedCustomerPhone,
             note: this.checkoutForm.note.trim() || null,
-            discountCode: this.checkoutForm.discountCode.trim() || null,
-            redeemPoints: Number(this.checkoutForm.redeemPoints) || 0,
+            discountCode: discountCode || null,
+            redeemPoints: Number(this.toEnglishDigits(String(this.checkoutForm.redeemPoints ?? ""))) || 0,
             useWallet: this.checkoutForm.useWallet && this.walletPayable,
             personalCup: this.checkoutForm.personalCup && !!this.checkoutPersonalCup,
             useSubscription: this.checkoutForm.useSubscription && !!this.checkoutSubscription,
@@ -3268,7 +3272,7 @@ document.addEventListener("alpine:init", () => {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ trackingCode: this.orderStatus.trackingCode })
+            body: this.jsonBody({ trackingCode: this.orderStatus.trackingCode })
           }
         );
         const payload = await response.json().catch(() => ({}));
@@ -3334,7 +3338,7 @@ document.addEventListener("alpine:init", () => {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+            body: this.jsonBody({
               trackingCode: this.orderStatus.trackingCode,
               deliveryAt: this.rescheduleSlot
             })
@@ -3374,7 +3378,7 @@ document.addEventListener("alpine:init", () => {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ authority: this.mockPayment.authority })
+            body: this.jsonBody({ authority: this.mockPayment.authority })
           }
         );
 
@@ -3419,7 +3423,7 @@ document.addEventListener("alpine:init", () => {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ payerKey })
+            body: this.jsonBody({ payerKey })
           }
         );
 
@@ -3449,7 +3453,7 @@ document.addEventListener("alpine:init", () => {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ authority: this.splitMockPayment.authority })
+            body: this.jsonBody({ authority: this.splitMockPayment.authority })
           }
         );
 
@@ -3489,8 +3493,7 @@ document.addEventListener("alpine:init", () => {
       window.history.replaceState({}, "", "/");
     },
     normalizeText(value) {
-      return value
-        .toString()
+      return this.toEnglishDigits(value == null ? "" : value.toString())
         .toLowerCase()
         .replaceAll("ي", "ی")
         .replaceAll("ك", "ک")
@@ -3561,11 +3564,88 @@ document.addEventListener("alpine:init", () => {
         item.taxPercent ? `مالیات ${this.toPersianNumber(item.taxPercent)}٪` : ""
       ].filter(Boolean);
     },
+    toEnglishDigits(value) {
+      return window.SugaristaDigits ? window.SugaristaDigits.toEnglishDigits(value) : value;
+    },
+    toPersianDigits(value) {
+      return window.SugaristaDigits ? window.SugaristaDigits.toPersianDigits(value) : String(value ?? "");
+    },
+    jsonBody(payload) {
+      const normalized = window.SugaristaDigits
+        ? window.SugaristaDigits.normalizePayloadDigits(payload)
+        : payload;
+      return JSON.stringify(normalized);
+    },
+    setSplitSharePercentage(index, rawValue, inputEl = null) {
+      const share = this.checkoutForm.splitShares[index];
+      if (!share) {
+        return;
+      }
+      const { english } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
+        allowDecimal: true,
+        allowNegative: false
+      });
+      if (english === "") {
+        share.sharePercentage = "";
+        return;
+      }
+      const num = Number(english);
+      if (Number.isFinite(num) && num > 100) {
+        share.sharePercentage = 100;
+        if (inputEl) {
+          inputEl.value = this.toPersianDigits(100);
+        }
+        return;
+      }
+      share.sharePercentage = english.endsWith(".") || /\.\d*0$/.test(english) ? english : num;
+    },
+    finalizeSplitSharePercentage(index) {
+      const share = this.checkoutForm.splitShares[index];
+      if (!share) {
+        return;
+      }
+      const num = Number(this.toEnglishDigits(String(share.sharePercentage ?? "")));
+      share.sharePercentage = Number.isFinite(num) ? Math.max(0, Math.min(100, num)) : 0;
+    },
+    setSplitShareAmount(index, rawValue) {
+      const share = this.checkoutForm.splitShares[index];
+      if (!share) {
+        return;
+      }
+      const { english } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
+        allowDecimal: false,
+        allowNegative: false
+      });
+      share.shareAmount = english === "" ? "" : Math.max(0, Number(english));
+    },
+    finalizeSplitShareAmount(index) {
+      const share = this.checkoutForm.splitShares[index];
+      if (!share) {
+        return;
+      }
+      const num = Number(this.toEnglishDigits(String(share.shareAmount ?? "")));
+      share.shareAmount = Number.isFinite(num) ? Math.max(0, num) : 0;
+    },
+    setRedeemPoints(rawValue) {
+      const { english } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
+        allowDecimal: false,
+        allowNegative: false
+      });
+      this.checkoutForm.redeemPoints = english;
+    },
     toPersianNumber(value) {
-      return new Intl.NumberFormat("fa-IR").format(value);
+      if (value === null || value === undefined || value === "") {
+        return "۰";
+      }
+      const normalized = typeof value === "string" ? Number(this.toEnglishDigits(value)) : Number(value);
+      if (!Number.isFinite(normalized)) {
+        return this.toPersianDigits(value);
+      }
+      return new Intl.NumberFormat("fa-IR").format(normalized);
     },
     callHref() {
-      return `tel:${this.settings.contactPhone}`;
+      const phone = this.toEnglishDigits(this.settings.contactPhone || "").trim();
+      return `tel:${phone}`;
     },
     instagramHref() {
       return this.settings.instagramUrl || "#";

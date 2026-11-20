@@ -473,6 +473,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         var optionGroups = await _dbContext.MenuItemOptionGroups
             .AsNoTracking()
             .Include(group => group.Options)
+                .ThenInclude(option => option.Ingredients)
+                    .ThenInclude(ingredientRow => ingredientRow.Ingredient)
             .Where(group => menuItemIds.Contains(group.MenuItemId) && group.IsActive)
             .OrderBy(group => group.DisplayOrder)
             .ToListAsync(cancellationToken);

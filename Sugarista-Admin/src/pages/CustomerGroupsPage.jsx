@@ -177,6 +177,7 @@ export function CustomerGroupsPage() {
             <input
               className="ltr-input"
               dir="ltr"
+              data-latin-digits="true"
               value={groupForm.emailDomain}
               onChange={(event) => setGroupForm((current) => ({ ...current, emailDomain: event.target.value }))}
               placeholder="company.com"

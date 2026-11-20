@@ -1034,12 +1034,15 @@
                   <strong x-text="share.payerLabel"></strong>
                   <div class="input-group input-group-sm guest-select">
                     <input
-                      type="number"
+                      type="text"
+                      inputmode="decimal"
+                      dir="ltr"
+                      data-numeric-input="true"
+                      data-allow-decimal="true"
                       class="form-control ltr-text"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      x-model.number="checkoutForm.splitShares[index].sharePercentage"
+                      :value="toPersianDigits(share.sharePercentage)"
+                      @input="setSplitSharePercentage(index, $event.target.value, $event.target)"
+                      @blur="finalizeSplitSharePercentage(index)"
                     >
                     <span class="input-group-text">٪</span>
                   </div>
@@ -1057,11 +1060,14 @@
                 <div class="split-assignment-row">
                   <strong x-text="share.payerLabel"></strong>
                   <input
-                    type="number"
+                    type="text"
+                    inputmode="numeric"
+                    dir="ltr"
+                    data-numeric-input="true"
                     class="form-control form-control-sm ltr-text guest-select"
-                    min="0"
-                    step="1000"
-                    x-model.number="checkoutForm.splitShares[index].shareAmount"
+                    :value="toPersianDigits(share.shareAmount)"
+                    @input="setSplitShareAmount(index, $event.target.value)"
+                    @blur="finalizeSplitShareAmount(index)"
                     placeholder="مبلغ به تومان"
                   >
                 </div>
@@ -1139,10 +1145,13 @@
                 <label class="form-label" for="checkout-redeem-points">امتیاز وفاداری (اختیاری)</label>
                 <input
                   id="checkout-redeem-points"
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputmode="numeric"
+                  dir="ltr"
+                  data-numeric-input="true"
                   class="form-control ltr-text"
-                  x-model="checkoutForm.redeemPoints"
+                  :value="toPersianDigits(checkoutForm.redeemPoints)"
+                  @input="setRedeemPoints($event.target.value)"
                   placeholder="تعداد امتیاز"
                 >
               </div>
@@ -2403,7 +2412,7 @@
             type="tel"
             inputmode="numeric"
             class="form-control ltr-text"
-            placeholder="09xxxxxxxxx"
+            placeholder="۰۹xxxxxxxxx"
             x-model="authPhoneInput"
             @keydown.enter.prevent="submitAuthPhone()"
           />
@@ -2444,7 +2453,7 @@
                 type="tel"
                 inputmode="numeric"
                 class="form-control ltr-text"
-                placeholder="09xxxxxxxxx"
+                placeholder="۰۹xxxxxxxxx"
                 x-model="profilePhoneInput"
                 @keydown.enter.prevent="submitProfilePhone()"
               />
@@ -3229,6 +3238,7 @@
 
   <script defer src="assets/vendor/alpine/alpine.min.js"></script>
   <script src="assets/js/config.js"></script>
+  <script src="assets/js/persianDigits.js"></script>
   <script src="assets/js/app.js"></script>
 </body>
 </html>

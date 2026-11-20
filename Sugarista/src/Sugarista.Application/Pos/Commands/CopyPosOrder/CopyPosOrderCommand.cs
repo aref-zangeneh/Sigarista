@@ -67,7 +67,9 @@ public class CopyPosOrderCommandHandler : IRequestHandler<CopyPosOrderCommand, P
                 line.BaristaNote,
                 line.TaxPercent,
                 line.CustomizationJson,
-                line.CustomDrinkSummary));
+                line.CustomDrinkSummary,
+                line.OptionLabels,
+                line.OptionsJson));
         }
 
         foreach (var share in source.SplitShares.OrderBy(entry => entry.SortOrder))

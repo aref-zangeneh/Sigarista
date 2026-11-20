@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { DataTable } from './DataTable'
 import { usePaginatedResource } from '../hooks/usePaginatedResource'
+import { toEnglishDigits } from '../utils/persianDigits'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
@@ -11,7 +12,7 @@ async function fetchPaginated(path, { page, pageSize, search, status, token }) {
   })
 
   if (search) {
-    params.set('search', search)
+    params.set('search', toEnglishDigits(search))
   }
 
   if (status) {

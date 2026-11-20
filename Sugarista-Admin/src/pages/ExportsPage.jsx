@@ -4,6 +4,7 @@ import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
 import { apiRequest } from '../utils/adminApi'
 import { formatDateTime } from '../utils/adminFormatters'
 import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
+import { normalizeUrlQueryDigits } from '../utils/persianDigits'
 
 const EXPORT_SECTIONS = [
   {
@@ -136,7 +137,7 @@ function formatPeriod(fromDate, toDate) {
 }
 
 async function requestExportBlob(path, token) {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? '/api'}${path}`, {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? '/api'}${normalizeUrlQueryDigits(path)}`, {
     headers: {
       Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

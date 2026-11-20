@@ -530,6 +530,7 @@ export function SiteSettingsPage() {
                     type="text"
                     maxLength="400"
                     dir="ltr"
+                    data-latin-digits="true"
                     placeholder="https://example.com/event  (خالی = بدون لینک)"
                     value={siteSettings.eventBannerLinkUrl ?? ''}
                     onChange={(event) => updateField('eventBannerLinkUrl', event.target.value.trimStart())}
@@ -1865,6 +1866,7 @@ export function SiteSettingsPage() {
                     {isTextarea ? (
                       <textarea
                         className={fieldName === 'instagramUrl' ? 'ltr-input' : ''}
+                        data-latin-digits={fieldName === 'instagramUrl' ? 'true' : undefined}
                         rows="4"
                         value={siteSettings[fieldName] ?? ''}
                         onChange={(event) => updateField(fieldName, event.target.value)}
@@ -1876,6 +1878,7 @@ export function SiteSettingsPage() {
                             ? 'ltr-input'
                             : undefined
                         }
+                        data-latin-digits={fieldType === 'url' ? 'true' : undefined}
                         type={fieldType ?? 'text'}
                         value={siteSettings[fieldName] ?? ''}
                         onChange={(event) => updateField(fieldName, event.target.value)}

@@ -81,6 +81,7 @@ builder.Services.AddControllers(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new Sugarista.Application.Common.Text.PersianNumberJsonConverterFactory());
     });
 builder.Services.AddCors(options =>
 {
@@ -361,6 +362,7 @@ app.UseStaticFiles(new StaticFileOptions
     },
 });
 
+app.UseMiddleware<DigitNormalizationMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

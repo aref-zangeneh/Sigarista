@@ -3,6 +3,7 @@ import { useAdmin } from '../context/AdminContext'
 import { apiRequest, API_BASE_URL } from '../utils/adminApi'
 import { formatDateTime, toPersianNumber } from '../utils/adminFormatters'
 import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
+import { normalizePayloadDigits, normalizeUrlQueryDigits } from '../utils/persianDigits'
 
 const KIND_OPTIONS = [
   { value: '', label: 'همهٔ انواع' },
@@ -54,13 +55,13 @@ function formatToman(value) {
 }
 
 async function requestReportBlob(path, token, body) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${normalizeUrlQueryDigits(path)}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(normalizePayloadDigits(body)),
   })
 
   if (!response.ok) {
@@ -674,6 +675,7 @@ export function DiscountReportsPage() {
               <input
                 className="ltr-input"
                 dir="ltr"
+                data-latin-digits="true"
                 value={scheduleForm.recipientEmails}
                 placeholder="owner@example.com, manager@example.com"
                 onChange={(event) => updateScheduleField('recipientEmails', event.target.value)}

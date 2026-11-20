@@ -1,3 +1,5 @@
+import { normalizePayloadDigits, normalizeUrlQueryDigits } from './persianDigits'
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 export function getReadableError(error) {
@@ -23,13 +25,16 @@ export function getReadableError(error) {
 }
 
 export async function apiRequest(path, { method = 'GET', body, token } = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const normalizedPath = normalizeUrlQueryDigits(path)
+  const normalizedBody = body !== undefined ? normalizePayloadDigits(body) : undefined
+
+  const response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: normalizedBody ? JSON.stringify(normalizedBody) : undefined,
   })
 
   if (!response.ok) {

@@ -123,7 +123,7 @@ public class GetCostDashboardQueryHandler : IRequestHandler<GetCostDashboardQuer
 
         var paidOrders = _dbContext.Orders
             .AsNoTracking()
-            .Where(order => order.Status == OrderStatus.Paid);
+            .Where(order => order.Status == OrderStatus.Paid && !order.IsExcludedFromAccounting);
 
         var salesLast30 = await paidOrders
             .Where(order => order.CreatedAt >= DateTimeOffset.UtcNow.AddDays(-30))

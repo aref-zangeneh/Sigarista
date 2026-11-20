@@ -10,7 +10,9 @@ public record GetAdminOrdersQuery(
     int PageSize = 25,
     string? Search = null,
     string? Status = null,
-    string? Fulfillment = null) : IRequest<PaginatedList<AdminOrderListItemDto>>;
+    string? Fulfillment = null,
+    string? OrderKind = null,
+    bool? ExcludedFromAccounting = null) : IRequest<PaginatedList<AdminOrderListItemDto>>;
 
 public record AdminOrderListItemDto(
     Guid Id,
@@ -28,7 +30,11 @@ public record AdminOrderListItemDto(
     DateTimeOffset? FulfillmentUpdatedAt,
     DateTimeOffset? ReadyAt,
     DateTimeOffset? ReadySmsSentAt,
-    int LineCount);
+    int LineCount,
+    string OrderKind = "Standard",
+    string? ComplimentaryReason = null,
+    bool IsExcludedFromAccounting = false,
+    string? PaymentMethod = null);
 
 public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, PaginatedList<AdminOrderListItemDto>>
 {
@@ -66,6 +72,17 @@ public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, P
             query = query.Where(order => order.FulfillmentStatus == fulfillmentFilter);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.OrderKind) &&
+            Enum.TryParse<OrderKind>(request.OrderKind, true, out var orderKindFilter))
+        {
+            query = query.Where(order => order.OrderKind == orderKindFilter);
+        }
+
+        if (request.ExcludedFromAccounting.HasValue)
+        {
+            query = query.Where(order => order.IsExcludedFromAccounting == request.ExcludedFromAccounting.Value);
+        }
+
         return await query
             .OrderByDescending(o => o.CreatedAt)
             .Select(order => new AdminOrderListItemDto(
@@ -84,7 +101,11 @@ public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, P
                 order.FulfillmentUpdatedAt,
                 order.ReadyAt,
                 order.ReadySmsSentAt,
-                order.Lines.Count))
+                order.Lines.Count,
+                order.OrderKind.ToString(),
+                order.ComplimentaryReason,
+                order.IsExcludedFromAccounting,
+                order.PaymentMethod != null ? order.PaymentMethod.ToString() : null))
             .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

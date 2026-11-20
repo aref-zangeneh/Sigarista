@@ -2,12 +2,22 @@ import { useMemo, useState } from 'react'
 import {
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import './DataTable.css'
 
 function toPersianNumber(value) {
   return new Intl.NumberFormat('fa-IR').format(value)
+}
+
+export function computeRowDisplayNumber(rowIndex, pageIndex = 0, pageSize = 25) {
+  const safePageIndex = Math.max(0, Number(pageIndex) || 0)
+  const safePageSize = Math.max(1, Number(pageSize) || 25)
+  const safeRowIndex = Math.max(0, Number(rowIndex) || 0)
+  return safePageIndex * safePageSize + safeRowIndex + 1
 }
 
 export function DataTable({
@@ -19,6 +29,7 @@ export function DataTable({
   emptyMessage = 'موردی یافت نشد.',
   enableSearch = true,
   enablePagination = true,
+  showRowNumber = true,
   compact = false,
   manualPagination = false,
   totalCount = 0,
@@ -30,29 +41,81 @@ export function DataTable({
   loading = false,
 }) {
   const [localSearch, setLocalSearch] = useState('')
+  const [sorting, setSorting] = useState([])
+  const [localPagination, setLocalPagination] = useState({ pageIndex: 0, pageSize })
 
   const isServerMode = manualPagination
   const effectiveSearch = isServerMode ? searchValue : localSearch
-  const effectivePageIndex = isServerMode ? pageIndex : undefined
-  const effectivePageSize = isServerMode ? pageSize : undefined
+  const effectivePageIndex = isServerMode ? pageIndex : localPagination.pageIndex
+  const effectivePageSize = isServerMode ? pageSize : localPagination.pageSize
   const pageCount = isServerMode
     ? Math.max(1, Math.ceil(totalCount / Math.max(pageSize, 1)))
     : undefined
 
+  const effectiveColumns = useMemo(() => {
+    if (!showRowNumber) {
+      return columns
+    }
+
+    const alreadyHasIndex = columns.some(
+      (col) => col.id === '__rowNumber' || col.header === 'ردیف' || col.header === '#',
+    )
+    if (alreadyHasIndex) {
+      return columns
+    }
+
+    const rowNumberColumn = {
+      id: '__rowNumber',
+      header: 'ردیف',
+      enableSorting: false,
+      size: 56,
+      meta: { className: 'data-table-row-num' },
+      cell: ({ row, table: tableInstance }) => {
+        const currentPageIndex = isServerMode
+          ? effectivePageIndex
+          : tableInstance.getState().pagination.pageIndex
+        const currentPageSize = isServerMode
+          ? effectivePageSize
+          : tableInstance.getState().pagination.pageSize
+        const visibleRows = tableInstance.getRowModel().rows
+        const visualIndex = visibleRows.findIndex((entry) => entry.id === row.id)
+        const displayNum = computeRowDisplayNumber(
+          visualIndex >= 0 ? visualIndex : row.index,
+          currentPageIndex,
+          currentPageSize,
+        )
+        return toPersianNumber(displayNum)
+      },
+    }
+
+    return [rowNumberColumn, ...columns]
+  }, [columns, showRowNumber, isServerMode, effectivePageIndex, effectivePageSize])
+
   const table = useReactTable({
     data,
-    columns,
+    columns: effectiveColumns,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    ...(!isServerMode && enableSearch ? { getFilteredRowModel: getFilteredRowModel() } : {}),
+    ...(!isServerMode && enablePagination ? { getPaginationRowModel: getPaginationRowModel() } : {}),
     manualPagination: isServerMode,
     pageCount,
-    state: isServerMode
-      ? {
-          pagination: {
-            pageIndex: effectivePageIndex,
-            pageSize: effectivePageSize,
-          },
-        }
-      : undefined,
+    state: {
+      sorting,
+      ...(isServerMode
+        ? {
+            pagination: {
+              pageIndex: effectivePageIndex,
+              pageSize: effectivePageSize,
+            },
+          }
+        : {
+            globalFilter: localSearch,
+            pagination: localPagination,
+          }),
+    },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: isServerMode ? undefined : setLocalSearch,
     onPaginationChange: isServerMode
       ? (updater) => {
           const current = { pageIndex: effectivePageIndex, pageSize: effectivePageSize }
@@ -65,10 +128,10 @@ export function DataTable({
             onPageChange?.(1)
           }
         }
-      : undefined,
+      : setLocalPagination,
   })
 
-  const rowCount = isServerMode ? totalCount : data.length
+  const rowCount = isServerMode ? totalCount : table.getFilteredRowModel().rows.length
 
   const paginationControls = enablePagination ? (
     <div className="data-table-pagination">
@@ -76,7 +139,7 @@ export function DataTable({
         <label>
           <span>نمایش</span>
           <select
-            value={pageSize}
+            value={effectivePageSize}
             onChange={(event) => {
               const nextSize = Number(event.target.value)
               if (isServerMode) {
@@ -85,7 +148,7 @@ export function DataTable({
                 return
               }
 
-              table.setPageSize(nextSize)
+              setLocalPagination({ pageIndex: 0, pageSize: nextSize })
             }}
           >
             {pageSizeOptions.map((option) => (
@@ -220,7 +283,7 @@ export function DataTable({
               <tr>
                 <td
                   className="data-table-empty"
-                  colSpan={columns.length}
+                  colSpan={table.getVisibleLeafColumns().length}
                   role="status"
                   aria-live="polite"
                 >

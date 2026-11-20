@@ -224,6 +224,7 @@ export function AdminLayout() {
     session,
     handleLogout,
     orderAlerts,
+    busyAlertOrders,
     lowStockAlert,
     orderAlertPulse,
     openOrderEditor,
@@ -452,9 +453,13 @@ export function AdminLayout() {
           {canViewOrders ? (
             <OrderAlertsBar
               alerts={orderAlerts}
+              busyOrders={busyAlertOrders}
               pulse={orderAlertPulse}
               onOpenOrders={() => navigate('/orders')}
               onOpenOrder={(order) => {
+                if (busyAlertOrders?.[String(order.id)]) {
+                  return
+                }
                 navigate('/orders')
                 openOrderEditor(order)
               }}

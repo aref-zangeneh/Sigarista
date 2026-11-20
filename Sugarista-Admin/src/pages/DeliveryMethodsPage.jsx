@@ -312,7 +312,9 @@ export function DeliveryMethodsPage() {
           <table>
             <thead>
               <tr>
+                <th>ردیف</th>
                 <th>نام</th>
+                <th>ترتیب نمایش</th>
                 <th>هزینه</th>
                 <th>ست بسته‌بندی</th>
                 <th>وضعیت</th>
@@ -320,13 +322,15 @@ export function DeliveryMethodsPage() {
               </tr>
             </thead>
             <tbody>
-              {methods.map((method) => (
+              {methods.map((method, index) => (
                 <tr key={method.id}>
+                  <td>{index + 1}</td>
                   <td>
                     <strong>{method.persianName}</strong>
                     <div className="table-subtext ltr-text">{method.englishName}</div>
                     {method.description ? <div className="table-subtext">{method.description}</div> : null}
                   </td>
+                  <td>{formatPrice(method.displayOrder ?? 0)}</td>
                   <td>{method.deliveryFee > 0 ? `${formatPrice(method.deliveryFee)} تومان` : 'رایگان'}</td>
                   <td>
                     {method.packagings?.length
@@ -368,7 +372,7 @@ export function DeliveryMethodsPage() {
               ))}
               {methods.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>هنوز روش تحویلی ثبت نشده است.</td>
+                  <td colSpan={7}>هنوز روش تحویلی ثبت نشده است.</td>
                 </tr>
               ) : null}
             </tbody>

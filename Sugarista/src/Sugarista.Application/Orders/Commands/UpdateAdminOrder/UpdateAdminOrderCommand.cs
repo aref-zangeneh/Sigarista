@@ -46,7 +46,13 @@ public record AdminOrderDetailDto(
     decimal TaxTotal,
     decimal ItemsTotal,
     IReadOnlyCollection<AdminOrderLineDto> Lines,
-    IReadOnlyCollection<AdminOrderPaymentDto> Payments);
+    IReadOnlyCollection<AdminOrderPaymentDto> Payments,
+    string OrderKind = "Standard",
+    string? ComplimentaryReason = null,
+    bool IsExcludedFromAccounting = false,
+    DateTimeOffset? ExcludedFromAccountingAt = null,
+    string? ExcludedFromAccountingReason = null,
+    string? PaymentMethod = null);
 
 public record AdminOrderLineDto(
     Guid Id,
@@ -317,6 +323,12 @@ internal static class AdminOrderMapper
                     payment.Amount,
                     payment.Status.ToString(),
                     payment.PaidAt))
-                .ToArray());
+                .ToArray(),
+            order.OrderKind.ToString(),
+            order.ComplimentaryReason,
+            order.IsExcludedFromAccounting,
+            order.ExcludedFromAccountingAt,
+            order.ExcludedFromAccountingReason,
+            order.PaymentMethod?.ToString());
     }
 }

@@ -6,6 +6,8 @@ const PAYMENT_LABELS = {
   Card: 'کارت‌خوان (پوز)',
   PayCard: 'کارت‌خوان (پوز)',
   OnlineGateway: 'درگاه پرداخت آنلاین',
+  Complimentary: 'رایگان (بدون دریافت وجه)',
+  InternalUse: 'مصرف داخلی پرسنل (رایگان)',
 }
 
 const SERVICE_LABELS = {
@@ -137,17 +139,31 @@ export function buildPosReceiptBundle(input) {
   const resolvedSubtotal = Number(subtotalAmount ?? computedSubtotal) || 0
   const resolvedDeliveryFee = Number(deliveryFee || 0) || 0
   const resolvedTaxTotal = Number(taxTotal || 0) || 0
-  const totalAmount = Number(
-    result?.totalAmount ?? resolvedSubtotal + resolvedDeliveryFee + resolvedTaxTotal,
-  )
-  const paymentMethod = paymentLabel(result?.paymentMethod ?? input?.paymentMethod)
+  const orderKind = result?.orderKind ?? input?.orderKind ?? 'Standard'
+  const complimentaryReason = normalizeText(result?.complimentaryReason ?? input?.complimentaryReason)
+  const isNonRevenue = orderKind === 'InternalUse' || orderKind === 'Complimentary'
+  const totalAmount = isNonRevenue
+    ? 0
+    : Number(result?.totalAmount ?? resolvedSubtotal + resolvedDeliveryFee + resolvedTaxTotal)
+  const paymentMethod =
+    orderKind === 'InternalUse'
+      ? 'مصرف داخلی پرسنل (رایگان)'
+      : orderKind === 'Complimentary'
+        ? 'مهمان مجموعه / آشنا (رایگان)'
+        : paymentLabel(result?.paymentMethod ?? input?.paymentMethod)
   const service = serviceLabel(serviceType, deliveryMethodName)
   const rawGuestName = normalizeText(customerName)
-  const guestName = rawGuestName || 'مهمان گرامی'
+  const guestName = rawGuestName || (orderKind === 'InternalUse' ? 'مصرف داخلی' : 'مهمان گرامی')
   const rawPhone = normalizeText(customerPhone)
   const guestPhone = rawPhone.toUpperCase() === 'POS' ? '' : rawPhone
   const table = normalizeText(tableName)
-  const note = normalizeText(orderNote)
+  const baseNote = normalizeText(orderNote)
+  const note =
+    isNonRevenue && complimentaryReason
+      ? baseNote
+        ? `${baseNote} — بابت: ${complimentaryReason}`
+        : `بابت: ${complimentaryReason}`
+      : baseNote
 
   const normalizedLines = cart.map((line) => {
     const qty = Number(line.quantity || 1)

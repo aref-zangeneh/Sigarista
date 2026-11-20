@@ -1722,6 +1722,77 @@
   border-top: 1.5px solid #111;
 }
 
+.pos-order-kind-panel {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pos-order-kind-pills {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pos-kind-pill {
+  padding: 7px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--pos-border);
+  background: var(--pos-paper);
+  color: var(--pos-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pos-kind-pill.active {
+  background: var(--accent, #aa3171);
+  border-color: var(--accent, #aa3171);
+  color: #fff;
+}
+
+.pos-kind-pill--internal.active {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.pos-kind-pill--complimentary.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+.pos-kind-reason-input {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--pos-border);
+  background: var(--pos-paper);
+  color: var(--pos-ink);
+  font-size: 0.8rem;
+}
+
+.pos-exclude-accounting-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--pos-muted);
+  cursor: pointer;
+}
+
+.pos-action-cell--wide {
+  grid-column: 1 / -1;
+}
+
+.pos-internal-submit-btn {
+  background: #2563eb !important;
+}
+
+.pos-complimentary-submit-btn {
+  background: #7c3aed !important;
+}
+
 .pos-receipt-preview-card {
   display: flex;
   flex-direction: column;

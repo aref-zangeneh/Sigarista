@@ -623,7 +623,7 @@ export function DrinkBuilderPage() {
                       {profile.isEnabled ? 'فعال' : 'غیرفعال'}
                     </span>
                     <span className="table-subtext">
-                      {profile.groups?.length ?? 0} گروه
+                      {profile.groups?.length ?? 0} گروه · ترتیب نمایش: {profile.displayOrder ?? 0}
                     </span>
                   </span>
                 </button>

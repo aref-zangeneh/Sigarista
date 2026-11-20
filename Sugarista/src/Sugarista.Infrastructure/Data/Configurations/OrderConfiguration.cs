@@ -81,6 +81,25 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasConversion<string>()
             .HasMaxLength(20);
 
+        builder.Property(o => o.OrderKind)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(OrderKind.Standard)
+            .IsRequired();
+
+        builder.Property(o => o.ComplimentaryReason)
+            .HasMaxLength(300);
+
+        builder.Property(o => o.IsExcludedFromAccounting)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(o => o.ExcludedFromAccountingReason)
+            .HasMaxLength(300);
+
+        builder.HasIndex(o => o.OrderKind);
+        builder.HasIndex(o => o.IsExcludedFromAccounting);
+
         builder.HasOne(o => o.SalonTable)
             .WithMany()
             .HasForeignKey(o => o.SalonTableId)

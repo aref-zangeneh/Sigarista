@@ -48,7 +48,18 @@ export function buildUpsertPayload({
   splitShares,
   personalCup,
   useSubscription,
+  orderKind = 'Standard',
+  complimentaryReason = '',
+  excludeFromAccounting = false,
 }) {
+  const isNonRevenue =
+    action === 'InternalUse' ||
+    action === 'Complimentary' ||
+    orderKind === 'InternalUse' ||
+    orderKind === 'Complimentary'
+  const resolvedOrderKind =
+    action === 'InternalUse' || action === 'Complimentary' ? action : orderKind || 'Standard'
+
   return {
     orderId: orderId ?? null,
     customerName: customerName?.trim() || null,
@@ -72,8 +83,11 @@ export function buildUpsertPayload({
     splitBillMode: splitBill ? splitBillMode : null,
     guestCount: splitBill ? guestCount : null,
     splitShares: splitBill ? splitShares : null,
-    personalCup: personalCup === true,
-    useSubscription: useSubscription === true,
+    personalCup: !isNonRevenue && personalCup === true,
+    useSubscription: !isNonRevenue && useSubscription === true,
+    orderKind: resolvedOrderKind,
+    complimentaryReason: isNonRevenue ? complimentaryReason?.trim() || null : null,
+    excludeFromAccounting: excludeFromAccounting === true,
   }
 }
 

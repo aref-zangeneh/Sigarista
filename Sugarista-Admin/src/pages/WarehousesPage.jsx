@@ -554,7 +554,7 @@ export function WarehousesPage() {
                   <th>نام</th>
                   <th>والد</th>
                   <th>انبارک‌ها</th>
-                  <th>ترتیب</th>
+                  <th>ترتیب نمایش</th>
                   <th>عملیات</th>
                 </tr>
               </thead>

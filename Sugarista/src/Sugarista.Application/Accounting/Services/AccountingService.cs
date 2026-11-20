@@ -11,6 +11,8 @@ public interface IAccountingService
 
     Task PostOrderPaymentAsync(Order order, CancellationToken cancellationToken = default);
 
+    Task RemoveOrderJournalEntriesAsync(Guid orderId, CancellationToken cancellationToken = default);
+
     Task PostInventoryPurchaseAsync(InventoryPurchase purchase, CancellationToken cancellationToken = default);
 
     Task<Guid> PostPartnerCapitalAsync(
@@ -63,7 +65,7 @@ internal sealed class AccountingService : IAccountingService
 
     public async Task PostOrderPaymentAsync(Order order, CancellationToken cancellationToken = default)
     {
-        if (order.Status != OrderStatus.Paid)
+        if (order.Status != OrderStatus.Paid || order.IsExcludedFromAccounting)
         {
             return;
         }
@@ -75,6 +77,53 @@ internal sealed class AccountingService : IAccountingService
 
         await EnsureAccountsSeededAsync(cancellationToken);
 
+        var entryDate = DateOnly.FromDateTime((order.PaidAt ?? _dateTime.UtcNow).DateTime);
+        var cogs = await CalculateOrderCogsAsync(order, cancellationToken);
+
+        if (order.IsNonRevenue)
+        {
+            if (cogs <= 0)
+            {
+                return;
+            }
+
+            var expenseCode = order.OrderKind == OrderKind.InternalUse
+                ? AccountingAccountCodes.InternalConsumptionExpense
+                : AccountingAccountCodes.ComplimentaryHospitalityExpense;
+            var expenseAccount = await GetAccountAsync(expenseCode, cancellationToken);
+            var inventoryAccountForNonRev = await GetAccountAsync(AccountingAccountCodes.Inventory, cancellationToken);
+            var kindTitle = order.OrderKind == OrderKind.InternalUse
+                ? "مصرف داخلی"
+                : "مهمان / رایگان";
+            var reasonSuffix = string.IsNullOrWhiteSpace(order.ComplimentaryReason)
+                ? string.Empty
+                : $" ({order.ComplimentaryReason})";
+
+            var nonRevReference = await NextReferenceAsync(entryDate, cancellationToken);
+            var nonRevEntry = new JournalEntry(
+                nonRevReference,
+                entryDate,
+                JournalSourceType.OrderPayment,
+                $"{kindTitle} — سفارش {order.TrackingCode}{reasonSuffix}",
+                order.Id);
+
+            nonRevEntry.AddLine(new JournalLine(nonRevEntry.Id, expenseAccount.Id, cogs, 0, kindTitle));
+            nonRevEntry.AddLine(new JournalLine(nonRevEntry.Id, inventoryAccountForNonRev.Id, 0, cogs, "Inventory reduction"));
+            nonRevEntry.ValidateBalanced();
+            _dbContext.JournalEntries.Add(nonRevEntry);
+            foreach (var line in nonRevEntry.Lines)
+            {
+                _dbContext.JournalLines.Add(line);
+            }
+
+            return;
+        }
+
+        if (order.TotalAmount <= 0 && cogs <= 0)
+        {
+            return;
+        }
+
         var cashAccount = await GetAccountAsync(AccountingAccountCodes.Cash, cancellationToken);
         var cardAccount = await GetAccountAsync(AccountingAccountCodes.CardReceivable, cancellationToken);
         var revenueAccount = await GetAccountAsync(AccountingAccountCodes.SalesRevenue, cancellationToken);
@@ -84,7 +133,6 @@ internal sealed class AccountingService : IAccountingService
         var assetAccount = order.PaymentMethod == PosPaymentMethod.Cash
             ? cashAccount
             : cardAccount;
-        var entryDate = DateOnly.FromDateTime((order.PaidAt ?? _dateTime.UtcNow).DateTime);
         var reference = await NextReferenceAsync(entryDate, cancellationToken);
         var entry = new JournalEntry(
             reference,
@@ -93,10 +141,12 @@ internal sealed class AccountingService : IAccountingService
             $"Payment for order {order.TrackingCode}",
             order.Id);
 
-        entry.AddLine(new JournalLine(entry.Id, assetAccount.Id, order.TotalAmount, 0, "Receipt of payment"));
-        entry.AddLine(new JournalLine(entry.Id, revenueAccount.Id, 0, order.TotalAmount, "Sales revenue"));
+        if (order.TotalAmount > 0)
+        {
+            entry.AddLine(new JournalLine(entry.Id, assetAccount.Id, order.TotalAmount, 0, "Receipt of payment"));
+            entry.AddLine(new JournalLine(entry.Id, revenueAccount.Id, 0, order.TotalAmount, "Sales revenue"));
+        }
 
-        var cogs = await CalculateOrderCogsAsync(order, cancellationToken);
         if (cogs > 0)
         {
             entry.AddLine(new JournalLine(entry.Id, cogsAccount.Id, cogs, 0, "Cost of goods sold"));
@@ -109,6 +159,29 @@ internal sealed class AccountingService : IAccountingService
         {
             _dbContext.JournalLines.Add(line);
         }
+    }
+
+    public async Task RemoveOrderJournalEntriesAsync(Guid orderId, CancellationToken cancellationToken = default)
+    {
+        var entries = await _dbContext.JournalEntries
+            .Include(entry => entry.Lines)
+            .Where(entry => entry.SourceType == JournalSourceType.OrderPayment && entry.SourceId == orderId)
+            .ToListAsync(cancellationToken);
+
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            if (entry.Lines.Count > 0)
+            {
+                _dbContext.JournalLines.RemoveRange(entry.Lines);
+            }
+        }
+
+        _dbContext.JournalEntries.RemoveRange(entries);
     }
 
     public async Task PostInventoryPurchaseAsync(InventoryPurchase purchase, CancellationToken cancellationToken = default)

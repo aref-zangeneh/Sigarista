@@ -260,7 +260,9 @@ export function SuppliersPage() {
           <table>
             <thead>
               <tr>
+                <th>ردیف</th>
                 <th>نام</th>
+                <th>ترتیب نمایش</th>
                 <th>تلفن</th>
                 <th>اقلام متصل</th>
                 <th>وضعیت</th>
@@ -268,13 +270,15 @@ export function SuppliersPage() {
               </tr>
             </thead>
             <tbody>
-              {suppliers.map((supplier) => (
+              {suppliers.map((supplier, index) => (
                 <tr key={supplier.id}>
+                  <td>{index + 1}</td>
                   <td>
                     <strong>{supplier.persianName}</strong>
                     {supplier.contactName ? <div className="table-subtext">ارتباط: {supplier.contactName}</div> : null}
                     {supplier.notes ? <div className="table-subtext">{supplier.notes}</div> : null}
                   </td>
+                  <td>{new Intl.NumberFormat('fa-IR').format(supplier.displayOrder ?? 0)}</td>
                   <td className="ltr-text">
                     {(supplier.phoneNumbers?.length ? supplier.phoneNumbers : (supplier.phoneNumber ? [supplier.phoneNumber] : [])).join(' • ') || '—'}
                   </td>
@@ -302,7 +306,7 @@ export function SuppliersPage() {
               ))}
               {suppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>هنوز تامین‌کننده‌ای ثبت نشده است.</td>
+                  <td colSpan={7}>هنوز تامین‌کننده‌ای ثبت نشده است.</td>
                 </tr>
               ) : null}
             </tbody>

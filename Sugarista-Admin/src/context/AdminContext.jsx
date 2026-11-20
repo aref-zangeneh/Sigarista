@@ -87,12 +87,16 @@ export function AdminProvider({ children }) {
   const [registerPaymentMethod, setRegisterPaymentMethod] = useState('Cash')
   const [orderEditForm, setOrderEditForm] = useState(null)
   const [orderAlerts, setOrderAlerts] = useState(null)
+  const [busyAlertOrders, setBusyAlertOrders] = useState({})
   const [lowStockAlert, setLowStockAlert] = useState(null)
   const [orderAlertPulse, setOrderAlertPulse] = useState(false)
   const [dismissedOrderAlertIds, setDismissedOrderAlertIds] = useState(() => new Set())
   const notifiedKitchenOrderIdsRef = useRef(null)
   const lastOrderAlertPollRef = useRef(null)
   const orderAlertsRef = useRef(null)
+  const busyAlertOrdersRef = useRef({})
+  const pollOrderAlertsRef = useRef(null)
+  const orderAlertPollSeqRef = useRef(0)
   const [salonStatus, setSalonStatus] = useState(emptySalonStatus)
   const [siteSettings, setSiteSettings] = useState(emptySettings)
   const [tipOverrides, setTipOverrides] = useState({})
@@ -182,14 +186,51 @@ export function AdminProvider({ children }) {
     return () => window.clearInterval(intervalId)
   }, [activeTab, session])
 
+  function markOrderAlertBusy(orderId, label = 'در حال پردازش...', { untilRemoved = false } = {}) {
+    if (!orderId) {
+      return
+    }
+    const key = String(orderId)
+    setBusyAlertOrders((current) => {
+      const next = { ...current, [key]: { label, untilRemoved } }
+      busyAlertOrdersRef.current = next
+      return next
+    })
+  }
+
+  function clearOrderAlertBusy(orderId, { force = false } = {}) {
+    if (!orderId) {
+      return
+    }
+    const key = String(orderId)
+    setBusyAlertOrders((current) => {
+      const existing = current[key]
+      if (!existing || (existing.untilRemoved && !force)) {
+        return current
+      }
+      const next = { ...current }
+      delete next[key]
+      busyAlertOrdersRef.current = next
+      return next
+    })
+  }
+
+  async function refreshOrderAlerts() {
+    if (pollOrderAlertsRef.current) {
+      await pollOrderAlertsRef.current()
+    }
+  }
+
   useEffect(() => {
     if (!session?.token || !hasPermission(session, PERMISSIONS.orders.view)) {
+      pollOrderAlertsRef.current = null
       return undefined
     }
 
     let cancelled = false
 
     async function pollOrderAlerts() {
+      const seq = ++orderAlertPollSeqRef.current
       try {
         const since =
           lastOrderAlertPollRef.current ??
@@ -200,7 +241,7 @@ export function AdminProvider({ children }) {
           { token: session.token },
         )
 
-        if (cancelled) {
+        if (cancelled || seq < orderAlertPollSeqRef.current) {
           return
         }
 
@@ -208,13 +249,41 @@ export function AdminProvider({ children }) {
         const visibleKitchenOrders = kitchenOrders.filter(
           (order) => !dismissedOrderAlertIds.has(order.id),
         )
+        const visibleNewPaidOrders = (alerts.newPaidOrders ?? []).filter(
+          (order) => !dismissedOrderAlertIds.has(order.id),
+        )
+        const readyOrders = alerts.readyForPickupOrders ?? []
 
         setOrderAlerts({
           ...alerts,
           activeKitchenOrders: visibleKitchenOrders,
-          newPaidOrders: (alerts.newPaidOrders ?? []).filter(
-            (order) => !dismissedOrderAlertIds.has(order.id),
-          ),
+          newPaidOrders: visibleNewPaidOrders,
+        })
+
+        // Release busy locks for orders that have now disappeared from the alerts bar
+        const presentOrderIds = new Set([
+          ...visibleKitchenOrders.map((order) => String(order.id)),
+          ...readyOrders.map((order) => String(order.id)),
+          ...visibleNewPaidOrders.map((order) => String(order.id)),
+        ])
+        setBusyAlertOrders((current) => {
+          const keys = Object.keys(current)
+          if (keys.length === 0) {
+            return current
+          }
+          let changed = false
+          const next = { ...current }
+          for (const key of keys) {
+            if (next[key]?.untilRemoved && !presentOrderIds.has(key)) {
+              delete next[key]
+              changed = true
+            }
+          }
+          if (!changed) {
+            return current
+          }
+          busyAlertOrdersRef.current = next
+          return next
         })
 
         if (notifiedKitchenOrderIdsRef.current === null) {
@@ -260,10 +329,14 @@ export function AdminProvider({ children }) {
       }
     }
 
+    pollOrderAlertsRef.current = pollOrderAlerts
     pollOrderAlerts()
     const intervalId = window.setInterval(pollOrderAlerts, 4000)
     return () => {
       cancelled = true
+      if (pollOrderAlertsRef.current === pollOrderAlerts) {
+        pollOrderAlertsRef.current = null
+      }
       window.clearInterval(intervalId)
     }
   }, [session?.token, dismissedOrderAlertIds])
@@ -430,10 +503,16 @@ export function AdminProvider({ children }) {
   }
 
   async function openOrderEditor(orderRow) {
-    if (!session?.token) {
+    if (!session?.token || !orderRow?.id) {
       return
     }
 
+    const orderKey = String(orderRow.id)
+    if (busyAlertOrdersRef.current[orderKey]) {
+      return
+    }
+
+    markOrderAlertBusy(orderKey, 'در حال باز کردن...')
     try {
       const order = await apiRequest(`/admin/orders/${orderRow.id}`, { token: session.token })
       setSelectedOrder(order)
@@ -462,6 +541,8 @@ export function AdminProvider({ children }) {
       })
     } catch (requestError) {
       setError(getReadableError(requestError))
+    } finally {
+      clearOrderAlertBusy(orderKey)
     }
   }
 
@@ -500,12 +581,14 @@ export function AdminProvider({ children }) {
       return
     }
 
+    const orderId = selectedOrder.id
     setSaving(true)
     setError('')
     setMessage('')
+    markOrderAlertBusy(orderId, 'در حال ذخیره...')
 
     try {
-      const updated = await apiRequest(`/admin/orders/${selectedOrder.id}`, {
+      await apiRequest(`/admin/orders/${orderId}`, {
         method: 'PUT',
         token: session.token,
         body: {
@@ -528,38 +611,53 @@ export function AdminProvider({ children }) {
       setMessage('سفارش با موفقیت بروزرسانی شد.')
       closeOrderEditor()
       bumpTableReload()
-      await loadAdminData()
+      await Promise.allSettled([refreshOrderAlerts(), loadAdminData()])
     } catch (requestError) {
       setError(getReadableError(requestError))
     } finally {
+      clearOrderAlertBusy(orderId)
       setSaving(false)
     }
   }
 
-  async function handleRegisterPayment() {
+  async function handleRegisterPayment({ orderKind = 'Standard', complimentaryReason = '' } = {}) {
     if (!session?.token || !selectedOrder) {
       return
     }
 
+    const orderId = selectedOrder.id
+    const isNonRevenue = orderKind === 'InternalUse' || orderKind === 'Complimentary'
     setSaving(true)
     setError('')
     setMessage('')
+    markOrderAlertBusy(orderId, isNonRevenue ? 'در حال ثبت رایگان...' : 'در حال ثبت پرداخت...')
 
     try {
-      await apiRequest(`/admin/orders/${selectedOrder.id}/pay`, {
+      await apiRequest(`/admin/orders/${orderId}/pay`, {
         method: 'POST',
         token: session.token,
-        body: { paymentMethod: registerPaymentMethod },
+        body: {
+          paymentMethod: isNonRevenue ? 'Complimentary' : registerPaymentMethod,
+          orderKind,
+          complimentaryReason: isNonRevenue ? complimentaryReason.trim() || null : null,
+        },
       })
 
-      setMessage('پرداخت ثبت و فاکتور نهایی شد؛ مالی و انبار همزمان به‌روزرسانی شدند.')
+      setMessage(
+        orderKind === 'InternalUse'
+          ? 'سفارش به عنوان مصرف داخلی (رایگان) ثبت و موجودی کسر شد.'
+          : orderKind === 'Complimentary'
+            ? 'سفارش به عنوان مهمان / رایگان ثبت و موجودی کسر شد.'
+            : 'پرداخت ثبت و فاکتور نهایی شد؛ مالی و انبار همزمان به‌روزرسانی شدند.',
+      )
       closeOrderEditor()
       setRegisterPaymentMethod('Cash')
       bumpTableReload()
-      await loadAdminData()
+      await Promise.allSettled([refreshOrderAlerts(), loadAdminData()])
     } catch (requestError) {
       setError(getReadableError(requestError))
     } finally {
+      clearOrderAlertBusy(orderId)
       setSaving(false)
     }
   }
@@ -569,9 +667,15 @@ export function AdminProvider({ children }) {
       return
     }
 
+    const removesFromAlerts = fulfillmentStatus === 'Completed'
     setSaving(true)
     setError('')
     setMessage('')
+    markOrderAlertBusy(
+      orderId,
+      removesFromAlerts ? 'در حال ثبت تحویل...' : 'در حال بروزرسانی...',
+      { untilRemoved: removesFromAlerts },
+    )
 
     try {
       const updated = await apiRequest(`/admin/orders/${orderId}/fulfillment`, {
@@ -593,10 +697,19 @@ export function AdminProvider({ children }) {
               ? 'سفارش به عنوان تحویل‌داده‌شده ثبت شد.'
               : 'وضعیت سفارش بروزرسانی شد.'
 
+      if (removesFromAlerts) {
+        markOrderAlertBusy(orderId, 'تحویل شد — در حال حذف...', { untilRemoved: true })
+      }
+
       setMessage(successMessage)
       bumpTableReload()
       lastOrderAlertPollRef.current = new Date().toISOString()
+      await refreshOrderAlerts()
+      if (!removesFromAlerts || !pollOrderAlertsRef.current) {
+        clearOrderAlertBusy(orderId, { force: !pollOrderAlertsRef.current })
+      }
     } catch (requestError) {
+      clearOrderAlertBusy(orderId, { force: true })
       setError(getReadableError(requestError))
     } finally {
       setSaving(false)
@@ -624,18 +737,108 @@ export function AdminProvider({ children }) {
       return
     }
 
+    const orderId = selectedOrder.id
+    setSaving(true)
+    setError('')
+    setMessage('')
+    markOrderAlertBusy(orderId, 'در حال لغو...', { untilRemoved: true })
+
+    try {
+      await apiRequest(`/admin/orders/${orderId}/cancel`, {
+        method: 'POST',
+        token: session.token,
+      })
+
+      markOrderAlertBusy(orderId, 'لغو شد — در حال حذف...', { untilRemoved: true })
+      setMessage('سفارش لغو شد و موجودی بازگردانده شد.')
+      closeOrderEditor()
+      bumpTableReload()
+      await Promise.allSettled([refreshOrderAlerts(), loadAdminData()])
+      if (!pollOrderAlertsRef.current) {
+        clearOrderAlertBusy(orderId, { force: true })
+      }
+    } catch (requestError) {
+      clearOrderAlertBusy(orderId, { force: true })
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteOrder(orderOrId, { restoreInventory = true } = {}) {
+    const orderId = typeof orderOrId === 'string' ? orderOrId : (orderOrId?.id ?? selectedOrder?.id)
+    if (!session?.token || !orderId) {
+      return
+    }
+
+    const confirmText = restoreInventory
+      ? 'آیا از حذف کامل این سفارش مطمئن هستید؟ سند حسابداری مربوطه حذف و موجودی انبار بازگردانده می‌شود. این عملیات قابل بازگشت نیست.'
+      : 'آیا از حذف کامل این سفارش (بدون بازگردانی موجودی انبار) مطمئن هستید؟ سند حسابداری مربوطه نیز حذف می‌شود. این عملیات قابل بازگشت نیست.'
+    if (!window.confirm(confirmText)) {
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+    markOrderAlertBusy(orderId, 'در حال حذف...', { untilRemoved: true })
+
+    try {
+      await apiRequest(`/admin/orders/${orderId}?restoreInventory=${restoreInventory ? 'true' : 'false'}`, {
+        method: 'DELETE',
+        token: session.token,
+      })
+
+      markOrderAlertBusy(orderId, 'حذف شد — در حال پاک‌سازی...', { untilRemoved: true })
+      setMessage(
+        restoreInventory
+          ? 'سفارش به‌طور کامل حذف شد؛ سند حسابداری پاک و موجودی انبار بازگردانده شد.'
+          : 'سفارش و سند حسابداری مربوطه به‌طور کامل حذف شدند (موجودی انبار تغییر نکرد).',
+      )
+      if (selectedOrder?.id === orderId) {
+        closeOrderEditor()
+      }
+      bumpTableReload()
+      await Promise.allSettled([refreshOrderAlerts(), loadAdminData()])
+      if (!pollOrderAlertsRef.current) {
+        clearOrderAlertBusy(orderId, { force: true })
+      }
+    } catch (requestError) {
+      clearOrderAlertBusy(orderId, { force: true })
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleToggleOrderAccountingExclusion(orderOrId, exclude, reason = '') {
+    const orderId = typeof orderOrId === 'string' ? orderOrId : (orderOrId?.id ?? selectedOrder?.id)
+    if (!session?.token || !orderId) {
+      return
+    }
+
     setSaving(true)
     setError('')
     setMessage('')
 
     try {
-      const updated = await apiRequest(`/admin/orders/${selectedOrder.id}/cancel`, {
-        method: 'POST',
+      const updated = await apiRequest(`/admin/orders/${orderId}/accounting-exclusion`, {
+        method: 'PATCH',
         token: session.token,
+        body: {
+          exclude: Boolean(exclude),
+          reason: exclude ? (reason?.trim() || null) : null,
+        },
       })
 
-      setMessage('سفارش لغو شد و موجودی بازگردانده شد.')
-      closeOrderEditor()
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(updated)
+      }
+      setMessage(
+        exclude
+          ? 'سفارش از حسابداری و گزارش‌های مالی خارج شد و سند حسابداری آن حذف گردید.'
+          : 'سفارش دوباره به حسابداری و گزارش‌های مالی بازگردانده شد.',
+      )
       bumpTableReload()
       await loadAdminData()
     } catch (requestError) {
@@ -786,6 +989,8 @@ export function AdminProvider({ children }) {
       lastOrderAlertPollRef.current = null
       setDismissedOrderAlertIds(new Set())
       setOrderAlerts(null)
+      setBusyAlertOrders({})
+      busyAlertOrdersRef.current = {}
 
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission().catch(() => {})
@@ -830,6 +1035,8 @@ export function AdminProvider({ children }) {
     setIsSalonTableModalOpen(false)
     setIsOccupyModalOpen(false)
     setOrderAlerts(null)
+    setBusyAlertOrders({})
+    busyAlertOrdersRef.current = {}
     setOrderAlertPulse(false)
     setDismissedOrderAlertIds(new Set())
     setTipOverrides({})
@@ -1467,8 +1674,9 @@ export function AdminProvider({ children }) {
         openOrderEditor,
         updateOrderFulfillment,
         saving,
+        busyAlertOrders,
       }),
-    [tableReloadToken, saving],
+    [tableReloadToken, saving, busyAlertOrders],
   )
 
   const value = {
@@ -1510,6 +1718,10 @@ export function AdminProvider({ children }) {
     selectedOrder,
     orderEditForm,
     orderAlerts,
+    busyAlertOrders,
+    markOrderAlertBusy,
+    clearOrderAlertBusy,
+    refreshOrderAlerts,
     lowStockAlert,
     orderAlertPulse,
     salonStatus,
@@ -1559,6 +1771,8 @@ export function AdminProvider({ children }) {
     updateOrderFulfillment,
     dismissOrderAlert,
     handleCancelOrder,
+    handleDeleteOrder,
+    handleToggleOrderAccountingExclusion,
     loadAdminData,
     handleLogin,
     handleLogout,

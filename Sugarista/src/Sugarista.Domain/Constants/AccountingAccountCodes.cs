@@ -15,6 +15,8 @@ public static class AccountingAccountCodes
     public const string RetainedEarnings = "3200";
     public const string SalesRevenue = "4010";
     public const string CostOfGoodsSold = "5010";
+    public const string InternalConsumptionExpense = "5020";
+    public const string ComplimentaryHospitalityExpense = "5030";
     public const string OperatingExpense = "5100";
 
     public static readonly IReadOnlyList<(string Code, string Name, string NamePersian, AccountType Type)> SeedAccounts =
@@ -30,6 +32,8 @@ public static class AccountingAccountCodes
         (RetainedEarnings, "Retained Earnings", "سود انباشته", AccountType.Equity),
         (SalesRevenue, "Sales Revenue", "درآمد فروش", AccountType.Revenue),
         (CostOfGoodsSold, "Cost of Goods Sold", "بهای تمام‌شده", AccountType.Expense),
+        (InternalConsumptionExpense, "Internal Consumption", "مصرف داخلی پرسنل", AccountType.Expense),
+        (ComplimentaryHospitalityExpense, "Complimentary & Hospitality", "پذیرایی و سفارش‌های مهمان (رایگان)", AccountType.Expense),
         (OperatingExpense, "Operating Expenses", "هزینه‌های جاری", AccountType.Expense),
     ];
 }

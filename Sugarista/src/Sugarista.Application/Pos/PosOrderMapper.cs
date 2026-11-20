@@ -44,7 +44,10 @@ internal static class PosOrderMapper
                     share.PayerLabel,
                     share.SharePercentage,
                     share.ShareAmount))
-                .ToArray());
+                .ToArray(),
+            order.OrderKind.ToString(),
+            order.ComplimentaryReason,
+            order.IsExcludedFromAccounting);
     }
 
     internal static PosOrderLineDto ToLine(OrderLine line)
@@ -100,7 +103,10 @@ internal static class PosOrderMapper
             order.SalonTableId,
             tableName,
             order.CreatedAt,
-            order.HeldAt);
+            order.HeldAt,
+            order.OrderKind.ToString(),
+            order.ComplimentaryReason,
+            order.IsExcludedFromAccounting);
     }
 
     internal static async Task<IReadOnlyDictionary<Guid, string>> LoadTableNamesAsync(

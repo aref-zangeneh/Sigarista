@@ -74,7 +74,7 @@ export function SalonStatePage() {
                 <div className="salon-card-head">
                   <div>
                     <h4>{table.name}</h4>
-                    <p>ظرفیت {toPersianNumber(table.capacity)} نفر</p>
+                    <p>ظرفیت {toPersianNumber(table.capacity)} نفر · ترتیب نمایش: {toPersianNumber(table.displayOrder ?? 0)}</p>
                   </div>
                   <span className={table.isOccupied ? 'status-badge busy' : 'status-badge free'}>
                     {table.isOccupied ? 'اشغال' : 'آزاد'}

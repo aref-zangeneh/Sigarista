@@ -648,6 +648,9 @@ export function PosPage() {
   const [orderNote, setOrderNote] = useState('')
   const [personalCup, setPersonalCup] = useState(false)
   const [useSubscription, setUseSubscription] = useState(false)
+  const [orderKind, setOrderKind] = useState('Standard') // 'Standard' | 'InternalUse' | 'Complimentary'
+  const [complimentaryReason, setComplimentaryReason] = useState('')
+  const [excludeFromAccounting, setExcludeFromAccounting] = useState(false)
   const [salonTableId, setSalonTableId] = useState(null)
   const [deliveryMethodId, setDeliveryMethodId] = useState('')
   const [deliveryOptions, setDeliveryOptions] = useState([])
@@ -769,6 +772,9 @@ export function PosPage() {
     setOrderNote('')
     setPersonalCup(false)
     setUseSubscription(false)
+    setOrderKind('Standard')
+    setComplimentaryReason('')
+    setExcludeFromAccounting(false)
     setSalonTableId(null)
     setDeliveryMethodId('')
     setSplitBill(EMPTY_SPLIT)
@@ -852,6 +858,9 @@ export function PosPage() {
       setServiceType(order.serviceType ?? 'TakeAway')
       setDeliveryMethodId(order.deliveryMethodId ?? '')
       setSalonTableId(order.salonTableId ?? null)
+      setOrderKind(order.orderKind ?? 'Standard')
+      setComplimentaryReason(order.complimentaryReason ?? '')
+      setExcludeFromAccounting(Boolean(order.isExcludedFromAccounting))
       setCart(orderToCart(order, items))
       setSplitBill({
         isSplitBill: Boolean(order.isSplitBill),
@@ -916,6 +925,9 @@ export function PosPage() {
       splitShares: splitBill.splitShares,
       personalCup,
       useSubscription,
+      orderKind,
+      complimentaryReason,
+      excludeFromAccounting,
     })
 
     try {
@@ -945,13 +957,21 @@ export function PosPage() {
           serviceType,
           tableName: selectedTable?.name ?? null,
           deliveryMethodName: selectedDeliveryMethod?.persianName ?? null,
-          deliveryFee,
-          taxTotal: cartTotals.taxTotal,
+          deliveryFee: action === 'InternalUse' || action === 'Complimentary' ? 0 : deliveryFee,
+          taxTotal: action === 'InternalUse' || action === 'Complimentary' ? 0 : cartTotals.taxTotal,
           subtotalAmount: cartTotals.itemsTotal,
           siteSettings,
+          orderKind: result.orderKind ?? orderKind,
+          complimentaryReason: result.complimentaryReason ?? complimentaryReason,
         })
         setPrintModal({ bundle })
-        setMessage(`پرداخت سفارش ${result.trackingCode} ثبت شد. برای چاپ فیش مشتری و آشپزخانه، دکمهٔ «چاپ فیش» را بزنید.`)
+        setMessage(
+          action === 'InternalUse'
+            ? `سفارش مصرف داخلی ${result.trackingCode} ثبت شد و موجودی کسر گردید.`
+            : action === 'Complimentary'
+              ? `سفارش مهمان / رایگان ${result.trackingCode} ثبت شد و موجودی کسر گردید.`
+              : `پرداخت سفارش ${result.trackingCode} ثبت شد. برای چاپ فیش مشتری و آشپزخانه، دکمهٔ «چاپ فیش» را بزنید.`,
+        )
         resetCart()
       }
 
@@ -976,6 +996,8 @@ export function PosPage() {
           trackingCode: order.trackingCode,
           totalAmount: order.totalAmount,
           paymentMethod: order.paymentMethod,
+          orderKind: order.orderKind,
+          complimentaryReason: order.complimentaryReason,
         },
         cart: loadedCart,
         customerName: order.customerName === 'مهمان' ? '' : order.customerName,
@@ -1774,7 +1796,15 @@ export function PosPage() {
                   <div key={order.id} className="pos-held-item">
                     <div>
                       <strong>#{order.trackingCode}</strong>
-                      <p>{order.customerName} · {order.status}</p>
+                      <p>
+                        {order.customerName} ·{' '}
+                        {order.orderKind === 'InternalUse'
+                          ? 'مصرف داخلی'
+                          : order.orderKind === 'Complimentary'
+                            ? 'مهمان / رایگان'
+                            : order.status}
+                        {order.isExcludedFromAccounting ? ' · خارج از حسابداری' : ''}
+                      </p>
                       <small>{formatDateTime(order.createdAt)}</small>
                     </div>
                     <div className="pos-held-actions">
@@ -1804,55 +1834,132 @@ export function PosPage() {
               </p>
             ) : null}
 
+            <div className="pos-order-kind-panel">
+              <div className="pos-order-kind-pills" role="group" aria-label="نوع ثبت سفارش">
+                <button
+                  type="button"
+                  className={`pos-kind-pill ${orderKind === 'Standard' ? 'active' : ''}`}
+                  onClick={() => setOrderKind('Standard')}
+                >
+                  💳 فروش عادی
+                </button>
+                <button
+                  type="button"
+                  className={`pos-kind-pill pos-kind-pill--internal ${orderKind === 'InternalUse' ? 'active' : ''}`}
+                  onClick={() => setOrderKind('InternalUse')}
+                >
+                  ☕ مصرف داخلی
+                </button>
+                <button
+                  type="button"
+                  className={`pos-kind-pill pos-kind-pill--complimentary ${orderKind === 'Complimentary' ? 'active' : ''}`}
+                  onClick={() => setOrderKind('Complimentary')}
+                >
+                  🎁 مهمان / آشنا
+                </button>
+              </div>
+              {orderKind !== 'Standard' ? (
+                <input
+                  type="text"
+                  className="pos-kind-reason-input"
+                  placeholder={
+                    orderKind === 'InternalUse'
+                      ? 'بابت / علت مصرف داخلی (مثلاً پرسنل شیفت صبح، تست کیفیت...)'
+                      : 'بابت / نام مهمان یا آشنا (مثلاً مهمان مدیریت...)'
+                  }
+                  value={complimentaryReason}
+                  onChange={(event) => setComplimentaryReason(event.target.value)}
+                />
+              ) : null}
+              <label className="pos-exclude-accounting-toggle">
+                <input
+                  type="checkbox"
+                  checked={excludeFromAccounting}
+                  onChange={(event) => setExcludeFromAccounting(event.target.checked)}
+                />
+                <span>خارج از حسابداری ثبت شود</span>
+              </label>
+            </div>
+
             <div className="pos-totals-box">
-              {cartTotals.taxTotal > 0 ? (
+              {orderKind === 'Standard' && cartTotals.taxTotal > 0 ? (
                 <div className="pos-total-row pos-tax-row">
                   <span>مالیات بر ارزش افزوده</span>
                   <span>{formatPrice(cartTotals.taxTotal)} تومان</span>
                 </div>
               ) : null}
-              {deliveryFee > 0 ? (
+              {orderKind === 'Standard' && deliveryFee > 0 ? (
                 <div className="pos-total-row pos-delivery-fee-row">
                   <span>هزینه تحویل{selectedDeliveryMethod ? ` (${selectedDeliveryMethod.persianName})` : ''}</span>
                   <span>{formatPrice(deliveryFee)} تومان</span>
                 </div>
               ) : null}
+              {orderKind !== 'Standard' && cartTotals.itemsTotal > 0 ? (
+                <div className="pos-total-row pos-tax-row">
+                  <span>ارزش اقلام (کسر از انبار)</span>
+                  <span>{formatPrice(cartTotals.itemsTotal)} تومان</span>
+                </div>
+              ) : null}
               <div className="pos-total-row pos-grand-total-row">
                 <span className="pos-grand-total-label">
-                  جمع کل قابل پرداخت <Tip k="pos.totals" />
+                  {orderKind === 'InternalUse'
+                    ? 'مبلغ دریافتی (مصرف داخلی)'
+                    : orderKind === 'Complimentary'
+                      ? 'مبلغ دریافتی (مهمان / رایگان)'
+                      : 'جمع کل قابل پرداخت'}{' '}
+                  <Tip k="pos.totals" />
                 </span>
                 <strong className="pos-grand-total-value">
-                  {formatPrice(cartTotals.grandTotal)} <small>تومان</small>
+                  {orderKind === 'Standard' ? formatPrice(cartTotals.grandTotal) : '۰'} <small>تومان</small>
                 </strong>
               </div>
             </div>
 
             <div className="pos-actions">
-              <div className="pos-action-cell">
-                <button
-                  type="button"
-                  className="pos-primary-button pos-pay-btn"
-                  onClick={() => submitOrder('PayCash')}
-                  disabled={submitting || !cart.length}
-                >
-                  <span>💵 نقد</span>
-                  <kbd>F4</kbd>
-                </button>
-                <Tip k="pos.cash_button" />
-              </div>
+              {orderKind === 'Standard' ? (
+                <>
+                  <div className="pos-action-cell">
+                    <button
+                      type="button"
+                      className="pos-primary-button pos-pay-btn"
+                      onClick={() => submitOrder('PayCash')}
+                      disabled={submitting || !cart.length}
+                    >
+                      <span>💵 نقد</span>
+                      <kbd>F4</kbd>
+                    </button>
+                    <Tip k="pos.cash_button" />
+                  </div>
 
-              <div className="pos-action-cell">
-                <button
-                  type="button"
-                  className="pos-primary-button pos-pay-btn pos-pay-card-btn"
-                  onClick={() => submitOrder('PayCard')}
-                  disabled={submitting || !cart.length}
-                >
-                  <span>💳 کارت‌خوان</span>
-                  <kbd>F5</kbd>
-                </button>
-                <Tip k="pos.card_button" />
-              </div>
+                  <div className="pos-action-cell">
+                    <button
+                      type="button"
+                      className="pos-primary-button pos-pay-btn pos-pay-card-btn"
+                      onClick={() => submitOrder('PayCard')}
+                      disabled={submitting || !cart.length}
+                    >
+                      <span>💳 کارت‌خوان</span>
+                      <kbd>F5</kbd>
+                    </button>
+                    <Tip k="pos.card_button" />
+                  </div>
+                </>
+              ) : (
+                <div className="pos-action-cell pos-action-cell--wide">
+                  <button
+                    type="button"
+                    className={`pos-primary-button pos-pay-btn ${orderKind === 'InternalUse' ? 'pos-internal-submit-btn' : 'pos-complimentary-submit-btn'}`}
+                    onClick={() => submitOrder(orderKind)}
+                    disabled={submitting || !cart.length}
+                  >
+                    <span>
+                      {orderKind === 'InternalUse'
+                        ? '☕ ثبت مصرف داخلی (رایگان)'
+                        : '🎁 ثبت سفارش مهمان / آشنا (رایگان)'}
+                    </span>
+                  </button>
+                </div>
+              )}
 
               <div className="pos-action-cell">
                 <button

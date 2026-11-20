@@ -18,7 +18,9 @@ public enum PosOrderAction
 {
     Hold,
     PayCash,
-    PayCard
+    PayCard,
+    InternalUse,
+    Complimentary
 }
 
 public record PosOrderLineRequest(
@@ -48,7 +50,10 @@ public record UpsertPosOrderCommand(
     Guid? ServedByAdminUserId = null,
     Guid? DeliveryMethodId = null,
     bool PersonalCup = false,
-    bool UseSubscription = false) : IRequest<UpsertPosOrderResultDto>;
+    bool UseSubscription = false,
+    string? OrderKind = null,
+    string? ComplimentaryReason = null,
+    bool ExcludeFromAccounting = false) : IRequest<UpsertPosOrderResultDto>;
 
 public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCommand>
 {
@@ -66,7 +71,11 @@ public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCo
             .WithMessage("Service type must be DineIn or TakeAway.");
         RuleFor(c => c.Action)
             .Must(value => Enum.TryParse<PosOrderAction>(value, true, out _))
-            .WithMessage("Action must be Hold, PayCash, or PayCard.");
+            .WithMessage("Action must be Hold, PayCash, PayCard, InternalUse, or Complimentary.");
+        RuleFor(c => c.OrderKind)
+            .Must(value => string.IsNullOrWhiteSpace(value) || Enum.TryParse<OrderKind>(value, true, out _))
+            .WithMessage("OrderKind must be Standard, InternalUse, or Complimentary.");
+        RuleFor(c => c.ComplimentaryReason).MaximumLength(300);
         RuleFor(c => c.Note).MaximumLength(500);
     }
 }
@@ -223,134 +232,157 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             }
         }
 
-        var remainingDailyCap = await DiscountDailyCapService.GetRemainingAllowanceAsync(
-            _dbContext,
-            siteSettings,
-            customer?.Id,
-            siteSettings?.TimeZoneId,
-            DateTimeOffset.UtcNow,
-            request.OrderId,
-            cancellationToken);
-
-        var discountTracker = new OrderDiscountTracker(
-            order,
-            customer?.Id,
-            remainingDailyCap,
-            _dbContext.OrderDiscounts);
-
-        if (customer is not null)
+        var isNonRevenueAction = action is PosOrderAction.InternalUse or PosOrderAction.Complimentary;
+        var resolvedOrderKind = action switch
         {
-            var groupMembership = await CustomerGroupService.GetActiveMembershipAsync(
-                _dbContext, customer.Id, cancellationToken);
-            if (groupMembership is { } membership && membership.Group.DiscountPercent > 0)
+            PosOrderAction.InternalUse => Domain.Entities.OrderKind.InternalUse,
+            PosOrderAction.Complimentary => Domain.Entities.OrderKind.Complimentary,
+            _ => !string.IsNullOrWhiteSpace(request.OrderKind) &&
+                 Enum.TryParse<Domain.Entities.OrderKind>(request.OrderKind, true, out var parsedKind)
+                ? parsedKind
+                : Domain.Entities.OrderKind.Standard
+        };
+
+        if (!isNonRevenueAction)
+        {
+            var remainingDailyCap = await DiscountDailyCapService.GetRemainingAllowanceAsync(
+                _dbContext,
+                siteSettings,
+                customer?.Id,
+                siteSettings?.TimeZoneId,
+                DateTimeOffset.UtcNow,
+                request.OrderId,
+                cancellationToken);
+
+            var discountTracker = new OrderDiscountTracker(
+                order,
+                customer?.Id,
+                remainingDailyCap,
+                _dbContext.OrderDiscounts);
+
+            if (customer is not null)
             {
-                var groupDiscount = Math.Round(itemsTotal * membership.Group.DiscountPercent / 100m, 2);
-                if (groupDiscount > 0)
+                var groupMembership = await CustomerGroupService.GetActiveMembershipAsync(
+                    _dbContext, customer.Id, cancellationToken);
+                if (groupMembership is { } membership && membership.Group.DiscountPercent > 0)
                 {
-                    discountTracker.Apply(
-                        OrderDiscountKind.Group,
-                        membership.Group.Name,
-                        groupDiscount);
+                    var groupDiscount = Math.Round(itemsTotal * membership.Group.DiscountPercent / 100m, 2);
+                    if (groupDiscount > 0)
+                    {
+                        discountTracker.Apply(
+                            OrderDiscountKind.Group,
+                            membership.Group.Name,
+                            groupDiscount);
+                    }
                 }
             }
-        }
 
-        if (request.PersonalCup && customer is not null &&
-            siteSettings is { PersonalCupDiscountEnabled: true } &&
-            siteSettings.PersonalCupDiscountAmount > 0)
-        {
-            var cupCategories = SubscriptionService.ParseCategoryIds(siteSettings.PersonalCupCategoryIds);
-            var eligibleLines = resolvedLines
-                .Where(line => cupCategories.Count == 0 || cupCategories.Contains(line.resolved.CategoryId))
-                .ToList();
-            var eligibleAmount = eligibleLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
-            var cupDiscount = Math.Min(siteSettings.PersonalCupDiscountAmount, eligibleAmount);
-            if (cupDiscount > 0)
+            if (request.PersonalCup && customer is not null &&
+                siteSettings is { PersonalCupDiscountEnabled: true } &&
+                siteSettings.PersonalCupDiscountAmount > 0)
             {
-                var cupScopes = eligibleLines
-                    .GroupBy(line => line.resolved.CategoryId)
-                    .Select(group => new DiscountScopeAmount(
-                        group.Key,
-                        group.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity)))
+                var cupCategories = SubscriptionService.ParseCategoryIds(siteSettings.PersonalCupCategoryIds);
+                var eligibleLines = resolvedLines
+                    .Where(line => cupCategories.Count == 0 || cupCategories.Contains(line.resolved.CategoryId))
                     .ToList();
+                var eligibleAmount = eligibleLines.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity);
+                var cupDiscount = Math.Min(siteSettings.PersonalCupDiscountAmount, eligibleAmount);
+                if (cupDiscount > 0)
+                {
+                    var cupScopes = eligibleLines
+                        .GroupBy(line => line.resolved.CategoryId)
+                        .Select(group => new DiscountScopeAmount(
+                            group.Key,
+                            group.Sum(line => line.resolved.UnitPrice * line.resolved.Quantity)))
+                        .ToList();
 
-                discountTracker.Apply(
-                    OrderDiscountKind.Cup,
-                    "لیوان شخصی",
-                    cupDiscount,
-                    scopes: cupScopes);
+                    discountTracker.Apply(
+                        OrderDiscountKind.Cup,
+                        "لیوان شخصی",
+                        cupDiscount,
+                        scopes: cupScopes);
+                }
+            }
+
+            // Monthly subscription: consumed exactly once, at the moment the order
+            // is actually paid (holding an order must not burn the customer's uses).
+            // A fully-discounted order must not burn uses for no benefit.
+            if (request.UseSubscription && customer is not null && order.TotalAmount > 0 &&
+                action is PosOrderAction.PayCash or PosOrderAction.PayCard)
+            {
+                var subscription = await SubscriptionService.GetActiveAsync(
+                    _dbContext, customer.Id, cancellationToken);
+                if (subscription is not null)
+                {
+                    var plan = SubscriptionService.PlanRedemption(
+                        subscription,
+                        resolvedLines.Select(line => (
+                            line.resolved.MenuItemId,
+                            line.resolved.Quantity,
+                            line.resolved.UnitPrice,
+                            (IReadOnlyCollection<Guid>)new[] { line.resolved.CategoryId })));
+
+                    var categoryByMenuItem = resolvedLines
+                        .GroupBy(line => line.resolved.MenuItemId)
+                        .ToDictionary(group => group.Key, group => (Guid?)group.First().resolved.CategoryId);
+
+                    var unitsToConsume = 0;
+                    foreach (var unit in plan.Units)
+                    {
+                        var quantity = unit.Quantity;
+
+                        if (discountTracker.RemainingCap is { } unitCap && unit.UnitPrice > 0)
+                        {
+                            quantity = Math.Min(
+                                quantity,
+                                (int)Math.Floor(unitCap / unit.UnitPrice));
+                        }
+
+                        if (quantity <= 0)
+                        {
+                            continue;
+                        }
+
+                        var unitAmount = unit.UnitPrice * quantity;
+                        var applied = discountTracker.Apply(
+                            OrderDiscountKind.Subscription,
+                            "اشتراک ماهانه",
+                            unitAmount,
+                            scopes:
+                            [
+                                new DiscountScopeAmount(
+                                    categoryByMenuItem.GetValueOrDefault(unit.MenuItemId),
+                                    unitAmount)
+                            ]);
+
+                        if (applied <= 0)
+                        {
+                            continue;
+                        }
+
+                        unitsToConsume += quantity;
+                    }
+
+                    if (unitsToConsume > 0)
+                    {
+                        subscription.Consume(unitsToConsume, DateOnly.FromDateTime(DateTime.UtcNow));
+                    }
+                }
             }
         }
 
-        // Monthly subscription: consumed exactly once, at the moment the order
-        // is actually paid (holding an order must not burn the customer's uses).
-        // A fully-discounted order must not burn uses for no benefit.
-        if (request.UseSubscription && customer is not null && order.TotalAmount > 0 &&
-            action is PosOrderAction.PayCash or PosOrderAction.PayCard)
+        if (request.ExcludeFromAccounting)
         {
-            var subscription = await SubscriptionService.GetActiveAsync(
-                _dbContext, customer.Id, cancellationToken);
-            if (subscription is not null)
-            {
-                var plan = SubscriptionService.PlanRedemption(
-                    subscription,
-                    resolvedLines.Select(line => (
-                        line.resolved.MenuItemId,
-                        line.resolved.Quantity,
-                        line.resolved.UnitPrice,
-                        (IReadOnlyCollection<Guid>)new[] { line.resolved.CategoryId })));
-
-                var categoryByMenuItem = resolvedLines
-                    .GroupBy(line => line.resolved.MenuItemId)
-                    .ToDictionary(group => group.Key, group => (Guid?)group.First().resolved.CategoryId);
-
-                var unitsToConsume = 0;
-                foreach (var unit in plan.Units)
-                {
-                    var quantity = unit.Quantity;
-
-                    if (discountTracker.RemainingCap is { } unitCap && unit.UnitPrice > 0)
-                    {
-                        quantity = Math.Min(
-                            quantity,
-                            (int)Math.Floor(unitCap / unit.UnitPrice));
-                    }
-
-                    if (quantity <= 0)
-                    {
-                        continue;
-                    }
-
-                    var unitAmount = unit.UnitPrice * quantity;
-                    var applied = discountTracker.Apply(
-                        OrderDiscountKind.Subscription,
-                        "اشتراک ماهانه",
-                        unitAmount,
-                        scopes:
-                        [
-                            new DiscountScopeAmount(
-                                categoryByMenuItem.GetValueOrDefault(unit.MenuItemId),
-                                unitAmount)
-                        ]);
-
-                    if (applied <= 0)
-                    {
-                        continue;
-                    }
-
-                    unitsToConsume += quantity;
-                }
-
-                if (unitsToConsume > 0)
-                {
-                    subscription.Consume(unitsToConsume, DateOnly.FromDateTime(DateTime.UtcNow));
-                }
-            }
+            order.ExcludeFromAccounting(
+                string.IsNullOrWhiteSpace(request.ComplimentaryReason)
+                    ? "خارج از حسابداری (صندوق)"
+                    : request.ComplimentaryReason);
         }
 
         switch (action)
         {
             case PosOrderAction.Hold:
+                order.ConfigureOrderKind(resolvedOrderKind, request.ComplimentaryReason);
                 order.Hold();
                 break;
             case PosOrderAction.PayCash:
@@ -371,11 +403,21 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     cancellationToken);
                 await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
                 break;
+            case PosOrderAction.InternalUse:
+            case PosOrderAction.Complimentary:
+                order.CompleteWithoutCharge(resolvedOrderKind, request.ComplimentaryReason);
+                await OrderInventoryService.DeductInventoryForOrderLinesAsync(
+                    _dbContext,
+                    order,
+                    order.Lines.ToList(),
+                    cancellationToken);
+                await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
+                break;
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        if (action is PosOrderAction.PayCash or PosOrderAction.PayCard)
+        if (action is PosOrderAction.PayCash or PosOrderAction.PayCard or PosOrderAction.InternalUse or PosOrderAction.Complimentary)
         {
             await _accountingService.PostOrderPaymentAsync(order, cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -389,7 +431,10 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             order.TrackingCode,
             order.Status.ToString(),
             order.TotalAmount,
-            order.PaymentMethod?.ToString());
+            order.PaymentMethod?.ToString(),
+            order.OrderKind.ToString(),
+            order.ComplimentaryReason,
+            order.IsExcludedFromAccounting);
     }
 
     private async Task ReplaceLinesAsync(

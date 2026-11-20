@@ -253,7 +253,9 @@ export function CustomerGroupsPage() {
           <table className="admin-table">
             <thead>
               <tr>
+                <th>ردیف</th>
                 <th>نام</th>
+                <th>ترتیب نمایش</th>
                 <th>تخفیف</th>
                 <th>روش تایید</th>
                 <th>اعتبار (روز)</th>
@@ -263,12 +265,14 @@ export function CustomerGroupsPage() {
               </tr>
             </thead>
             <tbody>
-              {groups.map((group) => (
+              {groups.map((group, index) => (
                 <tr key={group.id}>
+                  <td>{index + 1}</td>
                   <td>
                     <strong>{group.name}</strong>
                     {group.description ? <div className="table-subtext">{group.description}</div> : null}
                   </td>
+                  <td>{group.displayOrder ?? 0}</td>
                   <td>{group.discountPercent}٪</td>
                   <td>
                     {APPROVAL_LABELS[group.approvalMethod] ?? '—'}

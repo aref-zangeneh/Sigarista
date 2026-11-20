@@ -16,5 +16,13 @@ public enum PosPaymentMethod
 {
     Cash,
     Card,
-    OnlineGateway
+    OnlineGateway,
+    Complimentary
+}
+
+public enum OrderKind
+{
+    Standard,
+    InternalUse,
+    Complimentary
 }

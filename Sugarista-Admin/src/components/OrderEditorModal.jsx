@@ -1,8 +1,15 @@
+import { useEffect, useState } from 'react'
 import { DataTable, formatMoney } from './DataTable'
 import { OrderFulfillmentActions, fulfillmentStatusLabel } from './OrderAlertsBar'
 import { toPersianNumber, formatDateTime } from '../utils/adminFormatters'
 import { useAdmin } from '../context/AdminContext'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+
+function orderKindLabel(kind) {
+  if (kind === 'InternalUse') return 'مصرف داخلی (رایگان)'
+  if (kind === 'Complimentary') return 'مهمان / آشنا (رایگان)'
+  return 'فروش عادی'
+}
 
 export function OrderEditorModal() {
   const admin = useAdmin()
@@ -20,13 +27,28 @@ export function OrderEditorModal() {
     updateOrderLineQuantity,
     toggleOrderLineRemoval,
     handleCancelOrder,
+    handleDeleteOrder,
+    handleToggleOrderAccountingExclusion,
   } = admin
+
+  const [exclusionReason, setExclusionReason] = useState('')
+  const [restoreOnDelete, setRestoreOnDelete] = useState(true)
+  const [settleReason, setSettleReason] = useState('')
+
+  useEffect(() => {
+    setExclusionReason(selectedOrder?.excludedFromAccountingReason ?? '')
+    setRestoreOnDelete(true)
+    setSettleReason(selectedOrder?.complimentaryReason ?? '')
+  }, [selectedOrder?.id, selectedOrder?.excludedFromAccountingReason, selectedOrder?.complimentaryReason])
 
   useEscapeKey(Boolean(selectedOrder && orderEditForm), closeOrderEditor)
 
   if (!selectedOrder || !orderEditForm) {
     return null
   }
+
+  const isNonRevenue = selectedOrder.orderKind === 'InternalUse' || selectedOrder.orderKind === 'Complimentary'
+  const settleAsNonRevenue = registerPaymentMethod === 'InternalUse' || registerPaymentMethod === 'Complimentary'
 
   return (
       <div className="modal-backdrop" onClick={closeOrderEditor}>
@@ -53,6 +75,13 @@ export function OrderEditorModal() {
     
             <div className="order-detail-meta">
               <span>پرداخت: {selectedOrder.status}</span>
+              <span>نوع سفارش: {orderKindLabel(selectedOrder.orderKind)}</span>
+              {isNonRevenue && selectedOrder.complimentaryReason ? (
+                <span>بابت: {selectedOrder.complimentaryReason}</span>
+              ) : null}
+              <span>
+                حسابداری: {selectedOrder.isExcludedFromAccounting ? 'خارج از حسابداری' : 'لحاظ در حسابداری'}
+              </span>
               <span>آماده‌سازی: {fulfillmentStatusLabel(selectedOrder.fulfillmentStatus)}</span>
               {selectedOrder.deliveryAt ? (
                 <span>زمان تحویل: {formatDateTime(selectedOrder.deliveryAt)}</span>
@@ -66,6 +95,45 @@ export function OrderEditorModal() {
                 <span>هزینه تحویل: {formatMoney(selectedOrder.deliveryFee)} تومان</span>
               ) : null}
               <span>تاریخ: {formatDateTime(selectedOrder.createdAt)}</span>
+            </div>
+
+            <div className="order-accounting-box">
+              <div>
+                <strong>وضعیت در حسابداری و گزارش‌های مالی</strong>
+                <p className="table-subtext">
+                  {selectedOrder.isExcludedFromAccounting
+                    ? `این سفارش از حسابداری و گزارش‌های فروش خارج شده است${selectedOrder.excludedFromAccountingReason ? ` (${selectedOrder.excludedFromAccountingReason})` : ''}.`
+                    : 'این سفارش در اسناد حسابداری و گزارش‌های مالی لحاظ می‌شود. در صورت نیاز می‌توانید آن را بدون حذف سفارش از حسابداری خارج کنید.'}
+                </p>
+              </div>
+              {selectedOrder.isExcludedFromAccounting ? (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  disabled={saving}
+                  onClick={() => handleToggleOrderAccountingExclusion(selectedOrder, false)}
+                >
+                  بازگرداندن به حسابداری
+                </button>
+              ) : (
+                <div className="order-accounting-controls">
+                  <input
+                    type="text"
+                    placeholder="علت خروج از حسابداری (اختیاری، مثلاً سفارش تستی)"
+                    value={exclusionReason}
+                    onChange={(event) => setExclusionReason(event.target.value)}
+                    disabled={saving}
+                  />
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    disabled={saving}
+                    onClick={() => handleToggleOrderAccountingExclusion(selectedOrder, true, exclusionReason)}
+                  >
+                    خروج از حسابداری
+                  </button>
+                </div>
+              )}
             </div>
     
             <OrderFulfillmentActions
@@ -212,17 +280,40 @@ export function OrderEditorModal() {
               {['PendingPayment', 'PartiallyPaid', 'Held'].includes(selectedOrder.status) ? (
                 <div className="invoice-pay-row">
                   <label>
-                    <span>روش پرداخت</span>
+                    <span>روش تسویه</span>
                     <select
                       value={registerPaymentMethod}
                       onChange={(event) => setRegisterPaymentMethod(event.target.value)}
                     >
                       <option value="Cash">نقدی</option>
-                      <option value="Card">کارت</option>
+                      <option value="Card">کارت‌خوان</option>
+                      <option value="InternalUse">مصرف داخلی (رایگان)</option>
+                      <option value="Complimentary">مهمان / آشنا (رایگان)</option>
                     </select>
                   </label>
-                  <button type="button" disabled={saving} onClick={handleRegisterPayment}>
-                    نهایی‌سازی فاکتور و ثبت پرداخت
+                  {settleAsNonRevenue ? (
+                    <label>
+                      <span>بابت / علت (اختیاری)</span>
+                      <input
+                        type="text"
+                        placeholder="مثلاً پرسنل شیفت صبح یا مهمان"
+                        value={settleReason}
+                        onChange={(event) => setSettleReason(event.target.value)}
+                      />
+                    </label>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() =>
+                      handleRegisterPayment(
+                        settleAsNonRevenue
+                          ? { orderKind: registerPaymentMethod, complimentaryReason: settleReason }
+                          : { orderKind: 'Standard' },
+                      )
+                    }
+                  >
+                    {settleAsNonRevenue ? 'ثبت نهایی (بدون دریافت وجه)' : 'نهایی‌سازی فاکتور و ثبت پرداخت'}
                   </button>
                 </div>
               ) : null}
@@ -236,6 +327,27 @@ export function OrderEditorModal() {
                   </button>
                 </>
               ) : null}
+              <div className="order-delete-group">
+                {selectedOrder.status !== 'Cancelled' ? (
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={restoreOnDelete}
+                      onChange={(event) => setRestoreOnDelete(event.target.checked)}
+                      disabled={saving}
+                    />
+                    <span>بازگردانی موجودی هنگام حذف</span>
+                  </label>
+                ) : null}
+                <button
+                  type="button"
+                  className="ghost-button link-danger"
+                  disabled={saving}
+                  onClick={() => handleDeleteOrder(selectedOrder, { restoreInventory: restoreOnDelete })}
+                >
+                  حذف کامل سفارش
+                </button>
+              </div>
             </div>
           </form>
         </div>

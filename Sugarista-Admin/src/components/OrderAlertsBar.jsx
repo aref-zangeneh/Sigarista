@@ -39,11 +39,15 @@ export function FulfillmentBadge({ status }) {
   return <span className={className}>{fulfillmentStatusLabel(status)}</span>
 }
 
-function OrderAlertItem({ order, tone = 'default', onOpenOrder, onDismissNew }) {
+function OrderAlertItem({ order, tone = 'default', busyState = null, onOpenOrder, onDismissNew }) {
   const isNew = tone === 'new'
+  const isBusy = Boolean(busyState)
 
   return (
-    <article className={`order-alert-item ${isNew ? 'order-alert-item--new' : ''}`}>
+    <article
+      className={`order-alert-item ${isNew ? 'order-alert-item--new' : ''} ${isBusy ? 'order-alert-item--busy' : ''}`}
+      aria-busy={isBusy || undefined}
+    >
       <div>
         <strong>
           {isNew ? 'سفارش جدید پرداخت شد — ' : ''}
@@ -51,15 +55,33 @@ function OrderAlertItem({ order, tone = 'default', onOpenOrder, onDismissNew }) 
         </strong>
         <div className="table-subtext">
           {order.customerName} · {order.customerPhone}
+          {order.orderKind === 'InternalUse' ? ' · مصرف داخلی' : null}
+          {order.orderKind === 'Complimentary' ? ' · مهمان / رایگان' : null}
+          {order.complimentaryReason ? ` (${order.complimentaryReason})` : null}
         </div>
         <FulfillmentBadge status={order.fulfillmentStatus} />
       </div>
       <div className="order-fulfillment-actions">
-        <button type="button" className="ghost-button" onClick={() => onOpenOrder(order)}>
-          مدیریت
+        <button
+          type="button"
+          className="ghost-button"
+          disabled={isBusy}
+          aria-disabled={isBusy}
+          onClick={() => {
+            if (!isBusy) {
+              onOpenOrder(order)
+            }
+          }}
+        >
+          {busyState?.label || 'مدیریت'}
         </button>
         {isNew && onDismissNew ? (
-          <button type="button" className="ghost-button" onClick={() => onDismissNew(order.id)}>
+          <button
+            type="button"
+            className="ghost-button"
+            disabled={isBusy}
+            onClick={() => onDismissNew(order.id)}
+          >
             متوجه شدم
           </button>
         ) : null}
@@ -70,6 +92,7 @@ function OrderAlertItem({ order, tone = 'default', onOpenOrder, onDismissNew }) 
 
 export function OrderAlertsBar({
   alerts,
+  busyOrders = {},
   pulse,
   onOpenOrders,
   onOpenOrder,
@@ -117,6 +140,7 @@ export function OrderAlertsBar({
               key={`new-${order.id}`}
               order={order}
               tone="new"
+              busyState={busyOrders?.[String(order.id)] ?? null}
               onOpenOrder={onOpenOrder}
               onDismissNew={onDismissNew}
             />
@@ -128,7 +152,12 @@ export function OrderAlertsBar({
         <div className="order-alerts-list">
           <p className="order-alerts-section-title">در صف آماده‌سازی</p>
           {kitchenOrders.map((order) => (
-            <OrderAlertItem key={`kitchen-${order.id}`} order={order} onOpenOrder={onOpenOrder} />
+            <OrderAlertItem
+              key={`kitchen-${order.id}`}
+              order={order}
+              busyState={busyOrders?.[String(order.id)] ?? null}
+              onOpenOrder={onOpenOrder}
+            />
           ))}
         </div>
       ) : null}
@@ -137,7 +166,12 @@ export function OrderAlertsBar({
         <div className="order-alerts-list">
           <p className="order-alerts-section-title">آماده تحویل به مشتری</p>
           {readyOrders.map((order) => (
-            <OrderAlertItem key={`ready-${order.id}`} order={order} onOpenOrder={onOpenOrder} />
+            <OrderAlertItem
+              key={`ready-${order.id}`}
+              order={order}
+              busyState={busyOrders?.[String(order.id)] ?? null}
+              onOpenOrder={onOpenOrder}
+            />
           ))}
         </div>
       ) : null}

@@ -305,7 +305,9 @@ export function SubscriptionPackagesPage() {
           <table className="admin-table">
             <thead>
               <tr>
+                <th>ردیف</th>
                 <th>نام</th>
+                <th>ترتیب نمایش</th>
                 <th>استفاده</th>
                 <th>قیمت</th>
                 <th>اعتبار</th>
@@ -316,12 +318,14 @@ export function SubscriptionPackagesPage() {
               </tr>
             </thead>
             <tbody>
-              {packages.map((pack) => (
+              {packages.map((pack, index) => (
                 <tr key={pack.id}>
+                  <td>{index + 1}</td>
                   <td>
                     <strong>{pack.name}</strong>
                     {pack.description ? <div className="table-subtext">{pack.description}</div> : null}
                   </td>
+                  <td>{pack.displayOrder ?? 0}</td>
                   <td>{pack.totalUseCount}</td>
                   <td>{formatPrice(pack.price)} تومان</td>
                   <td>{pack.validityDays} روز</td>

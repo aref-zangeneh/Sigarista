@@ -12,7 +12,9 @@ public record AdminOrderAlertItemDto(
     string CustomerPhone,
     string FulfillmentStatus,
     DateTimeOffset? PaidAt,
-    int LineCount);
+    int LineCount,
+    string OrderKind = "Standard",
+    string? ComplimentaryReason = null);
 
 public record AdminOrderAlertsDto(
     int PendingKitchenCount,
@@ -48,7 +50,9 @@ public class GetAdminOrderAlertsQueryHandler : IRequestHandler<GetAdminOrderAler
                 o.CustomerPhone,
                 o.FulfillmentStatus.ToString(),
                 o.PaidAt,
-                o.Lines.Count))
+                o.Lines.Count,
+                o.OrderKind.ToString(),
+                o.ComplimentaryReason))
             .ToListAsync(cancellationToken);
 
         static bool NeedsKitchen(AdminOrderAlertItemDto order) =>

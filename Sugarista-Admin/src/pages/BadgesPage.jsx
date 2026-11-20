@@ -300,7 +300,9 @@ export function BadgesPage() {
             <table>
               <thead>
                 <tr>
+                  <th>ردیف</th>
                   <th>بج</th>
+                  <th>ترتیب نمایش</th>
                   <th>شرط خودکار</th>
                   <th>دارنده</th>
                   <th>وضعیت</th>
@@ -308,8 +310,9 @@ export function BadgesPage() {
                 </tr>
               </thead>
               <tbody>
-                {badges.map((badge) => (
+                {badges.map((badge, index) => (
                   <tr key={badge.id} className={badge.isEnabled ? '' : 'row-muted'}>
+                    <td>{index + 1}</td>
                     <td>
                       <div className="badge-cell">
                         {badge.imageUrl ? (
@@ -325,6 +328,7 @@ export function BadgesPage() {
                         </div>
                       </div>
                     </td>
+                    <td>{badge.displayOrder ?? 0}</td>
                     <td>{describeConditions(badge)}</td>
                     <td>{badge.holders}</td>
                     <td>{badge.isEnabled ? 'فعال' : 'غیرفعال'}</td>
@@ -345,7 +349,7 @@ export function BadgesPage() {
                 ))}
                 {badges.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>هنوز بجی ثبت نشده است.</td>
+                    <td colSpan={7}>هنوز بجی ثبت نشده است.</td>
                   </tr>
                 ) : null}
               </tbody>

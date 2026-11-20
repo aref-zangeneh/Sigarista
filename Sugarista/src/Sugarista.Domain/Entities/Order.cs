@@ -68,6 +68,21 @@ public class Order : BaseAuditableEntity
 
     public PosPaymentMethod? PaymentMethod { get; private set; }
 
+    /// <summary>Distinguishes normal revenue orders from internal consumption or complimentary guest orders.</summary>
+    public OrderKind OrderKind { get; private set; } = OrderKind.Standard;
+
+    /// <summary>Optional reason recorded for internal consumption or complimentary/guest orders.</summary>
+    public string? ComplimentaryReason { get; private set; }
+
+    /// <summary>When true, this order is excluded from accounting journal entries and financial/sales summaries.</summary>
+    public bool IsExcludedFromAccounting { get; private set; }
+
+    public DateTimeOffset? ExcludedFromAccountingAt { get; private set; }
+
+    public string? ExcludedFromAccountingReason { get; private set; }
+
+    public bool IsNonRevenue => OrderKind is OrderKind.InternalUse or OrderKind.Complimentary;
+
     public Guid? SalonTableId { get; private set; }
 
     public SalonTable? SalonTable { get; private set; }
@@ -176,6 +191,14 @@ public class Order : BaseAuditableEntity
         if (Lines.Count == 0)
         {
             throw new DomainException("Order must contain at least one line.");
+        }
+
+        if (IsNonRevenue)
+        {
+            TaxTotal = 0m;
+            TotalAmount = 0m;
+            DiscountTotal = 0m;
+            return;
         }
 
         var itemsTotal = Lines.Sum(line => line.LineTotal);
@@ -419,6 +442,13 @@ public class Order : BaseAuditableEntity
 
     public void PayAtPos(PosPaymentMethod paymentMethod)
     {
+        if (paymentMethod == PosPaymentMethod.Complimentary)
+        {
+            throw new DomainException("Use CompleteWithoutCharge for complimentary or internal consumption orders.");
+        }
+
+        OrderKind = OrderKind.Standard;
+        ComplimentaryReason = null;
         PaymentMethod = paymentMethod;
 
         if (Status == OrderStatus.Held)
@@ -428,6 +458,57 @@ public class Order : BaseAuditableEntity
         }
 
         MarkPaid();
+    }
+
+    public void ConfigureOrderKind(OrderKind orderKind, string? reason = null)
+    {
+        OrderKind = orderKind;
+        ComplimentaryReason = orderKind == OrderKind.Standard || string.IsNullOrWhiteSpace(reason)
+            ? null
+            : reason.Trim();
+    }
+
+    public void CompleteWithoutCharge(OrderKind orderKind, string? reason = null)
+    {
+        if (orderKind is not (OrderKind.InternalUse or OrderKind.Complimentary))
+        {
+            throw new DomainException("Only InternalUse or Complimentary orders can be completed without charge.");
+        }
+
+        if (Status == OrderStatus.Held)
+        {
+            Status = OrderStatus.PendingPayment;
+            HeldAt = null;
+        }
+
+        if (Status is not (OrderStatus.PendingPayment or OrderStatus.PartiallyPaid))
+        {
+            throw new DomainException("Only pending, held, or partially paid orders can be completed without charge.");
+        }
+
+        OrderKind = orderKind;
+        ComplimentaryReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        PaymentMethod = PosPaymentMethod.Complimentary;
+        TotalAmount = 0m;
+        AmountPaid = 0m;
+        TaxTotal = 0m;
+        Status = OrderStatus.Paid;
+        PaidAt = DateTimeOffset.UtcNow;
+        RegisterForFulfillment();
+    }
+
+    public void ExcludeFromAccounting(string? reason = null)
+    {
+        IsExcludedFromAccounting = true;
+        ExcludedFromAccountingAt = DateTimeOffset.UtcNow;
+        ExcludedFromAccountingReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+    }
+
+    public void IncludeInAccounting()
+    {
+        IsExcludedFromAccounting = false;
+        ExcludedFromAccountingAt = null;
+        ExcludedFromAccountingReason = null;
     }
 
     public void UpdateCustomerForPos(string? customerName, string? customerPhone, string? note)

@@ -35,7 +35,10 @@ public record PosOrderSummaryDto(
     Guid? SalonTableId,
     string? TableName,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? HeldAt);
+    DateTimeOffset? HeldAt,
+    string OrderKind = "Standard",
+    string? ComplimentaryReason = null,
+    bool IsExcludedFromAccounting = false);
 
 public record PosOrderDetailDto(
     Guid Id,
@@ -60,7 +63,10 @@ public record PosOrderDetailDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset? HeldAt,
     IReadOnlyCollection<PosOrderLineDto> Lines,
-    IReadOnlyCollection<PosSplitShareDto> SplitShares);
+    IReadOnlyCollection<PosSplitShareDto> SplitShares,
+    string OrderKind = "Standard",
+    string? ComplimentaryReason = null,
+    bool IsExcludedFromAccounting = false);
 
 public record PosOrderLineDto(
     Guid Id,
@@ -93,4 +99,7 @@ public record UpsertPosOrderResultDto(
     string TrackingCode,
     string Status,
     decimal TotalAmount,
-    string? PaymentMethod);
+    string? PaymentMethod,
+    string OrderKind = "Standard",
+    string? ComplimentaryReason = null,
+    bool IsExcludedFromAccounting = false);

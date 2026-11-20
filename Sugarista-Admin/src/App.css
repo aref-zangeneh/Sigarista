@@ -3409,6 +3409,84 @@ select:focus-visible {
   text-align: center;
 }
 
+.orders-table-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.orders-table-filters select {
+  min-width: 155px;
+}
+
+.order-badges-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.order-kind-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.order-kind-badge--internal {
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--info-ink, #2563eb);
+}
+
+.order-kind-badge--complimentary {
+  background: rgba(168, 85, 247, 0.14);
+  color: #9333ea;
+}
+
+.order-kind-badge--excluded {
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--warn-ink, #b45309);
+}
+
+.order-accounting-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.order-accounting-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 280px;
+  justify-content: flex-end;
+}
+
+.order-accounting-controls input {
+  min-width: 210px;
+  flex: 1 1 200px;
+}
+
+.order-delete-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-inline-start: auto;
+}
+
 @media (max-width: 1100px) {
   .receipt-layout-body {
     grid-template-columns: 1fr;

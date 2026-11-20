@@ -78,6 +78,16 @@
   border-color: rgba(170, 49, 113, 0.35);
 }
 
+.order-alert-item--busy {
+  opacity: 0.62;
+  transition: opacity 0.2s ease;
+}
+
+.order-alert-item--busy button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .fulfillment-badge {
   display: inline-flex;
   padding: 4px 10px;

@@ -1,5 +1,6 @@
 import { Fragment, jsx as reactJsx, jsxs as reactJsxs } from 'react/jsx-runtime'
 import { PersianFieldInput, PersianFieldTextarea } from './PersianFieldControls.js'
+import { NumberedTable } from './NumberedTable.js'
 
 const EXCLUDED_INPUT_TYPES = new Set([
   'checkbox',
@@ -23,6 +24,10 @@ const EXCLUDED_INPUT_TYPES = new Set([
 ])
 
 function resolveControlType(type, props) {
+  if (type === 'table') {
+    return NumberedTable
+  }
+
   if (!props || props['data-latin-digits'] === 'true' || props['data-latin-digits'] === true) {
     return type
   }

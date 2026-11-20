@@ -146,6 +146,14 @@ public sealed class ExportDataBuilder(IApplicationDbContext dbContext, ISender s
                 order.IsSplitBill ? "بله (تسویه جداگانه)" : "خیر",
                 order.PaymentMethod?.ToString() ?? string.Empty,
                 order.PaidAt.HasValue ? Shamsi(order.PaidAt.Value) : string.Empty,
+                order.OrderKind switch
+                {
+                    OrderKind.InternalUse => "مصرف داخلی",
+                    OrderKind.Complimentary => "مهمان / رایگان",
+                    _ => "فروش عادی"
+                },
+                order.IsExcludedFromAccounting ? "خارج از حسابداری" : "لحاظ در حسابداری",
+                order.ComplimentaryReason ?? order.ExcludedFromAccountingReason ?? string.Empty,
                 order.Note ?? string.Empty,
             });
 
@@ -188,7 +196,7 @@ public sealed class ExportDataBuilder(IApplicationDbContext dbContext, ISender s
                 "کد پیگیری", "تاریخ ثبت", "مشتری", "شماره تماس", "وضعیت پرداخت", "وضعیت آماده‌سازی",
                 "کانال", "نوع سرویس", "روش تحویل", "مبلغ آیتم‌ها", "مالیات", "هزینه تحویل",
                 "مبلغ کل (تومان)", "پرداخت‌شده (تومان)", "مانده (تومان)", "تسویه جداگانه",
-                "روش پرداخت", "زمان پرداخت", "توضیحات",
+                "روش پرداخت", "زمان پرداخت", "نوع سفارش", "وضعیت حسابداری", "علت رایگان/خروج از حسابداری", "توضیحات",
             }, orders.Rows),
             new("ردیف سفارش‌ها", new[]
             {

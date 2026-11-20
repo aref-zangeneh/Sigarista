@@ -2956,6 +2956,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("ComplimentaryReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2987,6 +2991,13 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<decimal>("DiscountTotal")
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<DateTimeOffset?>("ExcludedFromAccountingAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExcludedFromAccountingReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<string>("FulfillmentStatus")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -3005,6 +3016,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<bool>("IsExcludedFromAccounting")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsSplitBill")
                         .HasColumnType("boolean");
 
@@ -3017,6 +3033,13 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<string>("Note")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<string>("OrderKind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Standard");
 
                     b.Property<bool>("PackagingDeducted")
                         .HasColumnType("boolean");
@@ -3094,7 +3117,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsUnique()
                         .HasFilter("\"IdempotencyKey\" IS NOT NULL");
 
+                    b.HasIndex("IsExcludedFromAccounting");
+
                     b.HasIndex("IsSplitBill");
+
+                    b.HasIndex("OrderKind");
 
                     b.HasIndex("PaymentAuthority");
 

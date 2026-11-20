@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Sugarista.Api.Authorization;
 using Sugarista.Application.Common.Models;
 using Sugarista.Application.Orders.Commands.CancelAdminOrder;
+using Sugarista.Application.Orders.Commands.DeleteAdminOrder;
 using Sugarista.Application.Orders.Commands.RegisterAdminPayment;
+using Sugarista.Application.Orders.Commands.SetOrderAccountingExclusion;
 using Sugarista.Application.Orders.Commands.UpdateAdminOrder;
 using Sugarista.Application.Orders.Commands.UpdateOrderFulfillment;
 using Sugarista.Application.Orders.Queries.GetAdminOrderAlerts;
@@ -35,10 +37,12 @@ public class AdminOrdersController : ApiControllerBase
         [FromQuery] string? search = null,
         [FromQuery] string? status = null,
         [FromQuery] string? fulfillment = null,
+        [FromQuery] string? orderKind = null,
+        [FromQuery] bool? excludedFromAccounting = null,
         CancellationToken cancellationToken = default)
     {
         return Ok(await Mediator.Send(
-            new GetAdminOrdersQuery(page, pageSize, search, status, fulfillment),
+            new GetAdminOrdersQuery(page, pageSize, search, status, fulfillment, orderKind, excludedFromAccounting),
             cancellationToken));
     }
 
@@ -80,7 +84,12 @@ public class AdminOrdersController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(
-            new RegisterAdminPaymentCommand(id, request.PaymentMethod, request.Amount),
+            new RegisterAdminPaymentCommand(
+                id,
+                request.PaymentMethod,
+                request.Amount,
+                request.OrderKind,
+                request.ComplimentaryReason),
             cancellationToken));
     }
 
@@ -89,6 +98,29 @@ public class AdminOrdersController : ApiControllerBase
     public async Task<ActionResult<AdminOrderDetailDto>> Cancel(Guid id, CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new CancelAdminOrderCommand(id), cancellationToken));
+    }
+
+    [HttpDelete("{id:guid}")]
+    [RequirePermission(AdminPermissions.Orders.Delete)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        [FromQuery] bool restoreInventory = true,
+        CancellationToken cancellationToken = default)
+    {
+        await Mediator.Send(new DeleteAdminOrderCommand(id, restoreInventory), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}/accounting-exclusion")]
+    [RequirePermission(AdminPermissions.Orders.Update)]
+    public async Task<ActionResult<AdminOrderDetailDto>> SetAccountingExclusion(
+        Guid id,
+        [FromBody] SetOrderAccountingExclusionRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(
+            new SetOrderAccountingExclusionCommand(id, request.Exclude, request.Reason),
+            cancellationToken));
     }
 
     [HttpPatch("{id:guid}/fulfillment")]
@@ -106,7 +138,13 @@ public class AdminOrdersController : ApiControllerBase
 
 public record UpdateOrderFulfillmentRequest(FulfillmentStatus FulfillmentStatus);
 
-public record RegisterAdminPaymentRequest(string PaymentMethod = "Cash", decimal? Amount = null);
+public record SetOrderAccountingExclusionRequest(bool Exclude, string? Reason = null);
+
+public record RegisterAdminPaymentRequest(
+    string PaymentMethod = "Cash",
+    decimal? Amount = null,
+    string? OrderKind = null,
+    string? ComplimentaryReason = null);
 
 public record UpdateAdminOrderRequest(
     string? CustomerName,

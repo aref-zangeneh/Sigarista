@@ -168,13 +168,25 @@ public class ReceiptPrintJobService : IPrintJobService
             serviceLabel = $"ارسال با {deliveryLabel}";
         }
 
-        var paymentLabel = order.PaymentMethod switch
+        var paymentLabel = order.OrderKind switch
         {
-            PosPaymentMethod.Cash => "پرداخت نقدی",
-            PosPaymentMethod.Card => "کارت‌خوان (پوز)",
-            PosPaymentMethod.OnlineGateway => "درگاه پرداخت اینترنتی",
-            _ => order.Channel == OrderChannel.Pos ? "پرداخت صندوق" : "پرداخت اینترنتی"
+            OrderKind.InternalUse => "مصرف داخلی پرسنل (رایگان)",
+            OrderKind.Complimentary => "مهمان مجموعه / آشنا (رایگان)",
+            _ => order.PaymentMethod switch
+            {
+                PosPaymentMethod.Cash => "پرداخت نقدی",
+                PosPaymentMethod.Card => "کارت‌خوان (پوز)",
+                PosPaymentMethod.OnlineGateway => "درگاه پرداخت اینترنتی",
+                PosPaymentMethod.Complimentary => "رایگان / بدون دریافت وجه",
+                _ => order.Channel == OrderChannel.Pos ? "پرداخت صندوق" : "پرداخت اینترنتی"
+            }
         };
+
+        var effectiveNote = order.IsNonRevenue && !string.IsNullOrWhiteSpace(order.ComplimentaryReason)
+            ? string.IsNullOrWhiteSpace(order.Note)
+                ? $"بابت: {order.ComplimentaryReason}"
+                : $"{order.Note} — بابت: {order.ComplimentaryReason}"
+            : order.Note;
 
         var reference = order.Payments
             .Where(payment => payment.ReferenceId is not null)
@@ -205,7 +217,7 @@ public class ReceiptPrintJobService : IPrintJobService
                 TableLabel: tableLabel,
                 CustomerName: string.IsNullOrWhiteSpace(order.CustomerName) ? null : order.CustomerName,
                 CustomerPhone: customerPhoneLabel,
-                Note: order.Note,
+                Note: effectiveNote,
                 CreatedAtLabel: createdAtLabel,
                 PaidAtLabel: paidAtLabel,
                 PaymentLabel: paymentLabel,

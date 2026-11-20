@@ -21,7 +21,9 @@ export function OrdersPage() {
     apiRequest,
     getReadableError,
     openOrderEditor,
-    loadAdminData,
+    markOrderAlertBusy,
+    clearOrderAlertBusy,
+    refreshOrderAlerts,
   } = useAdmin()
 
   const [queue, setQueue] = useState({ pending: [], processing: [], ready: [] })
@@ -31,7 +33,17 @@ export function OrdersPage() {
   const [queueError, setQueueError] = useState('')
   const [message, setMessage] = useState('')
   const [actingOrderId, setActingOrderId] = useState(null)
+  const [orderKindFilter, setOrderKindFilter] = useState('')
+  const [accountingFilter, setAccountingFilter] = useState('')
   const refreshTimerRef = useRef(null)
+
+  const ordersApiPath = (() => {
+    const params = new URLSearchParams()
+    if (orderKindFilter) params.set('orderKind', orderKindFilter)
+    if (accountingFilter) params.set('excludedFromAccounting', accountingFilter)
+    const qs = params.toString()
+    return qs ? `/admin/orders?${qs}` : '/admin/orders'
+  })()
 
   const loadQueue = useCallback(async () => {
     if (!session?.token) return
@@ -77,6 +89,14 @@ export function OrdersPage() {
     setActingOrderId(order.id)
     setQueueError('')
     setMessage('')
+    const removesFromAlerts = action === 'complete'
+    if (action !== 'edit') {
+      markOrderAlertBusy(
+        order.id,
+        removesFromAlerts ? 'در حال ثبت تحویل...' : 'در حال بروزرسانی...',
+        { untilRemoved: removesFromAlerts },
+      )
+    }
     try {
       if (action === 'pay') {
         await apiRequest(`/admin/orders/${order.id}/pay`, {
@@ -98,11 +118,18 @@ export function OrdersPage() {
           token: session.token,
           body: { fulfillmentStatus: statusByAction[action] },
         })
+        if (removesFromAlerts) {
+          markOrderAlertBusy(order.id, 'تحویل شد — در حال حذف...', { untilRemoved: true })
+        }
         setMessage(`وضعیت سفارش ${order.trackingCode} به «${fulfillmentStatusLabel(statusByAction[action])}» تغییر کرد.`)
       }
-      await loadQueue()
+      await Promise.allSettled([loadQueue(), refreshOrderAlerts()])
+      if (!removesFromAlerts) {
+        clearOrderAlertBusy(order.id)
+      }
       bumpTableReload()
     } catch (requestError) {
+      clearOrderAlertBusy(order.id, { force: true })
       setQueueError(getReadableError(requestError))
     } finally {
       setActingOrderId(null)
@@ -163,6 +190,7 @@ export function OrdersPage() {
           <table className="admin-table">
             <thead>
               <tr>
+                <th>ردیف</th>
                 <th>کد پیگیری</th>
                 <th>مشتری</th>
                 <th>مبلغ / مانده</th>
@@ -174,9 +202,15 @@ export function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {activeOrderList.map((order) => (
+              {activeOrderList.map((order, rowIndex) => (
                 <tr key={order.id}>
-                  <td>{order.trackingCode}</td>
+                  <td>{toPersianNumber(rowIndex + 1)}</td>
+                  <td>
+                    {order.trackingCode}
+                    {order.orderKind === 'InternalUse' ? <div className="table-subtext">مصرف داخلی</div> : null}
+                    {order.orderKind === 'Complimentary' ? <div className="table-subtext">مهمان / رایگان</div> : null}
+                    {order.isExcludedFromAccounting ? <div className="table-subtext">خارج از حسابداری</div> : null}
+                  </td>
                   <td>
                     {order.customerName}
                     <div className="table-subtext ltr-text">{toPersianNumber(order.customerPhone)}</div>
@@ -256,14 +290,35 @@ export function OrdersPage() {
         <div className="panel-head">
           <div>
             <h3>همه سفارش‌ها</h3>
-            <p>پرداخت، آماده‌سازی و تحویل سفارش — با اعلان لحظه‌ای برای سفارش‌های جدید.</p>
+            <p>پرداخت، آماده‌سازی، مصرف داخلی/مهمان، خروج از حسابداری و حذف سفارش‌ها.</p>
           </div>
-          <button type="button" className="ghost-button" onClick={() => bumpTableReload()}>
-            بروزرسانی
-          </button>
+          <div className="orders-table-filters">
+            <select
+              aria-label="فیلتر نوع سفارش"
+              value={orderKindFilter}
+              onChange={(event) => setOrderKindFilter(event.target.value)}
+            >
+              <option value="">همه انواع سفارش</option>
+              <option value="Standard">فروش عادی</option>
+              <option value="InternalUse">مصرف داخلی</option>
+              <option value="Complimentary">مهمان / رایگان</option>
+            </select>
+            <select
+              aria-label="فیلتر وضعیت حسابداری"
+              value={accountingFilter}
+              onChange={(event) => setAccountingFilter(event.target.value)}
+            >
+              <option value="">همه وضعیت‌های حسابداری</option>
+              <option value="false">لحاظ در حسابداری</option>
+              <option value="true">خارج از حسابداری</option>
+            </select>
+            <button type="button" className="ghost-button" onClick={() => bumpTableReload()}>
+              بروزرسانی
+            </button>
+          </div>
         </div>
         <PaginatedAdminTable
-          apiPath="/admin/orders"
+          apiPath={ordersApiPath}
           token={session.token}
           columns={orderColumns}
           enabled

@@ -136,7 +136,10 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
             .Include(o => o.Lines)
             .ToListAsync(cancellationToken);
 
-        var paidOrders = orders.Where(o => o.Status == OrderStatus.Paid).ToList();
+        var accountingOrders = orders.Where(o => !o.IsExcludedFromAccounting).ToList();
+        var paidOrders = accountingOrders
+            .Where(o => o.Status == OrderStatus.Paid && o.OrderKind == OrderKind.Standard)
+            .ToList();
 
         decimal RevenueInPeriod(IEnumerable<Order> source, DateTimeOffset from) =>
             source.Where(o => (o.PaidAt ?? o.CreatedAt) >= from).Sum(o => o.TotalAmount);
@@ -152,9 +155,9 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
             CountInPeriod(paidOrders, startOfWeek),
             CountInPeriod(paidOrders, startOfMonth));
 
-        var cashBalance = orders.Sum(o => o.AmountPaid);
+        var cashBalance = accountingOrders.Sum(o => o.AmountPaid);
 
-        var receivables = orders
+        var receivables = accountingOrders
             .Where(o => o.Status is OrderStatus.PendingPayment or OrderStatus.PartiallyPaid)
             .Sum(o => o.TotalAmount - o.AmountPaid);
 

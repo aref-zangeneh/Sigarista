@@ -18,7 +18,9 @@ namespace Sugarista.Application.Orders.Commands.RegisterAdminPayment;
 public record RegisterAdminPaymentCommand(
     Guid OrderId,
     string PaymentMethod = "Cash",
-    decimal? Amount = null) : IRequest<AdminOrderDetailDto>;
+    decimal? Amount = null,
+    string? OrderKind = null,
+    string? ComplimentaryReason = null) : IRequest<AdminOrderDetailDto>;
 
 public class RegisterAdminPaymentCommandValidator : AbstractValidator<RegisterAdminPaymentCommand>
 {
@@ -29,7 +31,14 @@ public class RegisterAdminPaymentCommandValidator : AbstractValidator<RegisterAd
         RuleFor(command => command.PaymentMethod)
             .Must(method => string.IsNullOrWhiteSpace(method) ||
                             Enum.TryParse<PosPaymentMethod>(method, true, out _))
-            .WithMessage("Payment method must be Cash, Card, or OnlineGateway.");
+            .WithMessage("Payment method must be Cash, Card, OnlineGateway, or Complimentary.");
+
+        RuleFor(command => command.OrderKind)
+            .Must(kind => string.IsNullOrWhiteSpace(kind) ||
+                          Enum.TryParse<OrderKind>(kind, true, out _))
+            .WithMessage("Order kind must be Standard, InternalUse, or Complimentary.");
+
+        RuleFor(command => command.ComplimentaryReason).MaximumLength(300);
     }
 }
 
@@ -67,6 +76,30 @@ public class RegisterAdminPaymentCommandHandler : IRequestHandler<RegisterAdminP
         if (order.Status == OrderStatus.Held)
         {
             order.ResumeFromHold();
+        }
+
+        var parsedOrderKind = !string.IsNullOrWhiteSpace(request.OrderKind) &&
+                              Enum.TryParse<OrderKind>(request.OrderKind, true, out var kind)
+            ? kind
+            : OrderKind.Standard;
+
+        if (parsedOrderKind is OrderKind.InternalUse or OrderKind.Complimentary)
+        {
+            order.CompleteWithoutCharge(parsedOrderKind, request.ComplimentaryReason);
+
+            await OrderInventoryService.DeductInventoryForOrderLinesAsync(
+                _dbContext,
+                order,
+                order.Lines.ToList(),
+                cancellationToken);
+            await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            await _accountingService.PostOrderPaymentAsync(order, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return AdminOrderMapper.ToDetail(order);
         }
 
         var remaining = order.TotalAmount - order.AmountPaid;

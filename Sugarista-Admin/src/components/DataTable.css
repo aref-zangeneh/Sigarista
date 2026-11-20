@@ -108,6 +108,17 @@
   transition: background var(--transition-fast);
 }
 
+.data-table-row-num,
+.table-row-num-col {
+  width: 52px;
+  min-width: 44px;
+  text-align: center !important;
+  color: var(--muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .data-table-grid tbody tr:hover td {
   background: var(--brand-accent-soft);
 }

@@ -1,4 +1,5 @@
 import { formatMoney } from './DataTable'
+import { toPersianNumber as formatFaNumber } from '../utils/adminFormatters'
 
 function stockStatusBadge(item) {
   if (item.currentQuantity < 0) {
@@ -21,6 +22,11 @@ export function buildCategoryColumns({ toPersianNumber, editCategory, handleDele
   return [
     { accessorKey: 'name', header: 'نام' },
     { accessorKey: 'slug', header: 'اسلاگ', meta: { className: 'ltr-text' } },
+    {
+      accessorKey: 'displayOrder',
+      header: 'ترتیب نمایش',
+      cell: ({ getValue }) => toPersianNumber(getValue() ?? 0),
+    },
     {
       accessorKey: 'itemCount',
       header: 'تعداد آیتم',
@@ -68,6 +74,11 @@ export function buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, 
       ),
     },
     { accessorKey: 'categoryName', header: 'دسته‌بندی' },
+    {
+      accessorKey: 'displayOrder',
+      header: 'ترتیب نمایش',
+      cell: ({ getValue }) => (toPersianNumber ?? formatFaNumber)(getValue() ?? 0),
+    },
     {
       id: 'price',
       header: 'قیمت پایه',
@@ -146,6 +157,11 @@ export function buildAddonColumns({ joinTags, setAddonForm, emptyAddonForm, bump
       header: 'برچسب‌ها',
       cell: ({ getValue }) => joinTags(getValue()),
       enableSorting: false,
+    },
+    {
+      accessorKey: 'displayOrder',
+      header: 'ترتیب نمایش',
+      cell: ({ getValue }) => formatFaNumber(getValue() ?? 0),
     },
     {
       accessorKey: 'isActive',
@@ -441,8 +457,8 @@ export function buildModifierColumns({ toPersianNumber, setModifierForm, emptyMo
     },
     {
       accessorKey: 'displayOrder',
-      header: 'ترتیب',
-      cell: ({ getValue }) => toPersianNumber(getValue()),
+      header: 'ترتیب نمایش',
+      cell: ({ getValue }) => toPersianNumber(getValue() ?? 0),
     },
     {
       accessorKey: 'isActive',
@@ -546,6 +562,11 @@ export function buildIngredientColumns({ setIngredientForm, emptyIngredientForm,
       accessorKey: 'inventoryLocation',
       header: 'انبار',
       cell: ({ getValue }) => LOCATION_OPTIONS.find((o) => o.value === getValue())?.label ?? getValue(),
+    },
+    {
+      accessorKey: 'displayOrder',
+      header: 'ترتیب نمایش',
+      cell: ({ getValue }) => formatFaNumber(getValue() ?? 0),
     },
     {
       accessorKey: 'isActive',
@@ -1229,10 +1250,53 @@ function fulfillmentStatusBadge(status) {
   return <span className="fulfillment-badge">{status}</span>
 }
 
-export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEditor, updateOrderFulfillment, saving }) {
+function orderKindBadge(order) {
+  if (order.orderKind === 'InternalUse') {
+    return (
+      <span className="order-kind-badge order-kind-badge--internal" title={order.complimentaryReason || undefined}>
+        مصرف داخلی
+      </span>
+    )
+  }
+  if (order.orderKind === 'Complimentary') {
+    return (
+      <span className="order-kind-badge order-kind-badge--complimentary" title={order.complimentaryReason || undefined}>
+        مهمان / رایگان
+      </span>
+    )
+  }
+  return null
+}
+
+export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEditor, updateOrderFulfillment, saving, busyAlertOrders = {} }) {
   return [
-    { accessorKey: 'trackingCode', header: 'کد پیگیری', meta: { className: 'ltr-text' } },
-    { accessorKey: 'customerName', header: 'مشتری' },
+    {
+      accessorKey: 'trackingCode',
+      header: 'کد پیگیری',
+      cell: ({ row }) => (
+        <>
+          <span className="ltr-text">{row.original.trackingCode}</span>
+          <div className="order-badges-inline">
+            {orderKindBadge(row.original)}
+            {row.original.isExcludedFromAccounting ? (
+              <span className="order-kind-badge order-kind-badge--excluded">خارج از حسابداری</span>
+            ) : null}
+          </div>
+        </>
+      ),
+    },
+    {
+      accessorKey: 'customerName',
+      header: 'مشتری',
+      cell: ({ row }) => (
+        <>
+          <span>{row.original.customerName}</span>
+          {row.original.complimentaryReason ? (
+            <div className="table-subtext">بابت: {row.original.complimentaryReason}</div>
+          ) : null}
+        </>
+      ),
+    },
     { accessorKey: 'customerPhone', header: 'تماس', meta: { className: 'ltr-text' } },
     {
       id: 'amount',
@@ -1240,7 +1304,11 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEd
       accessorFn: (row) => row.totalAmount,
       cell: ({ row }) => (
         <>
-          {formatMoney(row.original.totalAmount)} تومان
+          {row.original.orderKind === 'InternalUse' || row.original.orderKind === 'Complimentary' ? (
+            <strong>۰ تومان (رایگان)</strong>
+          ) : (
+            <>{formatMoney(row.original.totalAmount)} تومان</>
+          )}
           {row.original.isSplitBill ? <div className="table-subtext">تسویه جداگانه</div> : null}
           {row.original.amountPaid > 0 && row.original.amountPaid < row.original.totalAmount ? (
             <div className="table-subtext">پرداخت شده: {formatMoney(row.original.amountPaid)}</div>
@@ -1311,8 +1379,13 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEd
               تحویل دادم
             </button>
           ) : null}
-          <button type="button" className="link-button" onClick={() => openOrderEditor(row.original)}>
-            مدیریت
+          <button
+            type="button"
+            className="link-button"
+            disabled={saving || Boolean(busyAlertOrders?.[String(row.original.id)])}
+            onClick={() => openOrderEditor(row.original)}
+          >
+            {busyAlertOrders?.[String(row.original.id)]?.label || 'مدیریت'}
           </button>
         </div>
       ),

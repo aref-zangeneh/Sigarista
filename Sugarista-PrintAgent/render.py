@@ -48,7 +48,150 @@ RESHAPER = arabic_reshaper.ArabicReshaper(
 # isolate support, so we bracket the token with LRM marks instead; the marks are
 # stripped again before drawing because they have no glyphs.
 _LTR_TOKEN = re.compile(r"[0-9\u06F0-\u06F9\u0660-\u0669A-Za-z+][0-9\u06F0-\u06F9\u0660-\u0669A-Za-z+\-_.:/@]*")
-_CONTROL = re.compile("[\u200e\u200f\u202a\u202b\u202c\u2066\u2067\u2068\u2069]")
+_CONTROL = re.compile("[\u200e\u200f\u202a\u202b\u202c\u2066\u2067\u2068\u2069\ufe0e\ufe0f]")
+_PERSIAN_DIGIT_MAP = str.maketrans("0123456789\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669", "۰۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹")
+_LATIN_CODE_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9\-_.:/@]*|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+
+def to_persian_digits_safe(text: str) -> str:
+    """Convert numeric runs to Persian digits while keeping Latin codes (e.g. SG-AU2XNN) intact."""
+    if not text:
+        return ""
+    s = str(text)
+    out = []
+    last = 0
+    for m in _LATIN_CODE_TOKEN.finditer(s):
+        if m.start() > last:
+            out.append(s[last:m.start()].translate(_PERSIAN_DIGIT_MAP))
+        out.append(m.group(0))
+        last = m.end()
+    if last < len(s):
+        out.append(s[last:].translate(_PERSIAN_DIGIT_MAP))
+    return "".join(out)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Custom 203-dpi monochrome vector micro-icons (zero tofu □ boxes on paper!)
+# ─────────────────────────────────────────────────────────────────────────────
+
+VECTOR_ICON_CHARS = {"✦", "◆", "☕", "✨", "♥", "❤", "✓", "✔"}
+
+
+def _draw_four_point_star(draw: ImageDraw.ImageDraw, cx: float, cy: float, r: float):
+    """Crisp boutique 4-point star (✦)."""
+    inner = max(1.5, r * 0.34)
+    pts = [
+        (cx, cy - r),
+        (cx + inner, cy - inner),
+        (cx + r, cy),
+        (cx + inner, cy + inner),
+        (cx, cy + r),
+        (cx - inner, cy + inner),
+        (cx - r, cy),
+        (cx - inner, cy - inner),
+    ]
+    draw.polygon(pts, fill=0)
+
+
+def _draw_vector_icon(draw: ImageDraw.ImageDraw, ch: str, x: float, y: float, size: int) -> float:
+    """Draw a crisp 1-bit vector icon aligned with text of height `size`; return advance width."""
+    cy = y + size * 0.56
+    if ch == "✦":
+        w = max(12.0, size * 0.68)
+        cx = x + w * 0.5
+        r = max(4.5, size * 0.30)
+        _draw_four_point_star(draw, cx, cy, r)
+        return w
+
+    if ch == "◆":
+        w = max(11.0, size * 0.62)
+        cx = x + w * 0.5
+        r = max(4.0, size * 0.25)
+        draw.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill=0)
+        return w
+
+    if ch == "✨":
+        w = max(18.0, size * 0.96)
+        _draw_four_point_star(draw, x + w * 0.42, cy + size * 0.02, max(5.0, size * 0.30))
+        _draw_four_point_star(draw, x + w * 0.80, cy - size * 0.24, max(3.0, size * 0.16))
+        _draw_four_point_star(draw, x + w * 0.78, cy + size * 0.24, max(2.5, size * 0.13))
+        return w
+
+    if ch == "☕":
+        w = max(22.0, size * 1.15)
+        cx = x + w * 0.44
+        cup_w = max(10.0, size * 0.52)
+        cup_h = max(9.0, size * 0.44)
+        top_y = cy - cup_h * 0.35
+        bot_y = top_y + cup_h
+        left_x = cx - cup_w * 0.5
+        right_x = cx + cup_w * 0.5
+        # Cup body (rounded bottom bowl)
+        draw.rounded_rectangle([(left_x, top_y), (right_x, bot_y)], radius=max(3, int(size * 0.16)), fill=0)
+        draw.rectangle([(left_x, top_y), (right_x, top_y + cup_h * 0.45)], fill=0)
+        # Handle on right side
+        h_w = max(4.0, size * 0.20)
+        draw.arc(
+            [(right_x - h_w * 0.4, top_y + 1), (right_x + h_w, bot_y - cup_h * 0.22)],
+            start=-90,
+            end=90,
+            fill=0,
+            width=max(2, int(size * 0.09)),
+        )
+        # Saucer line beneath the cup
+        draw.line(
+            [(left_x - 2, bot_y + 3), (right_x + 3, bot_y + 3)],
+            fill=0,
+            width=max(2, int(size * 0.08)),
+        )
+        # Two delicate steam curls above the rim
+        sw = max(1, int(size * 0.07))
+        for offset in (-cup_w * 0.18, cup_w * 0.18):
+            sx = cx + offset
+            draw.line([(sx, top_y - 2), (sx - 1.5, top_y - size * 0.15), (sx + 1.0, top_y - size * 0.28)], fill=0, width=sw)
+        return w
+
+    if ch in ("♥", "❤"):
+        w = max(14.0, size * 0.74)
+        cx = x + w * 0.5
+        r = max(3.2, size * 0.19)
+        top_y = cy - r * 0.6
+        draw.ellipse([(cx - r * 1.9, top_y - r), (cx + r * 0.1, top_y + r)], fill=0)
+        draw.ellipse([(cx - r * 0.1, top_y - r), (cx + r * 1.9, top_y + r)], fill=0)
+        draw.polygon([(cx - r * 1.85, top_y + r * 0.25), (cx + r * 1.85, top_y + r * 0.25), (cx, cy + r * 2.1)], fill=0)
+        return w
+
+    if ch in ("✓", "✔"):
+        w = max(14.0, size * 0.72)
+        lw = max(2, int(size * 0.11))
+        draw.line(
+            [
+                (x + w * 0.15, cy + size * 0.04),
+                (x + w * 0.42, cy + size * 0.26),
+                (x + w * 0.86, cy - size * 0.24),
+            ],
+            fill=0,
+            width=lw,
+        )
+        return w
+
+    return 0.0
+
+
+def _vector_icon_width(ch: str, size: int) -> float:
+    if ch == "✦":
+        return max(12.0, size * 0.68)
+    if ch == "◆":
+        return max(11.0, size * 0.62)
+    if ch == "✨":
+        return max(18.0, size * 0.96)
+    if ch == "☕":
+        return max(22.0, size * 1.15)
+    if ch in ("♥", "❤"):
+        return max(14.0, size * 0.74)
+    if ch in ("✓", "✔"):
+        return max(14.0, size * 0.72)
+    return 0.0
 
 
 def _isolate_token(match: re.Match) -> str:
@@ -66,7 +209,8 @@ def rtl(text: str) -> str:
     """Shape Persian/Arabic and apply bidi ordering for drawing."""
     if not text:
         return ""
-    prepared = _LTR_TOKEN.sub(_isolate_token, str(text))
+    localized = to_persian_digits_safe(str(text))
+    prepared = _LTR_TOKEN.sub(_isolate_token, localized)
     visual = get_display(RESHAPER.reshape(prepared))
     return _CONTROL.sub("", visual)
 
@@ -108,11 +252,13 @@ def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     return loaded
 
 
-def char_font(ch: str, size: int, bold: bool) -> ImageFont.FreeTypeFont:
-    """Vazirmatn, falling back to Helvetica for glyphs it does not cover."""
+def char_font(ch: str, size: int, bold: bool) -> ImageFont.FreeTypeFont | None:
+    """Vazirmatn, falling back to Helvetica only if Helvetica actually has the glyph."""
     primary = FONT_BOLD_PATH if bold else FONT_REGULAR_PATH
     if _has_glyph(str(primary), ch):
         return font(size, bold)
+    if not _has_glyph(FALLBACK_FONT_PATH, ch):
+        return None
     key = (size, bold, "fallback")
     cached = _FONT_CACHE.get(key)
     if cached is None:
@@ -125,15 +271,25 @@ def visual_width(text: str, size: int, bold: bool = False) -> float:
     """Width of an already shaped/bidi text string, summing per-glyph widths."""
     total = 0.0
     for ch in text:
-        total += char_font(ch, size, bold).getlength(ch)
+        if ch in VECTOR_ICON_CHARS:
+            total += _vector_icon_width(ch, size)
+            continue
+        f = char_font(ch, size, bold)
+        if f is not None:
+            total += f.getlength(ch)
     return total
 
 
 def draw_visual(draw: ImageDraw.ImageDraw, x: float, y: float, text: str, size: int, bold=False):
-    """Draw a shaped/bidi visual string with per-character font fallback."""
+    """Draw a shaped/bidi visual string with custom vector icons & per-character fallback."""
     cursor = x
     for ch in text:
+        if ch in VECTOR_ICON_CHARS:
+            cursor += _draw_vector_icon(draw, ch, cursor, y, size)
+            continue
         f = char_font(ch, size, bold)
+        if f is None:
+            continue
         draw.text((cursor, y), ch, font=f, fill=0)
         cursor += f.getlength(ch)
 
@@ -236,6 +392,22 @@ class Receipt:
         w = visual_width(visual, size, True)
         draw_visual(self.draw, (WIDTH - w) / 2, y0 + 10, visual, size, True)
         self.y = y1 + gap
+
+    def cafe_ornament(self, icon: str = "☕", gap: int = 10):
+        """Draw a boutique cafe divider with centered vector icon flanked by stars & lines."""
+        h = 34
+        self._ensure(h + gap)
+        center_seq = f"✦  {icon}  ✦"
+        icon_size = 24
+        seq_w = visual_width(center_seq, icon_size, False)
+        cx_start = (WIDTH - seq_w) / 2
+        line_y = self.y + icon_size * 0.56
+        pad = 14
+        if cx_start - pad > MARGIN:
+            self.draw.line([(MARGIN, line_y), (cx_start - pad, line_y)], fill=0, width=2)
+            self.draw.line([(cx_start + seq_w + pad, line_y), (WIDTH - MARGIN, line_y)], fill=0, width=2)
+        draw_visual(self.draw, cx_start, self.y, center_seq, icon_size, False)
+        self.y += h + gap
 
     def gap(self, pixels=10):
         self.y += pixels
@@ -377,14 +549,14 @@ def option_text(item: dict, layout_items: dict) -> list[str]:
                 continue
             price = option.get("priceDeltaLabel")
             if show_prices and price:
-                lines.append(f"▫ {name} (+{price} ت)")
+                lines.append(f"✦ {name} (+{price} ت)")
             else:
-                lines.append(f"▫ {name}")
+                lines.append(f"✦ {name}")
         return lines
     # Legacy payload fallback.
     labels = item.get("optionLabels")
     if isinstance(labels, list):
-        return [f"▫ {str(label)}" for label in labels if label]
+        return [f"✦ {str(label)}" for label in labels if label]
     return []
 
 
@@ -399,10 +571,10 @@ def sub_lines(item: dict, sub_line_keys: list[str], layout_items: dict) -> list[
             lines.extend(option_text(item, layout_items))
         elif key == "modifiers":
             for modifier in item.get("modifierLabels") or []:
-                lines.append(f"▫ {modifier}")
+                lines.append(f"✦ {modifier}")
         elif key == "customDrink":
             for summary in item.get("customDrinkSummary") or []:
-                lines.append(f"▫ {summary}")
+                lines.append(f"✦ {summary}")
         elif key == "payer":
             if item.get("payerLabel"):
                 lines.append(f"سهم {item['payerLabel']}")
@@ -598,8 +770,8 @@ def draw_items_table(r: Receipt, payload: dict, items: list[dict], layout_data: 
         # Detail lines under the name, honoring the admin-defined order.
         details = sub_lines(item, sub_line_keys, layout_items)
         if details:
-            joined = " • ".join(details)
-            detail_width = max(name_width - 20, 120)
+            joined = "   ".join(details)
+            detail_width = max(name_width - 16, 120)
             for wrapped_detail in wrap(joined, max(20, size - 8), False, detail_width):
                 r._ensure(size)
                 visual = rtl(wrapped_detail)
@@ -652,8 +824,8 @@ def customer_receipt(payload) -> Receipt:
     if header_section.get("showPhone", True) and header.get("contactPhone"):
         r.centered(f"تلفن تماس: {header['contactPhone']}", max(18, fonts_info - 2), gap=6)
     r.gap(4)
-    r.divider("double")
-    r.gap(6)
+    r.cafe_ornament("☕", gap=8)
+    r.gap(2)
 
     for row_key in info_rows(layout_data, "headerRows", list(DEFAULT_CUSTOMER_HEADER_ROW_LABELS)):
         customer_header_row((r, fonts_info), payload, order, row_key)
@@ -724,8 +896,8 @@ def customer_receipt(payload) -> Receipt:
         thanks_text = footer.get("thanksText") or "نوش جان! از میزبانی شما خرسندیم ✨"
         r.centered(thanks_text, 24, bold=True, gap=8)
     if footer.get("showCafeName", True):
-        r.centered(f"« {cafe_name} »", 20, bold=False, gap=4)
-    r.centered("· · · · · · · · · · · ·", 18, gap=4)
+        r.centered(f"« {cafe_name} »", 20, bold=False, gap=6)
+    r.cafe_ornament("☕", gap=4)
     return r
 
 

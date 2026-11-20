@@ -86,23 +86,23 @@ function serviceLabel(serviceType, deliveryMethodName) {
 function lineDescriptor(line) {
   const parts = []
   if (line.sizeLabel) {
-    parts.push(line.sizeLabel)
-  }
-  if (line.modifierLabels?.length) {
-    parts.push(line.modifierLabels.join('، '))
+    parts.push(toPersianDigits(line.sizeLabel))
   }
   if (line.options?.length) {
-    parts.push(
-      line.options
-        .map((opt) => (typeof opt === 'string' ? opt : opt?.optionName))
-        .filter(Boolean)
-        .join('، '),
-    )
+    for (const opt of line.options) {
+      const label = typeof opt === 'string' ? opt : opt?.optionName
+      if (label) parts.push(`✦ ${toPersianDigits(label)}`)
+    }
+  }
+  if (line.modifierLabels?.length) {
+    for (const modifier of line.modifierLabels) {
+      if (modifier) parts.push(`✦ ${toPersianDigits(modifier)}`)
+    }
   }
   if (line.customDrinkSummary?.length) {
-    parts.push(line.customDrinkSummary.join('، '))
+    parts.push(...line.customDrinkSummary.map((entry) => toPersianDigits(entry)))
   }
-  return parts.filter(Boolean).join(' · ')
+  return parts.filter(Boolean).join('   ')
 }
 
 export function buildPosReceiptBundle(input) {
@@ -377,22 +377,22 @@ function escapeHtml(value) {
 
 function buildCustomerBodyHtml(receipt) {
   return `
-    <div class="center brand">${escapeHtml(receipt.cafeName)}</div>
+    <div class="center brand">${escapeHtml(toPersianDigits(receipt.cafeName))}</div>
     <div class="center section-title" style="font-size:12px;color:#444;margin-bottom:6px;">${escapeHtml(receipt.title)}</div>
-    ${receipt.address ? `<div class="center muted">${escapeHtml(receipt.address)}</div>` : ''}
-    ${receipt.contactPhone ? `<div class="center muted">تلفن تماس: ${escapeHtml(receipt.contactPhone)}</div>` : ''}
-    <div class="divider" style="border-top:2px solid #000;"></div>
+    ${receipt.address ? `<div class="center muted">${escapeHtml(toPersianDigits(receipt.address))}</div>` : ''}
+    ${receipt.contactPhone ? `<div class="center muted">تلفن تماس: ${escapeHtml(toPersianDigits(receipt.contactPhone))}</div>` : ''}
+    <div class="cafe-ornament">✦ ☕ ✦</div>
     <div class="ticket-badge">شماره سفارش: #${escapeHtml(receipt.trackingCode)}</div>
     <div class="row"><span>تاریخ و ساعت</span><span>${escapeHtml(receipt.printedAt)}</span></div>
-    <div class="row"><span>شیوهٔ پذیرایی</span><strong>${escapeHtml(receipt.service)}${receipt.table ? ` · میز شماره ${escapeHtml(receipt.table)}` : ''}</strong></div>
-    <div class="row"><span>مشتری گرامی</span><span>${escapeHtml(receipt.guestName)}</span></div>
-    ${receipt.guestPhone ? `<div class="row"><span>شماره همراه</span><span>${escapeHtml(receipt.guestPhone)}</span></div>` : ''}
-    ${receipt.note ? `<div class="line-meta" style="margin-top:4px;">توضیحات مهمان: ${escapeHtml(receipt.note)}</div>` : ''}
+    <div class="row"><span>شیوهٔ پذیرایی</span><strong>${escapeHtml(toPersianDigits(receipt.service))}${receipt.table ? ` · میز شماره ${escapeHtml(toPersianDigits(receipt.table))}` : ''}</strong></div>
+    <div class="row"><span>مشتری گرامی</span><span>${escapeHtml(toPersianDigits(receipt.guestName))}</span></div>
+    ${receipt.guestPhone ? `<div class="row"><span>شماره همراه</span><span>${escapeHtml(toPersianDigits(receipt.guestPhone))}</span></div>` : ''}
+    ${receipt.note ? `<div class="line-meta" style="margin-top:4px;">توضیحات مهمان: ${escapeHtml(toPersianDigits(receipt.note))}</div>` : ''}
     <div class="divider"></div>
     ${receipt.lines
       .map(
         (line) => `
-          <div class="line-title">${escapeHtml(toPersianDigits(line.quantity))} × ${escapeHtml(line.name)}</div>
+          <div class="line-title">${escapeHtml(toPersianDigits(line.quantity))} × ${escapeHtml(toPersianDigits(line.name))}</div>
           ${line.descriptor ? `<div class="line-meta" style="padding-right:8px;">${escapeHtml(line.descriptor)}</div>` : ''}
           ${line.quantity > 1 ? `<div class="line-meta" style="padding-right:8px;font-size:10px;color:#555;">(نرخ واحد: ${escapeHtml(formatPrice(line.unitPrice))} تومان)</div>` : ''}
           <div class="row" style="margin-top:2px;"><span>جمع:</span><strong>${escapeHtml(formatPrice(line.lineTotal))} تومان</strong></div>
@@ -407,32 +407,32 @@ function buildCustomerBodyHtml(receipt) {
     <div class="row" style="margin-top:6px;"><span>شیوهٔ پرداخت</span><span>${escapeHtml(receipt.paymentMethod)}</span></div>
     <div class="row" style="font-weight:700;"><span>وضعیت پرداخت</span><span>تسویه شد ✓</span></div>
     <div class="divider" style="border-top:1px dotted #000;margin:10px 0;"></div>
-    ${receipt.footerText ? `<div class="center muted" style="margin-bottom:4px;">${escapeHtml(receipt.footerText)}</div>` : ''}
-    <div class="center" style="font-weight:700;font-size:12px;margin:6px 0;">${escapeHtml(receipt.layout?.customer?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨')}</div>
-    <div class="center muted" style="font-size:10px;">« ${escapeHtml(receipt.cafeName)} »</div>
-    <div class="center muted" style="letter-spacing:3px;font-size:9px;margin-top:4px;">· · · · · · · · · · · ·</div>
+    ${receipt.footerText ? `<div class="center muted" style="margin-bottom:4px;">${escapeHtml(toPersianDigits(receipt.footerText))}</div>` : ''}
+    <div class="center" style="font-weight:700;font-size:12px;margin:6px 0;">${escapeHtml(toPersianDigits(receipt.layout?.customer?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'))}</div>
+    <div class="center muted" style="font-size:10px;">« ${escapeHtml(toPersianDigits(receipt.cafeName))} »</div>
+    <div class="cafe-ornament" style="margin-top:6px;">✦ ☕ ✦</div>
   `
 }
 
 function buildBaristaBodyHtml(receipt) {
   return `
-    <div class="center brand">${escapeHtml(receipt.cafeName)}</div>
+    <div class="center brand">${escapeHtml(toPersianDigits(receipt.cafeName))}</div>
     <div class="center section-title">*** فیش آشپزخانه / باریستا ***</div>
     <div class="divider"></div>
     <div class="center ticket-code">#${escapeHtml(receipt.trackingCode)}</div>
     <div class="row"><span>زمان</span><span>${escapeHtml(receipt.printedAt)}</span></div>
-    <div class="row"><span>نوع</span><span>${escapeHtml(receipt.service)}${receipt.table ? ` · میز ${escapeHtml(receipt.table)}` : ''}</span></div>
-    <div class="row"><span>مشتری</span><span>${escapeHtml(receipt.guestName)}</span></div>
-    ${receipt.note ? `<div class="barista-note">یادداشت سفارش: ${escapeHtml(receipt.note)}</div>` : ''}
+    <div class="row"><span>نوع</span><span>${escapeHtml(toPersianDigits(receipt.service))}${receipt.table ? ` · میز ${escapeHtml(toPersianDigits(receipt.table))}` : ''}</span></div>
+    <div class="row"><span>مشتری</span><span>${escapeHtml(toPersianDigits(receipt.guestName))}</span></div>
+    ${receipt.note ? `<div class="barista-note">یادداشت سفارش: ${escapeHtml(toPersianDigits(receipt.note))}</div>` : ''}
     <div class="divider"></div>
     ${receipt.lines
       .map(
         (line) => `
-          <div class="line-title">${escapeHtml(toPersianDigits(line.quantity))} × ${escapeHtml(line.name)}</div>
-          ${line.sizeLabel ? `<div class="line-meta">اندازه: ${escapeHtml(line.sizeLabel)}</div>` : ''}
-          ${line.options?.length ? `<div class="line-meta">گزینه‌ها: ${escapeHtml(line.options.map((o) => (typeof o === 'string' ? o : o.optionName)).join('، '))}</div>` : ''}
-          ${line.modifierLabels?.length ? `<div class="line-meta">تغییرات: ${escapeHtml(line.modifierLabels.join('، '))}</div>` : ''}
-          ${line.baristaNote ? `<div class="barista-note">! ${escapeHtml(line.baristaNote)}</div>` : ''}
+          <div class="line-title">${escapeHtml(toPersianDigits(line.quantity))} × ${escapeHtml(toPersianDigits(line.name))}</div>
+          ${line.sizeLabel ? `<div class="line-meta">اندازه: ${escapeHtml(toPersianDigits(line.sizeLabel))}</div>` : ''}
+          ${line.options?.length ? `<div class="line-meta">${escapeHtml(line.options.map((o) => `✦ ${toPersianDigits(typeof o === 'string' ? o : o.optionName)}`).join('   '))}</div>` : ''}
+          ${line.modifierLabels?.length ? `<div class="line-meta">${escapeHtml(line.modifierLabels.map((m) => `✦ ${toPersianDigits(m)}`).join('   '))}</div>` : ''}
+          ${line.baristaNote ? `<div class="barista-note">! ${escapeHtml(toPersianDigits(line.baristaNote))}</div>` : ''}
         `,
       )
       .join('')}
@@ -502,7 +502,21 @@ function wrapReceiptHtmlDocument(title, bodyHtml) {
       padding: 5px 0;
       margin: 6px 0;
     }
-      margin-top: 4px;
+    .cafe-ornament {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 8px 0;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: #000;
+    }
+    .cafe-ornament::before,
+    .cafe-ornament::after {
+      content: '';
+      flex: 1;
+      border-top: 1.5px solid #000;
     }
   </style>
 </head>

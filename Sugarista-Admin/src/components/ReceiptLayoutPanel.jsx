@@ -308,15 +308,15 @@ function CustomerPreview({ layout }) {
   const optionText = item.options
     .map((option) =>
       items.showOptionPrices && option.priceDeltaLabel
-        ? `▫ ${option.optionName} (+${option.priceDeltaLabel} ت)`
-        : `▫ ${option.optionName}`,
+        ? `✦ ${option.optionName} (+${option.priceDeltaLabel} ت)`
+        : `✦ ${option.optionName}`,
     )
 
   const subLines = []
   for (const key of items.subLines) {
     if (key === 'size' && item.sizeLabel) subLines.push(`اندازه: ${item.sizeLabel}`)
     else if (key === 'options') subLines.push(...optionText)
-    else if (key === 'modifiers') subLines.push(...item.modifierLabels.map((m) => `▫ ${m}`))
+    else if (key === 'modifiers') subLines.push(...item.modifierLabels.map((m) => `✦ ${m}`))
     else if (key === 'customDrink' && item.customDrinkSummary?.length) subLines.push(...item.customDrinkSummary)
     else if (key === 'payer' && item.payerLabel) subLines.push(`سهم ${item.payerLabel}`)
     else if (key === 'baristaNote' && item.baristaNote) subLines.push(`! ${item.baristaNote}`)
@@ -328,7 +328,7 @@ function CustomerPreview({ layout }) {
       <div className="receipt-preview-center" style={{ fontSize: '0.85em', color: '#555', marginBottom: 4 }}>صورت‌حساب سفارش</div>
       {header.showAddress ? <div className="receipt-preview-center small">{o.address}</div> : null}
       {header.showPhone ? <div className="receipt-preview-center small">تلفن تماس: {o.phone}</div> : null}
-      <div className="receipt-preview-divider double" />
+      <div className="receipt-preview-ornament" aria-hidden="true">✦ ☕ ✦</div>
 
       {headerRows.map((rowKey, rowIndex) => {
         const rowId = `${rowKey}-${rowIndex}`
@@ -370,7 +370,7 @@ function CustomerPreview({ layout }) {
           <div className="receipt-preview-unit-price">{item.unitPriceLabel}</div>
         ) : null}
         {subLines.length > 0 ? (
-          <div className="receipt-preview-sublines">{subLines.join('  ·  ')}</div>
+          <div className="receipt-preview-sublines">{subLines.join('   ')}</div>
         ) : null}
         {items.showUnitPriceNote && !columns.some((column) => column.key === 'unitPrice') && item.quantity > 1 ? (
           <div className="receipt-preview-sublines">نرخ واحد (فی): {item.unitPriceLabel} تومان</div>
@@ -402,7 +402,7 @@ function CustomerPreview({ layout }) {
       {footer.text ? <div className="receipt-preview-center small">{footer.text}</div> : null}
       {footer.showThanks ? <div className="receipt-preview-center bold">{footer.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'}</div> : null}
       {footer.showCafeName ? <div className="receipt-preview-center small">« {o.cafeName} »</div> : null}
-      <div className="receipt-preview-center" style={{ fontSize: '0.7em', color: '#888', marginTop: 4 }}>· · · · · · · · · · · ·</div>
+      <div className="receipt-preview-ornament" aria-hidden="true">✦ ☕ ✦</div>
       <p className="receipt-preview-hint">
         اندازه‌ها: تیتر {toPersianNumber(fonts.header)} • اطلاعات {toPersianNumber(fonts.info)} • آیتم {toPersianNumber(fonts.item)} • جمع {toPersianNumber(fonts.total)}
       </p>
@@ -419,11 +419,11 @@ function BaristaPreview({ layout }) {
   const subLines = []
   for (const key of items.subLines) {
     if (key === 'size' && item.sizeLabel) subLines.push(item.sizeLabel)
-    else if (key === 'modifiers') subLines.push(...item.modifierLabels)
+    else if (key === 'modifiers') subLines.push(...item.modifierLabels.map((m) => `✦ ${m}`))
     else if (key === 'options') subLines.push(...item.options.map((option) =>
       items.showOptionPrices && option.priceDeltaLabel
-        ? `${option.optionName} (+${option.priceDeltaLabel})`
-        : option.optionName,
+        ? `✦ ${option.optionName} (+${option.priceDeltaLabel})`
+        : `✦ ${option.optionName}`,
     ))
     else if (key === 'customDrink' && item.customDrinkSummary?.length) subLines.push(...item.customDrinkSummary)
     else if (key === 'baristaNote' && item.baristaNote) subLines.push(`! ${item.baristaNote}`)
@@ -447,7 +447,7 @@ function BaristaPreview({ layout }) {
       <div className="receipt-preview-divider double" />
       <div className="receipt-preview-item barista-item">
         <strong>{qtyVisible ? `${item.quantityLabel} × ` : ''}{item.name}</strong>
-        {subLines.length > 0 ? <div className="receipt-preview-sublines">{subLines.join(' • ')}</div> : null}
+        {subLines.length > 0 ? <div className="receipt-preview-sublines">{subLines.join('   ')}</div> : null}
       </div>
       <div className="receipt-preview-divider" />
       {showOrderNote ? <div className="receipt-preview-note bold">یادداشت سفارش: {o.note}</div> : null}

@@ -1699,9 +1699,27 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
-  max-height: 52vh;
+  max-height: 58vh;
   overflow-y: auto;
   padding: 4px 2px;
+}
+
+.pos-receipt-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0;
+  color: #111;
+  font-size: 0.78rem;
+  letter-spacing: 3px;
+}
+
+.pos-receipt-ornament::before,
+.pos-receipt-ornament::after {
+  content: '';
+  flex: 1;
+  border-top: 1.5px solid #111;
 }
 
 .pos-receipt-preview-card {

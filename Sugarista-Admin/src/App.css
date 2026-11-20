@@ -3338,6 +3338,24 @@ select:focus-visible {
   border-top-width: 2px;
 }
 
+.receipt-preview-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0;
+  color: #1c1c1c;
+  font-size: 0.85em;
+  letter-spacing: 3px;
+}
+
+.receipt-preview-ornament::before,
+.receipt-preview-ornament::after {
+  content: '';
+  flex: 1;
+  border-top: 1.5px solid #1c1c1c;
+}
+
 .receipt-preview-cols-head {
   display: flex;
   gap: 10px;

@@ -508,7 +508,7 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
                   <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.8rem', marginBottom: 6 }}>صورت‌حساب سفارش</div>
                   {customer.address ? <div className="pos-receipt-center pos-receipt-muted">{customer.address}</div> : null}
                   {customer.contactPhone ? <div className="pos-receipt-center pos-receipt-muted">تلفن تماس: {customer.contactPhone}</div> : null}
-                  <div className="pos-receipt-divider" style={{ borderTop: '2px solid #000' }} />
+                  <div className="pos-receipt-ornament" aria-hidden="true">✦ ☕ ✦</div>
                   <div style={{ border: '1.5px solid #000', borderRadius: 6, padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', margin: '6px 0', fontSize: '0.88rem' }}>
                     شماره سفارش: #{customer.trackingCode}
                   </div>
@@ -543,10 +543,10 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
                   <div className="pos-receipt-row" style={{ fontWeight: 'bold' }}><span>وضعیت پرداخت</span><span>تسویه شد ✓</span></div>
                   <div className="pos-receipt-divider" style={{ borderTop: '1px dotted #000', margin: '8px 0' }} />
                   <div className="pos-receipt-center" style={{ fontWeight: 'bold', fontSize: '0.85rem', margin: '4px 0' }}>
-                    {customer.layout?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'}
+                    {customer.layout?.customer?.footer?.thanksText || customer.layout?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'}
                   </div>
                   <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.75rem' }}>« {customer.cafeName} »</div>
-                  <div className="pos-receipt-center pos-receipt-muted" style={{ letterSpacing: '3px', fontSize: '0.7rem', marginTop: 4 }}>· · · · · · · · · · · ·</div>
+                  <div className="pos-receipt-ornament" aria-hidden="true">✦ ☕ ✦</div>
                 </div>
               )}
             </div>
@@ -574,7 +574,16 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
                     <div key={idx} className="pos-receipt-item">
                       <strong>{line.quantityLabel} × {line.name}</strong>
                       {line.sizeLabel ? <div className="pos-receipt-meta">اندازه: {line.sizeLabel}</div> : null}
-                      {line.modifierLabels?.length ? <div className="pos-receipt-meta">تغییرات: {line.modifierLabels.join('، ')}</div> : null}
+                      {line.options?.length ? (
+                        <div className="pos-receipt-meta">
+                          {line.options.map((opt) => `✦ ${typeof opt === 'string' ? opt : opt.optionName}`).join('   ')}
+                        </div>
+                      ) : null}
+                      {line.modifierLabels?.length ? (
+                        <div className="pos-receipt-meta">
+                          {line.modifierLabels.map((m) => `✦ ${m}`).join('   ')}
+                        </div>
+                      ) : null}
                       {line.baristaNote ? <div className="pos-receipt-barista-note">! {line.baristaNote}</div> : null}
                     </div>
                   ))}

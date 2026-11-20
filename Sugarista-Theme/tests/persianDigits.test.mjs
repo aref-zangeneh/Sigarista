@@ -60,3 +60,9 @@ test("Theme app.js normalizes Persian/Arabic digits before stripping non-digits 
   const matches = js.match(/toEnglishDigits\([^)]+\)\.replace\(\/\\D\/g/g) || [];
   assert.ok(matches.length >= 8, "every phone extractor in app.js must call toEnglishDigits before /\\D/g");
 });
+
+test("Theme app.js formats item volume with Persian unit based on item category/unit", () => {
+  assert.ok(js.includes("formatVolumeLabel(rawVolume, item = null)"), "formatVolumeLabel must exist in app.js");
+  assert.ok(js.includes("this.formatVolumeLabel(item.volume, item)"), "itemMeta must format volume with unit");
+  assert.ok(html.includes("formatVolumeLabel(variant.volume"), "variant size selector must format variant volume with unit");
+});

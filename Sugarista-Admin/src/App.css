@@ -2042,6 +2042,17 @@ code {
   text-align: left;
 }
 
+.volume-input-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.volume-input-group select {
+  min-width: 108px;
+}
+
 /* ============================================================
    Loader / empty / animations
    ============================================================ */

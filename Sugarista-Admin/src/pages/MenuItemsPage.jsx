@@ -6,6 +6,12 @@ import { ImageUploader } from '../components/ImageUploader'
 import { MenuItemOptionGroupsPanel } from '../components/MenuItemOptionGroupsPanel'
 import { Tip } from '../components/Tip'
 import { buildMenuItemPricingColumns } from '../components/adminTableColumns'
+import {
+  VOLUME_UNITS,
+  formatVolumeValue,
+  inferDefaultVolumeUnit,
+  parseVolumeValue,
+} from '../utils/volumeUnit'
 
 export function MenuItemsPage() {
   const {
@@ -34,6 +40,55 @@ export function MenuItemsPage() {
   const [markupByItem, setMarkupByItem] = useState({})
   const [manualByItem, setManualByItem] = useState({})
   const [bulkMarkup, setBulkMarkup] = useState('30')
+  const [volumeUnitOverrides, setVolumeUnitOverrides] = useState({})
+
+  const selectedCategory = useMemo(
+    () => (categoryOptions ?? []).find((cat) => cat.id === menuItemForm.categoryId),
+    [categoryOptions, menuItemForm.categoryId],
+  )
+  const defaultVolumeUnit = useMemo(
+    () =>
+      inferDefaultVolumeUnit(
+        [
+          selectedCategory?.label,
+          selectedCategory?.slug,
+          menuItemForm.persianName,
+          menuItemForm.englishName,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      ),
+    [selectedCategory, menuItemForm.persianName, menuItemForm.englishName],
+  )
+
+  useEffect(() => {
+    setVolumeUnitOverrides({})
+  }, [menuItemForm.id])
+
+  const getVolumeParts = (fieldName) => {
+    const raw = menuItemForm[fieldName] ?? ''
+    const fallbackUnit = volumeUnitOverrides[fieldName] ?? defaultVolumeUnit
+    return parseVolumeValue(raw, fallbackUnit)
+  }
+
+  const updateVolumeAmount = (fieldName, nextAmount) => {
+    const { unit } = getVolumeParts(fieldName)
+    setMenuItemForm((currentForm) => ({
+      ...currentForm,
+      [fieldName]: formatVolumeValue(nextAmount, unit),
+    }))
+  }
+
+  const updateVolumeUnit = (fieldName, nextUnit) => {
+    const { amount } = getVolumeParts(fieldName)
+    setVolumeUnitOverrides((current) => ({ ...current, [fieldName]: nextUnit }))
+    if (amount) {
+      setMenuItemForm((currentForm) => ({
+        ...currentForm,
+        [fieldName]: formatVolumeValue(amount, nextUnit),
+      }))
+    }
+  }
 
   const loadPricing = useCallback(async () => {
     if (!session?.token) return
@@ -336,16 +391,33 @@ export function MenuItemsPage() {
                     />
                   </label>
                   <label>
-                    <span>حجم همین سایز</span>
-                    <input
-                      value={menuItemForm[`${variantKey}Volume`]}
-                      onChange={(event) =>
-                        setMenuItemForm((currentForm) => ({
-                          ...currentForm,
-                          [`${variantKey}Volume`]: event.target.value,
-                        }))
-                      }
-                    />
+                    <span>حجم / وزن همین سایز</span>
+                    <div className="volume-input-group">
+                      <input
+                        className="ltr-input"
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="مثلاً ۳۶۰"
+                        value={getVolumeParts(`${variantKey}Volume`).amount}
+                        onChange={(event) =>
+                          updateVolumeAmount(`${variantKey}Volume`, event.target.value)
+                        }
+                      />
+                      <select
+                        aria-label="واحد حجم یا وزن سایز"
+                        value={getVolumeParts(`${variantKey}Volume`).unit}
+                        onChange={(event) =>
+                          updateVolumeUnit(`${variantKey}Volume`, event.target.value)
+                        }
+                      >
+                        {VOLUME_UNITS.map((unitOption) => (
+                          <option key={unitOption} value={unitOption}>
+                            {unitOption}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </label>
                 </div>
               ))}
@@ -419,16 +491,29 @@ export function MenuItemsPage() {
                 />
               </label>
               <label>
-                <span>حجم عمومی</span>
-                <input
-                  value={menuItemForm.volume}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      volume: event.target.value,
-                    }))
-                  }
-                />
+                <span>حجم / وزن عمومی</span>
+                <div className="volume-input-group">
+                  <input
+                    className="ltr-input"
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="مثلاً ۳۶۰"
+                    value={getVolumeParts('volume').amount}
+                    onChange={(event) => updateVolumeAmount('volume', event.target.value)}
+                  />
+                  <select
+                    aria-label="واحد حجم یا وزن عمومی"
+                    value={getVolumeParts('volume').unit}
+                    onChange={(event) => updateVolumeUnit('volume', event.target.value)}
+                  >
+                    {VOLUME_UNITS.map((unitOption) => (
+                      <option key={unitOption} value={unitOption}>
+                        {unitOption}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </label>
               <label>
                 <span>آلرژن‌ها (با کاما یا خط جدید جدا کنید)</span>

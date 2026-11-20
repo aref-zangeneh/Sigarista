@@ -3556,11 +3556,94 @@ document.addEventListener("alpine:init", () => {
         (variant.discountedPrice && variant.discountedPrice < variant.price)
       );
     },
+    defaultVolumeUnit(item) {
+      const text = [
+        item?.categoryLabel,
+        item?.category,
+        item?.persianName,
+        item?.name,
+        item?.englishName
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const isFood =
+        /کیک|دسر|شیرینی|کوکی|کروسان|بیکری|تارت|براونی|مافین|دونات|وافل|پنکیک|چیزکیک|تیرامیسو|صبحانه|ساندویچ|سالاد|پاستا|برگر|پیتزا|اسنک|بشقاب|خوراکی|باگل|(?:^|[\s\-،/()])(?:پای|نان|تست|غذا)(?:$|[\s\-،/()])|\b(?:cake|dessert|pastry|cookie|croissant|bakery|sandwich|salad|breakfast|food|brownie|tart|pie|waffle|pancake|cheesecake|tiramisu)\b/i.test(
+          text
+        );
+      return isFood ? "گرم" : "میلی‌لیتر";
+    },
+    formatVolumeLabel(rawVolume, item = null) {
+      const trimmed = String(rawVolume ?? "").trim();
+      if (!trimmed) {
+        return "";
+      }
+
+      const normalized = this.toEnglishDigits(trimmed).replace(/٫/g, ".");
+      const match = normalized.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
+      if (!match) {
+        return this.toPersianDigits(trimmed);
+      }
+
+      const numericPart = match[1].replace(",", ".");
+      const parsedNum = Number(numericPart);
+      const formattedNum = Number.isFinite(parsedNum)
+        ? this.toPersianNumber(parsedNum)
+        : this.toPersianDigits(numericPart);
+
+      const rawUnit = (match[2] || "").trim();
+      const unitKey = rawUnit.toLowerCase().replace(/\./g, "").replace(/\s+/g, " ");
+      const unitMap = {
+        "": this.defaultVolumeUnit(item),
+        ml: "میلی‌لیتر",
+        cc: "میلی‌لیتر",
+        "میل": "میلی‌لیتر",
+        "میلی لیتر": "میلی‌لیتر",
+        "میلی‌لیتر": "میلی‌لیتر",
+        "سی سی": "میلی‌لیتر",
+        "سی‌سی": "میلی‌لیتر",
+        g: "گرم",
+        gr: "گرم",
+        gm: "گرم",
+        gram: "گرم",
+        grams: "گرم",
+        "گرم": "گرم",
+        kg: "کیلوگرم",
+        kilo: "کیلوگرم",
+        kilogram: "کیلوگرم",
+        "کیلو": "کیلوگرم",
+        "کیلوگرم": "کیلوگرم",
+        l: "لیتر",
+        lt: "لیتر",
+        ltr: "لیتر",
+        liter: "لیتر",
+        litre: "لیتر",
+        "لیتر": "لیتر",
+        oz: "اونس",
+        "اونس": "اونس",
+        pc: "عدد",
+        pcs: "عدد",
+        piece: "عدد",
+        pieces: "عدد",
+        "عدد": "عدد",
+        shot: "شات",
+        shots: "شات",
+        "شات": "شات",
+        scoop: "اسکوپ",
+        scoops: "اسکوپ",
+        "اسکوپ": "اسکوپ",
+        slice: "برش",
+        slices: "برش",
+        "برش": "برش"
+      };
+
+      const resolvedUnit = unitMap[unitKey] ?? this.toPersianDigits(rawUnit);
+      return `${formattedNum} ${resolvedUnit}`;
+    },
     itemMeta(item) {
       return [
         item.preparingDurationMinutes ? `${this.toPersianNumber(item.preparingDurationMinutes)} دقیقه آماده‌سازی` : "",
         item.calories ? `${this.toPersianNumber(item.calories)} کالری` : "",
-        item.volume || "",
+        this.formatVolumeLabel(item.volume, item),
         item.taxPercent ? `مالیات ${this.toPersianNumber(item.taxPercent)}٪` : ""
       ].filter(Boolean);
     },

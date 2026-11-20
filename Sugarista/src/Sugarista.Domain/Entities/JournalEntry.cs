@@ -46,6 +46,16 @@ public class JournalEntry : BaseAuditableEntity
 
     public ICollection<JournalLine> Lines { get; private set; } = [];
 
+    public void UpdateReferenceNumber(string referenceNumber)
+    {
+        if (string.IsNullOrWhiteSpace(referenceNumber))
+        {
+            throw new DomainException("Reference number is required.");
+        }
+
+        ReferenceNumber = referenceNumber.Trim();
+    }
+
     public void AddLine(JournalLine line)
     {
         if (!IsPosted)

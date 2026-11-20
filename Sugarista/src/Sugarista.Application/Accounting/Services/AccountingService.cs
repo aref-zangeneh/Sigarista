@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Domain.Constants;
@@ -110,11 +111,7 @@ internal sealed class AccountingService : IAccountingService
             nonRevEntry.AddLine(new JournalLine(nonRevEntry.Id, expenseAccount.Id, cogs, 0, kindTitle));
             nonRevEntry.AddLine(new JournalLine(nonRevEntry.Id, inventoryAccountForNonRev.Id, 0, cogs, "Inventory reduction"));
             nonRevEntry.ValidateBalanced();
-            _dbContext.JournalEntries.Add(nonRevEntry);
-            foreach (var line in nonRevEntry.Lines)
-            {
-                _dbContext.JournalLines.Add(line);
-            }
+            await AddAndSaveJournalEntryAsync(nonRevEntry, entryDate, cancellationToken);
 
             return;
         }
@@ -154,11 +151,7 @@ internal sealed class AccountingService : IAccountingService
         }
 
         entry.ValidateBalanced();
-        _dbContext.JournalEntries.Add(entry);
-        foreach (var line in entry.Lines)
-        {
-            _dbContext.JournalLines.Add(line);
-        }
+        await AddAndSaveJournalEntryAsync(entry, entryDate, cancellationToken);
     }
 
     public async Task RemoveOrderJournalEntriesAsync(Guid orderId, CancellationToken cancellationToken = default)
@@ -226,11 +219,7 @@ internal sealed class AccountingService : IAccountingService
         entry.AddLine(new JournalLine(entry.Id, payableAccount.Id, 0, creditAmount, "Accounts payable"));
 
         entry.ValidateBalanced();
-        _dbContext.JournalEntries.Add(entry);
-        foreach (var line in entry.Lines)
-        {
-            _dbContext.JournalLines.Add(line);
-        }
+        await AddAndSaveJournalEntryAsync(entry, entryDate, cancellationToken);
     }
 
     public async Task<Guid> PostPartnerCapitalAsync(
@@ -267,13 +256,7 @@ internal sealed class AccountingService : IAccountingService
         }
 
         entry.ValidateBalanced();
-        _dbContext.JournalEntries.Add(entry);
-        foreach (var line in entry.Lines)
-        {
-            _dbContext.JournalLines.Add(line);
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await AddAndSaveJournalEntryAsync(entry, transaction.TransactionDate, cancellationToken);
         return entry.Id;
     }
 
@@ -298,13 +281,7 @@ internal sealed class AccountingService : IAccountingService
         entry.AddLine(new JournalLine(entry.Id, creditAccount.Id, 0, amount, description));
 
         entry.ValidateBalanced();
-        _dbContext.JournalEntries.Add(entry);
-        foreach (var line in entry.Lines)
-        {
-            _dbContext.JournalLines.Add(line);
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await AddAndSaveJournalEntryAsync(entry, entryDate, cancellationToken);
         return entry.Id;
     }
 
@@ -356,13 +333,7 @@ internal sealed class AccountingService : IAccountingService
         }
 
         entry.ValidateBalanced();
-        _dbContext.JournalEntries.Add(entry);
-        foreach (var journalLine in entry.Lines)
-        {
-            _dbContext.JournalLines.Add(journalLine);
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await AddAndSaveJournalEntryAsync(entry, distribution.PeriodEnd, cancellationToken);
         return entry.Id;
     }
 
@@ -409,12 +380,111 @@ internal sealed class AccountingService : IAccountingService
             .FirstAsync(account => account.Code == code, cancellationToken);
     }
 
+    private static readonly object ReferenceSequenceLock = new();
+    private static readonly Dictionary<DateOnly, int> ReferenceHighWaterMarks = new();
+
+    private async Task AddAndSaveJournalEntryAsync(
+        JournalEntry entry,
+        DateOnly entryDate,
+        CancellationToken cancellationToken)
+    {
+        _dbContext.JournalEntries.Add(entry);
+        foreach (var line in entry.Lines)
+        {
+            _dbContext.JournalLines.Add(line);
+        }
+
+        const int maxAttempts = 5;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateException ex) when (attempt < maxAttempts && IsDuplicateReferenceException(ex))
+            {
+                var nextRef = await NextReferenceAsync(entryDate, cancellationToken);
+                entry.UpdateReferenceNumber(nextRef);
+            }
+        }
+    }
+
+    internal static bool IsDuplicateReferenceException(DbUpdateException ex)
+    {
+        var message = ex.InnerException?.Message ?? ex.Message;
+        return message.Contains("IX_JournalEntries_ReferenceNumber", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("23505", StringComparison.OrdinalIgnoreCase)
+               && message.Contains("ReferenceNumber", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<string> NextReferenceAsync(DateOnly entryDate, CancellationToken cancellationToken)
     {
-        var prefix = $"JE-{entryDate:yyyyMMdd}";
-        var count = await _dbContext.JournalEntries
-            .CountAsync(entry => entry.ReferenceNumber.StartsWith(prefix), cancellationToken);
+        var prefix = $"JE-{entryDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}-";
+        var dbReferences = await _dbContext.JournalEntries
+            .AsNoTracking()
+            .Where(entry => entry.ReferenceNumber.StartsWith(prefix))
+            .Select(entry => entry.ReferenceNumber)
+            .ToListAsync(cancellationToken);
 
-        return $"{prefix}-{(count + 1).ToString().PadLeft(4, '0')}";
+        var localReferences = _dbContext.JournalEntries.Local
+            .Where(entry => entry.ReferenceNumber.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(entry => entry.ReferenceNumber);
+
+        var allReferences = dbReferences.Concat(localReferences).ToList();
+
+        lock (ReferenceSequenceLock)
+        {
+            ReferenceHighWaterMarks.TryGetValue(entryDate, out var currentHighWater);
+            var nextReference = ComputeNextReferenceNumber(entryDate, allReferences, currentHighWater);
+            if (int.TryParse(nextReference[prefix.Length..], NumberStyles.None, CultureInfo.InvariantCulture, out var assignedSeq))
+            {
+                ReferenceHighWaterMarks[entryDate] = Math.Max(currentHighWater, assignedSeq);
+            }
+
+            return nextReference;
+        }
+    }
+
+    internal static string ComputeNextReferenceNumber(
+        DateOnly entryDate,
+        IEnumerable<string> existingReferences,
+        int minSequenceExclusive = 0)
+    {
+        var prefix = $"JE-{entryDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture)}-";
+        var existingSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var maxSeq = Math.Max(0, minSequenceExclusive);
+
+        foreach (var reference in existingReferences)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                continue;
+            }
+
+            existingSet.Add(reference);
+            if (!reference.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var suffix = reference[prefix.Length..];
+            if (int.TryParse(suffix, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) && parsed > maxSeq)
+            {
+                maxSeq = parsed;
+            }
+        }
+
+        var nextSeq = maxSeq + 1;
+        while (true)
+        {
+            var candidate = $"{prefix}{nextSeq.ToString(CultureInfo.InvariantCulture).PadLeft(4, '0')}";
+            if (!existingSet.Contains(candidate))
+            {
+                return candidate;
+            }
+
+            nextSeq++;
+        }
     }
 }

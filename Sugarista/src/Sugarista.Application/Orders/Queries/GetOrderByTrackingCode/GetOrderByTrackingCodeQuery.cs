@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.MenuItems.Bundles;
 using Sugarista.Application.Pickup;
 
 namespace Sugarista.Application.Orders.Queries.GetOrderByTrackingCode;
@@ -39,7 +40,8 @@ public record OrderStatusLineDto(
     int Quantity,
     decimal LineTotal,
     IReadOnlyCollection<string> ModifierLabels,
-    IReadOnlyCollection<string> OptionLabels);
+    IReadOnlyCollection<string> OptionLabels,
+    OrderLineBundleSnapshot? Bundle = null);
 
 public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrackingCodeQuery, OrderStatusDto?>
 {
@@ -108,7 +110,8 @@ public class GetOrderByTrackingCodeQueryHandler : IRequestHandler<GetOrderByTrac
                     line.Quantity,
                     line.LineTotal,
                     line.ModifierLabels,
-                    line.OptionLabels))
+                    line.OptionLabels,
+                    BundlePricingService.DeserializeSnapshot(line.BundleSnapshotJson)))
                 .ToArray(),
             order.Id,
             order.DeliveryAt,

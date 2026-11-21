@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.MenuItems.Bundles;
 using Sugarista.Application.MenuItems.Services;
 
 namespace Sugarista.Application.MenuItems.Queries.GetMenuItemPricing;
@@ -46,6 +47,10 @@ public class GetMenuItemPricingQueryHandler : IRequestHandler<GetMenuItemPricing
             .Include(item => item.Category)
             .Include(item => item.RecipeItems)
             .ThenInclude(line => line.Ingredient)
+            .Include(item => item.BundleItems)
+            .ThenInclude(bundle => bundle.ComponentMenuItem)
+            .ThenInclude(comp => comp.RecipeItems)
+            .ThenInclude(line => line.Ingredient)
             .OrderBy(item => item.DisplayOrder)
             .ThenBy(item => item.PersianName)
             .ToListAsync(cancellationToken);
@@ -54,7 +59,14 @@ public class GetMenuItemPricingQueryHandler : IRequestHandler<GetMenuItemPricing
 
         foreach (var item in items)
         {
-            var cost = MenuPricingService.ComputeCostPerServing(item);
+            var cost = item.IsBundle && item.BundleItems.Count > 0
+                ? BundlePricingService.Evaluate(item, item.BundleItems.ToList()).TotalCostPerServing
+                : MenuPricingService.ComputeCostPerServing(item);
+            var hasRecipe = item.RecipeItems.Count > 0 ||
+                (item.IsBundle && item.BundleItems.Any(b => b.ComponentMenuItem?.RecipeItems.Count > 0));
+            var recipeLineCount = item.IsBundle && item.BundleItems.Count > 0
+                ? item.RecipeItems.Count + item.BundleItems.Sum(b => b.ComponentMenuItem?.RecipeItems.Count ?? 0)
+                : item.RecipeItems.Count;
             var factors = MenuPricingService.ComputeSizeFactors(item);
             var markup = (item.MarkupPercent ?? 0m) / 100m;
 
@@ -64,8 +76,8 @@ public class GetMenuItemPricingQueryHandler : IRequestHandler<GetMenuItemPricing
                 item.EnglishName,
                 item.Category?.Name ?? string.Empty,
                 item.IsActive,
-                item.RecipeItems.Count > 0,
-                item.RecipeItems.Count,
+                hasRecipe,
+                recipeLineCount,
                 Math.Round(cost, 2),
                 item.MarkupPercent,
                 item.SmallPrice,

@@ -86,3 +86,34 @@ test('buildPosReceiptBundle formats InternalUse and Complimentary receipts with 
   assert.equal(compBundle.customer.paymentMethod, 'مهمان مجموعه / آشنا (رایگان)')
   assert.match(compBundle.customer.note, /مهمان مدیریت/)
 })
+
+test('buildPosReceiptBundle includes bundle sub-items for barista and customer thermal receipts', () => {
+  const bundleReceipt = buildPosReceiptBundle({
+    result: {
+      trackingCode: 'SG-BND01',
+      totalAmount: 430000,
+      paymentMethod: 'Card',
+    },
+    cart: [
+      {
+        name: 'باندل صبحانه کافه',
+        quantity: 2,
+        unitPrice: 430000,
+        modifierLabels: [],
+        options: [],
+        isBundle: true,
+        bundleItems: [
+          { persianName: 'آمریکانو', quantity: 1, sizeLabel: null, unitPrice: 200000 },
+          { persianName: 'چیزکیک سن‌سباستین', quantity: 1, sizeLabel: null, unitPrice: 300000 },
+        ],
+      },
+    ],
+    serviceType: 'DineIn',
+    siteSettings: { cafeName: 'شوگریستا' },
+  })
+
+  const summary = bundleReceipt.renderPayload.items[0].customDrinkSummary
+  assert.equal(summary.length, 2)
+  assert.match(summary[0], /شامل: ۲ × آمریکانو/)
+  assert.match(summary[1], /شامل: ۲ × چیزکیک سن‌سباستین/)
+})

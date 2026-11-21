@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Inventory.Services;
+using Sugarista.Application.MenuItems.Bundles;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Orders.Services;
@@ -115,24 +116,42 @@ internal static class OrderInventoryService
         int quantity,
         CancellationToken cancellationToken)
     {
-        if (await MenuItemStockService.TryDeductFinishedStockAsync(
-                dbContext,
-                line.MenuItemId,
-                quantity,
-                cancellationToken))
+        var bundleComponents = await ResolveBundleComponentsForInventoryAsync(dbContext, line, cancellationToken);
+        if (bundleComponents.Count > 0)
         {
+            foreach (var (componentId, componentName, componentQty) in bundleComponents)
+            {
+                var totalUnits = componentQty * quantity;
+                await DeductSingleMenuItemAsync(
+                    dbContext,
+                    orderId,
+                    line.Id,
+                    componentId,
+                    $"{line.PersianName} ({componentName})",
+                    totalUnits,
+                    cancellationToken);
+            }
+
+            // Also deduct any direct packaging/recipe lines attached to the bundle itself (e.g., gift box).
+            await DeductSingleMenuItemAsync(
+                dbContext,
+                orderId,
+                line.Id,
+                line.MenuItemId,
+                line.PersianName,
+                quantity,
+                cancellationToken);
             return;
         }
 
-        await RecipeInventoryService.DeductIngredientsForMenuItemAsync(
+        await DeductSingleMenuItemAsync(
             dbContext,
+            orderId,
+            line.Id,
             line.MenuItemId,
             line.PersianName,
             quantity,
-            StockMovementType.SaleDeduction,
-            orderId: orderId,
-            orderLineId: line.Id,
-            cancellationToken: cancellationToken);
+            cancellationToken);
     }
 
     private static async Task RestoreLineQuantityAsync(
@@ -142,9 +161,109 @@ internal static class OrderInventoryService
         int quantity,
         CancellationToken cancellationToken)
     {
+        var bundleComponents = await ResolveBundleComponentsForInventoryAsync(dbContext, line, cancellationToken);
+        if (bundleComponents.Count > 0)
+        {
+            foreach (var (componentId, componentName, componentQty) in bundleComponents)
+            {
+                var totalUnits = componentQty * quantity;
+                await RestoreSingleMenuItemAsync(
+                    dbContext,
+                    orderId,
+                    line.Id,
+                    componentId,
+                    $"{line.PersianName} ({componentName})",
+                    totalUnits,
+                    cancellationToken);
+            }
+
+            await RestoreSingleMenuItemAsync(
+                dbContext,
+                orderId,
+                line.Id,
+                line.MenuItemId,
+                line.PersianName,
+                quantity,
+                cancellationToken);
+            return;
+        }
+
+        await RestoreSingleMenuItemAsync(
+            dbContext,
+            orderId,
+            line.Id,
+            line.MenuItemId,
+            line.PersianName,
+            quantity,
+            cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<(Guid ComponentId, string Name, int Quantity)>> ResolveBundleComponentsForInventoryAsync(
+        IApplicationDbContext dbContext,
+        OrderLine line,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = BundlePricingService.DeserializeSnapshot(line.BundleSnapshotJson);
+        if (snapshot is { Components.Count: > 0 })
+        {
+            return snapshot.Components
+                .Select(c => (c.ComponentMenuItemId, c.PersianName, c.Quantity))
+                .ToList();
+        }
+
+        var liveComponents = await dbContext.MenuItemBundleItems
+            .AsNoTracking()
+            .Include(b => b.ComponentMenuItem)
+            .Where(b => b.BundleMenuItemId == line.MenuItemId)
+            .ToListAsync(cancellationToken);
+
+        return liveComponents
+            .Where(b => b.ComponentMenuItem is not null)
+            .Select(b => (b.ComponentMenuItemId, b.ComponentMenuItem.PersianName, b.Quantity))
+            .ToList();
+    }
+
+    private static async Task DeductSingleMenuItemAsync(
+        IApplicationDbContext dbContext,
+        Guid orderId,
+        Guid orderLineId,
+        Guid menuItemId,
+        string label,
+        int quantity,
+        CancellationToken cancellationToken)
+    {
+        if (await MenuItemStockService.TryDeductFinishedStockAsync(
+                dbContext,
+                menuItemId,
+                quantity,
+                cancellationToken))
+        {
+            return;
+        }
+
+        await RecipeInventoryService.DeductIngredientsForMenuItemAsync(
+            dbContext,
+            menuItemId,
+            label,
+            quantity,
+            StockMovementType.SaleDeduction,
+            orderId: orderId,
+            orderLineId: orderLineId,
+            cancellationToken: cancellationToken);
+    }
+
+    private static async Task RestoreSingleMenuItemAsync(
+        IApplicationDbContext dbContext,
+        Guid orderId,
+        Guid orderLineId,
+        Guid menuItemId,
+        string label,
+        int quantity,
+        CancellationToken cancellationToken)
+    {
         if (await MenuItemStockService.TryRestoreFinishedStockAsync(
                 dbContext,
-                line.MenuItemId,
+                menuItemId,
                 quantity,
                 cancellationToken))
         {
@@ -153,12 +272,12 @@ internal static class OrderInventoryService
 
         await RecipeInventoryService.RestoreIngredientsForMenuItemAsync(
             dbContext,
-            line.MenuItemId,
-            line.PersianName,
+            menuItemId,
+            label,
             quantity,
             note: $"Order restore {orderId}",
             orderId: orderId,
-            orderLineId: line.Id,
+            orderLineId: orderLineId,
             cancellationToken: cancellationToken);
     }
 }

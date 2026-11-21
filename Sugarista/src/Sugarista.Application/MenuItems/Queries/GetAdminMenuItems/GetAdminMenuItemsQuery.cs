@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Extensions;
 using Sugarista.Application.Common.Models;
+using Sugarista.Application.MenuItems.Bundles;
 
 namespace Sugarista.Application.MenuItems.Queries.GetAdminMenuItems;
 
@@ -44,7 +45,10 @@ public record AdminMenuItemDto(
     string Accent,
     string ShortLabel,
     int DisplayOrder,
-    bool IsActive);
+    bool IsActive,
+    bool IsBundle = false,
+    int BundleItemCount = 0,
+    decimal? BundleRegularTotal = null);
 
 public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQuery, PaginatedList<AdminMenuItemDto>>
 {
@@ -70,7 +74,7 @@ public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQu
                 item.EnglishName.ToLower().Contains(search));
         }
 
-        return await query
+        var pageResult = await query
             .OrderBy(item => item.Category.DisplayOrder)
             .ThenBy(item => item.DisplayOrder)
             .ThenBy(item => item.Name)
@@ -111,7 +115,55 @@ public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQu
                 item.Accent,
                 item.ShortLabel,
                 item.DisplayOrder,
-                item.IsActive))
+                item.IsActive,
+                item.IsBundle,
+                0,
+                null))
             .ToPaginatedListAsync(pagination, cancellationToken);
+
+        var bundleIds = pageResult.Items
+            .Where(item => item.IsBundle)
+            .Select(item => item.Id)
+            .ToList();
+
+        if (bundleIds.Count == 0)
+        {
+            return pageResult;
+        }
+
+        var bundleLines = await _dbContext.MenuItemBundleItems
+            .AsNoTracking()
+            .Include(b => b.ComponentMenuItem)
+            .Where(b => bundleIds.Contains(b.BundleMenuItemId))
+            .ToListAsync(cancellationToken);
+
+        var linesByBundle = bundleLines
+            .GroupBy(b => b.BundleMenuItemId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var enriched = pageResult.Items
+            .Select(item =>
+            {
+                if (!item.IsBundle || !linesByBundle.TryGetValue(item.Id, out var lines))
+                {
+                    return item;
+                }
+
+                var regularTotal = lines.Sum(entry =>
+                {
+                    if (entry.ComponentMenuItem is null) return 0m;
+                    var (_, _, unitPrice) = BundlePricingService.ResolveComponentUnitPrice(entry.ComponentMenuItem, entry.SizeKey);
+                    return unitPrice * entry.Quantity;
+                });
+
+                return item with
+                {
+                    BundleItemCount = lines.Sum(l => l.Quantity),
+                    BundleRegularTotal = regularTotal
+                };
+            })
+            .ToArray();
+
+        return new PaginatedList<AdminMenuItemDto>(enriched, pageResult.TotalCount, pageResult.Page, pageResult.PageSize);
     }
 }

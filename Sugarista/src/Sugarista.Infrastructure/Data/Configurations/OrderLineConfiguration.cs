@@ -37,6 +37,9 @@ public class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
         builder.Property(l => l.CustomizationJson)
             .HasColumnType("text");
 
+        builder.Property(l => l.BundleSnapshotJson)
+            .HasColumnType("text");
+
         builder.Property(l => l.PayerKey)
             .HasMaxLength(50);
 

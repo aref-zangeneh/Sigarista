@@ -390,6 +390,75 @@
             </div>
           </div>
 
+          <section id="bundles" class="bundles-spotlight" x-show="!loading && bundleItemsList.length && selectedCategory === 'all' && !search" x-cloak>
+            <div class="featured-strip-head">
+              <div class="d-flex align-items-center gap-2">
+                <span class="featured-strip-icon bundle-strip-icon" aria-hidden="true"><i class="bi bi-box2-heart-fill"></i></span>
+                <h2 class="featured-strip-title mb-0">پکیج‌ها و باندل‌های به‌صرفه</h2>
+              </div>
+              <p class="featured-strip-copy mb-0">ترکیب محبوب‌ترین آیتم‌های کافه با قیمت ویژه باندل و صرفه‌جویی واقعی</p>
+            </div>
+            <div class="bundles-scroller">
+              <template x-for="bundle in bundleItemsList" :key="`bundle-spot-${bundle.id}`">
+                <article class="bundle-offer-card" @click="openProductCard(bundle)">
+                  <div class="bundle-offer-top">
+                    <span class="bundle-offer-pill">
+                      <i class="bi bi-gift-fill" aria-hidden="true"></i>
+                      پکیج باندل
+                    </span>
+                    <span class="bundle-save-badge" x-show="bundleSavingsPercent(bundle) > 0" x-text="toPersianNumber(bundleSavingsPercent(bundle)) + '٪ صرفه‌جویی'"></span>
+                  </div>
+                  <div class="bundle-offer-head">
+                    <template x-if="bundle.imageUrl">
+                      <img class="bundle-offer-thumb" :src="bundle.imageUrl" :alt="bundle.name" loading="lazy" decoding="async">
+                    </template>
+                    <template x-if="!bundle.imageUrl">
+                      <div class="bundle-offer-thumb bundle-offer-thumb--fallback" :style="bundle.accent ? `background:${bundle.accent}` : ''">
+                        <i class="bi bi-box2-heart" aria-hidden="true"></i>
+                      </div>
+                    </template>
+                    <div class="bundle-offer-titles">
+                      <h3 class="bundle-offer-name" x-text="bundle.name"></h3>
+                      <p class="bundle-offer-desc" x-show="bundle.description" x-text="bundle.description"></p>
+                    </div>
+                  </div>
+                  <div class="bundle-offer-breakdown">
+                    <template x-for="(comp, cIdx) in bundle.bundleItems" :key="`spot-comp-${bundle.id}-${comp.menuItemId}-${cIdx}`">
+                      <div class="bundle-offer-comp-row">
+                        <span class="bundle-offer-comp-name">
+                          <span class="bundle-comp-qty" x-text="toPersianNumber(comp.quantity) + '×'"></span>
+                          <span x-text="comp.persianName"></span>
+                          <small x-show="comp.sizeLabel" x-text="'(' + comp.sizeLabel + ')'"></small>
+                        </span>
+                        <span class="bundle-offer-comp-price">
+                          <span x-text="formatPriceCompact(comp.linePrice)"></span>
+                          <small>ت</small>
+                        </span>
+                      </div>
+                    </template>
+                  </div>
+                  <div class="bundle-offer-foot">
+                    <div class="bundle-offer-pricing">
+                      <div class="bundle-offer-old-row" x-show="bundleSavingsAmount(bundle) > 0">
+                        <span class="bundle-offer-old-label">خرید جداگانه:</span>
+                        <span class="bundle-offer-old-val" x-text="formatPriceCompact(bundleRegularTotal(bundle)) + ' تومان'"></span>
+                      </div>
+                      <div class="bundle-offer-new-row">
+                        <strong x-text="formatPriceCompact(displayPrice(bundle))"></strong>
+                        <small>تومان</small>
+                        <span class="bundle-offer-profit-chip" x-show="bundleSavingsAmount(bundle) > 0" x-text="formatPriceCompact(bundleSavingsAmount(bundle)) + ' ت سود شما'"></span>
+                      </div>
+                    </div>
+                    <span class="bundle-offer-cta">
+                      <span>انتخاب</span>
+                      <i class="bi bi-arrow-left-short" aria-hidden="true"></i>
+                    </span>
+                  </div>
+                </article>
+              </template>
+            </div>
+          </section>
+
           <section id="popular" class="featured-strip" x-show="!loading && featuredItems.length && selectedCategory === 'all' && !search" x-cloak>
             <div class="featured-strip-head">
               <div class="d-flex align-items-center gap-2">
@@ -475,7 +544,8 @@
                       class="product-card"
                       :class="{
                         'product-card--in-cart': cartQtyForItem(item.id) > 0,
-                        'product-card--unavailable': !item.isOrderable
+                        'product-card--unavailable': !item.isOrderable,
+                        'product-card--bundle': isBundleItem(item)
                       }"
                     >
                       <div
@@ -517,7 +587,12 @@
                             <span class="product-badge" x-show="item.badge && discountPercent(item)" x-text="item.badge"></span>
                           </div>
 
-                          <div class="product-tags-row" x-show="builderProfileForItem(item.id) || (item.optionGroups && item.optionGroups.length)" x-cloak>
+                          <div class="product-tags-row" x-show="isBundleItem(item) || builderProfileForItem(item.id) || (item.optionGroups && item.optionGroups.length)" x-cloak>
+                            <span class="product-bundle-badge" x-show="isBundleItem(item)">
+                              <i class="bi bi-box2-heart-fill" aria-hidden="true"></i>
+                              پکیج باندل
+                            </span>
+                            <span class="product-bundle-save-tag" x-show="isBundleItem(item) && bundleSavingsPercent(item) > 0" x-text="toPersianNumber(bundleSavingsPercent(item)) + '٪ به‌صرفه‌تر'"></span>
                             <div class="product-builder-wrap" x-show="builderProfileForItem(item.id)">
                               <span class="product-builder-badge">
                                 <i class="bi bi-sliders" aria-hidden="true"></i>
@@ -546,6 +621,24 @@
                           </div>
 
                           <p class="product-contents" x-show="item.description" x-text="item.description"></p>
+
+                          <div class="product-bundle-box" x-show="isBundleItem(item)" x-cloak>
+                            <div class="product-bundle-box-head">
+                              <span>محتویات باندل با قیمت واقعی:</span>
+                            </div>
+                            <div class="product-bundle-rows">
+                              <template x-for="(comp, cIdx) in (item.bundleItems || [])" :key="`${item.id}-bcomp-${comp.menuItemId}-${cIdx}`">
+                                <div class="product-bundle-row">
+                                  <span class="product-bundle-row-name">
+                                    <span class="bundle-comp-qty" x-text="toPersianNumber(comp.quantity) + '×'"></span>
+                                    <span x-text="comp.persianName"></span>
+                                    <small x-show="comp.sizeLabel" x-text="'(' + comp.sizeLabel + ')'"></small>
+                                  </span>
+                                  <span class="product-bundle-row-price" x-text="formatPriceCompact(comp.linePrice) + ' ت'"></span>
+                                </div>
+                              </template>
+                            </div>
+                          </div>
 
                           <div class="product-meta product-ingredients" x-show="item.contents && item.contents.length">
                             <span class="product-contents-label">محتویات:</span>
@@ -592,7 +685,16 @@
                           <div class="price-single" x-show="!item.variants || !item.variants.length">
                             <span class="price-single-value" x-text="formatPriceCompact(displayPrice(item))"></span>
                             <span class="price-currency">تومان</span>
-                            <span class="price-single-old" x-show="hasOffer(item)" x-text="formatPriceCompact(item.price)"></span>
+                            <span
+                              class="price-single-old"
+                              x-show="isBundleItem(item) ? bundleSavingsAmount(item) > 0 : hasOffer(item)"
+                              x-text="formatPriceCompact(isBundleItem(item) ? bundleRegularTotal(item) : item.price)"
+                            ></span>
+                            <span
+                              class="product-savings-pill"
+                              x-show="isBundleItem(item) && bundleSavingsAmount(item) > 0"
+                              x-text="formatPriceCompact(bundleSavingsAmount(item)) + ' ت سود'"
+                            ></span>
                           </div>
                         </div>
 
@@ -1512,6 +1614,60 @@
                   <img :src="imgUrl" alt="" loading="lazy">
                 </button>
               </template>
+            </div>
+          </div>
+
+          <div
+            class="modal-bundle-card"
+            x-show="isBundleItem(addToCartModal?.item)"
+            x-cloak
+          >
+            <div class="modal-bundle-card-head">
+              <span class="bundle-offer-pill">
+                <i class="bi bi-box2-heart-fill" aria-hidden="true"></i>
+                محتویات این باندل با قیمت واقعی
+              </span>
+              <span
+                class="bundle-save-badge"
+                x-show="bundleSavingsPercent(addToCartModal?.item) > 0"
+                x-text="toPersianNumber(bundleSavingsPercent(addToCartModal?.item)) + '٪ صرفه‌جویی'"
+              ></span>
+            </div>
+            <div class="modal-bundle-items">
+              <template x-for="(comp, cIdx) in (addToCartModal?.item?.bundleItems || [])" :key="`modal-bcomp-${comp.menuItemId}-${cIdx}`">
+                <div class="modal-bundle-item-row">
+                  <div class="modal-bundle-item-info">
+                    <template x-if="comp.imageUrl">
+                      <img class="modal-bundle-item-img" :src="comp.imageUrl" :alt="comp.persianName" loading="lazy">
+                    </template>
+                    <template x-if="!comp.imageUrl">
+                      <span class="modal-bundle-item-img modal-bundle-item-img--fallback" :style="comp.accent ? `background:${comp.accent}` : ''" x-text="comp.short || '☕'"></span>
+                    </template>
+                    <div>
+                      <strong x-text="toPersianNumber(comp.quantity) + ' × ' + comp.persianName"></strong>
+                      <small x-show="comp.sizeLabel" x-text="'اندازه: ' + comp.sizeLabel"></small>
+                    </div>
+                  </div>
+                  <div class="modal-bundle-item-price">
+                    <span x-text="formatPriceCompact(comp.linePrice)"></span>
+                    <small>تومان</small>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <div class="modal-bundle-summary" x-show="bundleSavingsAmount(addToCartModal?.item) > 0">
+              <div class="modal-bundle-sum-row">
+                <span>جمع قیمت خرید جداگانه:</span>
+                <span class="modal-bundle-old-total" x-text="formatPriceCompact(bundleRegularTotal(addToCartModal?.item)) + ' تومان'"></span>
+              </div>
+              <div class="modal-bundle-sum-row modal-bundle-sum-row--final">
+                <span>قیمت ویژه در این باندل:</span>
+                <strong x-text="formatPriceCompact(displayPrice(addToCartModal?.item)) + ' تومان'"></strong>
+              </div>
+              <div class="modal-bundle-savings-banner">
+                <i class="bi bi-sparkles" aria-hidden="true"></i>
+                <span x-text="'با انتخاب این باندل ' + formatPriceCompact(bundleSavingsAmount(addToCartModal?.item)) + ' تومان (' + toPersianNumber(bundleSavingsPercent(addToCartModal?.item)) + '٪) کمتر پرداخت می‌کنید!'"></span>
+              </div>
             </div>
           </div>
 

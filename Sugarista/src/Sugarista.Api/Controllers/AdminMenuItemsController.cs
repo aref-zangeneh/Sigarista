@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sugarista.Api.Authorization;
+using Sugarista.Application.MenuItems.Bundles;
+using Sugarista.Application.MenuItems.Bundles.Commands.ReplaceMenuItemBundle;
+using Sugarista.Application.MenuItems.Bundles.Queries.GetMenuItemBundle;
 using Sugarista.Application.MenuItems.Commands.ApplyMenuPricing;
 using Sugarista.Application.MenuItems.Commands.DeleteMenuItem;
 using Sugarista.Application.MenuItems.Commands.UpsertMenuItem;
@@ -48,6 +51,25 @@ public class AdminMenuItemsController : ApiControllerBase
     {
         await Mediator.Send(command with { MenuItemId = menuItemId }, cancellationToken);
         return NoContent();
+    }
+
+    [HttpGet("{menuItemId:guid}/bundle-items")]
+    [RequirePermission(AdminPermissions.MenuItems.View)]
+    public async Task<ActionResult<AdminMenuItemBundleDto>> GetBundleItems(
+        Guid menuItemId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetMenuItemBundleQuery(menuItemId), cancellationToken));
+    }
+
+    [HttpPut("{menuItemId:guid}/bundle-items")]
+    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    public async Task<ActionResult<AdminMenuItemBundleDto>> ReplaceBundleItems(
+        Guid menuItemId,
+        [FromBody] ReplaceMenuItemBundleCommand command,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(command with { MenuItemId = menuItemId }, cancellationToken));
     }
     [HttpGet("pricing")]
     [RequireAnyPermission(AdminPermissions.MenuItems.View, AdminPermissions.Dashboard.Update)]

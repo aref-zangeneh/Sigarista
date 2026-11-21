@@ -1,4 +1,5 @@
 import { formatPrice } from './posCart.js'
+import { formatBundleSummaryLabels } from './bundlePricing.js'
 
 const PAYMENT_LABELS = {
   Cash: 'پرداخت نقدی',
@@ -104,6 +105,13 @@ function lineDescriptor(line) {
   if (line.customDrinkSummary?.length) {
     parts.push(...line.customDrinkSummary.map((entry) => toPersianDigits(entry)))
   }
+  if (line.bundleItems?.length) {
+    parts.push(
+      ...formatBundleSummaryLabels(line.bundleItems, line.quantity).map((entry) =>
+        toPersianDigits(entry),
+      ),
+    )
+  }
   return parts.filter(Boolean).join('   ')
 }
 
@@ -181,13 +189,24 @@ export function buildPosReceiptBundle(input) {
               },
         )
       : []
-    const customDrinkSummary = Array.isArray(line.customDrinkSummary) ? line.customDrinkSummary : []
+    const bundleItems = Array.isArray(line.bundleItems)
+      ? line.bundleItems
+      : Array.isArray(line.bundle?.components)
+        ? line.bundle.components
+        : []
+    const bundleSummaryLines = formatBundleSummaryLabels(bundleItems, qty).map((entry) =>
+      toPersianDigits(entry),
+    )
+    const customDrinkSummary = [
+      ...(Array.isArray(line.customDrinkSummary) ? line.customDrinkSummary : []),
+      ...bundleSummaryLines,
+    ]
     const baristaNote = normalizeText(line.baristaNote)
 
     return {
       name: line.name || line.persianName || '',
       sizeLabel: line.sizeLabel ?? null,
-      descriptor: lineDescriptor(line),
+      descriptor: lineDescriptor({ ...line, bundleItems }),
       quantity: qty,
       quantityLabel: toPersianDigits(qty),
       unitPrice,
@@ -197,6 +216,7 @@ export function buildPosReceiptBundle(input) {
       modifierLabels,
       options,
       customDrinkSummary,
+      bundleItems,
       baristaNote,
       payerLabel: normalizeText(line.payerLabel) || null,
     }

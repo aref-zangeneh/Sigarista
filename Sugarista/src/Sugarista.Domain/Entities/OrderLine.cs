@@ -26,7 +26,8 @@ public class OrderLine : BaseEntity
         string? customizationJson = null,
         IReadOnlyCollection<string>? customDrinkSummary = null,
         IReadOnlyCollection<string>? optionLabels = null,
-        string? optionsJson = null)
+        string? optionsJson = null,
+        string? bundleSnapshotJson = null)
     {
         if (orderId == Guid.Empty)
         {
@@ -67,6 +68,7 @@ public class OrderLine : BaseEntity
         OptionLabels = NormalizeList(optionLabels ?? []);
         OptionsJson = string.IsNullOrWhiteSpace(optionsJson) ? null : optionsJson;
         CustomizationJson = string.IsNullOrWhiteSpace(customizationJson) ? null : customizationJson;
+        BundleSnapshotJson = string.IsNullOrWhiteSpace(bundleSnapshotJson) ? null : bundleSnapshotJson;
         AssignPayer(payerKey, payerLabel);
         BaristaNote = string.IsNullOrWhiteSpace(baristaNote) ? null : baristaNote.Trim();
         TaxPercent = taxPercent < 0 ? 0m : taxPercent;
@@ -119,6 +121,19 @@ public class OrderLine : BaseEntity
     /// amounts and prices). Null for regular lines.
     /// </summary>
     public string? CustomizationJson { get; private set; }
+
+    /// <summary>
+    /// Immutable JSON snapshot of a bundle's components (component IDs, names, sizes,
+    /// quantities, and real standalone prices at sale time). Null for regular lines.
+    /// Keeps barista receipts, customer receipts, and inventory deductions/restorations
+    /// accurate even if the admin later edits or deletes the bundle definition.
+    /// </summary>
+    public string? BundleSnapshotJson { get; private set; }
+
+    public void SetBundleSnapshot(string? bundleSnapshotJson)
+    {
+        BundleSnapshotJson = string.IsNullOrWhiteSpace(bundleSnapshotJson) ? null : bundleSnapshotJson;
+    }
 
     public string? PayerKey { get; private set; }
 

@@ -21,6 +21,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
 
+    public DbSet<MenuItemBundleItem> MenuItemBundleItems => Set<MenuItemBundleItem>();
+
     public DbSet<AddonItem> AddonItems => Set<AddonItem>();
 
     public DbSet<MenuModifier> MenuModifiers => Set<MenuModifier>();

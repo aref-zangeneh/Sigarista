@@ -5,6 +5,7 @@ using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Common.Options;
 using Sugarista.Application.Discounts.Engine;
 using Sugarista.Application.Inventory.Services;
+using Sugarista.Application.MenuItems.Bundles;
 using Sugarista.Application.MenuItems.OptionGroups;
 using Sugarista.Application.Discounts.Security;
 using Sugarista.Application.DrinkBuilder;
@@ -221,11 +222,16 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         var modifierIds = request.Items.SelectMany(i => i.ModifierIds).Distinct().ToList();
 
         var allMenuItems = await _dbContext.MenuItems
+            .Include(m => m.BundleItems)
+            .ThenInclude(b => b.ComponentMenuItem)
             .Where(m => menuItemIds.Contains(m.Id))
             .ToListAsync(cancellationToken);
 
         var unavailableMenuItems = allMenuItems
-            .Where(m => !m.IsActive || !m.IsOrderable)
+            .Where(m =>
+                !m.IsActive ||
+                !m.IsOrderable ||
+                (m.IsBundle && (m.BundleItems.Count == 0 || m.BundleItems.Any(b => b.ComponentMenuItem is null || !b.ComponentMenuItem.IsActive || !b.ComponentMenuItem.IsOrderable))))
             .Select(m => new Dictionary<string, object?>
             {
                 ["menuItemId"] = m.Id,
@@ -373,7 +379,17 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                     };
                 }
 
-                return (resolved: resolved, payerKey: item.PayerKey, payerLabel: item.PayerLabel, snapshot: snapshot, optionSnapshot: optionSnapshot, clientLineKey: item.ClientLineKey);
+                string? bundleSnapshotJson = null;
+                if (menuItem.IsBundle)
+                {
+                    var valuation = BundlePricingService.Evaluate(
+                        menuItem,
+                        menuItem.BundleItems.ToList(),
+                        overrideBundleSellingPrice: resolved.UnitPrice);
+                    bundleSnapshotJson = BundlePricingService.SerializeSnapshot(valuation);
+                }
+
+                return (resolved: resolved, payerKey: item.PayerKey, payerLabel: item.PayerLabel, snapshot: snapshot, optionSnapshot: optionSnapshot, clientLineKey: item.ClientLineKey, bundleSnapshotJson: bundleSnapshotJson);
             })
             .ToList();
 
@@ -388,7 +404,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         // accepted silently.
         await EnsureLinesAreAvailableAsync(
             resolvedLines
-                .Select(line => (line.resolved, line.optionSnapshot))
+                .Select(line => (line.resolved, line.optionSnapshot, line.bundleSnapshotJson))
                 .ToList(),
             cancellationToken);
         EnsurePricesHaveNotChanged(
@@ -442,7 +458,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             request.IpAddress,
             cancellationToken);
 
-        foreach (var (resolved, payerKey, payerLabel, _, optionSnapshot, _) in resolvedLines)
+        foreach (var (resolved, payerKey, _, _, _, _, _) in resolvedLines)
         {
             discountLines.Add(new DiscountLineInput(
                 resolved.MenuItemId,
@@ -513,7 +529,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             splitBillMode,
             request.GuestCount);
 
-        foreach (var (resolved, payerKey, payerLabel, snapshot, optionSnapshot, _) in resolvedLines)
+        foreach (var (resolved, payerKey, payerLabel, snapshot, optionSnapshot, _, bundleSnapshotJson) in resolvedLines)
         {
             order.AddLine(new OrderLine(
                 order.Id,
@@ -532,7 +548,8 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 snapshot is null ? null : DrinkBuilderPricing.Serialize(snapshot),
                 snapshot?.SummaryLabels,
                 optionSnapshot is { Components.Count: > 0 } ? optionSnapshot.Labels : null,
-                optionSnapshot is { Components.Count: > 0 } ? MenuItemOptionPricing.Serialize(optionSnapshot) : null));
+                optionSnapshot is { Components.Count: > 0 } ? MenuItemOptionPricing.Serialize(optionSnapshot) : null,
+                bundleSnapshotJson));
         }
 
         order.RecalculateTotal();
@@ -986,22 +1003,58 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
     /// ingredient usage of the chosen per-item options is checked here too.
     /// </summary>
     private async Task EnsureLinesAreAvailableAsync(
-        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, MenuItemOptionSnapshot? options)> lines,
+        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, MenuItemOptionSnapshot? options, string? bundleSnapshotJson)> lines,
         CancellationToken cancellationToken)
     {
-        var menuItemIds = lines.Select(line => line.resolved.MenuItemId).Distinct().ToList();
+        var requestedByMenuItem = new Dictionary<Guid, int>();
+        var parsedSnapshots = new Dictionary<OrderPricing.ResolvedLine, OrderLineBundleSnapshot>();
+
+        foreach (var line in lines)
+        {
+            var snapshot = BundlePricingService.DeserializeSnapshot(line.bundleSnapshotJson);
+            if (snapshot is { Components.Count: > 0 })
+            {
+                parsedSnapshots[line.resolved] = snapshot;
+                foreach (var comp in snapshot.Components)
+                {
+                    requestedByMenuItem[comp.ComponentMenuItemId] =
+                        requestedByMenuItem.GetValueOrDefault(comp.ComponentMenuItemId) + (comp.Quantity * line.resolved.Quantity);
+                }
+            }
+
+            requestedByMenuItem[line.resolved.MenuItemId] =
+                requestedByMenuItem.GetValueOrDefault(line.resolved.MenuItemId) + line.resolved.Quantity;
+        }
+
+        var menuItemIds = requestedByMenuItem.Keys.ToList();
         var stockByMenuItem = await _dbContext.MenuItemStocks
             .AsNoTracking()
             .Where(stock => menuItemIds.Contains(stock.MenuItemId))
             .ToDictionaryAsync(stock => stock.MenuItemId, cancellationToken);
 
-        var requestedByMenuItem = lines
-            .GroupBy(line => line.resolved.MenuItemId)
-            .ToDictionary(group => group.Key, group => group.Sum(line => line.resolved.Quantity));
-
         var unavailable = new List<Dictionary<string, object?>>();
         foreach (var line in lines)
         {
+            if (parsedSnapshots.TryGetValue(line.resolved, out var bundleSnapshot))
+            {
+                foreach (var comp in bundleSnapshot.Components)
+                {
+                    var requestedComp = requestedByMenuItem.GetValueOrDefault(comp.ComponentMenuItemId);
+                    if (stockByMenuItem.TryGetValue(comp.ComponentMenuItemId, out var compStock) &&
+                        compStock.CurrentQuantity < requestedComp)
+                    {
+                        unavailable.Add(new Dictionary<string, object?>
+                        {
+                            ["menuItemId"] = line.resolved.MenuItemId,
+                            ["persianName"] = $"{line.resolved.PersianName} ({comp.PersianName})",
+                            ["reason"] = "insufficient_stock",
+                            ["available"] = compStock.CurrentQuantity,
+                            ["requested"] = requestedComp
+                        });
+                    }
+                }
+            }
+
             var requested = requestedByMenuItem.GetValueOrDefault(line.resolved.MenuItemId);
             if (!stockByMenuItem.TryGetValue(line.resolved.MenuItemId, out var stock))
             {
@@ -1021,7 +1074,10 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             }
         }
 
-        await EnsureOptionIngredientsAreAvailableAsync(lines, unavailable, cancellationToken);
+        await EnsureOptionIngredientsAreAvailableAsync(
+            lines.Select(l => (l.resolved, l.options)).ToList(),
+            unavailable,
+            cancellationToken);
 
         if (unavailable.Count > 0)
         {

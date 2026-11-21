@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.MenuItems.Bundles;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Menu.Queries.GetPublicMenu;
@@ -48,7 +49,26 @@ public record PublicMenuItemDto(
     string Short,
     int DisplayOrder,
     IReadOnlyCollection<PublicMenuItemOptionGroupDto> OptionGroups,
-    IReadOnlyCollection<PublicMenuItemContentDto> Contents);
+    IReadOnlyCollection<PublicMenuItemContentDto> Contents,
+    bool IsBundle = false,
+    decimal? BundleRegularTotal = null,
+    decimal? BundleSavingsAmount = null,
+    int? BundleSavingsPercent = null,
+    IReadOnlyCollection<PublicMenuItemBundleComponentDto>? BundleItems = null);
+
+public record PublicMenuItemBundleComponentDto(
+    Guid MenuItemId,
+    string PersianName,
+    string EnglishName,
+    string? ImageUrl,
+    string Accent,
+    string Short,
+    string? SizeKey,
+    string? SizeLabel,
+    int Quantity,
+    decimal UnitPrice,
+    decimal LinePrice,
+    bool IsAvailable);
 
 /// <summary>
 /// Customer-facing contents of an item: the Persian/English names of the raw
@@ -203,7 +223,8 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 item.Featured,
                 item.Accent,
                 Short = item.ShortLabel,
-                item.DisplayOrder
+                item.DisplayOrder,
+                item.IsBundle
             })
             .ToListAsync(cancellationToken);
 
@@ -378,6 +399,37 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 ? [.. contents]
                 : [];
 
+        // Product bundles: load all bundle component rows in a single batch query
+        // so each bundle exposes the real live standalone price of every component
+        // alongside the bundle's selling price and exact customer savings.
+        IReadOnlyDictionary<Guid, List<MenuItemBundleItem>> bundleItemsByBundle;
+        try
+        {
+            var bundleMenuIds = menuRows.Where(r => r.IsBundle).Select(r => r.Id).ToList();
+            if (bundleMenuIds.Count > 0)
+            {
+                var bundleRows = await _dbContext.MenuItemBundleItems
+                    .AsNoTracking()
+                    .Include(b => b.ComponentMenuItem)
+                    .Where(b => bundleMenuIds.Contains(b.BundleMenuItemId))
+                    .OrderBy(b => b.DisplayOrder)
+                    .ThenBy(b => b.Id)
+                    .ToListAsync(cancellationToken);
+
+                bundleItemsByBundle = bundleRows
+                    .GroupBy(b => b.BundleMenuItemId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+            }
+            else
+            {
+                bundleItemsByBundle = new Dictionary<Guid, List<MenuItemBundleItem>>();
+            }
+        }
+        catch (Exception)
+        {
+            bundleItemsByBundle = new Dictionary<Guid, List<MenuItemBundleItem>>();
+        }
+
         // An option is orderable only when every one of its ingredient usages
         // can be satisfied once (per single item unit) from current stock.
         static bool IsOptionAvailable(
@@ -398,6 +450,100 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
             .Select(item =>
             {
                 var (dp, pct) = computeDiscount(item.Id, item.CategoryId, item.Price);
+                var variants = new[]
+                {
+                    new PublicMenuItemVariantDto("small", item.SmallName ?? "کوچک", item.SmallPrice, item.SmallSpecialOfferPrice, item.SmallPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.SmallPrice.Value).discountedPrice : null, item.SmallPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.SmallPrice.Value).percent : null, item.SmallVolume),
+                    new PublicMenuItemVariantDto("medium", item.MediumName ?? "متوسط", item.MediumPrice, item.MediumSpecialOfferPrice, item.MediumPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.MediumPrice.Value).discountedPrice : null, item.MediumPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.MediumPrice.Value).percent : null, item.MediumVolume),
+                    new PublicMenuItemVariantDto("large", item.LargeName ?? "بزرگ", item.LargePrice, item.LargeSpecialOfferPrice, item.LargePrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.LargePrice.Value).discountedPrice : null, item.LargePrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.LargePrice.Value).percent : null, item.LargeVolume)
+                }.Where(variant => variant.Price.HasValue).ToArray();
+
+                decimal? bundleRegularTotal = null;
+                decimal? bundleSavingsAmount = null;
+                int? bundleSavingsPercent = null;
+                PublicMenuItemBundleComponentDto[]? bundleDtos = null;
+                var effectiveOrderable = item.IsOrderable;
+                var effectiveCalories = item.Calories;
+                var effectivePrepMinutes = item.PreparingDurationMinutes;
+
+                if (item.IsBundle)
+                {
+                    var rawComponents = bundleItemsByBundle.GetValueOrDefault(item.Id) ?? [];
+                    var effectiveBundlePrice = dp ?? item.SpecialOfferPrice ?? (variants.Length > 0 ? (variants[0].DiscountedPrice ?? variants[0].SpecialOfferPrice ?? variants[0].Price ?? item.Price) : item.Price);
+                    decimal regTotal = 0m;
+                    var allAvailable = rawComponents.Count > 0;
+                    var list = new List<PublicMenuItemBundleComponentDto>(rawComponents.Count);
+                    var sumCalories = 0;
+                    var hasCalories = false;
+                    var maxPrep = 0;
+
+                    foreach (var entry in rawComponents)
+                    {
+                        if (entry.ComponentMenuItem is null)
+                        {
+                            allAvailable = false;
+                            continue;
+                        }
+
+                        var comp = entry.ComponentMenuItem;
+                        var (sizeKey, sizeLabel, unitPrice) = BundlePricingService.ResolveComponentUnitPrice(comp, entry.SizeKey);
+                        var linePrice = unitPrice * entry.Quantity;
+                        var compAvailable = comp.IsActive && comp.IsOrderable && unitPrice > 0m;
+                        if (!compAvailable)
+                        {
+                            allAvailable = false;
+                        }
+
+                        regTotal += linePrice;
+                        if (comp.Calories.HasValue)
+                        {
+                            sumCalories += comp.Calories.Value * entry.Quantity;
+                            hasCalories = true;
+                        }
+
+                        if (comp.PreparingDurationMinutes.HasValue && comp.PreparingDurationMinutes.Value > maxPrep)
+                        {
+                            maxPrep = comp.PreparingDurationMinutes.Value;
+                        }
+
+                        list.Add(new PublicMenuItemBundleComponentDto(
+                            comp.Id,
+                            comp.PersianName,
+                            comp.EnglishName,
+                            comp.ImageUrl,
+                            comp.Accent,
+                            comp.ShortLabel,
+                            sizeKey,
+                            sizeLabel,
+                            entry.Quantity,
+                            unitPrice,
+                            linePrice,
+                            compAvailable));
+                    }
+
+                    bundleDtos = list.ToArray();
+                    bundleRegularTotal = regTotal;
+                    var savings = regTotal > effectiveBundlePrice ? regTotal - effectiveBundlePrice : 0m;
+                    bundleSavingsAmount = savings;
+                    bundleSavingsPercent = regTotal > 0m && savings > 0m
+                        ? (int)Math.Round((savings / regTotal) * 100m, MidpointRounding.AwayFromZero)
+                        : 0;
+
+                    if (!allAvailable)
+                    {
+                        effectiveOrderable = false;
+                    }
+
+                    if (!effectiveCalories.HasValue && hasCalories)
+                    {
+                        effectiveCalories = sumCalories;
+                    }
+
+                    if (!effectivePrepMinutes.HasValue && maxPrep > 0)
+                    {
+                        effectivePrepMinutes = maxPrep;
+                    }
+                }
+
                 return new PublicMenuItemDto(
                 item.Id,
                 item.Name,
@@ -413,17 +559,12 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 dp,
                 pct,
                 item.TaxPercent,
-                item.IsOrderable,
-                item.PreparingDurationMinutes,
-                item.Calories,
+                effectiveOrderable,
+                effectivePrepMinutes,
+                effectiveCalories,
                 item.Allergens,
                 item.Volume,
-                new[]
-                {
-                    new PublicMenuItemVariantDto("small", item.SmallName ?? "کوچک", item.SmallPrice, item.SmallSpecialOfferPrice, item.SmallPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.SmallPrice.Value).discountedPrice : null, item.SmallPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.SmallPrice.Value).percent : null, item.SmallVolume),
-                    new PublicMenuItemVariantDto("medium", item.MediumName ?? "متوسط", item.MediumPrice, item.MediumSpecialOfferPrice, item.MediumPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.MediumPrice.Value).discountedPrice : null, item.MediumPrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.MediumPrice.Value).percent : null, item.MediumVolume),
-                    new PublicMenuItemVariantDto("large", item.LargeName ?? "بزرگ", item.LargePrice, item.LargeSpecialOfferPrice, item.LargePrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.LargePrice.Value).discountedPrice : null, item.LargePrice.HasValue ? computeDiscount(item.Id, item.CategoryId, item.LargePrice.Value).percent : null, item.LargeVolume)
-                }.Where(variant => variant.Price.HasValue).ToArray(),
+                variants,
                 item.Tags,
                 item.Badge,
                 item.Featured,
@@ -431,7 +572,12 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 item.Short,
                 item.DisplayOrder,
                 OptionGroupsFor(item.Id),
-                ContentsFor(item.Id));
+                ContentsFor(item.Id),
+                item.IsBundle,
+                bundleRegularTotal,
+                bundleSavingsAmount,
+                bundleSavingsPercent,
+                bundleDtos);
             })
             .ToList();
 

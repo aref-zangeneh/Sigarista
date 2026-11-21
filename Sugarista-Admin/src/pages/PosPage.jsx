@@ -186,6 +186,10 @@ function ProductModal({ item, initialLine = null, modifiers, onClose, onConfirm 
         .map((modifier) => modifier.persianName),
       optionIds: selectedOptionIds,
       options: selectedOptionObjects,
+      isBundle: Boolean(item.isBundle && item.bundleItems?.length),
+      bundleItems: item.bundleItems ?? [],
+      bundleRegularTotal: item.bundleRegularTotal ?? null,
+      bundleSavingsAmount: item.bundleSavingsAmount ?? null,
       baristaNote,
     })
   }
@@ -208,6 +212,20 @@ function ProductModal({ item, initialLine = null, modifiers, onClose, onConfirm 
             ✕
           </button>
         </div>
+
+        {item.isBundle && item.bundleItems?.length ? (
+          <div className="pos-modal-section" style={{ background: 'rgba(170, 49, 113, 0.08)', padding: '0.75rem', borderRadius: '12px' }}>
+            <label>محتویات این باندل (قیمت واقعی جداگانه: {formatPrice(item.bundleRegularTotal)} ت)</label>
+            <ul style={{ margin: '0.4rem 0 0', paddingInlineStart: '1.1rem', fontSize: '0.86rem' }}>
+              {item.bundleItems.map((comp) => (
+                <li key={`${comp.menuItemId}-${comp.sizeKey ?? ''}`}>
+                  {toPersianNumber(comp.quantity)} × {comp.persianName}
+                  {comp.sizeLabel ? ` (${comp.sizeLabel})` : ''} — {formatPrice(comp.linePrice)} تومان
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {item.variants?.length ? (
           <div className="pos-modal-section">
@@ -574,6 +592,13 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
                     <div key={idx} className="pos-receipt-item">
                       <strong>{line.quantityLabel} × {line.name}</strong>
                       {line.sizeLabel ? <div className="pos-receipt-meta">اندازه: {line.sizeLabel}</div> : null}
+                      {line.bundleItems?.length ? (
+                        <div className="pos-receipt-meta">
+                          {line.bundleItems
+                            .map((comp) => `↳ ${toPersianNumber((comp.quantity || 1) * (line.quantity || 1))} × ${comp.persianName}${comp.sizeLabel ? ` (${comp.sizeLabel})` : ''}`)
+                            .join(' · ')}
+                        </div>
+                      ) : null}
                       {line.options?.length ? (
                         <div className="pos-receipt-meta">
                           {line.options.map((opt) => `✦ ${typeof opt === 'string' ? opt : opt.optionName}`).join('   ')}
@@ -1104,6 +1129,10 @@ export function PosPage() {
       modifierLabels: [],
       optionIds: defaultOptionIds,
       options: defaultOptionObjects,
+      isBundle: Boolean(item.isBundle && item.bundleItems?.length),
+      bundleItems: item.bundleItems ?? [],
+      bundleRegularTotal: item.bundleRegularTotal ?? null,
+      bundleSavingsAmount: item.bundleSavingsAmount ?? null,
       baristaNote: '',
     })
   }
@@ -1259,8 +1288,13 @@ export function PosPage() {
                         {toPersianNumber(inCartQty)}
                       </span>
                     ) : null}
-                    {item.variants?.length > 1 || hasOptionGroups ? (
+                    {item.isBundle || item.variants?.length > 1 || hasOptionGroups ? (
                       <div className="pos-product-tags">
+                        {item.isBundle ? (
+                          <span className="pos-product-option-tag" style={{ background: 'linear-gradient(135deg,#7c4a2d,#aa3171)', color: '#fff' }}>
+                            باندل{item.bundleSavingsPercent > 0 ? ` · ${toPersianNumber(item.bundleSavingsPercent)}٪-` : ''}
+                          </span>
+                        ) : null}
                         {item.variants?.length > 1 ? (
                           <span className="pos-product-variant-tag">
                             {toPersianNumber(item.variants.length)} سایز
@@ -1282,10 +1316,20 @@ export function PosPage() {
                     </div>
                     <div className="pos-product-body">
                       <h3>{item.persianName}</h3>
+                      {item.isBundle && item.bundleItems?.length ? (
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem', lineHeight: 1.4, display: 'block', marginBottom: '0.25rem' }}>
+                          {item.bundleItems.map((c) => `${toPersianNumber(c.quantity)}× ${c.persianName}`).join(' + ')}
+                        </small>
+                      ) : null}
                       <div className="pos-product-foot">
                         <p className="pos-product-price">
                           <strong>{formatPrice(resolveItemPrice(item, resolveDefaultSizeKey(item)))}</strong>
                           <small>تومان</small>
+                          {item.isBundle && Number(item.bundleRegularTotal) > resolveItemPrice(item, resolveDefaultSizeKey(item)) ? (
+                            <small style={{ textDecoration: 'line-through', opacity: 0.65, marginInlineStart: '0.35rem' }}>
+                              {formatPrice(item.bundleRegularTotal)}
+                            </small>
+                          ) : null}
                         </p>
                         <button
                           type="button"

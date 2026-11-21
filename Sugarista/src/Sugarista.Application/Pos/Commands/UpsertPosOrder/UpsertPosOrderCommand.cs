@@ -5,6 +5,7 @@ using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Discounts.Security;
 using Sugarista.Application.DrinkBuilder;
+using Sugarista.Application.MenuItems.Bundles;
 using Sugarista.Application.MenuItems.OptionGroups;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Commands.CreateOrderCheckout;
@@ -181,9 +182,9 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 splitBillMode,
                 request.GuestCount);
 
-            foreach (var (resolved, lineRequest, snapshot, optionSnapshot) in resolvedLines)
+            foreach (var (resolved, lineRequest, snapshot, optionSnapshot, bundleSnapshotJson) in resolvedLines)
             {
-                order.AddLine(CreateLine(order.Id, resolved, lineRequest, snapshot, optionSnapshot));
+                order.AddLine(CreateLine(order.Id, resolved, lineRequest, snapshot, optionSnapshot, bundleSnapshotJson));
             }
 
             if (isSplitBill && request.SplitShares is { Count: > 0 })
@@ -439,7 +440,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 
     private async Task ReplaceLinesAsync(
         Order order,
-        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot, MenuItemOptionSnapshot? optionSnapshot)> resolvedLines,
+        IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot, MenuItemOptionSnapshot? optionSnapshot, string? bundleSnapshotJson)> resolvedLines,
         CancellationToken cancellationToken)
     {
         foreach (var existingLine in order.Lines.ToList())
@@ -458,9 +459,9 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
 
         order.Lines.Clear();
 
-        foreach (var (resolved, lineRequest, snapshot, optionSnapshot) in resolvedLines)
+        foreach (var (resolved, lineRequest, snapshot, optionSnapshot, bundleSnapshotJson) in resolvedLines)
         {
-            var line = CreateLine(order.Id, resolved, lineRequest, snapshot, optionSnapshot);
+            var line = CreateLine(order.Id, resolved, lineRequest, snapshot, optionSnapshot, bundleSnapshotJson);
             order.AddLine(line);
             _dbContext.OrderLines.Add(line);
         }
@@ -471,7 +472,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         OrderPricing.ResolvedLine resolved,
         PosOrderLineRequest lineRequest,
         DrinkBuilderSnapshot? snapshot,
-        MenuItemOptionSnapshot? optionSnapshot) =>
+        MenuItemOptionSnapshot? optionSnapshot,
+        string? bundleSnapshotJson) =>
         new(
             orderId,
             resolved.MenuItemId,
@@ -489,9 +491,10 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             snapshot is null ? null : DrinkBuilderPricing.Serialize(snapshot),
             snapshot?.SummaryLabels,
             resolved.OptionLabels,
-            optionSnapshot is { Components.Count: > 0 } ? MenuItemOptionPricing.Serialize(optionSnapshot) : null);
+            optionSnapshot is { Components.Count: > 0 } ? MenuItemOptionPricing.Serialize(optionSnapshot) : null,
+            bundleSnapshotJson);
 
-    private async Task<IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot, MenuItemOptionSnapshot? optionSnapshot)>> ResolveLinesAsync(
+    private async Task<IReadOnlyCollection<(OrderPricing.ResolvedLine resolved, PosOrderLineRequest request, DrinkBuilderSnapshot? snapshot, MenuItemOptionSnapshot? optionSnapshot, string? bundleSnapshotJson)>> ResolveLinesAsync(
         IReadOnlyCollection<PosOrderLineRequest> items,
         CancellationToken cancellationToken)
     {
@@ -499,6 +502,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         var modifierIds = items.SelectMany(item => item.ModifierIds).Distinct().ToList();
 
         var menuItems = await _dbContext.MenuItems
+            .Include(item => item.BundleItems)
+            .ThenInclude(b => b.ComponentMenuItem)
             .Where(item => menuItemIds.Contains(item.Id) && item.IsActive)
             .ToListAsync(cancellationToken);
 
@@ -615,7 +620,23 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     };
                 }
 
-                return (resolved, item, snapshot, optionSnapshot);
+                string? bundleSnapshotJson = null;
+                if (menuItem.IsBundle)
+                {
+                    if (menuItem.BundleItems.Count == 0 ||
+                        menuItem.BundleItems.Any(b => b.ComponentMenuItem is null || !b.ComponentMenuItem.IsActive || !b.ComponentMenuItem.IsOrderable))
+                    {
+                        throw new DomainException($"برخی آیتم‌های زیرمجموعه باندل «{menuItem.PersianName}» در حال حاضر غیرفعال یا ناموجود هستند.");
+                    }
+
+                    var valuation = BundlePricingService.Evaluate(
+                        menuItem,
+                        menuItem.BundleItems.ToList(),
+                        overrideBundleSellingPrice: resolved.UnitPrice);
+                    bundleSnapshotJson = BundlePricingService.SerializeSnapshot(valuation);
+                }
+
+                return (resolved, item, snapshot, optionSnapshot, bundleSnapshotJson);
             })
             .ToArray();
     }

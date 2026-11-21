@@ -98,6 +98,12 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
         builder.Property(item => item.Tags)
             .HasColumnType("text[]");
 
+        builder.Property(item => item.IsBundle)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.HasIndex(item => item.IsBundle);
+
         builder.Property(item => item.Allergens)
             .HasColumnType("text[]");
     }

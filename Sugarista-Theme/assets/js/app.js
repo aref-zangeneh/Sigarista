@@ -1607,6 +1607,9 @@ document.addEventListener("alpine:init", () => {
     get featuredItems() {
       return this.items.filter((item) => item.featured);
     },
+    get bundleItemsList() {
+      return this.items.filter((item) => this.isBundleItem(item) && item.isOrderable);
+    },
     get hasFilters() {
       return Boolean(this.search) || this.selectedCategory !== "all";
     },
@@ -1633,6 +1636,7 @@ document.addEventListener("alpine:init", () => {
             item.categoryLabel,
             item.volume,
             item.allergens.join(" "),
+            ...(item.bundleItems || []).flatMap((b) => [b.persianName, b.englishName]),
             item.tags.join(" ")
           ].join(" ")
         );
@@ -3534,17 +3538,53 @@ document.addEventListener("alpine:init", () => {
       }
     },
     displayPrice(item) {
+      if (!item) return 0;
       const candidates = [item.specialOfferPrice, item.discountedPrice].filter((v) => v != null);
-      return candidates.length ? Math.min(...candidates) : item.price;
+      return candidates.length ? Math.min(...candidates) : (item.price || 0);
     },
     hasOffer(item) {
+      if (!item) return false;
       return (
         (item.specialOfferPrice && item.specialOfferPrice < item.price) ||
         (item.discountedPrice && item.discountedPrice < item.price)
       );
     },
     discountPercent(item) {
+      if (this.isBundleItem(item)) {
+        const pct = this.bundleSavingsPercent(item);
+        if (pct > 0) return pct;
+      }
       return item.discountPercent || null;
+    },
+    isBundleItem(item) {
+      return Boolean(item?.isBundle && Array.isArray(item?.bundleItems) && item.bundleItems.length > 0);
+    },
+    bundleRegularTotal(item) {
+      if (!this.isBundleItem(item)) return 0;
+      if (Number(item.bundleRegularTotal) > 0) {
+        return Number(item.bundleRegularTotal);
+      }
+      return item.bundleItems.reduce((sum, c) => sum + (Number(c.linePrice) || 0), 0);
+    },
+    bundleSavingsAmount(item) {
+      if (!this.isBundleItem(item)) return 0;
+      const regular = this.bundleRegularTotal(item);
+      const price = Number(this.displayPrice(item)) || 0;
+      return regular > price ? regular - price : 0;
+    },
+    bundleSavingsPercent(item) {
+      const regular = this.bundleRegularTotal(item);
+      const savings = this.bundleSavingsAmount(item);
+      if (regular <= 0 || savings <= 0) return 0;
+      return Math.round((savings / regular) * 100);
+    },
+    bundleHeadlineComparison(item) {
+      if (!this.isBundleItem(item)) return "";
+      const regular = this.bundleRegularTotal(item);
+      const price = this.displayPrice(item);
+      const savings = this.bundleSavingsAmount(item);
+      if (savings <= 0) return "";
+      return `به‌جای ${this.formatPriceCompact(regular)} تومان، فقط با ${this.formatPriceCompact(price)} تومان (${this.formatPriceCompact(savings)} تومان سود شما)`;
     },
     variantDisplayPrice(variant) {
       const candidates = [variant.specialOfferPrice, variant.discountedPrice].filter((v) => v != null);

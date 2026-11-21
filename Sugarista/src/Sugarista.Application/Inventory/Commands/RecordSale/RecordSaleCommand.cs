@@ -43,8 +43,73 @@ public class RecordSaleCommandHandler : IRequestHandler<RecordSaleCommand, Recor
     {
         var menuItem = await _dbContext.MenuItems
             .AsNoTracking()
+            .Include(m => m.BundleItems)
+            .ThenInclude(b => b.ComponentMenuItem)
             .FirstOrDefaultAsync(m => m.Id == request.MenuItemId, cancellationToken)
             ?? throw new KeyNotFoundException("Menu item was not found.");
+
+        if (menuItem.IsBundle && menuItem.BundleItems.Count > 0)
+        {
+            var allDeductions = new List<RecordSaleDeductionDto>();
+            var anyFromStock = false;
+
+            foreach (var comp in menuItem.BundleItems)
+            {
+                if (comp.ComponentMenuItem is null) continue;
+                var units = comp.Quantity * request.QuantitySold;
+                var deductedStock = await MenuItemStockService.TryDeductFinishedStockAsync(
+                    _dbContext,
+                    comp.ComponentMenuItemId,
+                    units,
+                    cancellationToken);
+
+                if (deductedStock)
+                {
+                    anyFromStock = true;
+                    continue;
+                }
+
+                var compDeductions = await RecipeInventoryService.DeductIngredientsForMenuItemAsync(
+                    _dbContext,
+                    comp.ComponentMenuItemId,
+                    $"{menuItem.PersianName} ({comp.ComponentMenuItem.PersianName})",
+                    units,
+                    Domain.Entities.StockMovementType.SaleDeduction,
+                    cancellationToken: cancellationToken);
+
+                allDeductions.AddRange(compDeductions.Select(d => new RecordSaleDeductionDto(
+                    d.IngredientPersianName,
+                    d.Unit,
+                    d.AmountDeducted,
+                    d.StockAfter,
+                    d.WentNegative)));
+            }
+
+            // Deduct any direct bundle packaging/recipe lines if present
+            var ownDeductions = await RecipeInventoryService.DeductIngredientsForMenuItemAsync(
+                _dbContext,
+                request.MenuItemId,
+                menuItem.PersianName,
+                request.QuantitySold,
+                Domain.Entities.StockMovementType.SaleDeduction,
+                cancellationToken: cancellationToken);
+
+            allDeductions.AddRange(ownDeductions.Select(d => new RecordSaleDeductionDto(
+                d.IngredientPersianName,
+                d.Unit,
+                d.AmountDeducted,
+                d.StockAfter,
+                d.WentNegative)));
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return new RecordSaleResultDto(
+                menuItem.PersianName,
+                request.QuantitySold,
+                anyFromStock,
+                null,
+                allDeductions);
+        }
 
         var hasRecipe = await _dbContext.RecipeItems
             .AnyAsync(r => r.MenuItemId == request.MenuItemId, cancellationToken);

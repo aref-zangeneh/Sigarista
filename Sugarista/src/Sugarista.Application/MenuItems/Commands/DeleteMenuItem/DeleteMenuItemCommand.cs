@@ -48,6 +48,18 @@ public class DeleteMenuItemCommandHandler : IRequestHandler<DeleteMenuItemComman
                 "این آیتم در دستورهای تولید سابقه دارد و حذف آن ممکن نیست؛ آیتم را غیرفعال کنید.");
         }
 
+        var parentBundleName = await _dbContext.MenuItemBundleItems
+            .AsNoTracking()
+            .Where(b => b.ComponentMenuItemId == item.Id)
+            .Select(b => b.BundleMenuItem.PersianName)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (parentBundleName is not null)
+        {
+            throw new DomainException(
+                $"این آیتم جزو محصول باندل «{parentBundleName}» است؛ ابتدا آن را از باندل حذف کنید یا آیتم را غیرفعال کنید.");
+        }
+
         _dbContext.MenuItems.Remove(item);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

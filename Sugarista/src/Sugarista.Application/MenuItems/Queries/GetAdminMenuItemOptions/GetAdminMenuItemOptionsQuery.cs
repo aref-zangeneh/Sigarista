@@ -1,10 +1,24 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.MenuItems.Bundles;
 
 namespace Sugarista.Application.MenuItems.Queries.GetAdminMenuItemOptions;
 
 public record GetAdminMenuItemOptionsQuery : IRequest<IReadOnlyCollection<AdminMenuItemOptionDto>>;
 
-public record AdminMenuItemOptionDto(Guid Id, string PersianName, string EnglishName, bool IsActive);
+public record AdminMenuItemOptionDto(
+    Guid Id,
+    string PersianName,
+    string EnglishName,
+    bool IsActive,
+    bool IsBundle = false,
+    decimal EffectivePrice = 0m,
+    decimal? SmallPrice = null,
+    string? SmallName = null,
+    decimal? MediumPrice = null,
+    string? MediumName = null,
+    decimal? LargePrice = null,
+    string? LargeName = null,
+    string? ImageUrl = null);
 
 public class GetAdminMenuItemOptionsQueryHandler : IRequestHandler<GetAdminMenuItemOptionsQuery, IReadOnlyCollection<AdminMenuItemOptionDto>>
 {
@@ -19,11 +33,27 @@ public class GetAdminMenuItemOptionsQueryHandler : IRequestHandler<GetAdminMenuI
         GetAdminMenuItemOptionsQuery request,
         CancellationToken cancellationToken)
     {
-        return await _dbContext.MenuItems
+        var items = await _dbContext.MenuItems
             .AsNoTracking()
             .OrderBy(item => item.DisplayOrder)
             .ThenBy(item => item.PersianName)
-            .Select(item => new AdminMenuItemOptionDto(item.Id, item.PersianName, item.EnglishName, item.IsActive))
             .ToListAsync(cancellationToken);
+
+        return items
+            .Select(item => new AdminMenuItemOptionDto(
+                item.Id,
+                item.PersianName,
+                item.EnglishName,
+                item.IsActive,
+                item.IsBundle,
+                BundlePricingService.ResolveEffectiveSellingPrice(item),
+                item.SmallPrice.HasValue ? (item.SmallSpecialOfferPrice ?? item.SmallPrice) : null,
+                item.SmallName ?? "کوچک",
+                item.MediumPrice.HasValue ? (item.MediumSpecialOfferPrice ?? item.MediumPrice) : null,
+                item.MediumName ?? "متوسط",
+                item.LargePrice.HasValue ? (item.LargeSpecialOfferPrice ?? item.LargePrice) : null,
+                item.LargeName ?? "بزرگ",
+                item.ImageUrl))
+            .ToList();
     }
 }

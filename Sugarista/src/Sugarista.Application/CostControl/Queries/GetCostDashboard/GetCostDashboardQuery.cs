@@ -114,12 +114,23 @@ public class GetCostDashboardQueryHandler : IRequestHandler<GetCostDashboardQuer
                 item.Featured,
                 item.TaxPercent,
                 item.PreparingDurationMinutes,
+                item.Price,
                 item.SpecialOfferPrice,
                 item.SmallPrice,
                 item.MediumPrice,
-                item.LargePrice
+                item.LargePrice,
+                item.IsBundle
             })
             .ToListAsync(cancellationToken);
+
+        var bundleComponents = await _dbContext.MenuItemBundleItems
+            .AsNoTracking()
+            .Select(b => new { b.BundleMenuItemId, b.ComponentMenuItemId, b.Quantity })
+            .ToListAsync(cancellationToken);
+
+        var bundleComponentsByBundle = bundleComponents
+            .GroupBy(b => b.BundleMenuItemId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var paidOrders = _dbContext.Orders
             .AsNoTracking()
@@ -149,10 +160,41 @@ public class GetCostDashboardQueryHandler : IRequestHandler<GetCostDashboardQuer
 
         var items = menuItems.Select(item =>
         {
-            recipeByItem.TryGetValue(item.Id, out var recipe);
+            IReadOnlyList<CostControlRecipeLineDto> effectiveRecipe;
+            if (item.IsBundle && bundleComponentsByBundle.TryGetValue(item.Id, out var comps) && comps.Count > 0)
+            {
+                var aggregated = new Dictionary<Guid, decimal>();
+                if (recipeByItem.TryGetValue(item.Id, out var ownLines))
+                {
+                    foreach (var line in ownLines)
+                    {
+                        aggregated[line.IngredientId] = aggregated.GetValueOrDefault(line.IngredientId) + line.Quantity;
+                    }
+                }
+
+                foreach (var comp in comps)
+                {
+                    if (recipeByItem.TryGetValue(comp.ComponentMenuItemId, out var compLines))
+                    {
+                        foreach (var line in compLines)
+                        {
+                            aggregated[line.IngredientId] = aggregated.GetValueOrDefault(line.IngredientId) + (line.Quantity * comp.Quantity);
+                        }
+                    }
+                }
+
+                effectiveRecipe = aggregated
+                    .Select(kvp => new CostControlRecipeLineDto(kvp.Key, kvp.Value, null))
+                    .ToList();
+            }
+            else
+            {
+                effectiveRecipe = recipeByItem.TryGetValue(item.Id, out var recipe) ? recipe : [];
+            }
+
             var last30sale = last30.TryGetValue(item.Id, out var recent) ? recent : null;
             var totalSale = totalSales.TryGetValue(item.Id, out var total) ? total : null;
-            var defaultPrice = item.MediumPrice ?? item.SmallPrice ?? item.LargePrice ?? item.SpecialOfferPrice ?? 0m;
+            var defaultPrice = item.MediumPrice ?? item.SmallPrice ?? item.LargePrice ?? item.SpecialOfferPrice ?? item.Price;
 
             return new CostControlMenuItemDto(
                 item.Id,
@@ -171,7 +213,7 @@ public class GetCostDashboardQueryHandler : IRequestHandler<GetCostDashboardQuer
                 item.SmallPrice,
                 item.MediumPrice,
                 item.LargePrice,
-                recipe ?? [],
+                effectiveRecipe,
                 last30sale?.Quantity ?? 0,
                 totalSale?.Quantity ?? 0,
                 spanDays > 0 ? Math.Round((totalSale?.Quantity ?? 0) / spanDays, 1) : 0,

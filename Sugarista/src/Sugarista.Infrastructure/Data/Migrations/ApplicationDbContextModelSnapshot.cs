@@ -2837,6 +2837,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsBundle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsOrderable")
                         .HasColumnType("boolean");
 
@@ -2936,7 +2941,44 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("IsBundle");
+
                     b.ToTable("MenuItems");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemBundleItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BundleMenuItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ComponentMenuItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<string>("SizeKey")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BundleMenuItemId");
+
+                    b.HasIndex("ComponentMenuItemId");
+
+                    b.ToTable("MenuItemBundleItems", (string)null);
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOption", b =>
@@ -3383,6 +3425,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<string>("BaristaNote")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<string>("BundleSnapshotJson")
+                        .HasColumnType("text");
 
                     b.PrimitiveCollection<string[]>("CustomDrinkSummary")
                         .IsRequired()
@@ -6177,6 +6222,25 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemBundleItem", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MenuItem", "BundleMenuItem")
+                        .WithMany("BundleItems")
+                        .HasForeignKey("BundleMenuItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sugarista.Domain.Entities.MenuItem", "ComponentMenuItem")
+                        .WithMany()
+                        .HasForeignKey("ComponentMenuItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BundleMenuItem");
+
+                    b.Navigation("ComponentMenuItem");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemOption", b =>
                 {
                     b.HasOne("Sugarista.Domain.Entities.MenuItemOptionGroup", "Group")
@@ -6676,6 +6740,8 @@ namespace Sugarista.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItem", b =>
                 {
+                    b.Navigation("BundleItems");
+
                     b.Navigation("RecipeItems");
                 });
 

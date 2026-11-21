@@ -1,5 +1,6 @@
 using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.Menu.Queries.GetPublicMenu;
+using Sugarista.Application.MenuItems.Bundles;
 
 namespace Sugarista.Application.Pos;
 
@@ -86,7 +87,8 @@ public record PosOrderLineDto(
     IReadOnlyCollection<string> CustomDrinkSummary,
     DrinkBuilderSnapshot? CustomDrink,
     IReadOnlyCollection<string>? OptionLabels = null,
-    IReadOnlyCollection<Guid>? OptionIds = null);
+    IReadOnlyCollection<Guid>? OptionIds = null,
+    OrderLineBundleSnapshot? Bundle = null);
 
 public record PosSplitShareDto(
     string PayerKey,

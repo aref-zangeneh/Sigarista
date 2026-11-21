@@ -4,6 +4,7 @@ import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
 import { DataTable, formatMoney } from '../components/DataTable'
 import { ImageUploader } from '../components/ImageUploader'
 import { MenuItemOptionGroupsPanel } from '../components/MenuItemOptionGroupsPanel'
+import { MenuItemBundlePanel } from '../components/MenuItemBundlePanel.jsx'
 import { Tip } from '../components/Tip'
 import { buildMenuItemPricingColumns } from '../components/adminTableColumns'
 import {
@@ -33,6 +34,8 @@ export function MenuItemsPage() {
     toPersianNumber,
     ingredientOptions,
     menuItemOptions,
+    bumpTableReload,
+    loadAdminData,
   } = useAdmin()
 
   const [pricingItems, setPricingItems] = useState([])
@@ -773,6 +776,23 @@ export function MenuItemsPage() {
             />
           )}
         </section>
+
+        <MenuItemBundlePanel
+          session={session}
+          apiRequest={apiRequest}
+          menuItemOptions={menuItemOptions}
+          getReadableError={getReadableError}
+          setMessage={setMessage}
+          setError={setError}
+          toPersianNumber={toPersianNumber}
+          formatMoney={formatMoney}
+          focusMenuItemId={menuItemForm.id ?? ''}
+          onBundleSaved={() => {
+            if (bumpTableReload) bumpTableReload()
+            if (loadAdminData) loadAdminData()
+            loadPricing()
+          }}
+        />
 
         <MenuItemOptionGroupsPanel
           session={session}

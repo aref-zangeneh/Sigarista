@@ -156,6 +156,12 @@ public class MenuItem : BaseAuditableEntity
     public bool IsActive { get; private set; } = true;
 
     /// <summary>
+    /// True when this menu item is a curated bundle/combo composed of one or more
+    /// standalone <see cref="MenuItemBundleItem"/> components sold together at a special bundle price.
+    /// </summary>
+    public bool IsBundle { get; private set; }
+
+    /// <summary>
     /// Profit margin percentage the manager wants applied on top of the computed
     /// ingredient/packaging cost when auto pricing runs. Null = no preference set.
     /// </summary>
@@ -164,6 +170,13 @@ public class MenuItem : BaseAuditableEntity
     public string? RecipeDescription { get; private set; }
 
     public ICollection<RecipeItem> RecipeItems { get; private set; } = [];
+
+    public ICollection<MenuItemBundleItem> BundleItems { get; private set; } = [];
+
+    public void SetIsBundle(bool isBundle)
+    {
+        IsBundle = isBundle;
+    }
 
     public void SetMarkupPercent(decimal? markupPercent)
     {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DrinkBuilder;
+using Sugarista.Application.MenuItems.Bundles;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Services;
 using Sugarista.Domain.Entities;
@@ -71,7 +72,8 @@ public record AdminOrderLineDto(
     decimal TaxPercent,
     IReadOnlyCollection<string> CustomDrinkSummary,
     DrinkBuilderSnapshot? CustomDrink,
-    IReadOnlyCollection<string> OptionLabels);
+    IReadOnlyCollection<string> OptionLabels,
+    OrderLineBundleSnapshot? Bundle = null);
 
 public record AdminOrderPaymentDto(
     Guid Id,
@@ -313,7 +315,8 @@ internal static class AdminOrderMapper
                     line.TaxPercent,
                     line.CustomDrinkSummary,
                     DrinkBuilderPricing.Deserialize(line.CustomizationJson),
-                    line.OptionLabels))
+                    line.OptionLabels,
+                    BundlePricingService.DeserializeSnapshot(line.BundleSnapshotJson)))
                 .ToArray(),
             order.Payments
                 .Select(payment => new AdminOrderPaymentDto(

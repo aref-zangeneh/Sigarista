@@ -68,6 +68,11 @@ export function buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, 
       cell: ({ row }) => (
         <>
           <strong>{row.original.persianName ?? row.original.name}</strong>
+          {row.original.isBundle ? (
+            <span className="menu-item-bundle-badge">
+              باندل ({(toPersianNumber ?? formatFaNumber)(row.original.bundleItemCount ?? 0)} قلم)
+            </span>
+          ) : null}
           <div className="table-subtext ltr-text">{row.original.englishName}</div>
           <div className="table-subtext">{joinTags(row.original.tags)}</div>
         </>
@@ -86,6 +91,11 @@ export function buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, 
       cell: ({ row }) => (
         <>
           {formatMoney(row.original.price)}
+          {row.original.isBundle && Number(row.original.bundleRegularTotal) > 0 ? (
+            <div className="table-subtext">
+              ارزش جداگانه: {formatMoney(row.original.bundleRegularTotal)}
+            </div>
+          ) : null}
           {row.original.specialOfferPrice ? (
             <div className="table-subtext">پیشنهاد: {formatMoney(row.original.specialOfferPrice)}</div>
           ) : null}
@@ -146,6 +156,11 @@ export function buildAddonColumns({ joinTags, setAddonForm, emptyAddonForm, bump
       cell: ({ row }) => (
         <>
           {formatMoney(row.original.price)}
+          {row.original.isBundle && Number(row.original.bundleRegularTotal) > 0 ? (
+            <div className="table-subtext">
+              ارزش جداگانه: {formatMoney(row.original.bundleRegularTotal)}
+            </div>
+          ) : null}
           {row.original.specialOfferPrice ? (
             <div className="table-subtext">پیشنهاد: {formatMoney(row.original.specialOfferPrice)}</div>
           ) : null}

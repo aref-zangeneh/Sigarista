@@ -59,6 +59,12 @@ docker compose build
 say "Applying changes"
 docker compose up -d --remove-orphans
 
+# proxy bind-mounts deploy/nginx/default.conf on the standard nginx image, so
+# `docker compose up -d` does not restart it when default.conf changes.
+say "Reloading proxy configuration"
+docker compose exec -T proxy nginx -t
+docker compose exec -T proxy nginx -s reload
+
 # ── 4. health check ────────────────────────────────────────────────────────
 say "Waiting for API health"
 healthy=0
@@ -84,10 +90,13 @@ say "Smoke test"
 code_health="$(curl -sL -o /dev/null -w '%{http_code}' http://127.0.0.1/health)"
 code_admin="$(curl -sL -o /dev/null -w '%{http_code}' http://127.0.0.1/admin/)"
 code_theme="$(curl -sL -o /dev/null -w '%{http_code}' http://127.0.0.1/)"
-printf '  /health  -> %s\n  /admin/  -> %s\n  /        -> %s\n' "$code_health" "$code_admin" "$code_theme"
+code_mag="$(curl -sL -o /dev/null -w '%{http_code}' http://127.0.0.1/mag)"
+ctype_sitemap="$(curl -sL -o /dev/null -w '%{http_code}:%{content_type}' http://127.0.0.1/sitemap.xml)"
+printf '  /health      -> %s\n  /admin/      -> %s\n  /            -> %s\n  /mag         -> %s\n  /sitemap.xml -> %s\n' \
+    "$code_health" "$code_admin" "$code_theme" "$code_mag" "$ctype_sitemap"
 
-[ "$code_health" = "200" ] && [ "$code_admin" = "200" ] && [ "$code_theme" = "200" ] \
-    || die "One of the endpoints did not return 200. Check: docker compose logs --tail=100"
+[ "$code_health" = "200" ] && [ "$code_admin" = "200" ] && [ "$code_theme" = "200" ] && [ "$code_mag" = "200" ] && [[ "$ctype_sitemap" == 200:*xml* ]] \
+    || die "One of the endpoints failed the smoke test. Check: docker compose logs --tail=100"
 
 say "Deployed $REV successfully."
 printf '\nRollback code:   git checkout <previous-commit> && SKIP_PULL=1 ./scripts/deploy.sh\n'

@@ -100,10 +100,13 @@ say "Smoke test"
 code_health="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/health)"
 code_admin="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/admin/)"
 code_theme="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/)"
-printf '  /health  -> %s\n  /admin/  -> %s\n  /        -> %s\n' "$code_health" "$code_admin" "$code_theme"
+code_mag="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/mag)"
+ctype_sitemap="$(curl -s -o /dev/null -w '%{http_code}:%{content_type}' http://127.0.0.1/sitemap.xml)"
+printf '  /health      -> %s\n  /admin/      -> %s\n  /            -> %s\n  /mag         -> %s\n  /sitemap.xml -> %s\n' \
+    "$code_health" "$code_admin" "$code_theme" "$code_mag" "$ctype_sitemap"
 
-[ "$code_health" = "200" ] && [ "$code_admin" = "200" ] && [ "$code_theme" = "200" ] \
-    || die "One of the endpoints did not return 200. Check: docker compose -f $COMPOSE_FILE logs --tail=100"
+[ "$code_health" = "200" ] && [ "$code_admin" = "200" ] && [ "$code_theme" = "200" ] && [ "$code_mag" = "200" ] && [[ "$ctype_sitemap" == 200:*xml* ]] \
+    || die "One of the endpoints failed the smoke test. Check: docker compose -f $COMPOSE_FILE logs --tail=100"
 
 say "Deployed image tag $TAG successfully."
 compose images

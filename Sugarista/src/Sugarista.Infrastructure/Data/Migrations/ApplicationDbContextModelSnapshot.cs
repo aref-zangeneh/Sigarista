@@ -4537,6 +4537,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<bool>("IsBlogEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<bool>("IsOnlineSalesEnabled")
                         .HasColumnType("boolean");
 

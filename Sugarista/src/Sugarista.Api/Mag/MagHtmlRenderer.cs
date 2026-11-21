@@ -615,33 +615,37 @@ public static class MagHtmlRenderer
     public static string RenderSitemapXml(
         string baseUrl,
         IReadOnlyList<(string Slug, DateTimeOffset LastMod)> categories,
-        IReadOnlyList<(string Slug, DateTimeOffset LastMod, string? CoverImageUrl, string Title)> posts)
+        IReadOnlyList<(string Slug, DateTimeOffset LastMod, string? CoverImageUrl, string Title)> posts,
+        bool includeBlog = true)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         sb.AppendLine("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\">");
 
-        var latestMod = posts.Count > 0 ? posts.Max(p => p.LastMod) : DateTimeOffset.UtcNow;
-
         sb.AppendLine($"  <url><loc>{Enc(baseUrl)}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>");
-        sb.AppendLine($"  <url><loc>{Enc(baseUrl)}/mag</loc><lastmod>{latestMod:yyyy-MM-dd}</lastmod><changefreq>daily</changefreq><priority>0.95</priority></url>");
 
-        foreach (var cat in categories)
+        if (includeBlog)
         {
-            var loc = $"{baseUrl}/mag/category/{Uri.EscapeDataString(cat.Slug)}";
-            sb.AppendLine($"  <url><loc>{Enc(loc)}</loc><lastmod>{cat.LastMod:yyyy-MM-dd}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>");
-        }
+            var latestMod = posts.Count > 0 ? posts.Max(p => p.LastMod) : DateTimeOffset.UtcNow;
+            sb.AppendLine($"  <url><loc>{Enc(baseUrl)}/mag</loc><lastmod>{latestMod:yyyy-MM-dd}</lastmod><changefreq>daily</changefreq><priority>0.95</priority></url>");
 
-        foreach (var post in posts)
-        {
-            var loc = $"{baseUrl}/mag/{Uri.EscapeDataString(post.Slug)}";
-            sb.Append($"  <url><loc>{Enc(loc)}</loc><lastmod>{post.LastMod:yyyy-MM-dd}</lastmod><changefreq>weekly</changefreq><priority>0.9</priority>");
-            var img = ResolveAbsoluteUrl(baseUrl, post.CoverImageUrl);
-            if (img is not null)
+            foreach (var cat in categories)
             {
-                sb.Append($"<image:image><image:loc>{Enc(img)}</image:loc><image:title>{Enc(post.Title)}</image:title></image:image>");
+                var loc = $"{baseUrl}/mag/category/{Uri.EscapeDataString(cat.Slug)}";
+                sb.AppendLine($"  <url><loc>{Enc(loc)}</loc><lastmod>{cat.LastMod:yyyy-MM-dd}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>");
             }
-            sb.AppendLine("</url>");
+
+            foreach (var post in posts)
+            {
+                var loc = $"{baseUrl}/mag/{Uri.EscapeDataString(post.Slug)}";
+                sb.Append($"  <url><loc>{Enc(loc)}</loc><lastmod>{post.LastMod:yyyy-MM-dd}</lastmod><changefreq>weekly</changefreq><priority>0.9</priority>");
+                var img = ResolveAbsoluteUrl(baseUrl, post.CoverImageUrl);
+                if (img is not null)
+                {
+                    sb.Append($"<image:image><image:loc>{Enc(img)}</image:loc><image:title>{Enc(post.Title)}</image:title></image:image>");
+                }
+                sb.AppendLine("</url>");
+            }
         }
 
         sb.AppendLine("</urlset>");
@@ -682,8 +686,10 @@ public static class MagHtmlRenderer
         return sb.ToString();
     }
 
-    public static string RenderRobotsTxt(string baseUrl) =>
-        $"User-agent: *\nAllow: /\nAllow: /mag\nDisallow: /admin/\nDisallow: /api/\nDisallow: /db-admin/\n\nSitemap: {baseUrl}/sitemap.xml\n";
+    public static string RenderRobotsTxt(string baseUrl, bool includeBlog = true) =>
+        includeBlog
+            ? $"User-agent: *\nAllow: /\nAllow: /mag\nDisallow: /admin/\nDisallow: /api/\nDisallow: /db-admin/\n\nSitemap: {baseUrl}/sitemap.xml\n"
+            : $"User-agent: *\nAllow: /\nDisallow: /mag\nDisallow: /admin/\nDisallow: /api/\nDisallow: /db-admin/\n\nSitemap: {baseUrl}/sitemap.xml\n";
 
     // ── Private Helpers ─────────────────────────────────────────────────────
 

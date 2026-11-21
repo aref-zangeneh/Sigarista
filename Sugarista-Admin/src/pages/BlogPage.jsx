@@ -69,9 +69,11 @@ function toDatetimeLocal(value) {
 }
 
 export function BlogPage() {
-  const { session, menuItemOptions, setError, setMessage } = useAdmin()
+  const { session, menuItemOptions, setSiteSettings, setError, setMessage } = useAdmin()
   const [activeTab, setActiveTab] = useState('posts')
   const [summary, setSummary] = useState(null)
+  const [isBlogEnabled, setIsBlogEnabled] = useState(true)
+  const [visibilitySaving, setVisibilitySaving] = useState(false)
   const [categories, setCategories] = useState([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [postsReloadToken, setPostsReloadToken] = useState(0)
@@ -97,6 +99,38 @@ export function BlogPage() {
   const canCreate = hasPermission(session, PERMISSIONS.blog.create)
   const canUpdate = hasPermission(session, PERMISSIONS.blog.update)
   const canDelete = hasPermission(session, PERMISSIONS.blog.delete)
+  const canToggleVisibility =
+    canUpdate || hasPermission(session, PERMISSIONS['site-settings']?.update)
+
+  const handleToggleBlogVisibility = async () => {
+    if (!session?.token || !canToggleVisibility) return
+    const nextEnabled = !isBlogEnabled
+    setVisibilitySaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await apiRequest('/admin/blog/visibility', {
+        method: 'PATCH',
+        body: { isBlogEnabled: nextEnabled },
+        token: session.token,
+      })
+      const persisted = Boolean(result?.isBlogEnabled)
+      setIsBlogEnabled(persisted)
+      setSummary((prev) => (prev ? { ...prev, isBlogEnabled: persisted } : prev))
+      if (setSiteSettings) {
+        setSiteSettings((current) => ({ ...current, isBlogEnabled: persisted }))
+      }
+      setMessage(
+        persisted
+          ? 'مجله قهوه (/mag) فعال شد؛ تمام صفحات، لینک‌های منو، فید RSS و نقشه سایت گوگل دوباره در دسترس هستند.'
+          : 'مجله قهوه (/mag) غیرفعال شد؛ تمامی صفحات /mag و لینک‌های آن از سایت، منو و نقشه سایت حذف شدند.',
+      )
+    } catch (err) {
+      setError(getReadableError(err))
+    } finally {
+      setVisibilitySaving(false)
+    }
+  }
 
   const loadMetadata = useCallback(async () => {
     if (!session?.token) return
@@ -107,7 +141,12 @@ export function BlogPage() {
         apiRequest('/admin/blog/summary', { token: session.token }).catch(() => null),
       ])
       setCategories(Array.isArray(cats) ? cats : [])
-      if (stats) setSummary(stats)
+      if (stats) {
+        setSummary(stats)
+        if (typeof stats.isBlogEnabled === 'boolean') {
+          setIsBlogEnabled(stats.isBlogEnabled)
+        }
+      }
     } catch (err) {
       setError(getReadableError(err))
     } finally {
@@ -625,21 +664,59 @@ export function BlogPage() {
             </p>
           </div>
           <div className="blog-hero-actions">
-            <a className="blog-link-btn" href="/mag" target="_blank" rel="noreferrer">
-              مشاهده مجله (/mag)
-            </a>
-            <a className="blog-link-btn" href="/sitemap.xml" target="_blank" rel="noreferrer">
-              Sitemap XML
-            </a>
-            <a className="blog-link-btn" href="/mag/feed.xml" target="_blank" rel="noreferrer">
-              فید RSS
-            </a>
+            {isBlogEnabled ? (
+              <>
+                <a className="blog-link-btn" href="/mag" target="_blank" rel="noreferrer">
+                  مشاهده مجله (/mag)
+                </a>
+                <a className="blog-link-btn" href="/sitemap.xml" target="_blank" rel="noreferrer">
+                  Sitemap XML
+                </a>
+                <a className="blog-link-btn" href="/mag/feed.xml" target="_blank" rel="noreferrer">
+                  فید RSS
+                </a>
+              </>
+            ) : null}
             {activeTab === 'posts' && canCreate ? (
               <button type="button" className="blog-primary-btn" onClick={openNewPost}>
                 + مقاله جدید
               </button>
             ) : null}
           </div>
+        </div>
+
+        <div className={`blog-visibility-banner ${isBlogEnabled ? '' : 'is-disabled'}`}>
+          <div className="blog-visibility-info">
+            <span className={`blog-badge ${isBlogEnabled ? 'blog-badge--published' : 'blog-badge--scheduled'}`}>
+              {isBlogEnabled ? 'فعال روی سایت' : 'غیرفعال و مخفی'}
+            </span>
+            <div>
+              <strong>
+                {isBlogEnabled
+                  ? 'مجله قهوه (/mag) برای بازدیدکنندگان و گوگل فعال است'
+                  : 'مجله قهوه (/mag) به‌طور کامل غیرفعال و از کل سایت محو شده است'}
+              </strong>
+              <small>
+                {isBlogEnabled
+                  ? 'لینک‌های مجله در منو، صفحات /mag، فید RSS و نقشه سایت (/sitemap.xml) همگی فعال‌اند.'
+                  : 'مسیر /mag و زیرصفحه‌ها 404 برمی‌گردانند، لینک‌های مجله از منو حذف شده‌اند و در نقشه سایت رندر نمی‌شوند. همچنان می‌توانید مقالات را اینجا آماده کنید.'}
+              </small>
+            </div>
+          </div>
+          {canToggleVisibility ? (
+            <button
+              type="button"
+              className={isBlogEnabled ? 'blog-danger-ghost-btn' : 'blog-enable-btn'}
+              disabled={visibilitySaving}
+              onClick={handleToggleBlogVisibility}
+            >
+              {visibilitySaving
+                ? 'در حال اعمال...'
+                : isBlogEnabled
+                  ? 'غیرفعال کردن مجله (/mag)'
+                  : 'فعال کردن مجله (/mag)'}
+            </button>
+          ) : null}
         </div>
       </section>
 

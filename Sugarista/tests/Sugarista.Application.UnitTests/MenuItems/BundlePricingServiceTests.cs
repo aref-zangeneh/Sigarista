@@ -158,8 +158,8 @@ public class BundlePricingServiceTests
 
         var valuation = BundlePricingService.Evaluate(bundle, new[]
         {
-            CreateBundleLine(bundle, americano, qty: 1),
-            CreateBundleLine(bundle, cheesecake, qty: 1),
+            CreateBundleLine(bundle, americano, qty: 1, order: 0),
+            CreateBundleLine(bundle, cheesecake, qty: 1, order: 1),
         });
 
         Assert.False(valuation.AllComponentsAvailable);
@@ -186,8 +186,8 @@ public class BundlePricingServiceTests
 
         var valuation = BundlePricingService.Evaluate(bundle, new[]
         {
-            CreateBundleLine(bundle, americano, qty: 1),
-            CreateBundleLine(bundle, cheesecake, qty: 1),
+            CreateBundleLine(bundle, americano, qty: 1, order: 0),
+            CreateBundleLine(bundle, cheesecake, qty: 1, order: 1),
         });
 
         // Total COGS = 40,000 + 90,000 + 15,000 = 145,000

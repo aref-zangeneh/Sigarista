@@ -88,4 +88,17 @@ public class BlogTests
         Assert.Equal(120, post.ReadingTimeMinutes);
         Assert.NotNull(post.PublishedAt);
     }
+
+    [Fact]
+    public void SiteSettings_IsBlogEnabled_DefaultsToTrueAndCanBeToggled()
+    {
+        var settings = new SiteSettings();
+        Assert.True(settings.IsBlogEnabled);
+
+        settings.IsBlogEnabled = false;
+        Assert.False(settings.IsBlogEnabled);
+
+        settings.IsBlogEnabled = true;
+        Assert.True(settings.IsBlogEnabled);
+    }
 }

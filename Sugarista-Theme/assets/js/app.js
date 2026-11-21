@@ -275,6 +275,7 @@ document.addEventListener("alpine:init", () => {
       footerCallLabel: "تماس",
       isOnlineSalesEnabled: true,
       isOnlineOrderingAvailable: true,
+      isBlogEnabled: false,
       onlineSalesNotice: "",
       themeMode: "auto",
       timeZoneId: "Asia/Tehran",
@@ -343,6 +344,7 @@ document.addEventListener("alpine:init", () => {
         // then renders no customisation controls at all.
         this.drinkBuilders = menuData.drinkBuilders || [];
         this.settings = { ...this.settings, ...settingsData };
+        this.syncBlogRssLink();
         this.syncMenuTooltips();
         this.applyPageMetadata();
         this.setupTheme();
@@ -3555,6 +3557,21 @@ document.addEventListener("alpine:init", () => {
         if (pct > 0) return pct;
       }
       return item.discountPercent || null;
+    },
+    syncBlogRssLink() {
+      const existing = document.querySelector('link[rel="alternate"][type="application/rss+xml"][href="/mag/feed.xml"]');
+      if (this.settings.isBlogEnabled === true) {
+        if (!existing) {
+          const link = document.createElement("link");
+          link.rel = "alternate";
+          link.type = "application/rss+xml";
+          link.title = `مجله قهوه ${this.settings.cafeName || "شوگریستا"}`;
+          link.href = "/mag/feed.xml";
+          document.head.appendChild(link);
+        }
+      } else if (existing) {
+        existing.remove();
+      }
     },
     isBundleItem(item) {
       return Boolean(item?.isBundle && Array.isArray(item?.bundleItems) && item.bundleItems.length > 0);

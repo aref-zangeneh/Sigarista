@@ -135,6 +135,7 @@ public record SiteSettingsDto
     public string AbandonedCartEmailTemplate { get; init; } = string.Empty;
     public bool OrderAlertSoundEnabled { get; init; } = true;
     public int OrderAlertSoundIntervalSeconds { get; init; } = 10;
+    public bool IsBlogEnabled { get; init; } = true;
     public IReadOnlyDictionary<string, string> MenuTooltips { get; init; } = new Dictionary<string, string>();
 }
 
@@ -274,7 +275,8 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 AbandonedCartEmailSubject = settings.AbandonedCartEmailSubject,
                 AbandonedCartEmailTemplate = settings.AbandonedCartEmailTemplate,
                 OrderAlertSoundEnabled = settings.OrderAlertSoundEnabled,
-                OrderAlertSoundIntervalSeconds = settings.OrderAlertSoundIntervalSeconds
+                OrderAlertSoundIntervalSeconds = settings.OrderAlertSoundIntervalSeconds,
+                IsBlogEnabled = settings.IsBlogEnabled
             })
             .FirstOrDefaultAsync(cancellationToken);
 

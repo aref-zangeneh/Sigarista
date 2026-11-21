@@ -379,6 +379,58 @@ export function SiteSettingsPage() {
 
       <form className="settings-form" onSubmit={handleSettingsSubmit}>
         {/* ---------- صدای اعلان سفارش ---------- */}
+        <section id="settings-blog-visibility" className="panel settings-section">
+          <div className="panel-head">
+            <div className="settings-section-head">
+              <span className="settings-section-badge">
+                <SectionIcon name="globe" />
+              </span>
+              <div>
+                <h2>
+                  مجله قهوه و بلاگ (/mag)
+                  <span
+                    className={`settings-pill ${
+                      siteSettings.isBlogEnabled !== false ? 'is-on' : 'is-off'
+                    }`}
+                  >
+                    {siteSettings.isBlogEnabled !== false ? 'فعال' : 'غیرفعال'}
+                  </span>
+                </h2>
+                <p>
+                  {siteSettings.isBlogEnabled !== false
+                    ? 'صفحات /mag، لینک‌های مجله در منو و نقشه سایت گوگل فعال هستند.'
+                    : 'مجله به‌طور کامل از سایت، منوی مشتری، فید RSS و نقشه سایت حذف شده است.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-sales-body">
+            <label className="settings-switch-row">
+              <div className="settings-switch-text">
+                <strong>نمایش و فعال بودن بخش مجله (/mag) روی سایت</strong>
+                <p>
+                  با غیرفعال کردن این گزینه، مسیر /mag و همه زیرمسیرهای آن رندر نمی‌شوند (404) و
+                  لینک‌های آن از هدر، فوتر، RSS و sitemap.xml کاملاً حذف می‌شوند.
+                </p>
+              </div>
+              <span
+                className={`switch ${siteSettings.isBlogEnabled !== false ? 'switch-on' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={siteSettings.isBlogEnabled !== false}
+                  onChange={(event) => updateField('isBlogEnabled', event.target.checked)}
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+          </div>
+        </section>
+
+        {/* ---------- صدای اعلان سفارش ---------- */}
         <section id="settings-order-alert-sound" className="panel settings-section">
           <div className="panel-head">
             <div className="settings-section-head">

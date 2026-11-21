@@ -172,6 +172,8 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     public bool OrderAlertSoundEnabled { get; init; } = true;
 
     public int OrderAlertSoundIntervalSeconds { get; init; } = 10;
+
+    public bool IsBlogEnabled { get; init; } = true;
 }
 
 public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSettingsCommand>
@@ -403,6 +405,7 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.AbandonedCartEmailTemplate = request.AbandonedCartEmailTemplate.Trim();
         settings.OrderAlertSoundEnabled = request.OrderAlertSoundEnabled;
         settings.OrderAlertSoundIntervalSeconds = request.OrderAlertSoundIntervalSeconds;
+        settings.IsBlogEnabled = request.IsBlogEnabled;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

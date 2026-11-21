@@ -105,7 +105,7 @@ ctype_sitemap="$(curl -s -o /dev/null -w '%{http_code}:%{content_type}' http://1
 printf '  /health      -> %s\n  /admin/      -> %s\n  /            -> %s\n  /mag         -> %s\n  /sitemap.xml -> %s\n' \
     "$code_health" "$code_admin" "$code_theme" "$code_mag" "$ctype_sitemap"
 
-[ "$code_health" = "200" ] && [ "$code_admin" = "200" ] && [ "$code_theme" = "200" ] && [ "$code_mag" = "200" ] && [[ "$ctype_sitemap" == 200:*xml* ]] \
+[ "$code_health" = "200" ] && [ "$code_admin" = "200" ] && [ "$code_theme" = "200" ] && ([ "$code_mag" = "200" ] || [ "$code_mag" = "404" ]) && [[ "$ctype_sitemap" == 200:*xml* ]] \
     || die "One of the endpoints failed the smoke test. Check: docker compose -f $COMPOSE_FILE logs --tail=100"
 
 say "Deployed image tag $TAG successfully."

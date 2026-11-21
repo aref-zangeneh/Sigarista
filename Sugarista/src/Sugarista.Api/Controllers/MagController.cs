@@ -49,6 +49,11 @@ public class MagController : ControllerBase
     [HttpHead("/mag/{slug}")]
     public async Task<IActionResult> Article(string slug, CancellationToken cancellationToken = default)
     {
+        if (!await IsBlogEnabledAsync(cancellationToken))
+        {
+            return BlogDisabledNotFound();
+        }
+
         var normalizedSlug = BlogCategory.NormalizeSlug(Uri.UnescapeDataString(slug));
         var now = DateTimeOffset.UtcNow;
 
@@ -138,6 +143,11 @@ public class MagController : ControllerBase
     [HttpHead("/mag/feed.xml")]
     public async Task<IActionResult> RssFeed(CancellationToken cancellationToken = default)
     {
+        if (!await IsBlogEnabledAsync(cancellationToken))
+        {
+            return BlogDisabledNotFound();
+        }
+
         var now = DateTimeOffset.UtcNow;
         var site = await LoadSiteContextAsync(now, cancellationToken);
         var posts = await _dbContext.BlogPosts
@@ -161,6 +171,13 @@ public class MagController : ControllerBase
     {
         var now = DateTimeOffset.UtcNow;
         var baseUrl = ResolvePublicBaseUrl();
+        var blogEnabled = await IsBlogEnabledAsync(cancellationToken);
+
+        if (!blogEnabled)
+        {
+            var minimalXml = MagHtmlRenderer.RenderSitemapXml(baseUrl, [], [], includeBlog: false);
+            return CachedContent(minimalXml, "application/xml; charset=utf-8", maxAgeSeconds: 60);
+        }
 
         var categories = await _dbContext.BlogCategories
             .AsNoTracking()
@@ -187,20 +204,36 @@ public class MagController : ControllerBase
         var xml = MagHtmlRenderer.RenderSitemapXml(
             baseUrl,
             categories.Select(c => (c.Slug, c.LastMod)).ToList(),
-            posts.Select(p => (p.Slug, p.LastMod, p.CoverImageUrl, p.Title)).ToList());
+            posts.Select(p => (p.Slug, p.LastMod, p.CoverImageUrl, p.Title)).ToList(),
+            includeBlog: true);
 
         return CachedContent(xml, "application/xml; charset=utf-8", maxAgeSeconds: 300);
     }
 
     [HttpGet("/robots.txt")]
     [HttpHead("/robots.txt")]
-    public IActionResult Robots()
+    public async Task<IActionResult> Robots(CancellationToken cancellationToken = default)
     {
-        var txt = MagHtmlRenderer.RenderRobotsTxt(ResolvePublicBaseUrl());
-        return CachedContent(txt, "text/plain; charset=utf-8", maxAgeSeconds: 3600);
+        var blogEnabled = await IsBlogEnabledAsync(cancellationToken);
+        var txt = MagHtmlRenderer.RenderRobotsTxt(ResolvePublicBaseUrl(), includeBlog: blogEnabled);
+        return CachedContent(txt, "text/plain; charset=utf-8", maxAgeSeconds: 60);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private async Task<bool> IsBlogEnabledAsync(CancellationToken cancellationToken)
+    {
+        return await _dbContext.SiteSettings
+            .AsNoTracking()
+            .Select(s => (bool?)s.IsBlogEnabled)
+            .FirstOrDefaultAsync(cancellationToken) ?? true;
+    }
+
+    private IActionResult BlogDisabledNotFound()
+    {
+        Response.Headers.CacheControl = "no-store";
+        return NotFound();
+    }
 
     private async Task<IActionResult> RenderArchiveAsync(
         string? categorySlug,
@@ -209,6 +242,11 @@ public class MagController : ControllerBase
         int page,
         CancellationToken cancellationToken)
     {
+        if (!await IsBlogEnabledAsync(cancellationToken))
+        {
+            return BlogDisabledNotFound();
+        }
+
         var safePage = Math.Max(1, page);
         var now = DateTimeOffset.UtcNow;
         var site = await LoadSiteContextAsync(now, cancellationToken);

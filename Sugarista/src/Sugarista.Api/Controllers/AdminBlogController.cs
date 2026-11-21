@@ -36,6 +36,10 @@ public class AdminBlogController : ApiControllerBase
         var scheduledPosts = await _dbContext.BlogPosts.CountAsync(p => p.Status == BlogPostStatus.Scheduled, cancellationToken);
         var totalViews = await _dbContext.BlogPosts.SumAsync(p => (long?)p.ViewCount, cancellationToken) ?? 0L;
         var totalCategories = await _dbContext.BlogCategories.CountAsync(cancellationToken);
+        var isBlogEnabled = await _dbContext.SiteSettings
+            .AsNoTracking()
+            .Select(s => (bool?)s.IsBlogEnabled)
+            .FirstOrDefaultAsync(cancellationToken) ?? true;
 
         return Ok(new AdminBlogSummaryDto(
             totalPosts,
@@ -43,7 +47,26 @@ public class AdminBlogController : ApiControllerBase
             draftPosts,
             scheduledPosts,
             totalViews,
-            totalCategories));
+            totalCategories,
+            isBlogEnabled));
+    }
+
+    [HttpPatch("visibility")]
+    [RequireAnyPermission(AdminPermissions.Blog.Update, AdminPermissions.SiteSettings.Update)]
+    public async Task<ActionResult<BlogVisibilityDto>> SetVisibility(
+        [FromBody] UpdateBlogVisibilityRequest request,
+        CancellationToken cancellationToken)
+    {
+        var settings = await _dbContext.SiteSettings.FirstOrDefaultAsync(cancellationToken);
+        if (settings is null)
+        {
+            return NotFound(new { detail = "تنظیمات سایت یافت نشد." });
+        }
+
+        settings.IsBlogEnabled = request.IsBlogEnabled;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(new BlogVisibilityDto(settings.IsBlogEnabled));
     }
 
     // ── Categories ──────────────────────────────────────────────────────────
@@ -439,7 +462,12 @@ public record AdminBlogSummaryDto(
     int DraftPosts,
     int ScheduledPosts,
     long TotalViews,
-    int TotalCategories);
+    int TotalCategories,
+    bool IsBlogEnabled = true);
+
+public record UpdateBlogVisibilityRequest(bool IsBlogEnabled);
+
+public record BlogVisibilityDto(bool IsBlogEnabled);
 
 public record UpsertBlogCategoryRequest(
     string Name,

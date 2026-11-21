@@ -392,4 +392,7 @@ public class SiteSettings : BaseAuditableEntity
     /// 3–300 = repeat every N seconds.
     /// </summary>
     public int OrderAlertSoundIntervalSeconds { get; set; } = 10;
+
+    /// <summary>Master switch for the public coffee magazine (/mag). When false, /mag returns 404 and all links/sitemap entries are hidden.</summary>
+    public bool IsBlogEnabled { get; set; } = true;
 }

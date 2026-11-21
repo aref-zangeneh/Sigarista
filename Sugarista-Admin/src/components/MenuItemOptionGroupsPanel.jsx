@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { NumberStepperInput } from './NumberStepperInput.jsx'
+import { applyOptionGroupRuleChange } from '../utils/optionGroupRules'
 
 let uidCounter = 0
 const nextUid = () => `opt-${Date.now()}-${uidCounter++}`
@@ -220,7 +222,9 @@ export function MenuItemOptionGroupsPanel({
   const updateGroup = (groupUid, patch) => {
     markDirty()
     setGroups((current) =>
-      current.map((group) => (group.uid === groupUid ? { ...group, ...patch } : group)),
+      current.map((group) =>
+        group.uid === groupUid ? applyOptionGroupRuleChange(group, patch) : group,
+      ),
     )
   }
 
@@ -848,25 +852,23 @@ export function MenuItemOptionGroupsPanel({
                 </label>
                 <label>
                   <span>حداقل انتخاب</span>
-                  <input
-                    className="ltr-input"
-                    type="number"
-                    min="0"
+                  <NumberStepperInput
+                    min={0}
                     value={group.minSelections}
-                    onChange={(event) =>
-                      updateGroup(group.uid, { minSelections: event.target.value })
+                    ariaLabel="حداقل انتخاب"
+                    onChange={(nextValue) =>
+                      updateGroup(group.uid, { minSelections: nextValue })
                     }
                   />
                 </label>
                 <label>
                   <span>حداکثر انتخاب</span>
-                  <input
-                    className="ltr-input"
-                    type="number"
-                    min="1"
+                  <NumberStepperInput
+                    min={1}
                     value={group.maxSelections}
-                    onChange={(event) =>
-                      updateGroup(group.uid, { maxSelections: event.target.value })
+                    ariaLabel="حداکثر انتخاب"
+                    onChange={(nextValue) =>
+                      updateGroup(group.uid, { maxSelections: nextValue })
                     }
                   />
                 </label>

@@ -3046,17 +3046,99 @@ select:focus-visible {
   min-width: 0;
 }
 
-.option-group-settings input,
+.option-group-settings input:not([type='checkbox']):not([type='radio']),
 .option-group-settings select {
   width: 100%;
   min-width: 0;
 }
 
 .option-group-settings .checkbox-row {
-  display: flex;
-  gap: 6px;
+  display: inline-flex;
+  gap: 8px;
   align-items: center;
   min-height: 38px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.option-group-settings .checkbox-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ── Built-in Up/Down Stepper for Persian-digit numeric inputs ── */
+.number-stepper {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--panel);
+  overflow: hidden;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.number-stepper:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--brand-accent-soft);
+}
+
+.number-stepper .number-stepper-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding-inline: 10px;
+}
+
+.number-stepper-buttons {
+  display: flex;
+  flex-direction: column;
+  width: 28px;
+  flex-shrink: 0;
+  border-inline-start: 1px solid var(--border);
+  background: var(--background);
+}
+
+.number-stepper-btn {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.number-stepper-btn + .number-stepper-btn {
+  border-top: 1px solid var(--border);
+}
+
+.number-stepper-btn:hover:not(:disabled) {
+  background: rgba(170, 49, 113, 0.12);
+  color: var(--accent);
+}
+
+.number-stepper-btn:active:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+
+.number-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .option-rows {

@@ -92,10 +92,18 @@ public class OptionGroupTemplate : BaseAuditableEntity
         {
             minSelections = 1;
         }
+        else if (!isRequired && minSelections > 0)
+        {
+            minSelections = 0;
+        }
 
-        if (isRequired && normalizedMode == MenuItemOptionGroup.SingleMode)
+        if (normalizedMode == MenuItemOptionGroup.SingleMode)
         {
             maxSelections = 1;
+            if (minSelections > 1)
+            {
+                minSelections = 1;
+            }
         }
 
         var trimmedCategory = string.IsNullOrWhiteSpace(categoryLabel) ? null : categoryLabel.Trim();
@@ -107,7 +115,7 @@ public class OptionGroupTemplate : BaseAuditableEntity
         CategoryLabel = trimmedCategory;
         PersianName = persianName.Trim();
         EnglishName = string.IsNullOrWhiteSpace(englishName) ? null : englishName.Trim();
-        IsRequired = isRequired || minSelections > 0;
+        IsRequired = isRequired;
         SelectionMode = normalizedMode;
         MinSelections = minSelections;
         MaxSelections = maxSelections;

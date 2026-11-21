@@ -111,15 +111,25 @@ public class MenuItemOptionGroup : BaseEntity
             // A required group always demands at least one pick.
             minSelections = 1;
         }
+        else if (!isRequired && minSelections > 0)
+        {
+            // Explicitly marking a group as optional clears any previous minimum requirement
+            // instead of silently flipping IsRequired back to true on save.
+            minSelections = 0;
+        }
 
-        if (isRequired && normalizedMode == SingleMode)
+        if (normalizedMode == SingleMode)
         {
             maxSelections = 1;
+            if (minSelections > 1)
+            {
+                minSelections = 1;
+            }
         }
 
         PersianName = persianName.Trim();
         EnglishName = string.IsNullOrWhiteSpace(englishName) ? null : englishName.Trim();
-        IsRequired = isRequired || minSelections > 0;
+        IsRequired = isRequired;
         SelectionMode = normalizedMode;
         MinSelections = minSelections;
         MaxSelections = maxSelections;

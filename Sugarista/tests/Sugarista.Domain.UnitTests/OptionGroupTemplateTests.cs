@@ -87,4 +87,41 @@ public class OptionGroupTemplateTests
 
         Assert.Null(customGroup.SourceTemplateId);
     }
+
+    [Fact]
+    public void UncheckingRequired_ResetsMinSelectionsAndStaysOptional()
+    {
+        var template = new OptionGroupTemplate(
+            "شیر",
+            "نوع شیر",
+            "Milk Type",
+            isRequired: true,
+            selectionMode: "Single",
+            minSelections: 1,
+            maxSelections: 1,
+            displayOrder: 0);
+
+        Assert.True(template.IsRequired);
+        Assert.Equal(1, template.MinSelections);
+
+        template.Update("شیر", "نوع شیر", "Milk Type", isRequired: false, "Single", minSelections: 1, maxSelections: 1, displayOrder: 0);
+
+        Assert.False(template.IsRequired);
+        Assert.Equal(0, template.MinSelections);
+
+        var itemGroup = new MenuItemOptionGroup(
+            Guid.NewGuid(),
+            "نوع شیر",
+            "Milk Type",
+            isRequired: true,
+            selectionMode: "Single",
+            minSelections: 1,
+            maxSelections: 1,
+            displayOrder: 0);
+
+        itemGroup.Update("نوع شیر", "Milk Type", isRequired: false, "Single", minSelections: 1, maxSelections: 1, displayOrder: 0);
+
+        Assert.False(itemGroup.IsRequired);
+        Assert.Equal(0, itemGroup.MinSelections);
+    }
 }

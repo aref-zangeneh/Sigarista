@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAdmin } from '../context/AdminContext'
 import { formatMoney } from '../components/DataTable'
+import { NumberStepperInput } from '../components/NumberStepperInput.jsx'
+import { applyOptionGroupRuleChange } from '../utils/optionGroupRules'
 
 let uidCounter = 0
 const nextUid = () => `tpl-${Date.now()}-${uidCounter++}`
@@ -488,15 +490,17 @@ export function OptionTemplatesPage() {
               <label className="checkbox-row">
                 <input
                   type="checkbox"
-                  checked={form.isRequired}
-                  onChange={(event) => setForm((f) => ({ ...f, isRequired: event.target.checked }))}
+                  checked={Boolean(form.isRequired)}
+                  onChange={(event) =>
+                    setForm((f) => applyOptionGroupRuleChange(f, { isRequired: event.target.checked }))
+                  }
                 />
                 <span>اجباری (مشتری باید انتخاب کند)</span>
               </label>
               <label className="checkbox-row">
                 <input
                   type="checkbox"
-                  checked={form.isActive}
+                  checked={Boolean(form.isActive)}
                   onChange={(event) => setForm((f) => ({ ...f, isActive: event.target.checked }))}
                 />
                 <span>فعال</span>
@@ -505,7 +509,9 @@ export function OptionTemplatesPage() {
                 <span>حالت انتخاب</span>
                 <select
                   value={form.selectionMode}
-                  onChange={(event) => setForm((f) => ({ ...f, selectionMode: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((f) => applyOptionGroupRuleChange(f, { selectionMode: event.target.value }))
+                  }
                 >
                   <option value="Single">تک‌انتخابی (رادیویی)</option>
                   <option value="Multi">چندانتخابی</option>
@@ -513,22 +519,24 @@ export function OptionTemplatesPage() {
               </label>
               <label>
                 <span>حداقل انتخاب</span>
-                <input
-                  className="ltr-input"
-                  type="number"
-                  min="0"
+                <NumberStepperInput
+                  min={0}
                   value={form.minSelections}
-                  onChange={(event) => setForm((f) => ({ ...f, minSelections: event.target.value }))}
+                  ariaLabel="حداقل انتخاب"
+                  onChange={(nextValue) =>
+                    setForm((f) => applyOptionGroupRuleChange(f, { minSelections: nextValue }))
+                  }
                 />
               </label>
               <label>
                 <span>حداکثر انتخاب</span>
-                <input
-                  className="ltr-input"
-                  type="number"
-                  min="1"
+                <NumberStepperInput
+                  min={1}
                   value={form.maxSelections}
-                  onChange={(event) => setForm((f) => ({ ...f, maxSelections: event.target.value }))}
+                  ariaLabel="حداکثر انتخاب"
+                  onChange={(nextValue) =>
+                    setForm((f) => applyOptionGroupRuleChange(f, { maxSelections: nextValue }))
+                  }
                 />
               </label>
             </div>

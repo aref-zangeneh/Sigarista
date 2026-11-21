@@ -19,7 +19,7 @@
   --brand-accent: var(--accent, #aa3171);
   --brand-accent-soft: rgba(170, 49, 113, 0.09);
   --brand-error: #d1435b;
-  --brand-grad: var(--brand-grad);
+  --brand-grad: linear-gradient(135deg, #aa3171, #842357);
 
   --border-soft: #eef0f4;
   --muted-soft: #98a2b3;

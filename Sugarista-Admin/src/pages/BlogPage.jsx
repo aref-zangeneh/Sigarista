@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DataTable } from '../components/DataTable'
+import { ImageUploader } from '../components/ImageUploader'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
 import { useAdmin } from '../context/AdminContext'
 import { apiRequest, getReadableError } from '../utils/adminApi'
@@ -26,7 +27,7 @@ function emptyPostForm() {
     slug: '',
     blogCategoryId: '',
     authorName: 'تحریریه شوگریستا',
-    status: 'Draft',
+    status: 'Published',
     publishedAt: '',
     isFeatured: false,
     displayOrder: 0,
@@ -70,6 +71,7 @@ function toDatetimeLocal(value) {
 export function BlogPage() {
   const { session, menuItemOptions, setError, setMessage } = useAdmin()
   const [activeTab, setActiveTab] = useState('posts')
+  const [summary, setSummary] = useState(null)
   const [categories, setCategories] = useState([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
   const [postsReloadToken, setPostsReloadToken] = useState(0)
@@ -82,12 +84,10 @@ export function BlogPage() {
   const [postSaving, setPostSaving] = useState(false)
   const [postLoading, setPostLoading] = useState(false)
   const [mdMode, setMdMode] = useState('edit')
-  const [uploadingCover, setUploadingCover] = useState(false)
   const [uploadingInline, setUploadingInline] = useState(false)
   const [menuSearch, setMenuSearch] = useState('')
   const mdTextareaRef = useRef(null)
   const inlineFileRef = useRef(null)
-  const coverFileRef = useRef(null)
   const editorCardRef = useRef(null)
 
   // Category editor state
@@ -98,12 +98,16 @@ export function BlogPage() {
   const canUpdate = hasPermission(session, PERMISSIONS.blog.update)
   const canDelete = hasPermission(session, PERMISSIONS.blog.delete)
 
-  const loadCategories = useCallback(async () => {
+  const loadMetadata = useCallback(async () => {
     if (!session?.token) return
     setCategoriesLoading(true)
     try {
-      const list = await apiRequest('/admin/blog/categories', { token: session.token })
-      setCategories(Array.isArray(list) ? list : [])
+      const [cats, stats] = await Promise.all([
+        apiRequest('/admin/blog/categories', { token: session.token }),
+        apiRequest('/admin/blog/summary', { token: session.token }).catch(() => null),
+      ])
+      setCategories(Array.isArray(cats) ? cats : [])
+      if (stats) setSummary(stats)
     } catch (err) {
       setError(getReadableError(err))
     } finally {
@@ -112,8 +116,8 @@ export function BlogPage() {
   }, [session?.token, setError])
 
   useEffect(() => {
-    loadCategories()
-  }, [loadCategories])
+    loadMetadata()
+  }, [loadMetadata])
 
   const postsApiPath = useMemo(() => {
     if (!categoryFilter) return '/admin/blog/posts'
@@ -129,17 +133,19 @@ export function BlogPage() {
   const filteredMenuItems = useMemo(() => {
     const q = menuSearch.trim().toLowerCase()
     const list = Array.isArray(menuItemOptions) ? menuItemOptions : []
-    if (!q) return list.slice(0, 40)
+    if (!q) return list.slice(0, 48)
     return list
-      .filter(
-        (item) =>
-          (item.name ?? '').toLowerCase().includes(q) ||
-          (item.englishName ?? '').toLowerCase().includes(q),
-      )
-      .slice(0, 40)
+      .filter((item) => {
+        const fa = (item.persianName ?? item.name ?? '').toLowerCase()
+        const en = (item.englishName ?? '').toLowerCase()
+        return fa.includes(q) || en.includes(q)
+      })
+      .slice(0, 48)
   }, [menuItemOptions, menuSearch])
 
   const openNewPost = () => {
+    setError('')
+    setMessage('')
     setPostForm(emptyPostForm())
     setMdMode('edit')
     setEditorOpen(true)
@@ -151,6 +157,7 @@ export function BlogPage() {
       if (!session?.token) return
       setPostLoading(true)
       setError('')
+      setMessage('')
       try {
         const detail = await apiRequest(`/admin/blog/posts/${row.id}`, { token: session.token })
         setPostForm({
@@ -190,7 +197,7 @@ export function BlogPage() {
         setPostLoading(false)
       }
     },
-    [session?.token, setError],
+    [session?.token, setError, setMessage],
   )
 
   const handleSavePost = async (event) => {
@@ -202,6 +209,10 @@ export function BlogPage() {
     }
     if (!postForm.contentMarkdown.trim()) {
       setError('متن مقاله نمی‌تواند خالی باشد.')
+      return
+    }
+    if (postForm.status === 'Scheduled' && !postForm.publishedAt) {
+      setError('برای انتشار زمان‌بندی‌شده، تاریخ و ساعت انتشار را مشخص کنید.')
       return
     }
 
@@ -241,17 +252,24 @@ export function BlogPage() {
       }
 
       const isEdit = Boolean(postForm.id)
-      await apiRequest(isEdit ? `/admin/blog/posts/${postForm.id}` : '/admin/blog/posts', {
-        method: isEdit ? 'PUT' : 'POST',
-        body: payload,
-        token: session.token,
-      })
+      const saved = await apiRequest(
+        isEdit ? `/admin/blog/posts/${postForm.id}` : '/admin/blog/posts',
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          body: payload,
+          token: session.token,
+        },
+      )
 
-      setMessage(isEdit ? 'مقاله با موفقیت ویرایش و منتشر شد.' : 'مقاله جدید با موفقیت ثبت شد.')
+      setMessage(
+        isEdit
+          ? `مقاله «${saved?.title ?? postForm.title}» با موفقیت ویرایش شد.`
+          : `مقاله «${saved?.title ?? postForm.title}» با موفقیت ثبت شد.`,
+      )
       setEditorOpen(false)
       setPostForm(emptyPostForm())
       setPostsReloadToken((prev) => prev + 1)
-      loadCategories()
+      loadMetadata()
     } catch (err) {
       setError(getReadableError(err))
     } finally {
@@ -272,18 +290,21 @@ export function BlogPage() {
         })
         setMessage('مقاله با موفقیت حذف شد.')
         setPostsReloadToken((prev) => prev + 1)
-        loadCategories()
+        loadMetadata()
       } catch (err) {
         setError(getReadableError(err))
       }
     },
-    [session?.token, setError, setMessage, loadCategories],
+    [session?.token, setError, setMessage, loadMetadata],
   )
 
   const insertMarkdownSnippet = (before, after = '', placeholder = '') => {
     const textarea = mdTextareaRef.current
     if (!textarea) {
-      setPostForm((prev) => ({ ...prev, contentMarkdown: `${prev.contentMarkdown}${before}${placeholder}${after}` }))
+      setPostForm((prev) => ({
+        ...prev,
+        contentMarkdown: `${prev.contentMarkdown}${before}${placeholder}${after}`,
+      }))
       return
     }
     const start = textarea.selectionStart ?? 0
@@ -297,34 +318,6 @@ export function BlogPage() {
       const cursor = start + before.length + selected.length + after.length
       textarea.setSelectionRange(cursor, cursor)
     }, 10)
-  }
-
-  const handleCoverUpload = async (event) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file || !session?.token) return
-    const validationError = validateImageFile(file)
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-    setUploadingCover(true)
-    setError('')
-    try {
-      const result = await uploadImage('/admin/uploads/images', file, session.token)
-      if (result?.url) {
-        setPostForm((prev) => ({
-          ...prev,
-          coverImageUrl: result.url,
-          coverImageAlt: prev.coverImageAlt || prev.title,
-        }))
-        setMessage('تصویر شاخص به صورت خودکار به WebP فشرده و آپلود شد.')
-      }
-    } catch (err) {
-      setError(getReadableError(err))
-    } finally {
-      setUploadingCover(false)
-    }
   }
 
   const handleInlineImageUpload = async (event) => {
@@ -392,9 +385,9 @@ export function BlogPage() {
           token: session.token,
         },
       )
-      setMessage(isEdit ? 'دسته‌بندی ویرایش شد.' : 'دسته‌بندی جدید ایجاد شد.')
+      setMessage(isEdit ? 'دسته‌بندی با موفقیت ویرایش شد.' : 'دسته‌بندی جدید ایجاد شد.')
       setCategoryForm(emptyCategoryForm())
-      loadCategories()
+      loadMetadata()
     } catch (err) {
       setError(getReadableError(err))
     } finally {
@@ -405,20 +398,23 @@ export function BlogPage() {
   const handleDeleteCategory = useCallback(
     async (cat) => {
       if (!session?.token) return
-      if (!window.confirm(`دسته‌بندی «${cat.name}» حذف شود؟ (مقالات آن بدون دسته می‌مانند)`)) return
+      if (!window.confirm(`دسته‌بندی «${cat.name}» حذف شود؟ (مقالات آن بدون دسته باقی می‌مانند)`)) {
+        return
+      }
       setError('')
+      setMessage('')
       try {
         await apiRequest(`/admin/blog/categories/${cat.id}`, {
           method: 'DELETE',
           token: session.token,
         })
         setMessage('دسته‌بندی حذف شد.')
-        loadCategories()
+        loadMetadata()
       } catch (err) {
         setError(getReadableError(err))
       }
     },
-    [session?.token, setError, setMessage, loadCategories],
+    [session?.token, setError, setMessage, loadMetadata],
   )
 
   const postColumns = useMemo(
@@ -437,9 +433,11 @@ export function BlogPage() {
             <div className="blog-title-cell">
               <div>
                 <strong>{item.title}</strong>
-                {item.isFeatured ? <span className="blog-featured-tag">برگزیده</span> : null}
+                {item.isFeatured ? (
+                  <span className="blog-badge blog-badge--featured">برگزیده</span>
+                ) : null}
               </div>
-              <span className="blog-slug-pill">/mag/{item.slug}</span>
+              <span className="blog-slug-code">/mag/{item.slug}</span>
             </div>
           )
         },
@@ -456,7 +454,7 @@ export function BlogPage() {
           const val = getValue() || 'Draft'
           const mod = val.toLowerCase()
           return (
-            <span className={`blog-status-badge blog-status-badge--${mod}`}>
+            <span className={`blog-badge blog-badge--${mod}`}>
               {STATUS_LABELS[val] ?? val}
             </span>
           )
@@ -469,7 +467,7 @@ export function BlogPage() {
       },
       {
         accessorKey: 'readingTimeMinutes',
-        header: 'زمان مطالعه',
+        header: 'مطالعه',
         cell: ({ getValue }) => `${toPersianNumber(getValue() ?? 1)} دقیقه`,
       },
       {
@@ -480,22 +478,23 @@ export function BlogPage() {
       {
         id: 'actions',
         header: 'عملیات',
+        enableSorting: false,
         cell: ({ row }) => {
           const item = row.original
           return (
-            <div className="action-group">
+            <div className="table-actions">
               <a
-                className="btn-secondary btn-sm"
+                className="link-button"
                 href={`/mag/${encodeURIComponent(item.slug)}`}
                 target="_blank"
                 rel="noreferrer"
               >
-                نمایش زنده
+                نمایش
               </a>
               {canUpdate ? (
                 <button
                   type="button"
-                  className="btn-secondary btn-sm"
+                  className="link-button"
                   disabled={postLoading}
                   onClick={() => openEditPost(item)}
                 >
@@ -505,7 +504,7 @@ export function BlogPage() {
               {canDelete ? (
                 <button
                   type="button"
-                  className="btn-danger btn-sm"
+                  className="link-button link-danger"
                   onClick={() => handleDeletePost(item)}
                 >
                   حذف
@@ -530,23 +529,19 @@ export function BlogPage() {
         accessorKey: 'name',
         header: 'نام دسته‌بندی',
         cell: ({ row }) => (
-          <span>
+          <div>
             <span
               className="blog-color-swatch"
               style={{ background: row.original.accentColor || '#7c4a2d' }}
             />
             <strong>{row.original.name}</strong>
-          </span>
+            <div className="blog-slug-code">/mag/category/{row.original.slug}</div>
+          </div>
         ),
       },
       {
-        accessorKey: 'slug',
-        header: 'اسلاگ',
-        cell: ({ getValue }) => <span className="blog-slug-pill">/mag/category/{getValue()}</span>,
-      },
-      {
         accessorKey: 'postCount',
-        header: 'تعداد مقالات',
+        header: 'مقالات',
         cell: ({ getValue }) => toPersianNumber(getValue() ?? 0),
       },
       {
@@ -554,8 +549,8 @@ export function BlogPage() {
         header: 'وضعیت',
         cell: ({ getValue }) => (
           <span
-            className={`blog-status-badge ${
-              getValue() ? 'blog-status-badge--published' : 'blog-status-badge--draft'
+            className={`blog-badge ${
+              getValue() ? 'blog-badge--published' : 'blog-badge--draft'
             }`}
           >
             {getValue() ? 'فعال' : 'غیرفعال'}
@@ -565,22 +560,23 @@ export function BlogPage() {
       {
         id: 'actions',
         header: 'عملیات',
+        enableSorting: false,
         cell: ({ row }) => {
           const cat = row.original
           return (
-            <div className="action-group">
+            <div className="table-actions">
               <a
-                className="btn-secondary btn-sm"
+                className="link-button"
                 href={`/mag/category/${encodeURIComponent(cat.slug)}`}
                 target="_blank"
                 rel="noreferrer"
               >
-                صفحه دسته
+                نمایش
               </a>
               {canUpdate ? (
                 <button
                   type="button"
-                  className="btn-secondary btn-sm"
+                  className="link-button"
                   onClick={() =>
                     setCategoryForm({
                       id: cat.id,
@@ -601,7 +597,7 @@ export function BlogPage() {
               {canDelete ? (
                 <button
                   type="button"
-                  className="btn-danger btn-sm"
+                  className="link-button link-danger"
                   onClick={() => handleDeleteCategory(cat)}
                 >
                   حذف
@@ -616,77 +612,139 @@ export function BlogPage() {
   )
 
   return (
-    <div className="admin-page">
-      <div className="page-header-row">
-        <div>
-          <h2>مجله قهوه و مدیریت بلاگ (SEO)</h2>
-          <p className="muted-text">
-            مدیریت مقالات تخصصی قهوه با رندر سمت سرور (SSR)، اسکیما JSON-LD، نقشه سایت خودکار و تحلیل‌گر زنده سئو گوگل.
-          </p>
+    <div className="blog-shell">
+      {/* ── هدر و دسترسی سریع ─────────────────────────────── */}
+      <section className="panel">
+        <div className="blog-hero-bar">
+          <div>
+            <h3 style={{ margin: '0 0 4px', color: 'var(--heading)' }}>
+              مجله قهوه و مدیریت بلاگ (SEO)
+            </h3>
+            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.86rem' }}>
+              مدیریت مقالات تخصصی قهوه با رندر سمت سرور (SSR)، اسکیما JSON-LD، نقشه سایت خودکار و تحلیل‌گر زنده گوگل.
+            </p>
+          </div>
+          <div className="blog-hero-actions">
+            <a className="blog-link-btn" href="/mag" target="_blank" rel="noreferrer">
+              مشاهده مجله (/mag)
+            </a>
+            <a className="blog-link-btn" href="/sitemap.xml" target="_blank" rel="noreferrer">
+              Sitemap XML
+            </a>
+            <a className="blog-link-btn" href="/mag/feed.xml" target="_blank" rel="noreferrer">
+              فید RSS
+            </a>
+            {activeTab === 'posts' && canCreate ? (
+              <button type="button" className="blog-primary-btn" onClick={openNewPost}>
+                + مقاله جدید
+              </button>
+            ) : null}
+          </div>
         </div>
-        <div className="blog-page-head-actions">
-          <a className="btn-secondary" href="/mag" target="_blank" rel="noreferrer">
-            مشاهده مجله (/mag)
-          </a>
-          <a className="btn-secondary" href="/sitemap.xml" target="_blank" rel="noreferrer">
-            Sitemap XML
-          </a>
-          <a className="btn-secondary" href="/mag/feed.xml" target="_blank" rel="noreferrer">
-            فید RSS
-          </a>
-          {activeTab === 'posts' && canCreate ? (
-            <button type="button" className="btn-primary" onClick={openNewPost}>
-              + مقاله جدید
-            </button>
-          ) : null}
-        </div>
-      </div>
+      </section>
 
-      <div className="blog-tabs" role="tablist" aria-label="بخش‌های بلاگ">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'posts'}
-          className={`blog-tab ${activeTab === 'posts' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('posts')}
-        >
-          مقالات مجله
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'categories'}
-          className={`blog-tab ${activeTab === 'categories' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('categories')}
-        >
-          دسته‌بندی‌ها ({toPersianNumber(categories.length)})
-        </button>
+      {/* ── آمار خلاصه مجله ───────────────────────────────── */}
+      {summary ? (
+        <section className="stat-grid">
+          <div className="stat-card">
+            <span className="stat-label">کل مقالات</span>
+            <strong className="stat-value">{toPersianNumber(summary.totalPosts)}</strong>
+          </div>
+          <div className="stat-card stat-card--ok">
+            <span className="stat-label">منتشرشده در گوگل</span>
+            <strong className="stat-value">{toPersianNumber(summary.publishedPosts)}</strong>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">پیش‌نویس / زمان‌بندی</span>
+            <strong className="stat-value">
+              {toPersianNumber((summary.draftPosts ?? 0) + (summary.scheduledPosts ?? 0))}
+            </strong>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">کل بازدید مقالات</span>
+            <strong className="stat-value">{toPersianNumber(summary.totalViews)}</strong>
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── تب‌ها و فیلترها ───────────────────────────────── */}
+      <div className="blog-tabs-bar">
+        <div className="blog-tab-strip" role="tablist" aria-label="بخش‌های بلاگ">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'posts'}
+            className={`blog-tab-btn ${activeTab === 'posts' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('posts')}
+          >
+            مقالات مجله ({toPersianNumber(summary?.totalPosts ?? 0)})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'categories'}
+            className={`blog-tab-btn ${activeTab === 'categories' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('categories')}
+          >
+            دسته‌بندی‌ها ({toPersianNumber(categories.length)})
+          </button>
+        </div>
+
+        {activeTab === 'posts' && !editorOpen ? (
+          <div className="blog-filters-bar">
+            <select
+              aria-label="فیلتر وضعیت"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">همه وضعیت‌ها</option>
+              <option value="Published">منتشرشده</option>
+              <option value="Draft">پیش‌نویس</option>
+              <option value="Scheduled">زمان‌بندی‌شده</option>
+            </select>
+            <select
+              aria-label="فیلتر دسته‌بندی"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="">همه دسته‌بندی‌ها</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
       </div>
 
       {activeTab === 'posts' ? (
         <>
           {editorOpen ? (
             <form ref={editorCardRef} className="blog-editor-grid" onSubmit={handleSavePost}>
-              <div className="blog-editor-main">
-                <div className="blog-section-card">
-                  <h3>
-                    <span>{postForm.id ? 'ویرایش مقاله' : 'نگارش مقاله جدید'}</span>
+              {/* ── ستون اصلی ویرایشگر ───────────────────── */}
+              <div className="blog-editor-col">
+                <section className="panel form-panel">
+                  <div className="panel-head">
+                    <div>
+                      <h3>{postForm.id ? 'ویرایش مقاله' : 'نگارش مقاله جدید'}</h3>
+                      <p>از زیرتیترهای H2 و H3 برای ساخت خودکار فهرست مطالب (TOC) استفاده کنید.</p>
+                    </div>
                     <button
                       type="button"
-                      className="btn-secondary btn-sm"
+                      className="ghost-button"
                       onClick={() => {
                         setEditorOpen(false)
                         setPostForm(emptyPostForm())
                       }}
                     >
-                      بستن ویرایشگر
+                      بازگشت به لیست
                     </button>
-                  </h3>
+                  </div>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-title">عنوان مقاله (H1)</label>
+                  <label>
+                    <span>عنوان مقاله (H1)</span>
                     <input
-                      id="blog-title"
                       type="text"
                       required
                       maxLength={220}
@@ -694,13 +752,13 @@ export function BlogPage() {
                       value={postForm.title}
                       onChange={(e) => setPostForm((prev) => ({ ...prev, title: e.target.value }))}
                     />
-                  </div>
+                  </label>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-slug">اسلاگ (آدرس URL در /mag/...)</label>
-                    <div className="blog-slug-row">
+                  <label>
+                    <span>اسلاگ (آدرس URL در /mag/...)</span>
+                    <div className="blog-slug-input-row">
                       <input
-                        id="blog-slug"
+                        className="ltr-input"
                         type="text"
                         maxLength={200}
                         placeholder="complete-coffee-guide"
@@ -709,7 +767,7 @@ export function BlogPage() {
                       />
                       <button
                         type="button"
-                        className="btn-secondary btn-sm"
+                        className="ghost-button"
                         onClick={() =>
                           setPostForm((prev) => ({ ...prev, slug: normalizeBlogSlug(prev.title) }))
                         }
@@ -717,13 +775,12 @@ export function BlogPage() {
                         تولید از عنوان
                       </button>
                     </div>
-                  </div>
+                  </label>
 
-                  <div className="blog-form-grid-2">
-                    <div className="form-group">
-                      <label htmlFor="blog-cat">دسته‌بندی</label>
+                  <div className="field-grid">
+                    <label>
+                      <span>دسته‌بندی</span>
                       <select
-                        id="blog-cat"
                         value={postForm.blogCategoryId}
                         onChange={(e) =>
                           setPostForm((prev) => ({ ...prev, blogCategoryId: e.target.value }))
@@ -736,12 +793,11 @@ export function BlogPage() {
                           </option>
                         ))}
                       </select>
-                    </div>
+                    </label>
 
-                    <div className="form-group">
-                      <label htmlFor="blog-author">نویسنده</label>
+                    <label>
+                      <span>نویسنده</span>
                       <input
-                        id="blog-author"
                         type="text"
                         maxLength={120}
                         value={postForm.authorName}
@@ -749,143 +805,158 @@ export function BlogPage() {
                           setPostForm((prev) => ({ ...prev, authorName: e.target.value }))
                         }
                       />
-                    </div>
+                    </label>
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-excerpt">خلاصه کوتاه (لید مقاله)</label>
+                  <label>
+                    <span>خلاصه کوتاه (لید مقاله)</span>
                     <textarea
-                      id="blog-excerpt"
                       rows={3}
                       maxLength={600}
                       placeholder="چکیده‌ای جذاب برای کارت‌های مجله و شبکه‌های اجتماعی..."
                       value={postForm.excerpt}
                       onChange={(e) => setPostForm((prev) => ({ ...prev, excerpt: e.target.value }))}
                     />
-                  </div>
+                  </label>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-md">محتوای مقاله (Markdown — ساخت خودکار فهرست مطالب از ## و ###)</label>
-                    <div className="blog-md-toolbar">
-                      <div className="blog-md-tools">
-                        <button
-                          type="button"
-                          className="blog-md-btn"
-                          onClick={() => insertMarkdownSnippet('\n## ', '\n', 'تیتر بخش جدید')}
-                        >
-                          H2
-                        </button>
-                        <button
-                          type="button"
-                          className="blog-md-btn"
-                          onClick={() => insertMarkdownSnippet('\n### ', '\n', 'زیرتیتر')}
-                        >
-                          H3
-                        </button>
-                        <button
-                          type="button"
-                          className="blog-md-btn"
-                          onClick={() => insertMarkdownSnippet('**', '**', 'متن مهم')}
-                        >
-                          بولد
-                        </button>
-                        <button
-                          type="button"
-                          className="blog-md-btn"
-                          onClick={() => insertMarkdownSnippet('\n> ', '\n', 'نکته کلیدی باریستا')}
-                        >
-                          نقل‌قول
-                        </button>
-                        <button
-                          type="button"
-                          className="blog-md-btn"
-                          onClick={() => insertMarkdownSnippet('\n- ', '\n- ', 'مورد اول')}
-                        >
-                          لیست
-                        </button>
-                        <button
-                          type="button"
-                          className="blog-md-btn"
-                          onClick={() =>
-                            insertMarkdownSnippet(
-                              '\n| روش دم‌آوری | نسبت قهوه به آب | دمای آب |\n| --- | --- | --- |\n| وی ۶۰ | ۱:۱۶ | ۹۳ درجه |\n',
-                            )
+                  <div>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: '0.84rem',
+                        fontWeight: 600,
+                        marginBottom: 6,
+                        color: 'var(--heading)',
+                      }}
+                    >
+                      محتوای مقاله (Markdown)
+                    </span>
+                    <div className="blog-md-wrap">
+                      <div className="blog-md-toolbar">
+                        <div className="blog-md-group">
+                          <button
+                            type="button"
+                            className="blog-md-btn"
+                            onClick={() => insertMarkdownSnippet('\n## ', '\n', 'تیتر بخش جدید')}
+                          >
+                            H2
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-md-btn"
+                            onClick={() => insertMarkdownSnippet('\n### ', '\n', 'زیرتیتر')}
+                          >
+                            H3
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-md-btn"
+                            onClick={() => insertMarkdownSnippet('**', '**', 'متن مهم')}
+                          >
+                            بولد
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-md-btn"
+                            onClick={() => insertMarkdownSnippet('\n> ', '\n', 'نکته کلیدی باریستا')}
+                          >
+                            نقل‌قول
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-md-btn"
+                            onClick={() => insertMarkdownSnippet('\n- ', '\n- ', 'مورد اول')}
+                          >
+                            لیست
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-md-btn"
+                            onClick={() =>
+                              insertMarkdownSnippet(
+                                '\n| روش دم‌آوری | نسبت قهوه به آب | دمای آب |\n| --- | --- | --- |\n| وی ۶۰ | ۱:۱۶ | ۹۳ درجه |\n',
+                              )
+                            }
+                          >
+                            جدول
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-md-btn"
+                            onClick={() => insertMarkdownSnippet('[', '](/)', 'منوی کافه شوگریستا')}
+                          >
+                            لینک
+                          </button>
+                          <button
+                            type="button"
+                            className="blog-md-btn"
+                            disabled={uploadingInline}
+                            onClick={() => inlineFileRef.current?.click()}
+                          >
+                            {uploadingInline ? 'در حال آپلود...' : 'تصویر درون متن'}
+                          </button>
+                          <input
+                            ref={inlineFileRef}
+                            type="file"
+                            accept="image/*"
+                            hidden
+                            onChange={handleInlineImageUpload}
+                          />
+                        </div>
+
+                        <div className="blog-md-group">
+                          <button
+                            type="button"
+                            className={`blog-md-btn ${mdMode === 'edit' ? 'is-active' : ''}`}
+                            onClick={() => setMdMode('edit')}
+                          >
+                            ویرایش
+                          </button>
+                          <button
+                            type="button"
+                            className={`blog-md-btn ${mdMode === 'preview' ? 'is-active' : ''}`}
+                            onClick={() => setMdMode('preview')}
+                          >
+                            پیش‌نمایش
+                          </button>
+                        </div>
+                      </div>
+
+                      {mdMode === 'edit' ? (
+                        <textarea
+                          ref={mdTextareaRef}
+                          className="blog-md-textarea"
+                          required
+                          placeholder="## قهوه تخصصی چیست؟&#10;متن خود را اینجا بنویسید..."
+                          value={postForm.contentMarkdown}
+                          onChange={(e) =>
+                            setPostForm((prev) => ({ ...prev, contentMarkdown: e.target.value }))
                           }
-                        >
-                          جدول
-                        </button>
-                        <button
-                          type="button"
-                          className="blog-md-btn"
-                          onClick={() => insertMarkdownSnippet('[', '](/)', 'منوی کافه شوگریستا')}
-                        >
-                          لینک
-                        </button>
-                        <button
-                          type="button"
-                          className="blog-md-btn"
-                          disabled={uploadingInline}
-                          onClick={() => inlineFileRef.current?.click()}
-                        >
-                          {uploadingInline ? 'در حال آپلود...' : 'تصویر درون متن'}
-                        </button>
-                        <input
-                          ref={inlineFileRef}
-                          type="file"
-                          accept="image/*"
-                          hidden
-                          onChange={handleInlineImageUpload}
                         />
-                      </div>
-
-                      <div className="blog-md-tools">
-                        <button
-                          type="button"
-                          className={`blog-md-btn ${mdMode === 'edit' ? 'is-active' : ''}`}
-                          onClick={() => setMdMode('edit')}
-                        >
-                          ویرایش
-                        </button>
-                        <button
-                          type="button"
-                          className={`blog-md-btn ${mdMode === 'preview' ? 'is-active' : ''}`}
-                          onClick={() => setMdMode('preview')}
-                        >
-                          پیش‌نمایش
-                        </button>
-                      </div>
+                      ) : (
+                        <div
+                          className="blog-md-preview"
+                          dangerouslySetInnerHTML={{
+                            __html:
+                              previewHtml ||
+                              '<p style="color:var(--muted)">هنوز متنی وارد نشده است.</p>',
+                          }}
+                        />
+                      )}
                     </div>
-
-                    {mdMode === 'edit' ? (
-                      <textarea
-                        ref={mdTextareaRef}
-                        id="blog-md"
-                        className="blog-md-textarea"
-                        required
-                        placeholder="## قهوه تخصصی چیست؟&#10;متن خود را اینجا بنویسید..."
-                        value={postForm.contentMarkdown}
-                        onChange={(e) =>
-                          setPostForm((prev) => ({ ...prev, contentMarkdown: e.target.value }))
-                        }
-                      />
-                    ) : (
-                      <div
-                        className="blog-md-preview"
-                        dangerouslySetInnerHTML={{
-                          __html: previewHtml || '<p class="muted-text">هنوز متنی وارد نشده است.</p>',
-                        }}
-                      />
-                    )}
                   </div>
-                </div>
+                </section>
 
-                {/* FAQ Builder for FAQPage JSON-LD */}
-                <div className="blog-section-card">
-                  <h3>
-                    <span>سوالات متداول مقاله (اسکیما FAQPage گوگل)</span>
+                {/* ── سوالات متداول (FAQPage Schema) ────────── */}
+                <section className="panel form-panel">
+                  <div className="panel-head">
+                    <div>
+                      <h3>سوالات متداول مقاله (اسکیما FAQPage گوگل)</h3>
+                      <p>افزودن ۲ تا ۵ سوال متداول به نمایش آکاردئونی و دریافت Rich Result در گوگل کمک می‌کند.</p>
+                    </div>
                     <button
                       type="button"
-                      className="btn-secondary btn-sm"
+                      className="ghost-button"
                       onClick={() =>
                         setPostForm((prev) => ({
                           ...prev,
@@ -895,126 +966,141 @@ export function BlogPage() {
                     >
                       + افزودن سوال
                     </button>
-                  </h3>
+                  </div>
 
-                  {postForm.faqItems.length === 0 ? (
-                    <p className="muted-text">
-                      افزودن ۲ تا ۵ سوال متداول باعث نمایش آکاردئونی و دریافت Rich Result در نتایج گوگل می‌شود.
-                    </p>
-                  ) : (
-                    postForm.faqItems.map((faq, index) => (
-                      <div key={index} className="blog-faq-item">
-                        <input
-                          type="text"
-                          placeholder={`سوال ${toPersianNumber(index + 1)}`}
-                          value={faq.question}
-                          onChange={(e) =>
-                            setPostForm((prev) => ({
-                              ...prev,
-                              faqItems: prev.faqItems.map((item, idx) =>
-                                idx === index ? { ...item, question: e.target.value } : item,
-                              ),
-                            }))
-                          }
-                        />
-                        <textarea
-                          rows={2}
-                          placeholder="پاسخ دقیق و کوتاه..."
-                          value={faq.answer}
-                          onChange={(e) =>
-                            setPostForm((prev) => ({
-                              ...prev,
-                              faqItems: prev.faqItems.map((item, idx) =>
-                                idx === index ? { ...item, answer: e.target.value } : item,
-                              ),
-                            }))
-                          }
-                        />
-                        <div>
-                          <button
-                            type="button"
-                            className="btn-danger btn-sm"
-                            onClick={() =>
+                  {postForm.faqItems.length > 0 ? (
+                    <div className="blog-faq-list">
+                      {postForm.faqItems.map((faq, index) => (
+                        <div key={index} className="blog-faq-card">
+                          <div className="blog-faq-card-head">
+                            <span>سوال {toPersianNumber(index + 1)}</span>
+                            <button
+                              type="button"
+                              className="link-button link-danger"
+                              onClick={() =>
+                                setPostForm((prev) => ({
+                                  ...prev,
+                                  faqItems: prev.faqItems.filter((_, idx) => idx !== index),
+                                }))
+                              }
+                            >
+                              حذف
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="مثلاً: بهترین دانه قهوه برای اسپرسو کدام است؟"
+                            value={faq.question}
+                            onChange={(e) =>
                               setPostForm((prev) => ({
                                 ...prev,
-                                faqItems: prev.faqItems.filter((_, idx) => idx !== index),
+                                faqItems: prev.faqItems.map((item, idx) =>
+                                  idx === index ? { ...item, question: e.target.value } : item,
+                                ),
                               }))
                             }
-                          >
-                            حذف سوال
-                          </button>
+                          />
+                          <textarea
+                            rows={2}
+                            placeholder="پاسخ کوتاه، دقیق و کاربردی..."
+                            value={faq.answer}
+                            onChange={(e) =>
+                              setPostForm((prev) => ({
+                                ...prev,
+                                faqItems: prev.faqItems.map((item, idx) =>
+                                  idx === index ? { ...item, answer: e.target.value } : item,
+                                ),
+                              }))
+                            }
+                          />
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
 
-                {/* Related Cafe Menu Items */}
-                <div className="blog-section-card">
-                  <h3>
-                    <span>آیتم‌های پیشنهادی از منوی کافه ({toPersianNumber(postForm.relatedMenuItemIds.length)} انتخاب)</span>
-                  </h3>
-                  <div className="form-group">
-                    <input
-                      type="search"
-                      placeholder="جستجوی نوشیدنی یا دسر از منو..."
-                      value={menuSearch}
-                      onChange={(e) => setMenuSearch(e.target.value)}
-                    />
+                {/* ── اتصال به آیتم‌های منوی کافه ────────────── */}
+                <section className="panel form-panel">
+                  <div className="panel-head">
+                    <div>
+                      <h3>
+                        آیتم‌های پیشنهادی از منوی کافه ({toPersianNumber(postForm.relatedMenuItemIds.length)} انتخاب)
+                      </h3>
+                      <p>در پایین صفحه مقاله به خواننده نمایش داده می‌شوند تا مستقیم وارد منوی سفارش شود.</p>
+                    </div>
                   </div>
-                  <div className="blog-menu-picker-list">
-                    {filteredMenuItems.map((item) => {
-                      const selected = postForm.relatedMenuItemIds.includes(item.id)
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className={`blog-menu-chip ${selected ? 'is-selected' : ''}`}
-                          onClick={() => toggleRelatedMenuItem(item.id)}
-                        >
-                          <span>{selected ? '✓' : '+'}</span>
-                          <span>{item.name}</span>
-                        </button>
-                      )
-                    })}
+                  <input
+                    type="search"
+                    placeholder="جستجوی نوشیدنی یا دسر از منو..."
+                    value={menuSearch}
+                    onChange={(e) => setMenuSearch(e.target.value)}
+                  />
+                  <div className="blog-menu-picker-grid">
+                    {filteredMenuItems.length === 0 ? (
+                      <span className="table-subtext">آیتمی پیدا نشد.</span>
+                    ) : (
+                      filteredMenuItems.map((item) => {
+                        const selected = postForm.relatedMenuItemIds.includes(item.id)
+                        const label = item.persianName || item.name || item.englishName
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={`blog-menu-chip ${selected ? 'is-selected' : ''}`}
+                            onClick={() => toggleRelatedMenuItem(item.id)}
+                          >
+                            <span>{selected ? '✓' : '+'}</span>
+                            <span>{label}</span>
+                          </button>
+                        )
+                      })
+                    )}
                   </div>
-                </div>
+                </section>
               </div>
 
-              {/* Right Sidebar: Publish + Cover + Live SEO Analyzer */}
-              <div className="blog-editor-side">
-                <div className="blog-section-card">
-                  <h3>انتشار و زمان‌بندی</h3>
-                  <div className="form-group">
-                    <label htmlFor="blog-status">وضعیت</label>
+              {/* ── ستون کناری: انتشار، تصویر شاخص و تحلیل زنده سئو ── */}
+              <div className="blog-editor-col blog-editor-sticky">
+                <section className="panel form-panel">
+                  <div className="panel-head">
+                    <div>
+                      <h3>انتشار و زمان‌بندی</h3>
+                    </div>
+                  </div>
+
+                  <label>
+                    <span>وضعیت انتشار</span>
                     <select
-                      id="blog-status"
                       value={postForm.status}
                       onChange={(e) => setPostForm((prev) => ({ ...prev, status: e.target.value }))}
                     >
-                      <option value="Draft">پیش‌نویس</option>
-                      <option value="Published">منتشرشده</option>
+                      <option value="Published">منتشرشده (نمایش فوری در /mag)</option>
+                      <option value="Draft">پیش‌نویس (مخفی)</option>
                       <option value="Scheduled">زمان‌بندی‌شده</option>
                     </select>
-                  </div>
+                  </label>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-pub">تاریخ انتشار (اختیاری)</label>
+                  <label>
+                    <span>
+                      تاریخ و ساعت انتشار
+                      {postForm.status === 'Scheduled' ? ' (الزامی برای زمان‌بندی)' : ' (اختیاری)'}
+                    </span>
                     <input
-                      id="blog-pub"
+                      className="ltr-input"
                       type="datetime-local"
+                      required={postForm.status === 'Scheduled'}
                       value={postForm.publishedAt}
                       onChange={(e) =>
                         setPostForm((prev) => ({ ...prev, publishedAt: e.target.value }))
                       }
                     />
-                  </div>
+                  </label>
 
-                  <div className="blog-form-grid-2">
-                    <div className="form-group">
-                      <label htmlFor="blog-order">ترتیب نمایش</label>
+                  <div className="field-grid">
+                    <label>
+                      <span>ترتیب نمایش</span>
                       <input
-                        id="blog-order"
+                        className="ltr-input"
                         type="number"
                         min={0}
                         value={postForm.displayOrder}
@@ -1022,25 +1108,22 @@ export function BlogPage() {
                           setPostForm((prev) => ({ ...prev, displayOrder: e.target.value }))
                         }
                       />
-                    </div>
-                    <div className="form-group" style={{ justifyContent: 'flex-end' }}>
-                      <label className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={postForm.isFeatured}
-                          onChange={(e) =>
-                            setPostForm((prev) => ({ ...prev, isFeatured: e.target.checked }))
-                          }
-                        />
-                        <span>مقاله برگزیده (Hero)</span>
-                      </label>
-                    </div>
+                    </label>
+                    <label className="checkbox-row" style={{ alignSelf: 'end', paddingBottom: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={postForm.isFeatured}
+                        onChange={(e) =>
+                          setPostForm((prev) => ({ ...prev, isFeatured: e.target.checked }))
+                        }
+                      />
+                      <span>مقاله برگزیده (Hero)</span>
+                    </label>
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-tags">برچسب‌ها (با ویرگول جدا کنید)</label>
+                  <label>
+                    <span>برچسب‌ها (با ویرگول جدا کنید)</span>
                     <input
-                      id="blog-tags"
                       type="text"
                       placeholder="قهوه، اسپرسو، عربیکا، وی ۶۰"
                       value={postForm.tagsInput}
@@ -1048,58 +1131,41 @@ export function BlogPage() {
                         setPostForm((prev) => ({ ...prev, tagsInput: e.target.value }))
                       }
                     />
-                  </div>
+                  </label>
 
-                  <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={postSaving}>
-                    {postSaving ? 'در حال ذخیره...' : postForm.id ? 'ذخیره تغییرات مقاله' : 'انتشار / ذخیره مقاله'}
+                  <button type="submit" disabled={postSaving} style={{ width: '100%' }}>
+                    {postSaving
+                      ? 'در حال ذخیره...'
+                      : postForm.id
+                        ? 'ذخیره تغییرات مقاله'
+                        : 'ذخیره و انتشار مقاله'}
                   </button>
-                </div>
+                </section>
 
-                {/* Cover Image */}
-                <div className="blog-section-card">
-                  <h3>تصویر شاخص (WebP بهینه)</h3>
-                  {postForm.coverImageUrl ? (
-                    <img
-                      className="blog-cover-preview"
-                      src={postForm.coverImageUrl}
-                      alt={postForm.coverImageAlt || postForm.title}
-                    />
-                  ) : null}
-                  <div className="form-group">
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ width: '100%' }}
-                      disabled={uploadingCover}
-                      onClick={() => coverFileRef.current?.click()}
-                    >
-                      {uploadingCover ? 'در حال آپلود و فشرده‌سازی...' : 'آپلود تصویر شاخص'}
-                    </button>
-                    <input
-                      ref={coverFileRef}
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={handleCoverUpload}
-                    />
+                {/* ── تصویر شاخص با ImageUploader بومی ───────── */}
+                <section className="panel form-panel">
+                  <div className="panel-head">
+                    <div>
+                      <h3>تصویر شاخص مقاله (WebP)</h3>
+                      <p>نسبت ۱۶:۹ بهترین نمایش را در مجله و گوگل دیسکاور دارد.</p>
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="blog-cover-url">آدرس تصویر</label>
+                  <ImageUploader
+                    label="آپلود تصویر شاخص"
+                    hint="تصویر به‌طور خودکار به WebP فشرده و بهینه می‌شود."
+                    value={postForm.coverImageUrl}
+                    token={session?.token}
+                    onChange={(url) =>
+                      setPostForm((prev) => ({
+                        ...prev,
+                        coverImageUrl: url ?? '',
+                        coverImageAlt: prev.coverImageAlt || prev.title,
+                      }))
+                    }
+                  />
+                  <label>
+                    <span>متن جایگزین (Alt) برای سئو تصاویر</span>
                     <input
-                      id="blog-cover-url"
-                      type="text"
-                      dir="ltr"
-                      placeholder="/api/files/..."
-                      value={postForm.coverImageUrl}
-                      onChange={(e) =>
-                        setPostForm((prev) => ({ ...prev, coverImageUrl: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="blog-cover-alt">متن جایگزین (Alt) برای سئو تصاویر</label>
-                    <input
-                      id="blog-cover-alt"
                       type="text"
                       maxLength={240}
                       placeholder="فنجان اسپرسو تخصصی کافه شوگریستا"
@@ -1108,34 +1174,41 @@ export function BlogPage() {
                         setPostForm((prev) => ({ ...prev, coverImageAlt: e.target.value }))
                       }
                     />
-                  </div>
-                </div>
+                  </label>
+                </section>
 
-                {/* Live SEO Analyzer & Google SERP Preview */}
-                <div className="blog-section-card">
-                  <h3>تحلیل زنده سئو گوگل</h3>
-                  <div className="blog-seo-meter">
+                {/* ── تحلیل‌گر زنده سئو و پیش‌نمایش گوگل ─────── */}
+                <section className="panel form-panel">
+                  <div className="panel-head">
+                    <div>
+                      <h3>تحلیل زنده سئو گوگل</h3>
+                    </div>
+                  </div>
+
+                  <div className="blog-seo-score-box">
                     <div className={`blog-seo-ring blog-seo-ring--${seoReport.grade.level}`}>
                       {toPersianNumber(seoReport.score)}
                     </div>
                     <div>
-                      <strong>{seoReport.grade.label}</strong>
-                      <div className="muted-text" style={{ fontSize: '0.8rem' }}>
-                        {toPersianNumber(seoReport.wordCount)} کلمه · {toPersianNumber(seoReport.readingTimeMinutes)} دقیقه مطالعه
-                      </div>
+                      <strong style={{ color: 'var(--heading)', display: 'block' }}>
+                        {seoReport.grade.label}
+                      </strong>
+                      <span className="table-subtext">
+                        {toPersianNumber(seoReport.wordCount)} کلمه ·{' '}
+                        {toPersianNumber(seoReport.readingTimeMinutes)} دقیقه مطالعه
+                      </span>
                     </div>
                   </div>
 
-                  <div className="blog-serp-box">
+                  <div className="blog-serp-card">
                     <div className="blog-serp-url">{seoReport.serp.url}</div>
                     <div className="blog-serp-title">{seoReport.serp.title}</div>
                     <div className="blog-serp-desc">{seoReport.serp.description}</div>
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-kw">کلیدواژه کانونی (Focus Keyword)</label>
+                  <label>
+                    <span>کلیدواژه کانونی (Focus Keyword)</span>
                     <input
-                      id="blog-kw"
                       type="text"
                       maxLength={120}
                       placeholder="مثلاً: قهوه تخصصی"
@@ -1144,12 +1217,11 @@ export function BlogPage() {
                         setPostForm((prev) => ({ ...prev, focusKeyword: e.target.value }))
                       }
                     />
-                  </div>
+                  </label>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-meta-title">عنوان متا گوگل (Meta Title)</label>
+                  <label>
+                    <span>عنوان متا گوگل (Meta Title)</span>
                     <input
-                      id="blog-meta-title"
                       type="text"
                       maxLength={160}
                       placeholder="در صورت خالی بودن از عنوان اصلی استفاده می‌شود"
@@ -1158,37 +1230,35 @@ export function BlogPage() {
                         setPostForm((prev) => ({ ...prev, metaTitle: e.target.value }))
                       }
                     />
-                  </div>
+                  </label>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-meta-desc">توضیحات متا گوگل (Meta Description)</label>
+                  <label>
+                    <span>توضیحات متا گوگل (Meta Description)</span>
                     <textarea
-                      id="blog-meta-desc"
                       rows={3}
                       maxLength={320}
-                      placeholder="۱۱۰ تا ۱۶۵ کاراکتر برای افزایش نرخ کلیک (CTR) در گوگل..."
+                      placeholder="۱۱۰ تا ۱۶۵ کاراکتر برای بالاترین نرخ کلیک (CTR) در گوگل..."
                       value={postForm.metaDescription}
                       onChange={(e) =>
                         setPostForm((prev) => ({ ...prev, metaDescription: e.target.value }))
                       }
                     />
-                  </div>
+                  </label>
 
-                  <div className="form-group">
-                    <label htmlFor="blog-canonical">آدرس Canonical سفارشی (اختیاری)</label>
+                  <label>
+                    <span>آدرس Canonical سفارشی (اختیاری)</span>
                     <input
-                      id="blog-canonical"
+                      className="ltr-input"
                       type="text"
-                      dir="ltr"
                       placeholder="https://sugarista.ir/mag/..."
                       value={postForm.canonicalUrl}
                       onChange={(e) =>
                         setPostForm((prev) => ({ ...prev, canonicalUrl: e.target.value }))
                       }
                     />
-                  </div>
+                  </label>
 
-                  <label className="checkbox-label" style={{ marginBottom: '0.85rem' }}>
+                  <label className="checkbox-row">
                     <input
                       type="checkbox"
                       checked={postForm.noIndex}
@@ -1199,48 +1269,29 @@ export function BlogPage() {
                     <span>عدم ایندکس در گوگل (noindex)</span>
                   </label>
 
-                  <ul className="blog-seo-checks">
+                  <ul className="blog-seo-checklist">
                     {seoReport.checks.map((check) => (
-                      <li key={check.id} className="blog-seo-check">
+                      <li key={check.id} className="blog-seo-check-row">
                         <span className={`blog-seo-dot blog-seo-dot--${check.status}`} />
                         <div>
                           <div>{check.label}</div>
-                          <small className="muted-text">{check.hint}</small>
+                          <div className="table-subtext">{check.hint}</div>
                         </div>
                       </li>
                     ))}
                   </ul>
-                </div>
+                </section>
               </div>
             </form>
           ) : null}
 
-          <div className="card" style={{ marginTop: editorOpen ? '1.2rem' : 0 }}>
-            <div className="blog-filters-row">
-              <select
-                aria-label="فیلتر وضعیت"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="">همه وضعیت‌ها</option>
-                <option value="Published">منتشرشده</option>
-                <option value="Draft">پیش‌نویس</option>
-                <option value="Scheduled">زمان‌بندی‌شده</option>
-              </select>
-              <select
-                aria-label="فیلتر دسته‌بندی"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="">همه دسته‌بندی‌ها</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+          <section className="panel list-panel">
+            <div className="panel-head">
+              <div>
+                <h3>لیست مقالات مجله</h3>
+                <p>مقالات منتشرشده بلافاصله در مسیر /mag و نقشه سایت گوگل (/sitemap.xml) قرار می‌گیرند.</p>
+              </div>
             </div>
-
             <PaginatedAdminTable
               apiPath={postsApiPath}
               token={session?.token}
@@ -1250,166 +1301,175 @@ export function BlogPage() {
               searchPlaceholder="جستجو بر اساس عنوان، اسلاگ یا کلیدواژه سئو..."
               emptyMessage="هیچ مقاله‌ای یافت نشد."
             />
-          </div>
+          </section>
         </>
       ) : (
-        <div className="blog-editor-grid">
-          <div className="blog-editor-main">
-            <div className="card">
-              <DataTable
-                data={categories}
-                columns={categoryColumns}
-                loading={categoriesLoading}
-                emptyMessage="هنوز دسته‌بندی بلاگ ثبت نشده است."
-              />
-            </div>
-          </div>
+        <section className="two-column-layout">
+          {canCreate || (canUpdate && categoryForm.id) ? (
+            <form className="panel form-panel" onSubmit={handleSaveCategory}>
+              <div className="panel-head">
+                <div>
+                  <h3>{categoryForm.id ? 'ویرایش دسته‌بندی مجله' : 'دسته‌بندی جدید مجله'}</h3>
+                  <p>دسته‌بندی‌ها برای ساختاردهی موضوعی سئو (Topic Clusters) و فیلتر مقالات استفاده می‌شوند.</p>
+                </div>
+                {categoryForm.id ? (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => setCategoryForm(emptyCategoryForm())}
+                  >
+                    انصراف
+                  </button>
+                ) : null}
+              </div>
 
-          <div className="blog-editor-side">
-            {(canCreate || (canUpdate && categoryForm.id)) ? (
-              <form className="blog-section-card" onSubmit={handleSaveCategory}>
-                <h3>
-                  <span>{categoryForm.id ? 'ویرایش دسته‌بندی' : 'دسته‌بندی جدید مجله'}</span>
-                  {categoryForm.id ? (
-                    <button
-                      type="button"
-                      className="btn-secondary btn-sm"
-                      onClick={() => setCategoryForm(emptyCategoryForm())}
-                    >
-                      انصراف
-                    </button>
-                  ) : null}
-                </h3>
+              <label>
+                <span>نام دسته‌بندی</span>
+                <input
+                  type="text"
+                  required
+                  maxLength={120}
+                  placeholder="مثلاً: روش‌های دم‌آوری قهوه"
+                  value={categoryForm.name}
+                  onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))}
+                />
+              </label>
 
-                <div className="form-group">
-                  <label htmlFor="cat-name">نام دسته‌بندی</label>
+              <label>
+                <span>اسلاگ (آدرس URL)</span>
+                <div className="blog-slug-input-row">
                   <input
-                    id="cat-name"
+                    className="ltr-input"
                     type="text"
-                    required
                     maxLength={120}
-                    placeholder="مثلاً: دم‌آوری قهوه"
-                    value={categoryForm.name}
-                    onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="brewing-methods"
+                    value={categoryForm.slug}
+                    onChange={(e) => setCategoryForm((prev) => ({ ...prev, slug: e.target.value }))}
                   />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="cat-slug">اسلاگ (آدرس URL)</label>
-                  <div className="blog-slug-row">
-                    <input
-                      id="cat-slug"
-                      type="text"
-                      maxLength={120}
-                      placeholder="brewing-methods"
-                      value={categoryForm.slug}
-                      onChange={(e) =>
-                        setCategoryForm((prev) => ({ ...prev, slug: e.target.value }))
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="btn-secondary btn-sm"
-                      onClick={() =>
-                        setCategoryForm((prev) => ({
-                          ...prev,
-                          slug: normalizeBlogSlug(prev.name),
-                        }))
-                      }
-                    >
-                      تولید
-                    </button>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="cat-desc">توضیحات دسته</label>
-                  <textarea
-                    id="cat-desc"
-                    rows={3}
-                    maxLength={500}
-                    value={categoryForm.description}
-                    onChange={(e) =>
-                      setCategoryForm((prev) => ({ ...prev, description: e.target.value }))
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() =>
+                      setCategoryForm((prev) => ({
+                        ...prev,
+                        slug: normalizeBlogSlug(prev.name),
+                      }))
                     }
-                  />
+                  >
+                    تولید
+                  </button>
                 </div>
+              </label>
 
-                <div className="form-group">
-                  <label htmlFor="cat-mtitle">عنوان سئو دسته (اختیاری)</label>
+              <label>
+                <span>توضیحات دسته</span>
+                <textarea
+                  rows={3}
+                  maxLength={500}
+                  value={categoryForm.description}
+                  onChange={(e) =>
+                    setCategoryForm((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label>
+                <span>عنوان سئو دسته (اختیاری)</span>
+                <input
+                  type="text"
+                  maxLength={160}
+                  value={categoryForm.metaTitle}
+                  onChange={(e) =>
+                    setCategoryForm((prev) => ({ ...prev, metaTitle: e.target.value }))
+                  }
+                />
+              </label>
+
+              <label>
+                <span>توضیحات متا دسته (اختیاری)</span>
+                <textarea
+                  rows={2}
+                  maxLength={320}
+                  value={categoryForm.metaDescription}
+                  onChange={(e) =>
+                    setCategoryForm((prev) => ({ ...prev, metaDescription: e.target.value }))
+                  }
+                />
+              </label>
+
+              <div className="field-grid">
+                <label>
+                  <span>ترتیب نمایش</span>
                   <input
-                    id="cat-mtitle"
-                    type="text"
-                    maxLength={160}
-                    value={categoryForm.metaTitle}
+                    className="ltr-input"
+                    type="number"
+                    min={0}
+                    value={categoryForm.displayOrder}
                     onChange={(e) =>
-                      setCategoryForm((prev) => ({ ...prev, metaTitle: e.target.value }))
+                      setCategoryForm((prev) => ({ ...prev, displayOrder: e.target.value }))
                     }
                   />
-                </div>
+                </label>
 
-                <div className="form-group">
-                  <label htmlFor="cat-mdesc">توضیحات متا دسته (اختیاری)</label>
-                  <textarea
-                    id="cat-mdesc"
-                    rows={2}
-                    maxLength={320}
-                    value={categoryForm.metaDescription}
-                    onChange={(e) =>
-                      setCategoryForm((prev) => ({ ...prev, metaDescription: e.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="blog-form-grid-2">
-                  <div className="form-group">
-                    <label htmlFor="cat-order">ترتیب نمایش</label>
+                <label>
+                  <span>رنگ برچسب</span>
+                  <div className="blog-color-picker-row">
                     <input
-                      id="cat-order"
-                      type="number"
-                      min={0}
-                      value={categoryForm.displayOrder}
-                      onChange={(e) =>
-                        setCategoryForm((prev) => ({ ...prev, displayOrder: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="cat-color">رنگ برچسب</label>
-                    <input
-                      id="cat-color"
                       type="color"
                       value={categoryForm.accentColor || '#7c4a2d'}
                       onChange={(e) =>
                         setCategoryForm((prev) => ({ ...prev, accentColor: e.target.value }))
                       }
                     />
+                    <input
+                      className="ltr-input"
+                      type="text"
+                      maxLength={30}
+                      value={categoryForm.accentColor || '#7c4a2d'}
+                      onChange={(e) =>
+                        setCategoryForm((prev) => ({ ...prev, accentColor: e.target.value }))
+                      }
+                    />
                   </div>
-                </div>
-
-                <label className="checkbox-label" style={{ marginBottom: '0.9rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={categoryForm.isActive}
-                    onChange={(e) =>
-                      setCategoryForm((prev) => ({ ...prev, isActive: e.target.checked }))
-                    }
-                  />
-                  <span>دسته‌بندی فعال و قابل نمایش در مجله</span>
                 </label>
+              </div>
 
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ width: '100%' }}
-                  disabled={categorySaving}
-                >
-                  {categorySaving ? 'در حال ذخیره...' : categoryForm.id ? 'ذخیره دسته‌بندی' : 'ایجاد دسته‌بندی'}
-                </button>
-              </form>
-            ) : null}
-          </div>
-        </div>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={categoryForm.isActive}
+                  onChange={(e) =>
+                    setCategoryForm((prev) => ({ ...prev, isActive: e.target.checked }))
+                  }
+                />
+                <span>دسته‌بندی فعال و قابل نمایش در مجله</span>
+              </label>
+
+              <button type="submit" disabled={categorySaving}>
+                {categorySaving
+                  ? 'در حال ذخیره...'
+                  : categoryForm.id
+                    ? 'ذخیره دسته‌بندی'
+                    : 'ایجاد دسته‌بندی'}
+              </button>
+            </form>
+          ) : null}
+
+          <section className="panel list-panel">
+            <div className="panel-head">
+              <div>
+                <h3>دسته‌بندی‌های مجله</h3>
+                <p>ترتیب نمایش دسته‌بندی‌ها در نوار بالای مجله (/mag) از ستون «ترتیب نمایش» خوانده می‌شود.</p>
+              </div>
+            </div>
+            <DataTable
+              data={categories}
+              columns={categoryColumns}
+              loading={categoriesLoading}
+              emptyMessage="هنوز دسته‌بندی بلاگ ثبت نشده است."
+            />
+          </section>
+        </section>
       )}
     </div>
   )

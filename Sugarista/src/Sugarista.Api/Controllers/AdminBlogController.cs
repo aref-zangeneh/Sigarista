@@ -24,6 +24,28 @@ public class AdminBlogController : ApiControllerBase
         _dbContext = dbContext;
     }
 
+    // ── Summary ─────────────────────────────────────────────────────────────
+
+    [HttpGet("summary")]
+    [RequirePermission(AdminPermissions.Blog.View)]
+    public async Task<ActionResult<AdminBlogSummaryDto>> GetSummary(CancellationToken cancellationToken)
+    {
+        var totalPosts = await _dbContext.BlogPosts.CountAsync(cancellationToken);
+        var publishedPosts = await _dbContext.BlogPosts.CountAsync(p => p.Status == BlogPostStatus.Published, cancellationToken);
+        var draftPosts = await _dbContext.BlogPosts.CountAsync(p => p.Status == BlogPostStatus.Draft, cancellationToken);
+        var scheduledPosts = await _dbContext.BlogPosts.CountAsync(p => p.Status == BlogPostStatus.Scheduled, cancellationToken);
+        var totalViews = await _dbContext.BlogPosts.SumAsync(p => (long?)p.ViewCount, cancellationToken) ?? 0L;
+        var totalCategories = await _dbContext.BlogCategories.CountAsync(cancellationToken);
+
+        return Ok(new AdminBlogSummaryDto(
+            totalPosts,
+            publishedPosts,
+            draftPosts,
+            scheduledPosts,
+            totalViews,
+            totalCategories));
+    }
+
     // ── Categories ──────────────────────────────────────────────────────────
 
     [HttpGet("categories")]
@@ -243,6 +265,11 @@ public class AdminBlogController : ApiControllerBase
             ? parsedStatus
             : BlogPostStatus.Draft;
 
+        if (status == BlogPostStatus.Scheduled && !request.PublishedAt.HasValue)
+        {
+            return BadRequest(new { detail = "برای زمان‌بندی انتشار، تاریخ و ساعت انتشار را مشخص کنید." });
+        }
+
         var readingMinutes = request.ReadingTimeMinutes is > 0
             ? request.ReadingTimeMinutes.Value
             : BlogMarkdownRenderer.EstimateReadingTimeMinutes(request.ContentMarkdown);
@@ -305,6 +332,11 @@ public class AdminBlogController : ApiControllerBase
         var status = Enum.TryParse<BlogPostStatus>(request.Status, true, out var parsedStatus)
             ? parsedStatus
             : BlogPostStatus.Draft;
+
+        if (status == BlogPostStatus.Scheduled && !request.PublishedAt.HasValue)
+        {
+            return BadRequest(new { detail = "برای زمان‌بندی انتشار، تاریخ و ساعت انتشار را مشخص کنید." });
+        }
 
         var readingMinutes = request.ReadingTimeMinutes is > 0
             ? request.ReadingTimeMinutes.Value
@@ -400,6 +432,14 @@ public class AdminBlogController : ApiControllerBase
             p.CreatedAt,
             p.LastModifiedAt);
 }
+
+public record AdminBlogSummaryDto(
+    int TotalPosts,
+    int PublishedPosts,
+    int DraftPosts,
+    int ScheduledPosts,
+    long TotalViews,
+    int TotalCategories);
 
 public record UpsertBlogCategoryRequest(
     string Name,

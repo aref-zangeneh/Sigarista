@@ -6,8 +6,10 @@ using Sugarista.Application.MenuItems.Bundles.Commands.ReplaceMenuItemBundle;
 using Sugarista.Application.MenuItems.Bundles.Queries.GetMenuItemBundle;
 using Sugarista.Application.MenuItems.Commands.ApplyMenuPricing;
 using Sugarista.Application.MenuItems.Commands.DeleteMenuItem;
+using Sugarista.Application.MenuItems.Commands.DuplicateMenuItem;
 using Sugarista.Application.MenuItems.Commands.UpsertMenuItem;
 using Sugarista.Application.MenuItems.OptionGroups;
+using Sugarista.Application.MenuItems.OptionGroups.Commands.CopyMenuItemOptionGroups;
 using Sugarista.Application.MenuItems.OptionGroups.Commands.ReplaceMenuItemOptionGroups;
 using Sugarista.Application.MenuItems.OptionGroups.Queries.GetMenuItemOptionGroups;
 using Sugarista.Application.MenuItems.Queries.GetAdminMenuItems;
@@ -51,6 +53,15 @@ public class AdminMenuItemsController : ApiControllerBase
     {
         await Mediator.Send(command with { MenuItemId = menuItemId }, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("option-groups/copy")]
+    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    public async Task<ActionResult<CopyOptionGroupsResultDto>> CopyOptionGroups(
+        [FromBody] CopyMenuItemOptionGroupsCommand command,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(command, cancellationToken));
     }
 
     [HttpGet("{menuItemId:guid}/bundle-items")]
@@ -112,6 +123,15 @@ public class AdminMenuItemsController : ApiControllerBase
     public async Task<ActionResult<Guid>> Update(Guid id, [FromBody] UpsertMenuItemCommand command, CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(command with { Id = id }, cancellationToken));
+    }
+
+    [HttpPost("{id:guid}/duplicate")]
+    [RequirePermission(AdminPermissions.MenuItems.Create)]
+    public async Task<ActionResult<DuplicateMenuItemResultDto>> Duplicate(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new DuplicateMenuItemCommand(id), cancellationToken));
     }
 
     [HttpDelete("{id:guid}")]

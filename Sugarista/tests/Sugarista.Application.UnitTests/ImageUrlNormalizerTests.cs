@@ -1,4 +1,5 @@
 using Sugarista.Application.Common.Extensions;
+using Sugarista.Application.MenuItems.Commands.UpsertMenuItem;
 
 namespace Sugarista.Application.UnitTests;
 
@@ -42,5 +43,18 @@ public sealed class ImageUrlNormalizerTests
     {
         Assert.Equal("/api/files/images/abc.webp",
             ImageUrlNormalizer.Normalize("/api/files/images/abc.webp", null));
+    }
+
+    [Fact]
+    public void UpgradingRelativeMenuItemImageUrlToAbsolute_DoesNotMarkFileAsReplaced()
+    {
+        var replaced = UpsertMenuItemCommandHandler.CollectReplacedImageUrls(
+            previousImageUrl: "/api/files/images/same-file.webp",
+            previousGallery: ["/api/files/images/gal-1.webp", "/api/files/images/dropped.webp"],
+            newImageUrl: "https://sugarista.ir/api/files/images/same-file.webp",
+            newGallery: ["https://sugarista.ir/api/files/images/gal-1.webp"]);
+
+        Assert.Single(replaced);
+        Assert.Equal("/api/files/images/dropped.webp", replaced[0]);
     }
 }

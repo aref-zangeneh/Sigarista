@@ -27,7 +27,8 @@ public class MenuItemOptionGroup : BaseEntity
         int minSelections,
         int maxSelections,
         int displayOrder,
-        bool isActive = true)
+        bool isActive = true,
+        Guid? sourceTemplateId = null)
     {
         if (menuItemId == Guid.Empty)
         {
@@ -35,12 +36,18 @@ public class MenuItemOptionGroup : BaseEntity
         }
 
         MenuItemId = menuItemId;
+        SourceTemplateId = sourceTemplateId;
         Update(persianName, englishName, isRequired, selectionMode, minSelections, maxSelections, displayOrder, isActive);
     }
 
     public Guid MenuItemId { get; private set; }
 
     public MenuItem MenuItem { get; private set; } = null!;
+
+    /// <summary>Optional link to the reusable <see cref="OptionGroupTemplate"/> this group was created from.</summary>
+    public Guid? SourceTemplateId { get; private set; }
+
+    public OptionGroupTemplate? SourceTemplate { get; private set; }
 
     public string PersianName { get; private set; } = string.Empty;
 

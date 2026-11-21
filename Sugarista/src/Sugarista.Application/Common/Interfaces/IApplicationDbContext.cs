@@ -24,6 +24,12 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.MenuItemOptionIngredient> MenuItemOptionIngredients { get; }
 
+    DbSet<Sugarista.Domain.Entities.OptionGroupTemplate> OptionGroupTemplates { get; }
+
+    DbSet<Sugarista.Domain.Entities.OptionGroupTemplateItem> OptionGroupTemplateItems { get; }
+
+    DbSet<Sugarista.Domain.Entities.OptionGroupTemplateItemIngredient> OptionGroupTemplateItemIngredients { get; }
+
     DbSet<Sugarista.Domain.Entities.Ingredient> Ingredients { get; }
 
     DbSet<Sugarista.Domain.Entities.Supplier> Suppliers { get; }

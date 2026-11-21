@@ -69,7 +69,8 @@ public class GetMenuItemOptionGroupsQueryHandler
                                     ingredientRow.IngredientId,
                                     ingredientRow.Quantity))
                                 .ToList()))
-                        .ToList()))
+                        .ToList(),
+                    group.SourceTemplateId))
                 .ToList());
     }
 }

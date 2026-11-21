@@ -51,6 +51,15 @@ const ROUTE_ICONS = {
       <path d="M4 6h16M4 12h16M4 18h10" />
     </>,
   ),
+  'option-templates': icon(
+    <>
+      <rect x="3" y="4" width="18" height="6" rx="1.5" />
+      <rect x="3" y="14" width="18" height="6" rx="1.5" />
+      <circle cx="8" cy="7" r="1" />
+      <circle cx="8" cy="17" r="1" />
+      <path d="M12 7h5M12 17h5" />
+    </>,
+  ),
   'cost-dashboard': icon(
     <>
       <path d="M3 17l6-6 4 4 8-8" />
@@ -203,7 +212,7 @@ const ROUTE_ICONS = {
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
 const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
-  { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'drink-builder', 'discounts', 'modifiers', 'blog'] },
+  { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'option-templates', 'addons', 'drink-builder', 'discounts', 'modifiers', 'blog'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['warehouses', 'inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },

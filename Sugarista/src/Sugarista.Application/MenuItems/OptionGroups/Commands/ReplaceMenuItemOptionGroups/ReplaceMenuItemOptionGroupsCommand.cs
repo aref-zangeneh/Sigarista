@@ -50,8 +50,27 @@ public class ReplaceMenuItemOptionGroupsCommandHandler : IRequestHandler<Replace
         _dbContext.MenuItemOptions.RemoveRange(existingGroups.SelectMany(group => group.Options));
         _dbContext.MenuItemOptionGroups.RemoveRange(existingGroups);
 
+        var requestedTemplateIds = request.Groups
+            .Where(group => group.SourceTemplateId.HasValue)
+            .Select(group => group.SourceTemplateId!.Value)
+            .Distinct()
+            .ToList();
+
+        var existingTemplateIds = requestedTemplateIds.Count > 0
+            ? (await _dbContext.OptionGroupTemplates
+                .AsNoTracking()
+                .Where(template => requestedTemplateIds.Contains(template.Id))
+                .Select(template => template.Id)
+                .ToListAsync(cancellationToken))
+                .ToHashSet()
+            : new HashSet<Guid>();
+
         foreach (var groupInput in request.Groups)
         {
+            var sourceTemplateId = groupInput.SourceTemplateId is { } tid && existingTemplateIds.Contains(tid)
+                ? tid
+                : (Guid?)null;
+
             var group = new MenuItemOptionGroup(
                 request.MenuItemId,
                 groupInput.PersianName,
@@ -61,7 +80,8 @@ public class ReplaceMenuItemOptionGroupsCommandHandler : IRequestHandler<Replace
                 groupInput.MinSelections,
                 groupInput.MaxSelections,
                 groupInput.DisplayOrder,
-                groupInput.IsActive);
+                groupInput.IsActive,
+                sourceTemplateId);
 
             foreach (var optionInput in groupInput.Options)
             {

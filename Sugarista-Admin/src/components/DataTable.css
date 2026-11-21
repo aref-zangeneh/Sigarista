@@ -101,7 +101,7 @@
 .data-table-grid tbody td {
   padding: 10px 12px;
   text-align: right;
-  vertical-align: top;
+  vertical-align: middle;
   border-bottom: 1px solid var(--border-soft);
   color: var(--heading);
   font-size: 0.8125rem;
@@ -173,20 +173,33 @@
 }
 
 .data-table-page-btn {
-  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   font: inherit;
-  background: transparent;
-  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--panel);
+  color: var(--text);
   cursor: pointer;
-  transition: var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition:
+    transform var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .data-table-page-btn:hover:not(:disabled) {
   background: var(--brand-accent-soft);
   border-color: var(--brand-accent);
   color: var(--brand-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(170, 49, 113, 0.14);
 }
 
 .data-table-page-btn:disabled {

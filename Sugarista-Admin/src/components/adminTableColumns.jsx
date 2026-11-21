@@ -59,7 +59,13 @@ export function buildCategoryColumns({ toPersianNumber, editCategory, handleDele
   ]
 }
 
-export function buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, handleDeleteMenuItem }) {
+export function buildMenuItemColumns({
+  toPersianNumber,
+  joinTags,
+  editMenuItem,
+  handleDuplicateMenuItem,
+  handleDeleteMenuItem,
+}) {
   return [
     {
       id: 'name',
@@ -124,6 +130,16 @@ export function buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, 
           <button type="button" className="link-button" onClick={() => editMenuItem(row.original)}>
             ویرایش
           </button>
+          {handleDuplicateMenuItem ? (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => handleDuplicateMenuItem(row.original)}
+              title="ساخت کپی کامل از این آیتم (به همراه قیمت‌ها، دستور پخت و گروه‌های آپشن)"
+            >
+              کپی
+            </button>
+          ) : null}
           <button
             type="button"
             className="link-button link-danger"

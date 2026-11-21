@@ -1,4 +1,10 @@
 import { API_BASE_URL } from './adminApi'
+export {
+  DEFAULT_PUBLIC_ORIGIN,
+  isRelativeSitePath,
+  normalizeImageUrl,
+  resolveImageOrigin,
+} from './imageUrl'
 
 /**
  * Uploads one image (or several, one call each) through XMLHttpRequest so we

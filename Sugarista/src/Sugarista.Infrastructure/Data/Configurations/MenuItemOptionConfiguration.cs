@@ -20,11 +20,17 @@ public class MenuItemOptionGroupConfiguration : IEntityTypeConfiguration<MenuIte
             .IsRequired();
 
         builder.HasIndex(group => new { group.MenuItemId, group.DisplayOrder });
+        builder.HasIndex(group => group.SourceTemplateId);
 
         builder.HasOne(group => group.MenuItem)
             .WithMany()
             .HasForeignKey(group => group.MenuItemId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(group => group.SourceTemplate)
+            .WithMany()
+            .HasForeignKey(group => group.SourceTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(group => group.Options)
             .WithOne(option => option.Group)

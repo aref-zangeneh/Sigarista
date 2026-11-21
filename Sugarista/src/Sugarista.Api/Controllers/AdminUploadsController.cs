@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Sugarista.Api.Authorization;
+using Sugarista.Application.Common.Extensions;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Domain.Constants;
 using Sugarista.Infrastructure.Services;
@@ -40,6 +41,7 @@ public class AdminUploadsController : ApiControllerBase
         IFormFile file,
         [FromServices] IImageProcessingService imageProcessing,
         [FromServices] IImageFileStore imageStore,
+        [FromServices] IPublicOriginProvider publicOriginProvider,
         CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
@@ -55,9 +57,11 @@ public class AdminUploadsController : ApiControllerBase
             var processed = await imageProcessing.ProcessAsync(
                 stream, file.FileName, file.ContentType, cancellationToken);
 
-            var url = await imageStore.SaveImageAsync(
+            var rawUrl = await imageStore.SaveImageAsync(
                 new UploadedImageFile(processed.Data, processed.FileExtension, processed.ContentType),
                 cancellationToken);
+
+            var url = ImageUrlNormalizer.Normalize(rawUrl, publicOriginProvider.PublicOrigin) ?? rawUrl;
 
             return Ok(new UploadedImageResult(
                 url,

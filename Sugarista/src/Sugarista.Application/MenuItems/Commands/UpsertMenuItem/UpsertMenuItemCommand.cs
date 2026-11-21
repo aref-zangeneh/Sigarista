@@ -198,23 +198,54 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         // Images are immutable files (fresh GUID every upload); any URL that
-        // was dropped from the item would become an orphan, so remove it.
+        // was dropped from the item would become an orphan, so remove it —
+        // UNLESS another menu item (e.g. a duplicated item) still references it.
         if (replacedImageUrls.Count > 0)
         {
-            try
+            var otherItemImages = await _dbContext.MenuItems
+                .AsNoTracking()
+                .Where(item => item.Id != request.Id!.Value)
+                .Select(item => new { item.ImageUrl, item.GalleryImageUrls })
+                .ToListAsync(cancellationToken);
+
+            var stillReferencedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var other in otherItemImages)
             {
-                await _imageStore.DeleteImageAsync(replacedImageUrls, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(other.ImageUrl))
+                {
+                    stillReferencedKeys.Add(CanonicalImageKey(other.ImageUrl));
+                }
+
+                foreach (var galleryUrl in other.GalleryImageUrls)
+                {
+                    if (!string.IsNullOrWhiteSpace(galleryUrl))
+                    {
+                        stillReferencedKeys.Add(CanonicalImageKey(galleryUrl));
+                    }
+                }
             }
-            catch (IOException)
+
+            var safeToDelete = replacedImageUrls
+                .Where(url => !stillReferencedKeys.Contains(CanonicalImageKey(url)))
+                .ToList();
+
+            if (safeToDelete.Count > 0)
             {
-                // Disk housekeeping must never fail the business operation.
+                try
+                {
+                    await _imageStore.DeleteImageAsync(safeToDelete, cancellationToken);
+                }
+                catch (IOException)
+                {
+                    // Disk housekeeping must never fail the business operation.
+                }
             }
         }
 
         return request.Id!.Value;
     }
 
-    private static List<string> CollectReplacedImageUrls(
+    internal static List<string> CollectReplacedImageUrls(
         string? previousImageUrl,
         IEnumerable<string> previousGallery,
         string? newImageUrl,
@@ -223,23 +254,43 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
         var kept = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(newImageUrl))
         {
-            kept.Add(newImageUrl);
+            kept.Add(CanonicalImageKey(newImageUrl));
         }
-        kept.UnionWith(newGallery.Where(url => !string.IsNullOrWhiteSpace(url)));
+
+        foreach (var url in newGallery)
+        {
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                kept.Add(CanonicalImageKey(url));
+            }
+        }
 
         var replaced = new List<string>();
-        if (!string.IsNullOrWhiteSpace(previousImageUrl) && !kept.Contains(previousImageUrl))
+        if (!string.IsNullOrWhiteSpace(previousImageUrl) && !kept.Contains(CanonicalImageKey(previousImageUrl)))
         {
             replaced.Add(previousImageUrl);
         }
+
         foreach (var url in previousGallery)
         {
-            if (!string.IsNullOrWhiteSpace(url) && !kept.Contains(url))
+            if (!string.IsNullOrWhiteSpace(url) && !kept.Contains(CanonicalImageKey(url)))
             {
                 replaced.Add(url);
             }
         }
 
         return replaced;
+    }
+
+    private static string CanonicalImageKey(string url)
+    {
+        var trimmed = url.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri) &&
+            absoluteUri.AbsolutePath.StartsWith("/api/files/images/", StringComparison.OrdinalIgnoreCase))
+        {
+            return absoluteUri.AbsolutePath;
+        }
+
+        return trimmed;
     }
 }

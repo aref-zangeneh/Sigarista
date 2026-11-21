@@ -805,6 +805,7 @@ export function MenuItemsPage() {
           setSaving={setSaving}
           toPersianNumber={toPersianNumber}
           formatMoney={formatMoney}
+          focusMenuItemId={menuItemForm.id ?? ''}
         />
       </section>
   )

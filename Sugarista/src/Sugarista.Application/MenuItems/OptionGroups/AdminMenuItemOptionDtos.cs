@@ -10,7 +10,8 @@ public record AdminMenuItemOptionGroupDto(
     int MaxSelections,
     int DisplayOrder,
     bool IsActive,
-    IReadOnlyCollection<AdminMenuItemOptionDto> Options);
+    IReadOnlyCollection<AdminMenuItemOptionDto> Options,
+    Guid? SourceTemplateId = null);
 
 public record AdminMenuItemOptionDto(
     Guid? Id,
@@ -38,7 +39,8 @@ public record MenuItemOptionGroupInput(
     int MaxSelections,
     int DisplayOrder,
     bool IsActive,
-    IReadOnlyCollection<MenuItemOptionInput> Options);
+    IReadOnlyCollection<MenuItemOptionInput> Options,
+    Guid? SourceTemplateId = null);
 
 public record MenuItemOptionInput(
     string PersianName,

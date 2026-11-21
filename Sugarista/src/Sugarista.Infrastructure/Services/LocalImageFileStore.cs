@@ -45,13 +45,23 @@ public class LocalImageFileStore : IImageFileStore
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (string.IsNullOrWhiteSpace(url) ||
-                !url.StartsWith(UrlPrefix, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(url))
             {
                 continue;
             }
 
-            var fileName = Path.GetFileName(url[UrlPrefix.Length..]);
+            var path = url.Trim();
+            if (Uri.TryCreate(path, UriKind.Absolute, out var absoluteUri))
+            {
+                path = absoluteUri.AbsolutePath;
+            }
+
+            if (!path.StartsWith(UrlPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var fileName = Path.GetFileName(path[UrlPrefix.Length..]);
             if (string.IsNullOrWhiteSpace(fileName))
             {
                 continue;

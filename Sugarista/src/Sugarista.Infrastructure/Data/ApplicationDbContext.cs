@@ -33,6 +33,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MenuItemOptionIngredient> MenuItemOptionIngredients => Set<MenuItemOptionIngredient>();
 
+    public DbSet<OptionGroupTemplate> OptionGroupTemplates => Set<OptionGroupTemplate>();
+
+    public DbSet<OptionGroupTemplateItem> OptionGroupTemplateItems => Set<OptionGroupTemplateItem>();
+
+    public DbSet<OptionGroupTemplateItemIngredient> OptionGroupTemplateItemIngredients => Set<OptionGroupTemplateItemIngredient>();
+
     public DbSet<Ingredient> Ingredients => Set<Ingredient>();
 
     public DbSet<Supplier> Suppliers => Set<Supplier>();

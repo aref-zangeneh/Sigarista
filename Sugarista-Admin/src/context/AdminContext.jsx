@@ -1366,6 +1366,46 @@ export function AdminProvider({ children }) {
     }
   }
 
+  async function handleDuplicateMenuItem(item) {
+    if (!item?.id) return
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const result = await apiRequest(`/admin/menu-items/${item.id}/duplicate`, {
+        method: 'POST',
+        token: session.token,
+      })
+
+      bumpTableReload()
+      await loadAdminData()
+
+      if (result?.item) {
+        editMenuItem(result.item)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+
+      const details = []
+      if (result?.copiedOptionGroupCount > 0) {
+        details.push(`${toPersianNumber(result.copiedOptionGroupCount)} گروه آپشن`)
+      }
+      if (result?.copiedRecipeLineCount > 0) {
+        details.push(`${toPersianNumber(result.copiedRecipeLineCount)} قلم دستور پخت`)
+      }
+      if (result?.copiedBundleItemCount > 0) {
+        details.push(`${toPersianNumber(result.copiedBundleItemCount)} آیتم باندل`)
+      }
+
+      const suffix = details.length > 0 ? ` (${details.join(' و ')} کپی شد)` : ''
+      setMessage(`کپی «${result?.item?.persianName ?? item.persianName}» ایجاد شد${suffix} و آماده ویرایش است.`)
+    } catch (requestError) {
+      setError(getReadableError(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleDeleteMenuItem(itemId) {
     if (!window.confirm('از حذف این آیتم منو مطمئن هستید؟')) {
       return
@@ -1635,7 +1675,14 @@ export function AdminProvider({ children }) {
   )
 
   const menuItemColumns = useMemo(
-    () => buildMenuItemColumns({ toPersianNumber, joinTags, editMenuItem, handleDeleteMenuItem }),
+    () =>
+      buildMenuItemColumns({
+        toPersianNumber,
+        joinTags,
+        editMenuItem,
+        handleDuplicateMenuItem,
+        handleDeleteMenuItem,
+      }),
     [categoryOptions.length, tableReloadToken],
   )
 
@@ -1888,6 +1935,7 @@ export function AdminProvider({ children }) {
     handleCategorySubmit,
     handleDeleteCategory,
     handleMenuItemSubmit,
+    handleDuplicateMenuItem,
     handleDeleteMenuItem,
     handleSettingsSubmit,
     editCategory,

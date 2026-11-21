@@ -10,6 +10,7 @@ import { CostDashboardPage } from './pages/CostDashboardPage'
 import { SalonStatePage } from './pages/SalonStatePage'
 import { CategoryPage } from './pages/CategoryPage'
 import { MenuItemsPage } from './pages/MenuItemsPage'
+import { OptionTemplatesPage } from './pages/OptionTemplatesPage.jsx'
 import { AddonsPage } from './pages/AddonsPage'
 import { DiscountsPage } from './pages/DiscountsPage'
 import { DiscountReportsPage } from './pages/DiscountReportsPage'
@@ -61,6 +62,7 @@ const pageComponents = {
   salon: SalonStatePage,
   categories: CategoryPage,
   'menu-items': MenuItemsPage,
+  'option-templates': OptionTemplatesPage,
   addons: AddonsPage,
   discounts: DiscountsPage,
   'discount-reports': DiscountReportsPage,

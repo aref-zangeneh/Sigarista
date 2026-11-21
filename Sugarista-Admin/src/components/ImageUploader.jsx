@@ -1,7 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MAX_IMAGE_UPLOAD_BYTES,
   formatBytes,
+  isRelativeSitePath,
+  normalizeImageUrl,
   uploadImage,
   validateImageFile,
 } from '../utils/imageUpload'
@@ -26,15 +28,14 @@ export function ImageUploader({
   allowUrl = true,
   compact = false,
 }) {
-  const urls = useMemo(
-    () =>
-      multiple
-        ? (Array.isArray(value) ? value : []).filter(Boolean)
-        : value
-          ? [value]
-          : [],
-    [value, multiple],
-  )
+  const urls = useMemo(() => {
+    const rawList = multiple
+      ? (Array.isArray(value) ? value : []).filter(Boolean)
+      : value
+        ? [value]
+        : []
+    return rawList.map((item) => (isRelativeSitePath(item) ? normalizeImageUrl(item) : item))
+  }, [value, multiple])
 
   const [metas, setMetas] = useState({})
   const [uploading, setUploading] = useState(false)
@@ -56,6 +57,26 @@ export function ImageUploader({
     },
     [multiple, onChange],
   )
+
+  // Upgrade legacy root-relative DB paths (e.g. /api/files/images/...) into
+  // full origin-prefixed URLs automatically so form submit never fails URL validation.
+  useEffect(() => {
+    if (!onChange) return
+    if (multiple) {
+      const list = Array.isArray(value) ? value : []
+      if (list.some((item) => isRelativeSitePath(item))) {
+        onChange(
+          list.map((item) => (isRelativeSitePath(item) ? normalizeImageUrl(item) : item)),
+          metas,
+        )
+      }
+    } else if (typeof value === 'string' && isRelativeSitePath(value)) {
+      const normalized = normalizeImageUrl(value)
+      if (normalized && normalized !== value) {
+        onChange(normalized, metas[normalized] ?? null)
+      }
+    }
+  }, [value, multiple, onChange, metas])
 
   const handleFiles = useCallback(
     async (fileList) => {
@@ -88,9 +109,10 @@ export function ImageUploader({
           const result = await uploadImage('/admin/uploads/images', file, token, { onProgress })
 
           if (result?.url) {
-            uploadedUrls.push(result.url)
+            const fullUrl = normalizeImageUrl(result.url)
+            uploadedUrls.push(fullUrl)
             freshMetas.push({
-              url: result.url,
+              url: fullUrl,
               width: result.width,
               height: result.height,
               sizeBytes: result.sizeBytes,
@@ -98,7 +120,7 @@ export function ImageUploader({
               format: result.format,
               isAnimated: result.isAnimated,
             })
-            nextMetas[result.url] = freshMetas[freshMetas.length - 1]
+            nextMetas[fullUrl] = freshMetas[freshMetas.length - 1]
           }
 
           setProgress(Math.round(((index + 1) / accepted.length) * 100))
@@ -281,9 +303,26 @@ export function ImageUploader({
           className="ltr-input img-up-url"
           type="url"
           dir="ltr"
-          placeholder="یا آدرس یک تصویر را مستقیم وارد کنید"
+          placeholder="https://sugarista.ir/api/files/..."
           value={multiple ? '' : urls[0] ?? ''}
-          onChange={(event) => notifyChange(event.target.value ? [event.target.value] : [], metas)}
+          onChange={(event) => {
+            const raw = event.target.value
+            if (!raw) {
+              notifyChange([], metas)
+              return
+            }
+            const next = isRelativeSitePath(raw) ? normalizeImageUrl(raw) : raw
+            notifyChange([next], metas)
+          }}
+          onBlur={(event) => {
+            const raw = (event.target.value ?? '').trim()
+            if (!raw) return
+            const normalized = normalizeImageUrl(raw)
+            if (normalized && normalized !== raw) {
+              event.target.value = normalized
+              notifyChange([normalized], metas)
+            }
+          }}
           onKeyDown={(event) => event.stopPropagation()}
         />
       ) : null}

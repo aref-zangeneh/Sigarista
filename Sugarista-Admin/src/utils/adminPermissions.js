@@ -79,6 +79,12 @@ export const PERMISSIONS = {
     update: 'admin.menu-items.update',
     delete: 'admin.menu-items.delete',
   },
+  'option-templates': {
+    view: 'admin.menu-items.view',
+    create: 'admin.menu-items.create',
+    update: 'admin.menu-items.update',
+    delete: 'admin.menu-items.delete',
+  },
   addons: {
     view: 'admin.addons.view',
     create: 'admin.addons.create',

@@ -382,4 +382,14 @@ public class SiteSettings : BaseAuditableEntity
     /// </summary>
     public string AbandonedCartEmailTemplate { get; set; } =
         "سلام {name}،\nسبد خرید شما در {cafe} ذخیره شده است:\n{items}\n\nکد تخفیف یک‌بارمصرف شما: {code}\nمیزان تخفیف: {percent}٪\nاعتبار کد: {validityHours} ساعت\n\nمنتظر حضور شما هستیم.";
+
+    /// <summary>Master switch for the admin panel order alert chime.</summary>
+    public bool OrderAlertSoundEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Repeat interval (in seconds) for the admin order alert chime while an
+    /// order waits in the kitchen queue. 0 = chime once on arrival (no repeat);
+    /// 3–300 = repeat every N seconds.
+    /// </summary>
+    public int OrderAlertSoundIntervalSeconds { get; set; } = 10;
 }

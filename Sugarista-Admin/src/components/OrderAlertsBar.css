@@ -27,7 +27,34 @@
 .order-alerts-stats {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+.order-alert-sound-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.order-alert-sound-toggle.is-muted {
+  opacity: 0.78;
+}
+
+.order-alert-interval-select {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--heading);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.order-alert-interval-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .order-alert-stat {

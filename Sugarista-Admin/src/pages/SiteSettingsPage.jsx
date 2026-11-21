@@ -3,6 +3,13 @@ import { useAdmin } from '../context/AdminContext'
 import { settingsSections } from '../constants/adminForms'
 import { ReceiptLayoutPanel } from '../components/ReceiptLayoutPanel'
 import { uploadImage, validateImageFile } from '../utils/imageUpload'
+import {
+  ALERT_SOUND_INTERVAL_PRESETS,
+  formatAlertSoundDescription,
+  normalizeAlertSoundSettings,
+  playOrderAlertSound,
+} from '../utils/orderAlertSound'
+import { toPersianDigits } from '../utils/persianDigits'
 
 function SectionIcon({ name }) {
   const paths = {
@@ -326,6 +333,7 @@ export function SiteSettingsPage() {
 
   const navItems = [
     { id: 'settings-sales', title: 'فروش آنلاین', icon: 'cart' },
+    { id: 'settings-order-alert-sound', title: 'صدای اعلان سفارش', icon: 'bell' },
     { id: 'settings-event-banner', title: 'بنر ایونت و مناسبت', icon: 'hero' },
     { id: 'settings-pickup', title: 'سفارش پیش از مراجعه', icon: 'clock' },
     { id: 'settings-receipt', title: 'طرح فیش‌های چاپی', icon: 'steps' },
@@ -370,6 +378,111 @@ export function SiteSettingsPage() {
       </nav>
 
       <form className="settings-form" onSubmit={handleSettingsSubmit}>
+        {/* ---------- صدای اعلان سفارش ---------- */}
+        <section id="settings-order-alert-sound" className="panel settings-section">
+          <div className="panel-head">
+            <div className="settings-section-head">
+              <span className="settings-section-badge">
+                <SectionIcon name="bell" />
+              </span>
+              <div>
+                <h2>
+                  صدای اعلان سفارش
+                  <span
+                    className={`settings-pill ${
+                      siteSettings.orderAlertSoundEnabled !== false ? 'is-on' : 'is-off'
+                    }`}
+                  >
+                    {siteSettings.orderAlertSoundEnabled !== false ? 'روشن' : 'خاموش'}
+                  </span>
+                </h2>
+                <p>{formatAlertSoundDescription(siteSettings)}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => playOrderAlertSound()}
+            >
+              🔊 پخش صدای آزمایشی
+            </button>
+          </div>
+
+          <div className="settings-sales-body">
+            <label className="settings-switch-row">
+              <div className="settings-switch-text">
+                <strong>پخش صدای اعلان برای سفارش‌های جدید</strong>
+                <p>
+                  با خاموش کردن این گزینه، صدای بوق اعلان سفارش در پنل مدیریت به‌طور کامل قطع
+                  می‌شود (بنر اعلان سفارش‌ها همچنان نمایش داده می‌شود).
+                </p>
+              </div>
+              <span
+                className={`switch ${
+                  siteSettings.orderAlertSoundEnabled !== false ? 'switch-on' : ''
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={siteSettings.orderAlertSoundEnabled !== false}
+                  onChange={(event) =>
+                    updateField('orderAlertSoundEnabled', event.target.checked)
+                  }
+                />
+                <span className="switch-track">
+                  <span className="switch-thumb" />
+                </span>
+              </span>
+            </label>
+
+            <div className="settings-grid">
+              <label>
+                <span>فاصلهٔ تکرار صدا (ثانیه)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="300"
+                  value={siteSettings.orderAlertSoundIntervalSeconds ?? 10}
+                  disabled={siteSettings.orderAlertSoundEnabled === false}
+                  onChange={(event) => {
+                    const raw = event.target.value
+                    updateField(
+                      'orderAlertSoundIntervalSeconds',
+                      raw === '' ? 0 : Math.max(0, Math.min(300, Number(raw) || 0)),
+                    )
+                  }}
+                />
+                <small className="settings-hint">
+                  عدد ۰ = فقط یک‌بار هنگام ورود سفارش جدید (بدون تکرار). مقادیر مجاز برای تکرار: ۳ تا ۳۰۰ ثانیه.
+                </small>
+              </label>
+
+              <div className="full-width">
+                <span className="field-label" style={{ display: 'block', marginBottom: 8 }}>
+                  انتخاب سریع فاصلهٔ تکرار
+                </span>
+                <div className="orders-table-filters">
+                  {ALERT_SOUND_INTERVAL_PRESETS.map((seconds) => {
+                    const currentInterval = normalizeAlertSoundSettings(siteSettings).intervalSeconds
+                    const active = currentInterval === seconds
+                    return (
+                      <button
+                        key={seconds}
+                        type="button"
+                        className={active ? 'primary-button' : 'ghost-button'}
+                        disabled={siteSettings.orderAlertSoundEnabled === false}
+                        onClick={() => updateField('orderAlertSoundIntervalSeconds', seconds)}
+                      >
+                        {seconds === 0 ? 'فقط یک‌بار' : `هر ${toPersianDigits(seconds)} ثانیه`}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ---------- فروش آنلاین ---------- */}
         <section id="settings-sales" className="panel settings-section">
           <div className="panel-head">

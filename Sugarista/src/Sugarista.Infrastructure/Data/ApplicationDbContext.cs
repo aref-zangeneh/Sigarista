@@ -101,6 +101,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<ProductWikiStep> ProductWikiSteps => Set<ProductWikiStep>();
 
+    public DbSet<BlogCategory> BlogCategories => Set<BlogCategory>();
+
+    public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
+
     public DbSet<Order> Orders => Set<Order>();
 
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();

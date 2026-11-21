@@ -65,5 +65,7 @@ public class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSettings>
         builder.Property(settings => settings.DarkThemeStartHour).IsRequired();
         builder.Property(settings => settings.ThemeMode).HasMaxLength(16).IsRequired();
         builder.Property(settings => settings.AllowManualThemeOverride).IsRequired();
+        builder.Property(settings => settings.OrderAlertSoundEnabled).HasDefaultValue(true).IsRequired();
+        builder.Property(settings => settings.OrderAlertSoundIntervalSeconds).HasDefaultValue(10).IsRequired();
     }
 }

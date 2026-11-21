@@ -232,6 +232,8 @@ export const emptySettings = {
   pickupMaxReschedules: 2,
   pickupRefundPolicyNote:
     'در صورت لغو سفارش پرداخت‌شده تا مهلت مجاز، مبلغ طبق سیاست کافه به کیف پول شما برگشت داده می‌شود.',
+  orderAlertSoundEnabled: true,
+  orderAlertSoundIntervalSeconds: 10,
 }
 
 export const settingsSections = [

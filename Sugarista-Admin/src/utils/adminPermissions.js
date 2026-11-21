@@ -119,6 +119,12 @@ export const PERMISSIONS = {
     view: 'admin.product-wiki.view',
     update: 'admin.product-wiki.update',
   },
+  blog: {
+    view: 'admin.blog.view',
+    create: 'admin.blog.create',
+    update: 'admin.blog.update',
+    delete: 'admin.blog.delete',
+  },
   inventory: {
     view: 'admin.inventory.view',
     create: 'admin.inventory.create',

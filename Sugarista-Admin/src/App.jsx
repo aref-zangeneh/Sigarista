@@ -21,6 +21,7 @@ import { SuppliersPage } from './pages/SuppliersPage'
 import { DeliveryMethodsPage } from './pages/DeliveryMethodsPage'
 import { RecipesPage } from './pages/RecipesPage'
 import { ProductWikiPage } from './pages/ProductWikiPage'
+import { BlogPage } from './pages/BlogPage.jsx'
 import { InventoryPage } from './pages/InventoryPage'
 import { InventoryPurchasesPage } from './pages/InventoryPurchasesPage'
 import { WarehousesPage } from './pages/WarehousesPage'
@@ -69,6 +70,7 @@ const pageComponents = {
   ingredients: IngredientsPage,
   recipes: RecipesPage,
   'product-wiki': ProductWikiPage,
+  blog: BlogPage,
   inventory: InventoryPage,
   'inventory-purchases': InventoryPurchasesPage,
   warehouses: WarehousesPage,

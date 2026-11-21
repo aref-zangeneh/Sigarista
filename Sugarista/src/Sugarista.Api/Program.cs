@@ -242,15 +242,21 @@ app.UseMiddleware<PrintAgentKeyMiddleware>();
 app.Use(async (context, next) =>
 {
     var headers = context.Response.Headers;
+    var isMagRoute = context.Request.Path.StartsWithSegments("/mag");
     headers.TryAdd("X-Content-Type-Options", "nosniff");
     headers.TryAdd("X-Frame-Options", "SAMEORIGIN");
-    headers.TryAdd("Referrer-Policy", "no-referrer");
+    headers.TryAdd("Referrer-Policy", isMagRoute ? "strict-origin-when-cross-origin" : "no-referrer");
     headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
     headers.TryAdd("Cross-Origin-Resource-Policy", "same-site");
 
-    // The first-run setup page needs inline scripts/styles; everything else
-    // keeps the strict CSP. The page itself is only reachable while unconfigured.
-    if (context.Request.Path.StartsWithSegments("/api/setup"))
+    // The first-run setup page and public SSR magazine (/mag) need inline styles/scripts
+    // and same-origin fonts/images; JSON API endpoints keep the strictest CSP.
+    if (isMagRoute)
+    {
+        headers.TryAdd("Content-Security-Policy",
+            "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'");
+    }
+    else if (context.Request.Path.StartsWithSegments("/api/setup"))
     {
         headers.TryAdd("Content-Security-Policy",
             "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'");

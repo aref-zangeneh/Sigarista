@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sugarista.Api.Authorization;
+using Sugarista.Application.SiteSettings.Commands.UpdateOrderAlertSoundSettings;
 using Sugarista.Application.SiteSettings.Commands.UpdateSiteSettings;
 using Sugarista.Application.SiteSettings.Queries.GetSiteSettings;
 using Sugarista.Domain.Constants;
@@ -22,6 +23,15 @@ public class AdminSiteSettingsController : ApiControllerBase
     [RequirePermission(AdminPermissions.SiteSettings.Update)]
     public async Task<ActionResult<Guid>> Update(
         [FromBody] UpdateSiteSettingsCommand command,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(command, cancellationToken));
+    }
+
+    [HttpPatch("order-alert-sound")]
+    [RequireAnyPermission(AdminPermissions.SiteSettings.Update, AdminPermissions.Orders.Update)]
+    public async Task<ActionResult<OrderAlertSoundSettingsDto>> UpdateOrderAlertSound(
+        [FromBody] UpdateOrderAlertSoundSettingsCommand command,
         CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(command, cancellationToken));

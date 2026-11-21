@@ -92,6 +92,10 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.ProductWikiStep> ProductWikiSteps { get; }
 
+    DbSet<Sugarista.Domain.Entities.BlogCategory> BlogCategories { get; }
+
+    DbSet<Sugarista.Domain.Entities.BlogPost> BlogPosts { get; }
+
     DbSet<Sugarista.Domain.Entities.Order> Orders { get; }
 
     DbSet<Sugarista.Domain.Entities.OrderLine> OrderLines { get; }

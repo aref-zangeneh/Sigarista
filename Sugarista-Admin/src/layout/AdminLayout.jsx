@@ -7,6 +7,7 @@ import { adminRoutes, routeForPath } from '../adminRoutes'
 import { API_BASE_URL } from '../utils/adminApi'
 import { toPersianNumber } from '../utils/adminFormatters'
 import { getAccessibleRoutes, hasPermission, PERMISSIONS } from '../utils/adminPermissions'
+import { playOrderAlertSound } from '../utils/orderAlertSound'
 import { useAdmin } from '../context/AdminContext'
 
 /* ── Minimal stroke icons (Tabler-style) ───────────────── */
@@ -98,6 +99,12 @@ const ROUTE_ICONS = {
     <>
       <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />
       <path d="M4 19a2 2 0 0 1 2-2h13" />
+    </>,
+  ),
+  blog: icon(
+    <>
+      <path d="M4 5a2 2 0 0 1 2-2h10l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <path d="M14 3v5h5M8 11h8M8 15h8M8 19h5" />
     </>,
   ),
   inventory: icon(
@@ -196,7 +203,7 @@ const ROUTE_ICONS = {
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
 const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
-  { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'drink-builder', 'discounts', 'modifiers'] },
+  { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'addons', 'drink-builder', 'discounts', 'modifiers', 'blog'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['warehouses', 'inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
@@ -225,6 +232,9 @@ export function AdminLayout() {
     handleLogout,
     orderAlerts,
     busyAlertOrders,
+    orderAlertSoundSettings,
+    orderAlertSoundSaving,
+    updateOrderAlertSoundSettings,
     lowStockAlert,
     orderAlertPulse,
     openOrderEditor,
@@ -389,6 +399,45 @@ export function AdminLayout() {
 
           <div className="topbar-end">
             <code className="topbar-chip ltr-text">{API_BASE_URL}</code>
+            {canViewOrders ? (
+              <button
+                type="button"
+                className="topbar-icon-btn"
+                disabled={orderAlertSoundSaving}
+                onClick={() => {
+                  const nextEnabled = !orderAlertSoundSettings.enabled
+                  if (nextEnabled) {
+                    playOrderAlertSound()
+                  }
+                  updateOrderAlertSoundSettings({ enabled: nextEnabled })
+                }}
+                title={
+                  orderAlertSoundSettings.enabled
+                    ? 'صدای اعلان سفارش روشن است (کلیک برای خاموش کردن)'
+                    : 'صدای اعلان سفارش خاموش است (کلیک برای روشن کردن)'
+                }
+                aria-label={
+                  orderAlertSoundSettings.enabled
+                    ? 'خاموش کردن صدای اعلان سفارش'
+                    : 'روشن کردن صدای اعلان سفارش'
+                }
+                aria-pressed={orderAlertSoundSettings.enabled}
+              >
+                {orderAlertSoundSettings.enabled ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <line x1="23" y1="9" x2="17" y2="15" />
+                    <line x1="17" y1="9" x2="23" y2="15" />
+                  </svg>
+                )}
+              </button>
+            ) : null}
             <button
               type="button"
               className="topbar-icon-btn"
@@ -455,6 +504,9 @@ export function AdminLayout() {
               alerts={orderAlerts}
               busyOrders={busyAlertOrders}
               pulse={orderAlertPulse}
+              soundSettings={orderAlertSoundSettings}
+              soundSaving={orderAlertSoundSaving}
+              onUpdateSoundSettings={updateOrderAlertSoundSettings}
               onOpenOrders={() => navigate('/orders')}
               onOpenOrder={(order) => {
                 if (busyAlertOrders?.[String(order.id)]) {

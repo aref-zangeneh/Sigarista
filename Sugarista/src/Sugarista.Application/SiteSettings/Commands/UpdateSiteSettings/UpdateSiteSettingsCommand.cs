@@ -168,6 +168,10 @@ public record UpdateSiteSettingsCommand : IRequest<Guid>
     public string AbandonedCartEmailSubject { get; init; } = string.Empty;
 
     public string AbandonedCartEmailTemplate { get; init; } = string.Empty;
+
+    public bool OrderAlertSoundEnabled { get; init; } = true;
+
+    public int OrderAlertSoundIntervalSeconds { get; init; } = 10;
 }
 
 public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSettingsCommand>
@@ -245,6 +249,9 @@ public class UpdateSiteSettingsCommandValidator : AbstractValidator<UpdateSiteSe
             .Must(command => !command.EventBannerStartsAt.HasValue || !command.EventBannerEndsAt.HasValue
                 || command.EventBannerEndsAt.Value >= command.EventBannerStartsAt.Value)
             .WithMessage("پایان بازهٔ نمایش بنر باید بعد از شروع آن باشد.");
+        RuleFor(command => command.OrderAlertSoundIntervalSeconds)
+            .Must(seconds => seconds == 0 || (seconds >= 3 && seconds <= 300))
+            .WithMessage("فاصلهٔ تکرار صدای اعلان سفارش باید ۰ (بدون تکرار) یا بین ۳ تا ۳۰۰ ثانیه باشد.");
     }
 }
 
@@ -394,6 +401,8 @@ public class UpdateSiteSettingsCommandHandler : IRequestHandler<UpdateSiteSettin
         settings.AbandonedCartSmsTemplate = request.AbandonedCartSmsTemplate.Trim();
         settings.AbandonedCartEmailSubject = request.AbandonedCartEmailSubject.Trim();
         settings.AbandonedCartEmailTemplate = request.AbandonedCartEmailTemplate.Trim();
+        settings.OrderAlertSoundEnabled = request.OrderAlertSoundEnabled;
+        settings.OrderAlertSoundIntervalSeconds = request.OrderAlertSoundIntervalSeconds;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

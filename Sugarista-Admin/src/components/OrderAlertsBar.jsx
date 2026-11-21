@@ -1,4 +1,11 @@
 import './OrderAlertsBar.css'
+import {
+  ALERT_SOUND_INTERVAL_PRESETS,
+  formatAlertSoundDescription,
+  normalizeAlertSoundSettings,
+  playOrderAlertSound,
+} from '../utils/orderAlertSound'
+import { toPersianDigits } from '../utils/persianDigits'
 
 export function fulfillmentStatusLabel(status) {
   switch (status) {
@@ -94,6 +101,9 @@ export function OrderAlertsBar({
   alerts,
   busyOrders = {},
   pulse,
+  soundSettings,
+  soundSaving = false,
+  onUpdateSoundSettings,
   onOpenOrders,
   onOpenOrder,
   onDismissNew,
@@ -112,12 +122,17 @@ export function OrderAlertsBar({
     return null
   }
 
+  const normalizedSound = normalizeAlertSoundSettings(soundSettings)
+  const intervalOptions = ALERT_SOUND_INTERVAL_PRESETS.includes(normalizedSound.intervalSeconds)
+    ? ALERT_SOUND_INTERVAL_PRESETS
+    : [...ALERT_SOUND_INTERVAL_PRESETS, normalizedSound.intervalSeconds].sort((a, b) => a - b)
+
   return (
     <section className={`order-alerts-bar ${pulse ? 'order-alerts-bar--pulse' : ''}`}>
       <div className="order-alerts-head">
         <div>
           <strong>اعلان سفارش</strong>
-          <p className="table-subtext">سفارش‌های پرداخت‌شده در صف آشپزخانه یا آماده تحویل — صدای کوتاه هر ۱۰ ثانیه تا زمان «شروع آماده‌سازی» تکرار می‌شود.</p>
+          <p className="table-subtext">{formatAlertSoundDescription(normalizedSound)}</p>
         </div>
         <div className="order-alerts-stats">
           <span className="order-alert-stat order-alert-stat--urgent">
@@ -126,6 +141,46 @@ export function OrderAlertsBar({
           <span className="order-alert-stat">
             آماده تحویل: <strong>{alerts.readyCount ?? readyOrders.length}</strong>
           </span>
+          {onUpdateSoundSettings ? (
+            <div className="order-alert-sound-controls">
+              <button
+                type="button"
+                className={`ghost-button order-alert-sound-toggle ${normalizedSound.enabled ? 'is-on' : 'is-muted'}`}
+                disabled={soundSaving}
+                aria-pressed={normalizedSound.enabled}
+                onClick={() => {
+                  const nextEnabled = !normalizedSound.enabled
+                  if (nextEnabled) {
+                    playOrderAlertSound()
+                  }
+                  onUpdateSoundSettings({
+                    enabled: nextEnabled,
+                    intervalSeconds: normalizedSound.intervalSeconds,
+                  })
+                }}
+              >
+                {normalizedSound.enabled ? '🔊 صدا روشن' : '🔇 صدا خاموش'}
+              </button>
+              <select
+                className="order-alert-interval-select"
+                aria-label="فاصله تکرار صدای اعلان سفارش"
+                value={String(normalizedSound.intervalSeconds)}
+                disabled={soundSaving || !normalizedSound.enabled}
+                onChange={(event) =>
+                  onUpdateSoundSettings({
+                    enabled: normalizedSound.enabled,
+                    intervalSeconds: Number(event.target.value),
+                  })
+                }
+              >
+                {intervalOptions.map((seconds) => (
+                  <option key={seconds} value={String(seconds)}>
+                    {seconds === 0 ? 'فقط یک‌بار (بدون تکرار)' : `هر ${toPersianDigits(seconds)} ثانیه`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <button type="button" className="ghost-button" onClick={onOpenOrders}>
             مشاهده همه سفارش‌ها
           </button>

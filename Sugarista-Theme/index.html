@@ -34,6 +34,7 @@
   <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.rtl.min.css">
   <link rel="stylesheet" href="assets/vendor/bootstrap-icons/bootstrap-icons.min.css">
   <link rel="preload" href="assets/fonts/YekanBakh-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="alternate" type="application/rss+xml" title="مجله قهوه شوگریستا" href="/mag/feed.xml">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body x-data="cafeMenu()" x-init="init()" :class="{ 'has-cart': !salesClosed && cartCount > 0, 'has-notes': notesCount > 0 }">
@@ -126,6 +127,14 @@
               <i class="bi bi-clock-history"></i>
               <span>خودکار</span>
             </button>
+            <a
+              href="/mag"
+              class="menu-page-icon-btn"
+              aria-label="مجله قهوه شوگریستا"
+              title="مجله قهوه"
+            >
+              <i class="bi bi-journal-richtext"></i>
+            </a>
             <a
               x-show="settings.instagramUrl"
               :href="instagramHref()"
@@ -745,6 +754,7 @@
         <div class="footer-links">
           <a href="#popular" x-text="settings.footerPopularLabel"></a>
           <a href="#menu" x-text="settings.footerMenuLabel"></a>
+          <a href="/mag">مجله قهوه</a>
           <a x-show="settings.contactPhone" :href="callHref()" x-text="settings.footerCallLabel"></a>
         </div>
       </div>

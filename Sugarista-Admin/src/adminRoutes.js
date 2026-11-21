@@ -16,6 +16,7 @@ export const adminRoutes = [
   { id: 'suppliers', path: 'suppliers', label: 'تامین‌کنندگان' },
   { id: 'recipes', path: 'recipes', label: 'دستور پخت' },
   { id: 'product-wiki', path: 'product-wiki', label: 'ویکی محصولات' },
+  { id: 'blog', path: 'blog', label: 'مجله و بلاگ (SEO)' },
   { id: 'inventory', path: 'inventory', label: 'انبار موجودی' },
   { id: 'inventory-purchases', path: 'inventory-purchases', label: 'خرید مواد اولیه' },
   { id: 'warehouses', path: 'warehouses', label: 'انبارها' },

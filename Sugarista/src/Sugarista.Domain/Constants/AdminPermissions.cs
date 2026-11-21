@@ -97,6 +97,14 @@ public static class AdminPermissions
         public const string Update = "admin.product-wiki.update";
     }
 
+    public static class Blog
+    {
+        public const string View = "admin.blog.view";
+        public const string Create = "admin.blog.create";
+        public const string Update = "admin.blog.update";
+        public const string Delete = "admin.blog.delete";
+    }
+
     public static class Inventory
     {
         public const string View = "admin.inventory.view";
@@ -278,6 +286,10 @@ public static class AdminPermissions
         new(Recipes.Delete, "recipes", "delete", "دستور پخت", "حذف خط"),
         new(ProductWiki.View, "product-wiki", "view", "ویکی محصولات", "مشاهده"),
         new(ProductWiki.Update, "product-wiki", "update", "ویکی محصولات", "ویرایش"),
+        new(Blog.View, "blog", "view", "مجله و بلاگ", "مشاهده"),
+        new(Blog.Create, "blog", "create", "مجله و بلاگ", "ایجاد مقاله / دسته"),
+        new(Blog.Update, "blog", "update", "مجله و بلاگ", "ویرایش مقاله / دسته"),
+        new(Blog.Delete, "blog", "delete", "مجله و بلاگ", "حذف مقاله / دسته"),
         new(Inventory.View, "inventory", "view", "انبار موجودی", "مشاهده"),
         new(Inventory.Create, "inventory", "create", "انبار موجودی", "ورود / شارژ"),
         new(Inventory.Update, "inventory", "update", "انبار موجودی", "تعدیل / آستانه"),

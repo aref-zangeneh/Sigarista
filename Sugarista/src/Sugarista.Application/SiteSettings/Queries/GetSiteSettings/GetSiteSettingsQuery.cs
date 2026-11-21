@@ -133,6 +133,8 @@ public record SiteSettingsDto
     public string AbandonedCartSmsTemplate { get; init; } = string.Empty;
     public string AbandonedCartEmailSubject { get; init; } = string.Empty;
     public string AbandonedCartEmailTemplate { get; init; } = string.Empty;
+    public bool OrderAlertSoundEnabled { get; init; } = true;
+    public int OrderAlertSoundIntervalSeconds { get; init; } = 10;
     public IReadOnlyDictionary<string, string> MenuTooltips { get; init; } = new Dictionary<string, string>();
 }
 
@@ -270,7 +272,9 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 AbandonedCartCodeValidityHours = settings.AbandonedCartCodeValidityHours,
                 AbandonedCartSmsTemplate = settings.AbandonedCartSmsTemplate,
                 AbandonedCartEmailSubject = settings.AbandonedCartEmailSubject,
-                AbandonedCartEmailTemplate = settings.AbandonedCartEmailTemplate
+                AbandonedCartEmailTemplate = settings.AbandonedCartEmailTemplate,
+                OrderAlertSoundEnabled = settings.OrderAlertSoundEnabled,
+                OrderAlertSoundIntervalSeconds = settings.OrderAlertSoundIntervalSeconds
             })
             .FirstOrDefaultAsync(cancellationToken);
 

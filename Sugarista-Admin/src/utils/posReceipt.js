@@ -150,9 +150,35 @@ export function buildPosReceiptBundle(input) {
   const orderKind = result?.orderKind ?? input?.orderKind ?? 'Standard'
   const complimentaryReason = normalizeText(result?.complimentaryReason ?? input?.complimentaryReason)
   const isNonRevenue = orderKind === 'InternalUse' || orderKind === 'Complimentary'
+  const manualDiscountType = isNonRevenue
+    ? null
+    : (result?.manualDiscountType ?? input?.manualDiscountType ?? null)
+  const manualDiscountValue = isNonRevenue
+    ? null
+    : (Number(result?.manualDiscountValue ?? input?.manualDiscountValue ?? 0) || null)
+  const manualDiscountAmount = isNonRevenue
+    ? 0
+    : (Number(result?.manualDiscountAmount ?? input?.manualDiscountAmount ?? 0) || 0)
+  const manualDiscountReason = isNonRevenue
+    ? ''
+    : normalizeText(result?.manualDiscountReason ?? input?.manualDiscountReason)
+  const discountTotal = isNonRevenue
+    ? 0
+    : (Number(result?.discountTotal ?? input?.discountTotal ?? manualDiscountAmount) || 0)
+  const discountTitle =
+    discountTotal > 0
+      ? manualDiscountAmount > 0 && manualDiscountAmount === discountTotal
+        ? manualDiscountType === 'Percent' && manualDiscountValue
+          ? `تخفیف دلخواه (${toPersianDigits(manualDiscountValue)}٪)`
+          : 'تخفیف دلخواه'
+        : 'تخفیف'
+      : null
   const totalAmount = isNonRevenue
     ? 0
-    : Number(result?.totalAmount ?? resolvedSubtotal + resolvedDeliveryFee + resolvedTaxTotal)
+    : Number(
+        result?.totalAmount ??
+          Math.max(0, resolvedSubtotal + resolvedDeliveryFee + resolvedTaxTotal - discountTotal),
+      )
   const paymentMethod =
     orderKind === 'InternalUse'
       ? 'مصرف داخلی پرسنل (رایگان)'
@@ -240,6 +266,12 @@ export function buildPosReceiptBundle(input) {
     subtotalAmount: resolvedSubtotal,
     deliveryFee: resolvedDeliveryFee,
     taxTotal: resolvedTaxTotal,
+    discountTotal,
+    discountTitle,
+    manualDiscountType,
+    manualDiscountValue,
+    manualDiscountAmount,
+    manualDiscountReason,
     totalAmount,
     layout,
     lines: normalizedLines,
@@ -298,6 +330,9 @@ export function buildPosReceiptBundle(input) {
       subtotalLabel: formatReceiptMoney(resolvedSubtotal),
       deliveryFeeLabel: resolvedDeliveryFee > 0 ? formatReceiptMoney(resolvedDeliveryFee) : null,
       taxLabel: resolvedTaxTotal > 0 ? formatReceiptMoney(resolvedTaxTotal) : null,
+      discountLabel: discountTotal > 0 ? formatReceiptMoney(discountTotal) : null,
+      discountTitle: discountTotal > 0 ? discountTitle : null,
+      discountNote: discountTotal > 0 && manualDiscountReason ? manualDiscountReason : null,
       totalLabel: formatReceiptMoney(totalAmount),
       amountPaidLabel: formatReceiptMoney(totalAmount),
     },
@@ -353,6 +388,12 @@ export function formatCustomerReceiptText(receipt) {
   })
 
   lines.push(divider(width))
+  if (receipt.discountTotal > 0) {
+    lines.push(padLine(receipt.discountTitle || 'تخفیف', `-${formatPrice(receipt.discountTotal)} تومان`, width))
+    if (receipt.manualDiscountReason) {
+      lines.push(`بابت تخفیف: ${receipt.manualDiscountReason}`)
+    }
+  }
   lines.push(padLine('مبلغ قابل پرداخت', `${formatPrice(receipt.totalAmount)} تومان`, width))
   lines.push(`شیوهٔ پرداخت: ${receipt.paymentMethod}`)
   lines.push('')
@@ -439,6 +480,8 @@ function buildCustomerBodyHtml(receipt) {
     <div class="row"><span>جمع کل اقلام</span><span>${escapeHtml(formatPrice(receipt.subtotalAmount))} تومان</span></div>
     ${receipt.deliveryFee > 0 ? `<div class="row"><span>هزینه ارسال / پیک</span><span>${escapeHtml(formatPrice(receipt.deliveryFee))} تومان</span></div>` : ''}
     ${receipt.taxTotal > 0 ? `<div class="row"><span>مالیات بر ارزش افزوده</span><span>${escapeHtml(formatPrice(receipt.taxTotal))} تومان</span></div>` : ''}
+    ${receipt.discountTotal > 0 ? `<div class="row" style="font-weight:700;"><span>${escapeHtml(receipt.discountTitle || 'تخفیف')}</span><span>−${escapeHtml(formatPrice(receipt.discountTotal))} تومان</span></div>` : ''}
+    ${receipt.discountTotal > 0 && receipt.manualDiscountReason ? `<div class="line-meta" style="margin-bottom:4px;">بابت تخفیف: ${escapeHtml(toPersianDigits(receipt.manualDiscountReason))}</div>` : ''}
     <div class="row total"><span>مبلغ قابل پرداخت</span><span>${escapeHtml(formatPrice(receipt.totalAmount))} تومان</span></div>
     <div class="row" style="margin-top:6px;"><span>شیوهٔ پرداخت</span><span>${escapeHtml(receipt.paymentMethod)}</span></div>
     <div class="row" style="font-weight:700;"><span>وضعیت پرداخت</span><span>تسویه شد ✓</span></div>

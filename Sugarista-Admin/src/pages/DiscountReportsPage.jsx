@@ -16,6 +16,7 @@ const KIND_OPTIONS = [
   { value: 'LoyaltyPoints', label: 'امتیاز باشگاه' },
   { value: 'StampCard', label: 'کارت مهر' },
   { value: 'Referral', label: 'معرفی دوستان' },
+  { value: 'ManualPos', label: 'تخفیف دلخواه صندوق' },
 ]
 
 const CHANNEL_OPTIONS = [

@@ -10,6 +10,7 @@ using Sugarista.Application.MenuItems.OptionGroups;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Commands.CreateOrderCheckout;
 using Sugarista.Application.Orders.Services;
+using Sugarista.Domain.Constants;
 using Sugarista.Domain.Entities;
 using Sugarista.Domain.Exceptions;
 
@@ -54,7 +55,10 @@ public record UpsertPosOrderCommand(
     bool UseSubscription = false,
     string? OrderKind = null,
     string? ComplimentaryReason = null,
-    bool ExcludeFromAccounting = false) : IRequest<UpsertPosOrderResultDto>;
+    bool ExcludeFromAccounting = false,
+    string? ManualDiscountType = null,
+    decimal? ManualDiscountValue = null,
+    string? ManualDiscountReason = null) : IRequest<UpsertPosOrderResultDto>;
 
 public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCommand>
 {
@@ -78,6 +82,19 @@ public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCo
             .WithMessage("OrderKind must be Standard, InternalUse, or Complimentary.");
         RuleFor(c => c.ComplimentaryReason).MaximumLength(300);
         RuleFor(c => c.Note).MaximumLength(500);
+        RuleFor(c => c.ManualDiscountType)
+            .Must(value => string.IsNullOrWhiteSpace(value) || Enum.TryParse<ManualDiscountType>(value, true, out _))
+            .WithMessage("ManualDiscountType must be Amount or Percent.");
+        RuleFor(c => c.ManualDiscountValue)
+            .GreaterThanOrEqualTo(0m)
+            .When(c => c.ManualDiscountValue.HasValue)
+            .WithMessage("Manual discount value cannot be negative.");
+        RuleFor(c => c.ManualDiscountValue)
+            .LessThanOrEqualTo(100m)
+            .When(c => c.ManualDiscountValue.HasValue &&
+                string.Equals(c.ManualDiscountType, nameof(Domain.Entities.ManualDiscountType.Percent), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Manual discount percentage cannot exceed 100.");
+        RuleFor(c => c.ManualDiscountReason).MaximumLength(300);
     }
 }
 
@@ -86,15 +103,18 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
     private readonly IApplicationDbContext _dbContext;
     private readonly IAccountingService _accountingService;
     private readonly IPrintJobService _printJobService;
+    private readonly ICurrentUserService _currentUserService;
 
     public UpsertPosOrderCommandHandler(
         IApplicationDbContext dbContext,
         IAccountingService accountingService,
-        IPrintJobService printJobService)
+        IPrintJobService printJobService,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
         _accountingService = accountingService;
         _printJobService = printJobService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<UpsertPosOrderResultDto> Handle(UpsertPosOrderCommand request, CancellationToken cancellationToken)
@@ -138,8 +158,6 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             request.CustomerPhone,
             "pos",
             cancellationToken);
-
-        ValidateSplitBill(request, splitBillMode, totalAmount);
 
         var tableSessionId = await ResolveTableSessionIdAsync(request.SalonTableId, serviceType, cancellationToken);
 
@@ -370,6 +388,49 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     }
                 }
             }
+
+            if (request.ManualDiscountValue is > 0m)
+            {
+                if (!_currentUserService.HasPermission(AdminPermissions.Pos.ApplyManualDiscount))
+                {
+                    throw new DomainException("شما مجوز اعمال تخفیف دلخواه روی سفارش در صندوق فروش را ندارید.");
+                }
+
+                var parsedManualType = ManualDiscountType.Amount;
+                if (!string.IsNullOrWhiteSpace(request.ManualDiscountType) &&
+                    !Enum.TryParse<ManualDiscountType>(request.ManualDiscountType, true, out parsedManualType))
+                {
+                    throw new DomainException("نوع تخفیف دلخواه نامعتبر است.");
+                }
+
+                var appliedBy = await ResolveAdminDisplayNameAsync(request.ServedByAdminUserId, cancellationToken);
+                var appliedManual = order.ApplyManualDiscount(
+                    parsedManualType,
+                    request.ManualDiscountValue.Value,
+                    request.ManualDiscountReason,
+                    appliedBy);
+
+                if (appliedManual > 0m)
+                {
+                    var label = BuildManualDiscountLabel(
+                        parsedManualType,
+                        request.ManualDiscountValue.Value,
+                        request.ManualDiscountReason);
+                    var manualRow = new OrderDiscount(
+                        order.Id,
+                        customer?.Id,
+                        OrderDiscountKind.ManualPos,
+                        label,
+                        appliedManual);
+                    order.Discounts.Add(manualRow);
+                    _dbContext.OrderDiscounts.Add(manualRow);
+                }
+            }
+        }
+
+        if (!isNonRevenueAction)
+        {
+            ValidateSplitBill(request, splitBillMode, order.TotalAmount);
         }
 
         if (request.ExcludeFromAccounting)
@@ -435,7 +496,57 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             order.PaymentMethod?.ToString(),
             order.OrderKind.ToString(),
             order.ComplimentaryReason,
-            order.IsExcludedFromAccounting);
+            order.IsExcludedFromAccounting,
+            order.DiscountTotal,
+            order.ManualDiscountType?.ToString(),
+            order.ManualDiscountValue,
+            order.ManualDiscountAmount,
+            order.ManualDiscountReason,
+            order.ManualDiscountAppliedBy);
+    }
+
+    private async Task<string?> ResolveAdminDisplayNameAsync(Guid? adminUserId, CancellationToken cancellationToken)
+    {
+        var resolvedId = adminUserId;
+        if (!resolvedId.HasValue && Guid.TryParse(_currentUserService.UserId, out var claimId))
+        {
+            resolvedId = claimId;
+        }
+
+        if (!resolvedId.HasValue)
+        {
+            return null;
+        }
+
+        var adminUser = await _dbContext.AdminUsers
+            .AsNoTracking()
+            .Where(u => u.Id == resolvedId.Value)
+            .Select(u => new { u.DisplayName, u.Username })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (adminUser is null)
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(adminUser.DisplayName)
+            ? adminUser.Username
+            : adminUser.DisplayName;
+    }
+
+    private static string BuildManualDiscountLabel(ManualDiscountType type, decimal value, string? reason)
+    {
+        var baseLabel = type == ManualDiscountType.Percent
+            ? $"تخفیف دلخواه صندوق ({value:0.##}٪)"
+            : "تخفیف دلخواه صندوق";
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return baseLabel;
+        }
+
+        var combined = $"{baseLabel} — {reason.Trim()}";
+        return combined.Length <= 180 ? combined : combined[..180];
     }
 
     private async Task ReplaceLinesAsync(

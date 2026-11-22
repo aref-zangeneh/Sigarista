@@ -21,6 +21,7 @@ export const adminRoutes = [
   { id: 'inventory', path: 'inventory', label: 'انبار موجودی' },
   { id: 'inventory-purchases', path: 'inventory-purchases', label: 'خرید مواد اولیه' },
   { id: 'warehouses', path: 'warehouses', label: 'انبارها' },
+  { id: 'warehouse-vouchers', path: 'warehouse-vouchers', label: 'رسید ورود و سند خروج' },
   { id: 'production', path: 'production', label: 'تولید' },
   { id: 'record-sale', path: 'record-sale', label: 'ثبت فروش' },
   { id: 'pos', path: 'pos', label: 'صندوق فروش' },

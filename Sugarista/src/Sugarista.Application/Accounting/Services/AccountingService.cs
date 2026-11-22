@@ -131,11 +131,16 @@ internal sealed class AccountingService : IAccountingService
             ? cashAccount
             : cardAccount;
         var reference = await NextReferenceAsync(entryDate, cancellationToken);
+        var discountMemo = order.ManualDiscountAmount > 0m
+            ? $" (تخفیف دلخواه: {order.ManualDiscountAmount:N0})"
+            : order.DiscountTotal > 0m
+                ? $" (تخفیف: {order.DiscountTotal:N0})"
+                : string.Empty;
         var entry = new JournalEntry(
             reference,
             entryDate,
             JournalSourceType.OrderPayment,
-            $"Payment for order {order.TrackingCode}",
+            $"Payment for order {order.TrackingCode}{discountMemo}",
             order.Id);
 
         if (order.TotalAmount > 0)

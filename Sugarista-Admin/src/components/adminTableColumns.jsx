@@ -20,6 +20,9 @@ function movementTypeLabel(type) {
   if (type === 'PackagingConsumption') return 'مصرف بسته‌بندی'
   if (type === 'TransferOut') return 'خروج انتقالی'
   if (type === 'TransferIn') return 'ورود انتقالی'
+  if (type === 'WarehouseReceipt') return 'رسید ورود به انبار'
+  if (type === 'WarehouseIssue') return 'سند خروج از انبار'
+  if (type === 'VoucherReversal') return 'ابطال سند انبار'
   return type
 }
 
@@ -1346,6 +1349,14 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEd
           <span className="ltr-text">{row.original.trackingCode}</span>
           <div className="order-badges-inline">
             {orderKindBadge(row.original)}
+            {row.original.manualDiscountAmount > 0 ? (
+              <span className="order-kind-badge order-kind-badge--discount">
+                تخفیف دلخواه
+                {row.original.manualDiscountType === 'Percent' && row.original.manualDiscountValue
+                  ? ` (${toPersianNumber(row.original.manualDiscountValue)}٪)`
+                  : ''}
+              </span>
+            ) : null}
             {row.original.isExcludedFromAccounting ? (
               <span className="order-kind-badge order-kind-badge--excluded">خارج از حسابداری</span>
             ) : null}
@@ -1377,6 +1388,11 @@ export function buildOrderColumns({ toPersianNumber, formatDateTime, openOrderEd
           ) : (
             <>{formatMoney(row.original.totalAmount)} تومان</>
           )}
+          {row.original.discountTotal > 0 ? (
+            <div className="table-subtext order-discount-subtext">
+              تخفیف: −{formatMoney(row.original.discountTotal)} تومان
+            </div>
+          ) : null}
           {row.original.isSplitBill ? <div className="table-subtext">تسویه جداگانه</div> : null}
           {row.original.amountPaid > 0 && row.original.amountPaid < row.original.totalAmount ? (
             <div className="table-subtext">پرداخت شده: {formatMoney(row.original.amountPaid)}</div>

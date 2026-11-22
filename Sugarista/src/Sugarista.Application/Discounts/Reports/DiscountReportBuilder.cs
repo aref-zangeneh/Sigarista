@@ -364,6 +364,7 @@ public sealed class DiscountReportBuilder
         nameof(OrderDiscountKind.LoyaltyPoints) => "امتیاز باشگاه",
         nameof(OrderDiscountKind.StampCard) => "کارت مهر",
         nameof(OrderDiscountKind.Referral) => "معرفی دوستان",
+        nameof(OrderDiscountKind.ManualPos) => "تخفیف دلخواه صندوق",
         _ => kind,
     };
 

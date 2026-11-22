@@ -26,6 +26,7 @@ import { BlogPage } from './pages/BlogPage.jsx'
 import { InventoryPage } from './pages/InventoryPage'
 import { InventoryPurchasesPage } from './pages/InventoryPurchasesPage'
 import { WarehousesPage } from './pages/WarehousesPage'
+import { WarehouseVouchersPage } from './pages/WarehouseVouchersPage.jsx'
 import { ProductionPage } from './pages/ProductionPage'
 import { RecordSalePage } from './pages/RecordSalePage'
 import { PosPage } from './pages/PosPage'
@@ -76,6 +77,7 @@ const pageComponents = {
   inventory: InventoryPage,
   'inventory-purchases': InventoryPurchasesPage,
   warehouses: WarehousesPage,
+  'warehouse-vouchers': WarehouseVouchersPage,
   suppliers: SuppliersPage,
   production: ProductionPage,
   'record-sale': RecordSalePage,

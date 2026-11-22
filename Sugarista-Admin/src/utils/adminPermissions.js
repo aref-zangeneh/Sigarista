@@ -165,6 +165,7 @@ export const PERMISSIONS = {
     update: 'admin.pos.update',
     delete: 'admin.pos.delete',
     pay: 'admin.pos.pay',
+    applyDiscount: 'admin.pos.apply-discount',
   },
   accounting: {
     view: 'admin.accounting.view',
@@ -241,6 +242,10 @@ export function viewPermissionForRoute(routeId) {
     return PERMISSIONS.discounts.view
   }
 
+  if (routeId === 'warehouse-vouchers') {
+    return PERMISSIONS.warehouses.view
+  }
+
   return PERMISSIONS[routeId]?.view ?? null
 }
 
@@ -265,6 +270,9 @@ export function hasAnyPermission(session, permissions = []) {
 }
 
 export function canViewRoute(session, routeId) {
+  if (routeId === 'warehouse-vouchers') {
+    return hasAnyPermission(session, [PERMISSIONS.warehouses.view, PERMISSIONS.inventory.view])
+  }
   return hasPermission(session, viewPermissionForRoute(routeId))
 }
 

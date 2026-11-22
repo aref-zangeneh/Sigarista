@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAdmin } from '../context/AdminContext'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
 import { Tip } from '../components/Tip'
@@ -20,6 +21,7 @@ function toNumberInput(value) {
 }
 
 export function WarehousesPage() {
+  const navigate = useNavigate()
   const {
     session,
     apiRequest,
@@ -496,6 +498,24 @@ export function WarehousesPage() {
           <p className="muted">تعریف، ویرایش، مدیریت موجودی و انتقال بین انبارها و انبار اصلی با ثبت خودکار کاردکس.</p>
         </div>
         <div className="option-groups-actions">
+          {canRestock || canAdjust || canUpdate ? (
+            <>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => navigate('/warehouse-vouchers?new=Receipt')}
+              >
+                📥 رسید ورود
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => navigate('/warehouse-vouchers?new=Issue')}
+              >
+                📤 سند خروج
+              </button>
+            </>
+          ) : null}
           {canTransfer ? (
             <button
               type="button"

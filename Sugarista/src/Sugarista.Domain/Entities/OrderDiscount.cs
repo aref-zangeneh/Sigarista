@@ -37,6 +37,9 @@ public enum OrderDiscountKind
 
     /// <summary>Referral reward.</summary>
     Referral = 8,
+
+    /// <summary>On-the-spot manual discount applied by an authorized POS admin/cashier.</summary>
+    ManualPos = 9,
 }
 
 /// <summary>

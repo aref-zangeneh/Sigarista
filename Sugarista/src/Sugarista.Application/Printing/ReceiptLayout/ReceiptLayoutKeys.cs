@@ -44,6 +44,7 @@ public static class ReceiptLayoutKeys
     public const string TotalRowSubtotal = "subtotal";
     public const string TotalRowDeliveryFee = "deliveryFee";
     public const string TotalRowTax = "tax";
+    public const string TotalRowDiscount = "discount";
     public const string TotalRowTotal = "total";
 
     // Barista ticket info rows.
@@ -80,7 +81,7 @@ public static class ReceiptLayoutKeys
         [SubLineSize, SubLineModifiers, SubLineOptions, SubLineCustomDrink, SubLineBaristaNote];
 
     public static readonly IReadOnlyList<string> TotalRowKeys =
-        [TotalRowSubtotal, TotalRowDeliveryFee, TotalRowTax, TotalRowTotal];
+        [TotalRowSubtotal, TotalRowDeliveryFee, TotalRowTax, TotalRowDiscount, TotalRowTotal];
 
     public static readonly IReadOnlyList<string> BaristaInfoRows =
     [

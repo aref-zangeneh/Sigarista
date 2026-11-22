@@ -221,6 +221,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<WarehouseTransferLine> WarehouseTransferLines => Set<WarehouseTransferLine>();
 
+    public DbSet<WarehouseVoucher> WarehouseVouchers => Set<WarehouseVoucher>();
+
+    public DbSet<WarehouseVoucherLine> WarehouseVoucherLines => Set<WarehouseVoucherLine>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

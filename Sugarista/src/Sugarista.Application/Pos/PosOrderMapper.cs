@@ -48,7 +48,13 @@ internal static class PosOrderMapper
                 .ToArray(),
             order.OrderKind.ToString(),
             order.ComplimentaryReason,
-            order.IsExcludedFromAccounting);
+            order.IsExcludedFromAccounting,
+            order.DiscountTotal,
+            order.ManualDiscountType?.ToString(),
+            order.ManualDiscountValue,
+            order.ManualDiscountAmount,
+            order.ManualDiscountReason,
+            order.ManualDiscountAppliedBy);
     }
 
     internal static PosOrderLineDto ToLine(OrderLine line)
@@ -108,7 +114,13 @@ internal static class PosOrderMapper
             order.HeldAt,
             order.OrderKind.ToString(),
             order.ComplimentaryReason,
-            order.IsExcludedFromAccounting);
+            order.IsExcludedFromAccounting,
+            order.DiscountTotal,
+            order.ManualDiscountType?.ToString(),
+            order.ManualDiscountValue,
+            order.ManualDiscountAmount,
+            order.ManualDiscountReason,
+            order.ManualDiscountAppliedBy);
     }
 
     internal static async Task<IReadOnlyDictionary<Guid, string>> LoadTableNamesAsync(

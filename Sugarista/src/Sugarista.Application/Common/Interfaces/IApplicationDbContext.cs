@@ -212,5 +212,9 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.WarehouseTransferLine> WarehouseTransferLines { get; }
 
+    DbSet<Sugarista.Domain.Entities.WarehouseVoucher> WarehouseVouchers { get; }
+
+    DbSet<Sugarista.Domain.Entities.WarehouseVoucherLine> WarehouseVoucherLines { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

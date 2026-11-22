@@ -846,10 +846,25 @@ def customer_receipt(payload) -> Receipt:
             {"key": "subtotal", "label": "جمع کل اقلام", "visible": True},
             {"key": "deliveryFee", "label": "هزینه ارسال / پیک", "visible": True},
             {"key": "tax", "label": "مالیات بر ارزش افزوده", "visible": True},
+            {"key": "discount", "label": "تخفیف", "visible": True},
             {"key": "total", "label": "مبلغ قابل پرداخت", "visible": True},
         ]
     subtotal_font = font_size(layout_data, "subtotal", 24)
     total_font = font_size(layout_data, "total", 36)
+    has_explicit_discount_row = any(isinstance(row, dict) and row.get("key") == "discount" for row in rows)
+    discount_rendered = False
+
+    def render_discount_row(custom_label=""):
+        nonlocal discount_rendered
+        if discount_rendered or not totals.get("discountLabel"):
+            return
+        discount_rendered = True
+        discount_title = totals.get("discountTitle") or custom_label or "تخفیف"
+        r.row(discount_title, f"-{totals['discountLabel']} ت", size=subtotal_font, bold=True)
+        discount_note = totals.get("discountNote")
+        if discount_note:
+            r.row("بابت تخفیف", str(discount_note), size=max(18, subtotal_font - 4))
+
     for row in rows:
         if not isinstance(row, dict) or not row.get("visible", True):
             continue
@@ -861,7 +876,11 @@ def customer_receipt(payload) -> Receipt:
             r.row(label or "هزینه ارسال / پیک", f"{totals['deliveryFeeLabel']} ت", size=subtotal_font)
         elif key == "tax" and totals.get("taxLabel"):
             r.row(label or "مالیات بر ارزش افزوده", f"{totals['taxLabel']} ت", size=subtotal_font)
+        elif key == "discount":
+            render_discount_row(label)
         elif key == "total":
+            if not has_explicit_discount_row and totals.get("discountLabel"):
+                render_discount_row()
             r.gap(4)
             r.divider("double")
             r.gap(2)

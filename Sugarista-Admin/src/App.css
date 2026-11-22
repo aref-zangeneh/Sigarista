@@ -4159,6 +4159,51 @@ select:focus-visible {
   color: var(--warn-ink, #b45309);
 }
 
+.order-kind-badge--discount {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
+.order-discount-subtext {
+  color: #047857;
+  font-weight: 700;
+}
+
+.order-detail-discount-chip {
+  color: #047857;
+  font-weight: 700;
+}
+
+.order-discount-summary-box {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.order-discount-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.order-discount-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.order-discount-list li strong {
+  color: #047857;
+}
+
 .order-accounting-box {
   display: flex;
   flex-wrap: wrap;

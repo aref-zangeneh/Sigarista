@@ -3,6 +3,12 @@ using Sugarista.Domain.Exceptions;
 
 namespace Sugarista.Domain.Entities;
 
+public enum ManualDiscountType
+{
+    Amount = 1,
+    Percent = 2,
+}
+
 public class Order : BaseAuditableEntity
 {
     public Order()
@@ -163,6 +169,21 @@ public class Order : BaseAuditableEntity
     /// </summary>
     public decimal DiscountTotal { get; private set; }
 
+    /// <summary>Type of on-the-spot POS manual discount applied (Amount or Percent), if any.</summary>
+    public ManualDiscountType? ManualDiscountType { get; private set; }
+
+    /// <summary>Raw manual discount value entered in POS (fixed Toman amount or percent 0-100).</summary>
+    public decimal? ManualDiscountValue { get; private set; }
+
+    /// <summary>Actual Toman amount deducted by the POS manual discount.</summary>
+    public decimal ManualDiscountAmount { get; private set; }
+
+    /// <summary>Optional reason/note recorded when applying a POS manual discount.</summary>
+    public string? ManualDiscountReason { get; private set; }
+
+    /// <summary>Human-readable name of the admin user who applied the POS manual discount.</summary>
+    public string? ManualDiscountAppliedBy { get; private set; }
+
     public void AddLine(OrderLine line) => Lines.Add(line);
 
     public void AddPayment(OrderPayment payment) => Payments.Add(payment);
@@ -198,6 +219,7 @@ public class Order : BaseAuditableEntity
             TaxTotal = 0m;
             TotalAmount = 0m;
             DiscountTotal = 0m;
+            ClearManualDiscount();
             return;
         }
 
@@ -208,6 +230,73 @@ public class Order : BaseAuditableEntity
         // A fresh total starts with no discounts; POS upserts and delivery
         // changes recompute from scratch so benefits never stack twice.
         DiscountTotal = 0m;
+        ClearManualDiscount();
+    }
+
+    public void ClearManualDiscount()
+    {
+        ManualDiscountType = null;
+        ManualDiscountValue = null;
+        ManualDiscountAmount = 0m;
+        ManualDiscountReason = null;
+        ManualDiscountAppliedBy = null;
+    }
+
+    /// <summary>
+    /// Applies an authorized on-the-spot POS manual discount (fixed Toman amount or percent)
+    /// against the remaining payable order total and records audit metadata on the order.
+    /// </summary>
+    public decimal ApplyManualDiscount(
+        ManualDiscountType type,
+        decimal value,
+        string? reason = null,
+        string? appliedBy = null)
+    {
+        if (IsNonRevenue)
+        {
+            ClearManualDiscount();
+            return 0m;
+        }
+
+        if (value <= 0m)
+        {
+            throw new DomainException("مقدار تخفیف دلخواه باید بزرگ‌تر از صفر باشد.");
+        }
+
+        decimal computed;
+        if (type == Entities.ManualDiscountType.Percent)
+        {
+            if (value > 100m)
+            {
+                throw new DomainException("درصد تخفیف دلخواه باید بین ۰ تا ۱۰۰ باشد.");
+            }
+
+            computed = Math.Round(TotalAmount * value / 100m, 0, MidpointRounding.AwayFromZero);
+        }
+        else
+        {
+            if (value > TotalAmount)
+            {
+                throw new DomainException("مبلغ تخفیف دلخواه نمی‌تواند بیشتر از مبلغ قابل پرداخت سفارش باشد.");
+            }
+
+            computed = Math.Round(value, 0, MidpointRounding.AwayFromZero);
+        }
+
+        var applied = Math.Min(computed, TotalAmount);
+        if (applied <= 0m)
+        {
+            ClearManualDiscount();
+            return 0m;
+        }
+
+        ApplyDiscount(applied);
+        ManualDiscountType = type;
+        ManualDiscountValue = value;
+        ManualDiscountAmount = applied;
+        ManualDiscountReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        ManualDiscountAppliedBy = string.IsNullOrWhiteSpace(appliedBy) ? null : appliedBy.Trim();
+        return applied;
     }
 
     public void AssignCustomer(Guid? customerId)
@@ -492,6 +581,8 @@ public class Order : BaseAuditableEntity
         TotalAmount = 0m;
         AmountPaid = 0m;
         TaxTotal = 0m;
+        DiscountTotal = 0m;
+        ClearManualDiscount();
         Status = OrderStatus.Paid;
         PaidAt = DateTimeOffset.UtcNow;
         RegisterForFulfillment();

@@ -86,6 +86,12 @@ export function OrderEditorModal() {
               {selectedOrder.deliveryAt ? (
                 <span>زمان تحویل: {formatDateTime(selectedOrder.deliveryAt)}</span>
               ) : null}
+              <span>جمع اقلام: {formatMoney(selectedOrder.itemsTotal ?? 0)} تومان</span>
+              {selectedOrder.discountTotal > 0 ? (
+                <span className="order-detail-discount-chip">
+                  تخفیف کل: −{formatMoney(selectedOrder.discountTotal)} تومان
+                </span>
+              ) : null}
               <span>مبلغ کل: {formatMoney(selectedOrder.totalAmount)} تومان</span>
               <span>پرداخت شده: {formatMoney(selectedOrder.amountPaid ?? 0)} تومان</span>
               {selectedOrder.taxTotal > 0 ? (
@@ -96,6 +102,37 @@ export function OrderEditorModal() {
               ) : null}
               <span>تاریخ: {formatDateTime(selectedOrder.createdAt)}</span>
             </div>
+
+            {selectedOrder.manualDiscountAmount > 0 || (selectedOrder.discounts?.length ?? 0) > 0 ? (
+              <div className="order-discount-summary-box">
+                <strong>تخفیف‌های اعمال‌شده روی این سفارش</strong>
+                {selectedOrder.manualDiscountAmount > 0 ? (
+                  <p className="table-subtext">
+                    تخفیف دلخواه صندوق:{' '}
+                    <strong>−{formatMoney(selectedOrder.manualDiscountAmount)} تومان</strong>
+                    {selectedOrder.manualDiscountType === 'Percent' && selectedOrder.manualDiscountValue
+                      ? ` (${toPersianNumber(selectedOrder.manualDiscountValue)}٪)`
+                      : ''}
+                    {selectedOrder.manualDiscountAppliedBy
+                      ? ` · اعمال‌شده توسط: ${selectedOrder.manualDiscountAppliedBy}`
+                      : ''}
+                    {selectedOrder.manualDiscountReason
+                      ? ` · بابت: ${selectedOrder.manualDiscountReason}`
+                      : ''}
+                  </p>
+                ) : null}
+                {selectedOrder.discounts?.length ? (
+                  <ul className="order-discount-list">
+                    {selectedOrder.discounts.map((d) => (
+                      <li key={d.id}>
+                        <span>{d.name}</span>
+                        <strong>−{formatMoney(d.amount)} تومان</strong>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="order-accounting-box">
               <div>

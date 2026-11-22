@@ -53,7 +53,22 @@ public record AdminOrderDetailDto(
     bool IsExcludedFromAccounting = false,
     DateTimeOffset? ExcludedFromAccountingAt = null,
     string? ExcludedFromAccountingReason = null,
-    string? PaymentMethod = null);
+    string? PaymentMethod = null,
+    decimal DiscountTotal = 0m,
+    string? ManualDiscountType = null,
+    decimal? ManualDiscountValue = null,
+    decimal ManualDiscountAmount = 0m,
+    string? ManualDiscountReason = null,
+    string? ManualDiscountAppliedBy = null,
+    IReadOnlyCollection<AdminOrderDiscountDto>? Discounts = null);
+
+public record AdminOrderDiscountDto(
+    Guid Id,
+    string Kind,
+    string Name,
+    decimal Amount,
+    string? Code,
+    DateTimeOffset RedeemedAt);
 
 public record AdminOrderLineDto(
     Guid Id,
@@ -108,6 +123,7 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
         var order = await _dbContext.Orders
             .Include(o => o.Lines)
             .Include(o => o.Payments)
+            .Include(o => o.Discounts)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken)
             ?? throw new KeyNotFoundException("Order was not found.");
 
@@ -296,7 +312,7 @@ internal static class AdminOrderMapper
             order.DeliveryAt,
             order.DeliveryFee,
             order.TaxTotal,
-            order.TotalAmount - order.DeliveryFee - order.TaxTotal,
+            order.Lines.Sum(line => line.LineTotal),
             order.Lines
                 .Select(line => new AdminOrderLineDto(
                     line.Id,
@@ -332,6 +348,22 @@ internal static class AdminOrderMapper
             order.IsExcludedFromAccounting,
             order.ExcludedFromAccountingAt,
             order.ExcludedFromAccountingReason,
-            order.PaymentMethod?.ToString());
+            order.PaymentMethod?.ToString(),
+            order.DiscountTotal,
+            order.ManualDiscountType?.ToString(),
+            order.ManualDiscountValue,
+            order.ManualDiscountAmount,
+            order.ManualDiscountReason,
+            order.ManualDiscountAppliedBy,
+            order.Discounts
+                .OrderBy(discount => discount.RedeemedAt)
+                .Select(discount => new AdminOrderDiscountDto(
+                    discount.Id,
+                    discount.Kind.ToString(),
+                    discount.Name,
+                    discount.Amount,
+                    discount.Code,
+                    discount.RedeemedAt))
+                .ToArray());
     }
 }

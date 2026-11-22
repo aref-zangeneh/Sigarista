@@ -51,6 +51,9 @@ export function buildUpsertPayload({
   orderKind = 'Standard',
   complimentaryReason = '',
   excludeFromAccounting = false,
+  manualDiscountType = 'Amount',
+  manualDiscountValue = null,
+  manualDiscountReason = '',
 }) {
   const isNonRevenue =
     action === 'InternalUse' ||
@@ -59,6 +62,9 @@ export function buildUpsertPayload({
     orderKind === 'Complimentary'
   const resolvedOrderKind =
     action === 'InternalUse' || action === 'Complimentary' ? action : orderKind || 'Standard'
+  const parsedManualValue = parseNumericInput(manualDiscountValue)
+  const hasManualDiscount = !isNonRevenue && parsedManualValue > 0
+  const resolvedManualType = manualDiscountType === 'Percent' ? 'Percent' : 'Amount'
 
   return {
     orderId: orderId ?? null,
@@ -88,6 +94,58 @@ export function buildUpsertPayload({
     orderKind: resolvedOrderKind,
     complimentaryReason: isNonRevenue ? complimentaryReason?.trim() || null : null,
     excludeFromAccounting: excludeFromAccounting === true,
+    manualDiscountType: hasManualDiscount ? resolvedManualType : null,
+    manualDiscountValue: hasManualDiscount ? parsedManualValue : null,
+    manualDiscountReason: hasManualDiscount ? manualDiscountReason?.trim() || null : null,
+  }
+}
+
+export function parseNumericInput(raw) {
+  if (raw === null || raw === undefined || raw === '') return 0
+  const ascii = String(raw)
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[,٬\s]/g, '')
+  const parsed = Number(ascii)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
+export function computeManualDiscount(baseAmount, type = 'Amount', rawValue = 0) {
+  const safeBase = Math.max(0, Number(baseAmount) || 0)
+  const numericValue = parseNumericInput(rawValue)
+  const resolvedType = type === 'Percent' ? 'Percent' : 'Amount'
+
+  if (safeBase <= 0 || numericValue <= 0) {
+    return {
+      type: resolvedType,
+      value: 0,
+      amount: 0,
+      finalTotal: safeBase,
+      exceedsLimit: false,
+    }
+  }
+
+  if (resolvedType === 'Percent') {
+    const exceedsLimit = numericValue > 100
+    const clampedPct = Math.min(100, numericValue)
+    const amount = Math.min(safeBase, Math.round((safeBase * clampedPct) / 100))
+    return {
+      type: resolvedType,
+      value: numericValue,
+      amount,
+      finalTotal: Math.max(0, safeBase - amount),
+      exceedsLimit,
+    }
+  }
+
+  const exceedsLimit = numericValue > safeBase
+  const amount = Math.min(safeBase, Math.round(numericValue))
+  return {
+    type: resolvedType,
+    value: numericValue,
+    amount,
+    finalTotal: Math.max(0, safeBase - amount),
+    exceedsLimit,
   }
 }
 

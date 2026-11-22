@@ -1,3 +1,6 @@
+using Sugarista.Domain.Constants;
+using Sugarista.Domain.Entities;
+
 namespace Sugarista.Application.AdminUsers.Commands.UpdateAdminUserPermissions;
 
 public record UpdateAdminUserPermissionsCommand(Guid Id, IReadOnlyCollection<string> Permissions) : IRequest<Guid>;
@@ -34,7 +37,24 @@ public class UpdateAdminUserPermissionsCommandHandler : IRequestHandler<UpdateAd
             throw new InvalidOperationException("You cannot change your own permissions.");
         }
 
-        user.ReplacePermissions(request.Permissions);
+        if (user.Permissions.Count > 0)
+        {
+            _dbContext.AdminUserPermissions.RemoveRange(user.Permissions.ToList());
+            user.Permissions.Clear();
+        }
+
+        var normalizedKeys = request.Permissions
+            .Where(AdminPermissions.IsValid)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        foreach (var permissionKey in normalizedKeys)
+        {
+            var entry = new AdminUserPermission(user.Id, permissionKey);
+            user.Permissions.Add(entry);
+            _dbContext.AdminUserPermissions.Add(entry);
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
         return user.Id;
     }

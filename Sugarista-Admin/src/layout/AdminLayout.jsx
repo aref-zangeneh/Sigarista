@@ -135,6 +135,13 @@ const ROUTE_ICONS = {
       <path d="M7 21v-6h10v6M3 21h18M12 4v5M9 9h6" />
     </>,
   ),
+  'warehouse-vouchers': icon(
+    <>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6M9 17h4" />
+    </>,
+  ),
   production: icon(
     <>
       <path d="M4 20V10l5 3V10l5 3V10l5 3v7z" />
@@ -214,7 +221,7 @@ const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'option-templates', 'addons', 'drink-builder', 'discounts', 'modifiers', 'blog'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
-  { title: 'انبار', routes: ['warehouses', 'inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
+  { title: 'انبار', routes: ['warehouses', 'warehouse-vouchers', 'inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'منابع انسانی', routes: ['hr'] },
   { title: 'مدیریت پیامک', routes: ['sms-dashboard', 'sms-send', 'sms-bulk', 'sms-contacts', 'sms-groups', 'sms-templates', 'sms-history', 'sms-providers', 'sms-settings'] },

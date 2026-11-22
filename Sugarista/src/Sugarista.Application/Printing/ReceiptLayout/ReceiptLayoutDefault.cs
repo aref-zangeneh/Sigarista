@@ -25,6 +25,7 @@ public static class ReceiptLayoutDefault
             new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowSubtotal, "جمع کل اقلام", true),
             new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowDeliveryFee, "هزینه ارسال / پیک", true),
             new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTax, "مالیات بر ارزش افزوده", true),
+            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowDiscount, "تخفیف", true),
             new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTotal, "مبلغ قابل پرداخت", true),
         ]),
         PaymentRows:

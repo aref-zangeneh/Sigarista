@@ -15,9 +15,10 @@ import { useEscapeKey } from '../hooks/useEscapeKey'
 import {
   buildCartLineKey,
   buildUpsertPayload,
+  computeCartTotals,
+  computeManualDiscount,
   findMissingRequiredOptionGroup,
   formatPrice,
-  computeCartTotals,
   orderToCart,
   resolveDefaultSizeKey,
   resolveItemPrice,
@@ -553,6 +554,19 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
                   {customer.taxTotal > 0 ? (
                     <div className="pos-receipt-row"><span>مالیات بر ارزش افزوده</span><span>{formatPrice(customer.taxTotal)} تومان</span></div>
                   ) : null}
+                  {customer.discountTotal > 0 ? (
+                    <>
+                      <div className="pos-receipt-row" style={{ fontWeight: 'bold', color: '#047857' }}>
+                        <span>{customer.discountTitle || 'تخفیف'}</span>
+                        <span>−{formatPrice(customer.discountTotal)} تومان</span>
+                      </div>
+                      {customer.manualDiscountReason ? (
+                        <div className="pos-receipt-meta" style={{ marginBottom: 4 }}>
+                          بابت تخفیف: {customer.manualDiscountReason}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
                   <div className="pos-receipt-row pos-receipt-total" style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '6px 0', margin: '6px 0' }}>
                     <span>مبلغ قابل پرداخت</span>
                     <strong>{formatPrice(customer.totalAmount)} تومان</strong>
@@ -676,6 +690,10 @@ export function PosPage() {
   const [orderKind, setOrderKind] = useState('Standard') // 'Standard' | 'InternalUse' | 'Complimentary'
   const [complimentaryReason, setComplimentaryReason] = useState('')
   const [excludeFromAccounting, setExcludeFromAccounting] = useState(false)
+  const [manualDiscountOpen, setManualDiscountOpen] = useState(false)
+  const [manualDiscountType, setManualDiscountType] = useState('Amount') // 'Amount' | 'Percent'
+  const [manualDiscountValue, setManualDiscountValue] = useState('')
+  const [manualDiscountReason, setManualDiscountReason] = useState('')
   const [salonTableId, setSalonTableId] = useState(null)
   const [deliveryMethodId, setDeliveryMethodId] = useState('')
   const [deliveryOptions, setDeliveryOptions] = useState([])
@@ -683,6 +701,7 @@ export function PosPage() {
 
   const canSubmit = canSubmitPosOrder(session, orderId)
   const canDelete = hasPermission(session, PERMISSIONS.pos.delete) || hasPermission(session, PERMISSIONS.orders.delete)
+  const canApplyManualDiscount = hasPermission(session, PERMISSIONS.pos.applyDiscount)
 
   const loadBootstrap = useCallback(async () => {
     setLoading(true)
@@ -785,6 +804,14 @@ export function PosPage() {
   ) ?? null
   const deliveryFee = serviceType === 'TakeAway' ? (selectedDeliveryMethod?.deliveryFee ?? 0) : 0
   const cartTotals = useMemo(() => computeCartTotals(cart, deliveryFee), [cart, deliveryFee])
+  const manualDiscountPreview = useMemo(
+    () =>
+      canApplyManualDiscount && orderKind === 'Standard'
+        ? computeManualDiscount(cartTotals.grandTotal, manualDiscountType, manualDiscountValue)
+        : { type: 'Amount', value: 0, amount: 0, finalTotal: cartTotals.grandTotal, exceedsLimit: false },
+    [canApplyManualDiscount, orderKind, cartTotals.grandTotal, manualDiscountType, manualDiscountValue],
+  )
+  const effectivePayableTotal = orderKind === 'Standard' ? manualDiscountPreview.finalTotal : 0
 
   const selectedTable = bootstrap?.tables?.find((table) => table.id === salonTableId) ?? null
 
@@ -800,6 +827,10 @@ export function PosPage() {
     setOrderKind('Standard')
     setComplimentaryReason('')
     setExcludeFromAccounting(false)
+    setManualDiscountOpen(false)
+    setManualDiscountType('Amount')
+    setManualDiscountValue('')
+    setManualDiscountReason('')
     setSalonTableId(null)
     setDeliveryMethodId('')
     setSplitBill(EMPTY_SPLIT)
@@ -886,6 +917,17 @@ export function PosPage() {
       setOrderKind(order.orderKind ?? 'Standard')
       setComplimentaryReason(order.complimentaryReason ?? '')
       setExcludeFromAccounting(Boolean(order.isExcludedFromAccounting))
+      if (canApplyManualDiscount && Number(order.manualDiscountValue) > 0) {
+        setManualDiscountType(order.manualDiscountType === 'Percent' ? 'Percent' : 'Amount')
+        setManualDiscountValue(String(order.manualDiscountValue))
+        setManualDiscountReason(order.manualDiscountReason ?? '')
+        setManualDiscountOpen(true)
+      } else {
+        setManualDiscountType('Amount')
+        setManualDiscountValue('')
+        setManualDiscountReason('')
+        setManualDiscountOpen(false)
+      }
       setCart(orderToCart(order, items))
       setSplitBill({
         isSplitBill: Boolean(order.isSplitBill),
@@ -930,6 +972,16 @@ export function PosPage() {
       }
     }
 
+    if (canApplyManualDiscount && orderKind === 'Standard' && manualDiscountPreview.exceedsLimit) {
+      setError(
+        manualDiscountType === 'Percent'
+          ? 'درصد تخفیف دلخواه نمی‌تواند بیشتر از ۱۰۰ باشد.'
+          : 'مبلغ تخفیف دلخواه نمی‌تواند بیشتر از جمع کل سفارش باشد.',
+      )
+      setMessage('')
+      return
+    }
+
     setSubmitting(true)
     setError('')
     setMessage('')
@@ -953,6 +1005,9 @@ export function PosPage() {
       orderKind,
       complimentaryReason,
       excludeFromAccounting,
+      manualDiscountType: canApplyManualDiscount ? manualDiscountType : null,
+      manualDiscountValue: canApplyManualDiscount ? manualDiscountValue : null,
+      manualDiscountReason: canApplyManualDiscount ? manualDiscountReason : '',
     })
 
     try {
@@ -985,6 +1040,11 @@ export function PosPage() {
           deliveryFee: action === 'InternalUse' || action === 'Complimentary' ? 0 : deliveryFee,
           taxTotal: action === 'InternalUse' || action === 'Complimentary' ? 0 : cartTotals.taxTotal,
           subtotalAmount: cartTotals.itemsTotal,
+          discountTotal: result.discountTotal ?? manualDiscountPreview.amount,
+          manualDiscountType: result.manualDiscountType ?? (manualDiscountPreview.amount > 0 ? manualDiscountType : null),
+          manualDiscountValue: result.manualDiscountValue ?? (manualDiscountPreview.amount > 0 ? manualDiscountPreview.value : null),
+          manualDiscountAmount: result.manualDiscountAmount ?? manualDiscountPreview.amount,
+          manualDiscountReason: result.manualDiscountReason ?? (manualDiscountPreview.amount > 0 ? manualDiscountReason : ''),
           siteSettings,
           orderKind: result.orderKind ?? orderKind,
           complimentaryReason: result.complimentaryReason ?? complimentaryReason,
@@ -1023,6 +1083,11 @@ export function PosPage() {
           paymentMethod: order.paymentMethod,
           orderKind: order.orderKind,
           complimentaryReason: order.complimentaryReason,
+          discountTotal: order.discountTotal,
+          manualDiscountType: order.manualDiscountType,
+          manualDiscountValue: order.manualDiscountValue,
+          manualDiscountAmount: order.manualDiscountAmount,
+          manualDiscountReason: order.manualDiscountReason,
         },
         cart: loadedCart,
         customerName: order.customerName === 'مهمان' ? '' : order.customerName,
@@ -1925,7 +1990,119 @@ export function PosPage() {
               </label>
             </div>
 
+            {canApplyManualDiscount && orderKind === 'Standard' ? (
+              <div className={`pos-manual-discount-box ${manualDiscountPreview.amount > 0 ? 'is-active' : ''}`}>
+                <div className="pos-manual-discount-head">
+                  <button
+                    type="button"
+                    className="pos-manual-discount-toggle"
+                    onClick={() => setManualDiscountOpen((open) => !open)}
+                  >
+                    <span>🏷 تخفیف دلخواه در لحظه</span>
+                    {manualDiscountPreview.amount > 0 ? (
+                      <strong className="pos-manual-discount-badge">
+                        −{formatPrice(manualDiscountPreview.amount)} ت
+                        {manualDiscountType === 'Percent' && manualDiscountPreview.value > 0
+                          ? ` (${toPersianNumber(manualDiscountPreview.value)}٪)`
+                          : ''}
+                      </strong>
+                    ) : (
+                      <small>{manualDiscountOpen ? 'بستن ▴' : 'افزودن ▾'}</small>
+                    )}
+                  </button>
+                  {manualDiscountPreview.amount > 0 ? (
+                    <button
+                      type="button"
+                      className="pos-manual-discount-clear"
+                      title="حذف تخفیف دلخواه"
+                      onClick={() => {
+                        setManualDiscountValue('')
+                        setManualDiscountReason('')
+                        setManualDiscountOpen(false)
+                      }}
+                    >
+                      حذف
+                    </button>
+                  ) : null}
+                </div>
+
+                {manualDiscountOpen ? (
+                  <div className="pos-manual-discount-body">
+                    <div className="pos-manual-discount-row">
+                      <div className="pos-manual-discount-mode" role="group" aria-label="نوع تخفیف دلخواه">
+                        <button
+                          type="button"
+                          className={manualDiscountType === 'Amount' ? 'active' : ''}
+                          onClick={() => {
+                            setManualDiscountType('Amount')
+                            setManualDiscountValue('')
+                          }}
+                        >
+                          مبلغ (تومان)
+                        </button>
+                        <button
+                          type="button"
+                          className={manualDiscountType === 'Percent' ? 'active' : ''}
+                          onClick={() => {
+                            setManualDiscountType('Percent')
+                            setManualDiscountValue('')
+                          }}
+                        >
+                          درصد (٪)
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        className="pos-manual-discount-input ltr-input"
+                        placeholder={manualDiscountType === 'Percent' ? 'مثلاً ۱۰' : 'مبلغ به تومان'}
+                        value={manualDiscountValue}
+                        onChange={(event) => setManualDiscountValue(event.target.value)}
+                      />
+                    </div>
+
+                    {manualDiscountType === 'Percent' ? (
+                      <div className="pos-manual-discount-presets">
+                        {[5, 10, 15, 20, 25, 50].map((pct) => (
+                          <button
+                            key={pct}
+                            type="button"
+                            className={`pos-discount-preset-btn ${Number(manualDiscountValue) === pct ? 'active' : ''}`}
+                            onClick={() => setManualDiscountValue(String(pct))}
+                          >
+                            {toPersianNumber(pct)}٪
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <input
+                      type="text"
+                      className="pos-kind-reason-input"
+                      placeholder="علت یا توضیح تخفیف (اختیاری، مثلاً مشتری وفادار یا تخفیف مدیریت...)"
+                      value={manualDiscountReason}
+                      onChange={(event) => setManualDiscountReason(event.target.value)}
+                    />
+
+                    {manualDiscountPreview.exceedsLimit ? (
+                      <small className="pos-manual-discount-warn">
+                        {manualDiscountType === 'Percent'
+                          ? 'درصد تخفیف باید حداکثر ۱۰۰ باشد.'
+                          : 'مبلغ تخفیف بیشتر از مبلغ سفارش است.'}
+                      </small>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="pos-totals-box">
+              {orderKind === 'Standard' && manualDiscountPreview.amount > 0 ? (
+                <div className="pos-total-row pos-tax-row">
+                  <span>جمع قبل از تخفیف</span>
+                  <span>{formatPrice(cartTotals.grandTotal)} تومان</span>
+                </div>
+              ) : null}
               {orderKind === 'Standard' && cartTotals.taxTotal > 0 ? (
                 <div className="pos-total-row pos-tax-row">
                   <span>مالیات بر ارزش افزوده</span>
@@ -1936,6 +2113,17 @@ export function PosPage() {
                 <div className="pos-total-row pos-delivery-fee-row">
                   <span>هزینه تحویل{selectedDeliveryMethod ? ` (${selectedDeliveryMethod.persianName})` : ''}</span>
                   <span>{formatPrice(deliveryFee)} تومان</span>
+                </div>
+              ) : null}
+              {orderKind === 'Standard' && manualDiscountPreview.amount > 0 ? (
+                <div className="pos-total-row pos-discount-row">
+                  <span>
+                    تخفیف دلخواه
+                    {manualDiscountType === 'Percent' && manualDiscountPreview.value > 0
+                      ? ` (${toPersianNumber(manualDiscountPreview.value)}٪)`
+                      : ''}
+                  </span>
+                  <strong>−{formatPrice(manualDiscountPreview.amount)} تومان</strong>
                 </div>
               ) : null}
               {orderKind !== 'Standard' && cartTotals.itemsTotal > 0 ? (
@@ -1954,7 +2142,7 @@ export function PosPage() {
                   <Tip k="pos.totals" />
                 </span>
                 <strong className="pos-grand-total-value">
-                  {orderKind === 'Standard' ? formatPrice(cartTotals.grandTotal) : '۰'} <small>تومان</small>
+                  {orderKind === 'Standard' ? formatPrice(effectivePayableTotal) : '۰'} <small>تومان</small>
                 </strong>
               </div>
             </div>
@@ -2050,7 +2238,7 @@ export function PosPage() {
           onClick={() => setMobilePane('order')}
         >
           <span>🧾 سبد و تسویه ({toPersianNumber(totalItemsCount)})</span>
-          <strong>{formatPrice(cartTotals.grandTotal)} ت</strong>
+          <strong>{formatPrice(effectivePayableTotal)} ت</strong>
         </button>
       </nav>
 

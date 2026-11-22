@@ -207,6 +207,12 @@ public class ReceiptPrintJobService : IPrintJobService
                 ? null
                 : order.CustomerPhone;
 
+        var discountTitle = BuildDiscountTitle(order);
+        var discountLabel = order.DiscountTotal > 0 ? Money(order.DiscountTotal) : null;
+        var discountNote = order.ManualDiscountAmount > 0 && !string.IsNullOrWhiteSpace(order.ManualDiscountReason)
+            ? order.ManualDiscountReason
+            : null;
+
         return new ReceiptPayload(
             CopyType: PrintJobCopyType.Customer,
             Header: header,
@@ -229,10 +235,34 @@ public class ReceiptPrintJobService : IPrintJobService
                 DeliveryFeeLabel: order.DeliveryFee > 0 ? Money(order.DeliveryFee) : null,
                 TaxLabel: order.TaxTotal > 0 ? Money(order.TaxTotal) : null,
                 TotalLabel: Money(order.TotalAmount),
-                AmountPaidLabel: order.AmountPaid > 0 ? Money(order.AmountPaid) : null),
+                AmountPaidLabel: order.AmountPaid > 0 ? Money(order.AmountPaid) : null,
+                DiscountLabel: discountLabel,
+                DiscountTitle: discountTitle,
+                DiscountNote: discountNote),
             FooterText: settings?.FooterText,
             TimeZoneId: settings?.TimeZoneId ?? "Asia/Tehran",
             Layout: layout);
+    }
+
+    private static string? BuildDiscountTitle(Order order)
+    {
+        if (order.DiscountTotal <= 0m)
+        {
+            return null;
+        }
+
+        if (order.ManualDiscountAmount > 0m && order.ManualDiscountAmount == order.DiscountTotal)
+        {
+            if (order.ManualDiscountType == ManualDiscountType.Percent && order.ManualDiscountValue.HasValue)
+            {
+                var pct = ToPersianNumber(order.ManualDiscountValue.Value.ToString("0.##", CultureInfo.InvariantCulture));
+                return $"تخفیف دلخواه ({pct}٪)";
+            }
+
+            return "تخفیف دلخواه";
+        }
+
+        return "تخفیف";
     }
 
     /// <summary>
@@ -391,7 +421,10 @@ public record ReceiptTotalsPayload(
     string? DeliveryFeeLabel,
     string? TaxLabel,
     string TotalLabel,
-    string? AmountPaidLabel);
+    string? AmountPaidLabel,
+    string? DiscountLabel = null,
+    string? DiscountTitle = null,
+    string? DiscountNote = null);
 
 public record ReceiptPayload(
     PrintJobCopyType CopyType,

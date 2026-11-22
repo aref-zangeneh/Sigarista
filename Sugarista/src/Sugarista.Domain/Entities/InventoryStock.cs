@@ -194,4 +194,73 @@ public class InventoryStock : BaseAuditableEntity
             sourceMenuItemName: null,
             warehouseId: null);
     }
+
+    public StockMovement ReceiveVoucher(decimal quantity, string? note)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("مقدار ورود به انبار باید بزرگ‌تر از صفر باشد.");
+        }
+
+        CurrentQuantity += quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            quantity,
+            StockMovementType.WarehouseReceipt,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: null);
+    }
+
+    public StockMovement IssueVoucher(decimal quantity, string? note)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("مقدار خروج از انبار باید بزرگ‌تر از صفر باشد.");
+        }
+
+        if (CurrentQuantity < quantity)
+        {
+            throw new DomainException(
+                $"موجودی کافی در انبار اصلی نیست. موجود: {CurrentQuantity:0.###} — درخواست خروج: {quantity:0.###}.");
+        }
+
+        CurrentQuantity -= quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            -quantity,
+            StockMovementType.WarehouseIssue,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: null);
+    }
+
+    public StockMovement ReverseVoucher(decimal delta, string? note)
+    {
+        if (delta == 0)
+        {
+            throw new DomainException("مقدار برگشت سند نمی‌تواند صفر باشد.");
+        }
+
+        if (delta < 0 && CurrentQuantity < Math.Abs(delta))
+        {
+            throw new DomainException(
+                $"موجودی فعلی انبار اصلی برای ابطال این رسید کافی نیست. موجود: {CurrentQuantity:0.###} — مقدار لازم: {Math.Abs(delta):0.###}.");
+        }
+
+        CurrentQuantity += delta;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            delta,
+            StockMovementType.VoucherReversal,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: null);
+    }
 }

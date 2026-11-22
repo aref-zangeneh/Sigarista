@@ -35,4 +35,13 @@ public class AdminPermissionsTests
         Assert.False(AdminPermissions.IsValid("admin.orders.superpower"));
         Assert.False(AdminPermissions.IsValid(null));
     }
+
+    [Fact]
+    public void PosApplyManualDiscount_ShouldBeRegisteredAndRoleControllable()
+    {
+        Assert.True(AdminPermissions.IsValid(AdminPermissions.Pos.ApplyManualDiscount));
+        Assert.Contains(AdminPermissions.Catalog, p => p.Key == AdminPermissions.Pos.ApplyManualDiscount && p.SectionId == "pos");
+        Assert.Contains(AdminPermissions.Pos.ApplyManualDiscount, DefaultRolePermissions.Admin);
+        Assert.DoesNotContain(AdminPermissions.Pos.ApplyManualDiscount, DefaultRolePermissions.Cashier);
+    }
 }

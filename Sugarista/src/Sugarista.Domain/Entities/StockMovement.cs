@@ -12,6 +12,9 @@ public enum StockMovementType
     PackagingConsumption,
     TransferOut,
     TransferIn,
+    WarehouseReceipt,
+    WarehouseIssue,
+    VoucherReversal,
 }
 
 public class StockMovement : BaseEntity

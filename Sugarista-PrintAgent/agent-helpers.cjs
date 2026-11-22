@@ -154,7 +154,8 @@ function normalizePrintRequest(body = {}) {
   const subtotalAmount = Number(customer.subtotalAmount ?? computedSubtotal) || 0;
   const deliveryFee = Number(customer.deliveryFee ?? 0) || 0;
   const taxTotal = Number(customer.taxTotal ?? 0) || 0;
-  const totalAmount = Number(customer.totalAmount ?? subtotalAmount + deliveryFee + taxTotal) || 0;
+  const discountTotal = Number(customer.discountTotal ?? 0) || 0;
+  const totalAmount = Number(customer.totalAmount ?? Math.max(0, subtotalAmount + deliveryFee + taxTotal - discountTotal)) || 0;
 
   const trackingCode = String(customer.trackingCode || barista.trackingCode || body.trackingCode || "—");
   const printedAt = toPersianDigits(customer.printedAt || barista.printedAt || "");
@@ -187,6 +188,9 @@ function normalizePrintRequest(body = {}) {
       subtotalLabel: formatMoneyPersian(subtotalAmount),
       deliveryFeeLabel: deliveryFee > 0 ? formatMoneyPersian(deliveryFee) : null,
       taxLabel: taxTotal > 0 ? formatMoneyPersian(taxTotal) : null,
+      discountLabel: discountTotal > 0 ? formatMoneyPersian(discountTotal) : null,
+      discountTitle: customer.discountTitle || (discountTotal > 0 ? "تخفیف" : null),
+      discountNote: customer.manualDiscountReason || null,
       totalLabel: formatMoneyPersian(totalAmount),
       amountPaidLabel: formatMoneyPersian(totalAmount),
     },

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildPosReceiptBundle } from './posReceipt.js'
-import { buildUpsertPayload } from './posCart.js'
+import { buildCustomerReceiptHtml, buildPosReceiptBundle, formatCustomerReceiptText } from './posReceipt.js'
+import { buildUpsertPayload, computeManualDiscount } from './posCart.js'
 
 test('buildUpsertPayload preserves InternalUse and Complimentary order kinds and disables discounts', () => {
   const cart = [
@@ -116,4 +116,111 @@ test('buildPosReceiptBundle includes bundle sub-items for barista and customer t
   assert.equal(summary.length, 2)
   assert.match(summary[0], /شامل: ۲ × آمریکانو/)
   assert.match(summary[1], /شامل: ۲ × چیزکیک سن‌سباستین/)
+})
+
+test('computeManualDiscount handles fixed amount, percentage, Persian digits, and limit clamping', () => {
+  const fixed = computeManualDiscount(250000, 'Amount', '۵۰۰۰۰')
+  assert.equal(fixed.amount, 50000)
+  assert.equal(fixed.finalTotal, 200000)
+  assert.equal(fixed.exceedsLimit, false)
+
+  const pct = computeManualDiscount(250000, 'Percent', '۱۰')
+  assert.equal(pct.amount, 25000)
+  assert.equal(pct.finalTotal, 225000)
+  assert.equal(pct.exceedsLimit, false)
+
+  const overPct = computeManualDiscount(250000, 'Percent', '120')
+  assert.equal(overPct.exceedsLimit, true)
+  assert.equal(overPct.amount, 250000)
+  assert.equal(overPct.finalTotal, 0)
+
+  const overAmt = computeManualDiscount(100000, 'Amount', '150000')
+  assert.equal(overAmt.exceedsLimit, true)
+  assert.equal(overAmt.amount, 100000)
+  assert.equal(overAmt.finalTotal, 0)
+})
+
+test('buildUpsertPayload includes manual discount for Standard orders and strips it for non-revenue orders', () => {
+  const cart = [{ menuItemId: 'item-1', sizeKey: null, quantity: 1, modifierIds: [], optionIds: [] }]
+
+  const std = buildUpsertPayload({
+    orderId: null,
+    customerName: 'علی',
+    customerPhone: '',
+    note: '',
+    serviceType: 'DineIn',
+    salonTableId: null,
+    deliveryMethodId: null,
+    cart,
+    action: 'PayCard',
+    splitBill: false,
+    orderKind: 'Standard',
+    manualDiscountType: 'Percent',
+    manualDiscountValue: '۱۵',
+    manualDiscountReason: 'مشتری وفادار',
+  })
+  assert.equal(std.manualDiscountType, 'Percent')
+  assert.equal(std.manualDiscountValue, 15)
+  assert.equal(std.manualDiscountReason, 'مشتری وفادار')
+
+  const comp = buildUpsertPayload({
+    orderId: null,
+    customerName: 'مهمان',
+    customerPhone: '',
+    note: '',
+    serviceType: 'DineIn',
+    salonTableId: null,
+    deliveryMethodId: null,
+    cart,
+    action: 'Complimentary',
+    splitBill: false,
+    orderKind: 'Complimentary',
+    manualDiscountType: 'Percent',
+    manualDiscountValue: '10',
+    manualDiscountReason: 'نباید ارسال شود',
+  })
+  assert.equal(comp.manualDiscountType, null)
+  assert.equal(comp.manualDiscountValue, null)
+  assert.equal(comp.manualDiscountReason, null)
+})
+
+test('buildPosReceiptBundle renders manual POS discount on customer receipt, HTML, text, and print payload', () => {
+  const bundle = buildPosReceiptBundle({
+    result: {
+      trackingCode: 'SG-DSC01',
+      totalAmount: 180000,
+      paymentMethod: 'Card',
+      discountTotal: 20000,
+      manualDiscountType: 'Percent',
+      manualDiscountValue: 10,
+      manualDiscountAmount: 20000,
+      manualDiscountReason: 'مشتری وفادار',
+    },
+    cart: [
+      {
+        name: 'لاته',
+        quantity: 1,
+        unitPrice: 200000,
+        modifierLabels: [],
+        options: [],
+      },
+    ],
+    serviceType: 'DineIn',
+    siteSettings: { cafeName: 'شوگریستا' },
+  })
+
+  assert.equal(bundle.customer.discountTotal, 20000)
+  assert.equal(bundle.customer.discountTitle, 'تخفیف دلخواه (۱۰٪)')
+  assert.equal(bundle.customer.totalAmount, 180000)
+  assert.equal(bundle.renderPayload.totals.discountLabel, '۲۰٬۰۰۰')
+  assert.equal(bundle.renderPayload.totals.discountTitle, 'تخفیف دلخواه (۱۰٪)')
+  assert.equal(bundle.renderPayload.totals.discountNote, 'مشتری وفادار')
+
+  const text = formatCustomerReceiptText(bundle.customer)
+  assert.match(text, /تخفیف دلخواه \(۱۰٪\)/)
+  assert.match(text, /مشتری وفادار/)
+
+  const html = buildCustomerReceiptHtml(bundle.customer)
+  assert.match(html, /تخفیف دلخواه \(۱۰٪\)/)
+  assert.match(html, /مشتری وفادار/)
 })

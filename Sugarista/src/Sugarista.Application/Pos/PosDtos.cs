@@ -39,7 +39,13 @@ public record PosOrderSummaryDto(
     DateTimeOffset? HeldAt,
     string OrderKind = "Standard",
     string? ComplimentaryReason = null,
-    bool IsExcludedFromAccounting = false);
+    bool IsExcludedFromAccounting = false,
+    decimal DiscountTotal = 0m,
+    string? ManualDiscountType = null,
+    decimal? ManualDiscountValue = null,
+    decimal ManualDiscountAmount = 0m,
+    string? ManualDiscountReason = null,
+    string? ManualDiscountAppliedBy = null);
 
 public record PosOrderDetailDto(
     Guid Id,
@@ -67,7 +73,13 @@ public record PosOrderDetailDto(
     IReadOnlyCollection<PosSplitShareDto> SplitShares,
     string OrderKind = "Standard",
     string? ComplimentaryReason = null,
-    bool IsExcludedFromAccounting = false);
+    bool IsExcludedFromAccounting = false,
+    decimal DiscountTotal = 0m,
+    string? ManualDiscountType = null,
+    decimal? ManualDiscountValue = null,
+    decimal ManualDiscountAmount = 0m,
+    string? ManualDiscountReason = null,
+    string? ManualDiscountAppliedBy = null);
 
 public record PosOrderLineDto(
     Guid Id,
@@ -104,4 +116,10 @@ public record UpsertPosOrderResultDto(
     string? PaymentMethod,
     string OrderKind = "Standard",
     string? ComplimentaryReason = null,
-    bool IsExcludedFromAccounting = false);
+    bool IsExcludedFromAccounting = false,
+    decimal DiscountTotal = 0m,
+    string? ManualDiscountType = null,
+    decimal? ManualDiscountValue = null,
+    decimal ManualDiscountAmount = 0m,
+    string? ManualDiscountReason = null,
+    string? ManualDiscountAppliedBy = null);

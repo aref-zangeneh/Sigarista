@@ -20,6 +20,7 @@ public class GetAdminOrderByIdQueryHandler : IRequestHandler<GetAdminOrderByIdQu
             .AsNoTracking()
             .Include(o => o.Lines)
             .Include(o => o.Payments)
+            .Include(o => o.Discounts)
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken);
 
         return order is null ? null : AdminOrderMapper.ToDetail(order);

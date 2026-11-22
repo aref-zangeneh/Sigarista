@@ -34,7 +34,13 @@ public record AdminOrderListItemDto(
     string OrderKind = "Standard",
     string? ComplimentaryReason = null,
     bool IsExcludedFromAccounting = false,
-    string? PaymentMethod = null);
+    string? PaymentMethod = null,
+    decimal DiscountTotal = 0m,
+    string? ManualDiscountType = null,
+    decimal? ManualDiscountValue = null,
+    decimal ManualDiscountAmount = 0m,
+    string? ManualDiscountReason = null,
+    string? ManualDiscountAppliedBy = null);
 
 public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, PaginatedList<AdminOrderListItemDto>>
 {
@@ -105,7 +111,13 @@ public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, P
                 order.OrderKind.ToString(),
                 order.ComplimentaryReason,
                 order.IsExcludedFromAccounting,
-                order.PaymentMethod != null ? order.PaymentMethod.ToString() : null))
+                order.PaymentMethod != null ? order.PaymentMethod.ToString() : null,
+                order.DiscountTotal,
+                order.ManualDiscountType != null ? order.ManualDiscountType.ToString() : null,
+                order.ManualDiscountValue,
+                order.ManualDiscountAmount,
+                order.ManualDiscountReason,
+                order.ManualDiscountAppliedBy))
             .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

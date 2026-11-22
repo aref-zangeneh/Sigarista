@@ -132,4 +132,73 @@ public class WarehouseStock : BaseAuditableEntity
             sourceMenuItemName: null,
             warehouseId: WarehouseId);
     }
+
+    public StockMovement ReceiveVoucher(decimal quantity, string? note)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("مقدار ورود به انبار باید بزرگ‌تر از صفر باشد.");
+        }
+
+        Quantity += quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            quantity,
+            StockMovementType.WarehouseReceipt,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: WarehouseId);
+    }
+
+    public StockMovement IssueVoucher(decimal quantity, string? note)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("مقدار خروج از انبار باید بزرگ‌تر از صفر باشد.");
+        }
+
+        if (Quantity < quantity)
+        {
+            throw new DomainException(
+                $"موجودی کافی در انبار نیست. موجود: {Quantity:0.###} — درخواست خروج: {quantity:0.###}.");
+        }
+
+        Quantity -= quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            -quantity,
+            StockMovementType.WarehouseIssue,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: WarehouseId);
+    }
+
+    public StockMovement ReverseVoucher(decimal delta, string? note)
+    {
+        if (delta == 0)
+        {
+            throw new DomainException("مقدار برگشت سند نمی‌تواند صفر باشد.");
+        }
+
+        if (delta < 0 && Quantity < Math.Abs(delta))
+        {
+            throw new DomainException(
+                $"موجودی فعلی انبار برای ابطال این رسید کافی نیست. موجود: {Quantity:0.###} — مقدار لازم: {Math.Abs(delta):0.###}.");
+        }
+
+        Quantity += delta;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            delta,
+            StockMovementType.VoucherReversal,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: WarehouseId);
+    }
 }

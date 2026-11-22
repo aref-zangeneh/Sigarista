@@ -96,6 +96,13 @@ public class MenuItem : BaseAuditableEntity
 
     public decimal Price { get; private set; }
 
+    /// <summary>
+    /// Optional direct purchase / wholesale cost per unit (e.g. for ready-made cakes &amp; desserts
+    /// bought from a supplier at 100,000 Toman and sold at 200,000 Toman). Used for profit margin
+    /// calculation, price-trend logging, and COGS fallback when no recipe lines are defined.
+    /// </summary>
+    public decimal? PurchasePrice { get; private set; }
+
     public string? ImageUrl { get; private set; }
 
     public string[] GalleryImageUrls { get; private set; } = [];
@@ -176,6 +183,16 @@ public class MenuItem : BaseAuditableEntity
     public void SetIsBundle(bool isBundle)
     {
         IsBundle = isBundle;
+    }
+
+    public void SetPurchasePrice(decimal? purchasePrice)
+    {
+        if (purchasePrice is { } value && value < 0)
+        {
+            throw new DomainException("قیمت خرید آیتم نمی‌تواند منفی باشد.");
+        }
+
+        PurchasePrice = purchasePrice;
     }
 
     public void SetMarkupPercent(decimal? markupPercent)

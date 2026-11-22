@@ -88,4 +88,48 @@ public class WarehouseStock : BaseAuditableEntity
         MinAlertQuantity = minAlertQuantity;
         LastUpdatedAt = DateTimeOffset.UtcNow;
     }
+
+    public StockMovement TransferOut(decimal quantity, string? note)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("مقدار انتقال باید بزرگ‌تر از صفر باشد.");
+        }
+
+        if (Quantity < quantity)
+        {
+            throw new DomainException(
+                $"موجودی کافی در انبار مبدا نیست. موجود: {Quantity:0.###} — درخواست انتقال: {quantity:0.###}.");
+        }
+
+        Quantity -= quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            -quantity,
+            StockMovementType.TransferOut,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: WarehouseId);
+    }
+
+    public StockMovement TransferIn(decimal quantity, string? note)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("مقدار انتقال باید بزرگ‌تر از صفر باشد.");
+        }
+
+        Quantity += quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            quantity,
+            StockMovementType.TransferIn,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: WarehouseId);
+    }
 }

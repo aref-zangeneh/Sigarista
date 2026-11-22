@@ -11,8 +11,17 @@ public static class MenuPricingService
 {
     public static decimal ComputeCostPerServing(MenuItem menuItem)
     {
-        return menuItem.RecipeItems
+        var recipeCost = menuItem.RecipeItems
             .Sum(line => line.Ingredient.UnitCost * line.Quantity);
+
+        if (recipeCost > 0m)
+        {
+            return recipeCost;
+        }
+
+        return menuItem.PurchasePrice is { } purchasePrice && purchasePrice > 0m
+            ? purchasePrice
+            : 0m;
     }
 
     /// <summary>

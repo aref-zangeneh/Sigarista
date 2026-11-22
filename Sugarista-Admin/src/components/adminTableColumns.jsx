@@ -15,6 +15,11 @@ function movementTypeLabel(type) {
   if (type === 'Restock') return 'شارژ موجودی'
   if (type === 'ManualAdjustment') return 'تصحیح دستی'
   if (type === 'SaleDeduction') return 'کسر فروش'
+  if (type === 'SaleReversal') return 'برگشت فروش'
+  if (type === 'ProductionDeduction') return 'کسر تولید'
+  if (type === 'PackagingConsumption') return 'مصرف بسته‌بندی'
+  if (type === 'TransferOut') return 'خروج انتقالی'
+  if (type === 'TransferIn') return 'ورود انتقالی'
   return type
 }
 
@@ -64,6 +69,7 @@ export function buildMenuItemColumns({
   joinTags,
   editMenuItem,
   handleDuplicateMenuItem,
+  openMenuItemPriceHistory,
   handleDeleteMenuItem,
 }) {
   return [
@@ -94,32 +100,53 @@ export function buildMenuItemColumns({
       id: 'price',
       header: 'قیمت پایه',
       accessorFn: (row) => row.price,
-      cell: ({ row }) => (
-        <>
-          {formatMoney(row.original.price)}
-          {row.original.isBundle && Number(row.original.bundleRegularTotal) > 0 ? (
-            <div className="table-subtext">
-              ارزش جداگانه: {formatMoney(row.original.bundleRegularTotal)}
-            </div>
-          ) : null}
-          {row.original.specialOfferPrice ? (
-            <div className="table-subtext">پیشنهاد: {formatMoney(row.original.specialOfferPrice)}</div>
-          ) : null}
-        </>
-      ),
+      cell: ({ row }) => {
+        const purchase = row.original.purchasePrice
+        const sale = Number(row.original.price) || 0
+        const profit = purchase != null ? sale - Number(purchase) : null
+        return (
+          <>
+            <strong>{formatMoney(row.original.price)}</strong>
+            {purchase != null ? (
+              <div className="table-subtext">
+                خرید: {formatMoney(purchase)}
+                {profit != null ? ` | سود: ${formatMoney(profit)}` : ''}
+              </div>
+            ) : null}
+            {row.original.isBundle && Number(row.original.bundleRegularTotal) > 0 ? (
+              <div className="table-subtext">
+                ارزش جداگانه: {formatMoney(row.original.bundleRegularTotal)}
+              </div>
+            ) : null}
+            {row.original.specialOfferPrice ? (
+              <div className="table-subtext">پیشنهاد: {formatMoney(row.original.specialOfferPrice)}</div>
+            ) : null}
+          </>
+        )
+      },
     },
     {
       id: 'status',
       header: 'وضعیت',
-      accessorFn: (row) => `${row.isActive} ${row.isOrderable}`,
-      cell: ({ row }) => (
-        <>
-          {row.original.isActive ? 'نمایش داده می‌شود' : 'مخفی'}
-          <div className="table-subtext">
-            {row.original.isOrderable ? 'قابل سفارش' : 'فعلا غیرقابل سفارش'}
-          </div>
-        </>
-      ),
+      accessorFn: (row) => `${row.isActive} ${row.isOrderable} ${row.trackInventory ? row.stockQuantity : ''}`,
+      cell: ({ row }) => {
+        const qty = Number(row.original.stockQuantity ?? 0)
+        const minAlert = Number(row.original.minStockAlert ?? 0)
+        const stockState = qty <= 0 ? 'is-out' : qty <= minAlert ? 'is-low' : 'is-ok'
+        return (
+          <>
+            {row.original.isActive ? 'نمایش داده می‌شود' : 'مخفی'}
+            <div className="table-subtext">
+              {row.original.isOrderable ? 'قابل سفارش' : 'فعلا غیرقابل سفارش'}
+            </div>
+            {row.original.trackInventory ? (
+              <span className={`stock-pill ${stockState}`}>
+                {qty <= 0 ? 'ناموجود (۰)' : `موجودی: ${toPersianNumber(qty)}`}
+              </span>
+            ) : null}
+          </>
+        )
+      },
     },
     {
       id: 'actions',
@@ -130,6 +157,16 @@ export function buildMenuItemColumns({
           <button type="button" className="link-button" onClick={() => editMenuItem(row.original)}>
             ویرایش
           </button>
+          {openMenuItemPriceHistory ? (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => openMenuItemPriceHistory(row.original)}
+              title="مشاهده تاریخچه و نمودار روند قیمت خرید و فروش"
+            >
+              روند قیمت
+            </button>
+          ) : null}
           {handleDuplicateMenuItem ? (
             <button
               type="button"

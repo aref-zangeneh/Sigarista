@@ -10,6 +10,8 @@ public enum StockMovementType
     SaleReversal,
     ProductionDeduction,
     PackagingConsumption,
+    TransferOut,
+    TransferIn,
 }
 
 public class StockMovement : BaseEntity

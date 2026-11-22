@@ -3141,6 +3141,181 @@ select:focus-visible {
   cursor: not-allowed;
 }
 
+/* ── Purchase Price, Profit Banner, Stock Pills & Price Trend History Modal ── */
+.price-profit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ok-border);
+  background: var(--ok-soft);
+  color: var(--ok);
+  margin-top: 6px;
+}
+
+.price-profit-banner > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+}
+
+.price-profit-banner.is-warning {
+  border-color: var(--bad-border);
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.inventory-track-box {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border);
+  background: var(--background);
+}
+
+.stock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stock-pill.is-ok {
+  background: var(--ok-soft);
+  border: 1px solid var(--ok-border);
+  color: var(--ok);
+}
+
+.stock-pill.is-low {
+  background: var(--warn-soft);
+  border: 1px solid rgba(229, 170, 47, 0.45);
+  color: var(--warn-ink);
+}
+
+.stock-pill.is-out {
+  background: var(--bad-soft);
+  border: 1px solid var(--bad-border);
+  color: var(--bad);
+}
+
+.price-history-modal {
+  width: min(100%, 860px);
+  max-height: min(90vh, 840px);
+}
+
+.price-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 10px;
+}
+
+.price-delta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+.price-delta-badge.is-cost-up,
+.price-delta-badge.is-sale-down {
+  background: var(--bad-soft);
+  border: 1px solid var(--bad-border);
+  color: var(--bad);
+}
+
+.price-delta-badge.is-cost-down,
+.price-delta-badge.is-sale-up {
+  background: var(--ok-soft);
+  border: 1px solid var(--ok-border);
+  color: var(--ok);
+}
+
+.price-trend-chart-wrap {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--background);
+  display: grid;
+  gap: 8px;
+}
+
+.price-trend-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.price-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.price-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.price-legend-dot.is-purchase {
+  background: #d97706;
+}
+
+.price-legend-dot.is-sale {
+  background: var(--accent, #aa3171);
+}
+
+.price-trend-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.price-chart-empty {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border);
+  background: var(--background);
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.price-log-section {
+  display: grid;
+  gap: 8px;
+}
+
+.price-log-section h5 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.price-log-table td,
+.price-log-table th {
+  vertical-align: middle;
+}
+
 .option-rows {
   display: grid;
   gap: 10px;

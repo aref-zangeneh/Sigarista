@@ -48,7 +48,12 @@ public record AdminMenuItemDto(
     bool IsActive,
     bool IsBundle = false,
     int BundleItemCount = 0,
-    decimal? BundleRegularTotal = null);
+    decimal? BundleRegularTotal = null,
+    decimal? PurchasePrice = null,
+    bool TrackInventory = false,
+    decimal? StockQuantity = null,
+    decimal? MinStockAlert = null,
+    int PriceHistoryCount = 0);
 
 public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQuery, PaginatedList<AdminMenuItemDto>>
 {
@@ -118,35 +123,68 @@ public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQu
                 item.IsActive,
                 item.IsBundle,
                 0,
-                null))
+                null,
+                item.PurchasePrice,
+                false,
+                null,
+                null,
+                0))
             .ToPaginatedListAsync(pagination, cancellationToken);
+
+        var pageItemIds = pageResult.Items.Select(item => item.Id).ToList();
+        if (pageItemIds.Count == 0)
+        {
+            return pageResult;
+        }
+
+        var stocksByItem = await _dbContext.MenuItemStocks
+            .AsNoTracking()
+            .Where(s => pageItemIds.Contains(s.MenuItemId))
+            .ToDictionaryAsync(s => s.MenuItemId, cancellationToken);
+
+        var historyCountByItem = await _dbContext.MenuItemPriceHistories
+            .AsNoTracking()
+            .Where(h => pageItemIds.Contains(h.MenuItemId))
+            .GroupBy(h => h.MenuItemId)
+            .Select(g => new { MenuItemId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.MenuItemId, x => x.Count, cancellationToken);
 
         var bundleIds = pageResult.Items
             .Where(item => item.IsBundle)
             .Select(item => item.Id)
             .ToList();
 
-        if (bundleIds.Count == 0)
+        var linesByBundle = new Dictionary<Guid, List<Sugarista.Domain.Entities.MenuItemBundleItem>>();
+        if (bundleIds.Count > 0)
         {
-            return pageResult;
+            var bundleLines = await _dbContext.MenuItemBundleItems
+                .AsNoTracking()
+                .Include(b => b.ComponentMenuItem)
+                .Where(b => bundleIds.Contains(b.BundleMenuItemId))
+                .ToListAsync(cancellationToken);
+
+            linesByBundle = bundleLines
+                .GroupBy(b => b.BundleMenuItemId)
+                .ToDictionary(g => g.Key, g => g.ToList());
         }
-
-        var bundleLines = await _dbContext.MenuItemBundleItems
-            .AsNoTracking()
-            .Include(b => b.ComponentMenuItem)
-            .Where(b => bundleIds.Contains(b.BundleMenuItemId))
-            .ToListAsync(cancellationToken);
-
-        var linesByBundle = bundleLines
-            .GroupBy(b => b.BundleMenuItemId)
-            .ToDictionary(g => g.Key, g => g.ToList());
 
         var enriched = pageResult.Items
             .Select(item =>
             {
+                var hasStock = stocksByItem.TryGetValue(item.Id, out var stock);
+                var historyCount = historyCountByItem.GetValueOrDefault(item.Id, 0);
+
+                var updated = item with
+                {
+                    TrackInventory = hasStock,
+                    StockQuantity = hasStock ? stock!.CurrentQuantity : null,
+                    MinStockAlert = hasStock ? stock!.MinAlertQuantity : null,
+                    PriceHistoryCount = historyCount
+                };
+
                 if (!item.IsBundle || !linesByBundle.TryGetValue(item.Id, out var lines))
                 {
-                    return item;
+                    return updated;
                 }
 
                 var regularTotal = lines.Sum(entry =>
@@ -156,7 +194,7 @@ public class GetAdminMenuItemsQueryHandler : IRequestHandler<GetAdminMenuItemsQu
                     return unitPrice * entry.Quantity;
                 });
 
-                return item with
+                return updated with
                 {
                     BundleItemCount = lines.Sum(l => l.Quantity),
                     BundleRegularTotal = regularTotal

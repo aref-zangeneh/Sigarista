@@ -430,6 +430,19 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
             bundleItemsByBundle = new Dictionary<Guid, List<MenuItemBundleItem>>();
         }
 
+        IReadOnlyDictionary<Guid, MenuItemStock> menuItemStocksByItem;
+        try
+        {
+            var stockRows = await _dbContext.MenuItemStocks
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+            menuItemStocksByItem = stockRows.ToDictionary(s => s.MenuItemId);
+        }
+        catch (Exception)
+        {
+            menuItemStocksByItem = new Dictionary<Guid, MenuItemStock>();
+        }
+
         // An option is orderable only when every one of its ingredient usages
         // can be satisfied once (per single item unit) from current stock.
         static bool IsOptionAvailable(
@@ -461,7 +474,8 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                 decimal? bundleSavingsAmount = null;
                 int? bundleSavingsPercent = null;
                 PublicMenuItemBundleComponentDto[]? bundleDtos = null;
-                var effectiveOrderable = item.IsOrderable;
+                var effectiveOrderable = item.IsOrderable &&
+                    (!menuItemStocksByItem.TryGetValue(item.Id, out var ownStock) || ownStock.CurrentQuantity > 0m);
                 var effectiveCalories = item.Calories;
                 var effectivePrepMinutes = item.PreparingDurationMinutes;
 
@@ -487,7 +501,9 @@ public class GetPublicMenuQueryHandler : IRequestHandler<GetPublicMenuQuery, Pub
                         var comp = entry.ComponentMenuItem;
                         var (sizeKey, sizeLabel, unitPrice) = BundlePricingService.ResolveComponentUnitPrice(comp, entry.SizeKey);
                         var linePrice = unitPrice * entry.Quantity;
-                        var compAvailable = comp.IsActive && comp.IsOrderable && unitPrice > 0m;
+                        var compStockOk = !menuItemStocksByItem.TryGetValue(comp.Id, out var compStock) ||
+                            compStock.CurrentQuantity >= entry.Quantity;
+                        var compAvailable = comp.IsActive && comp.IsOrderable && unitPrice > 0m && compStockOk;
                         if (!compAvailable)
                         {
                             allAvailable = false;

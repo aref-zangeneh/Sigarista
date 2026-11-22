@@ -14,6 +14,7 @@ using Sugarista.Application.MenuItems.OptionGroups.Commands.ReplaceMenuItemOptio
 using Sugarista.Application.MenuItems.OptionGroups.Queries.GetMenuItemOptionGroups;
 using Sugarista.Application.MenuItems.Queries.GetAdminMenuItems;
 using Sugarista.Application.MenuItems.Queries.GetAdminMenuItemOptions;
+using Sugarista.Application.MenuItems.Queries.GetMenuItemPriceHistory;
 using Sugarista.Application.MenuItems.Queries.GetMenuItemPricing;
 using Sugarista.Application.Common.Models;
 using Sugarista.Domain.Constants;
@@ -33,6 +34,15 @@ public class AdminMenuItemsController : ApiControllerBase
         CancellationToken cancellationToken = default)
     {
         return Ok(await Mediator.Send(new GetAdminMenuItemsQuery(page, pageSize, search), cancellationToken));
+    }
+
+    [HttpGet("{menuItemId:guid}/price-history")]
+    [RequirePermission(AdminPermissions.MenuItems.View)]
+    public async Task<ActionResult<MenuItemPriceHistoryResponseDto>> GetPriceHistory(
+        Guid menuItemId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetMenuItemPriceHistoryQuery(menuItemId), cancellationToken));
     }
 
     [HttpGet("{menuItemId:guid}/option-groups")]

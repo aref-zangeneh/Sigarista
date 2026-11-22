@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
 import { Tip } from '../components/Tip'
+import { MAIN_WAREHOUSE_KEY, WarehouseTransferModal } from '../components/WarehouseTransferModal.jsx'
 import './WarehousesPage.css'
 
 const emptyForm = {
@@ -19,12 +20,23 @@ function toNumberInput(value) {
 }
 
 export function WarehousesPage() {
-  const { session, apiRequest, getReadableError, saving, setSaving, setError, setMessage } = useAdmin()
+  const {
+    session,
+    apiRequest,
+    getReadableError,
+    saving,
+    setSaving,
+    setError,
+    setMessage,
+    formatDateTime,
+    toPersianNumber,
+  } = useAdmin()
   const canCreate = hasPermission(session, PERMISSIONS.warehouses.create)
   const canUpdate = hasPermission(session, PERMISSIONS.warehouses.update)
   const canDelete = hasPermission(session, PERMISSIONS.warehouses.delete)
   const canRestock = hasPermission(session, PERMISSIONS.inventory.create)
   const canAdjust = hasPermission(session, PERMISSIONS.inventory.update)
+  const canTransfer = canUpdate || canAdjust
 
   const [warehouses, setWarehouses] = useState([])
   const [loading, setLoading] = useState(true)
@@ -41,6 +53,17 @@ export function WarehousesPage() {
   const [stockAction, setStockAction] = useState(null)
   const [ingredientOptions, setIngredientOptions] = useState([])
   const [linkForm, setLinkForm] = useState({ ingredientId: '', quantity: 0 })
+
+  // ── inter-warehouse transfers state ──────────────────────
+  const [transferModal, setTransferModal] = useState({
+    open: false,
+    sourceKey: MAIN_WAREHOUSE_KEY,
+    destinationKey: '',
+    ingredientId: '',
+  })
+  const [transfers, setTransfers] = useState([])
+  const [transfersLoading, setTransfersLoading] = useState(false)
+  const [transferFilter, setTransferFilter] = useState('ALL')
 
   // ── data loading ─────────────────────────────────────────
   const loadWarehouses = useCallback(async () => {
@@ -73,9 +96,38 @@ export function WarehousesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.token])
 
+  const loadTransfers = useCallback(
+    async (filterValue = transferFilter) => {
+      if (!session?.token) return
+      setTransfersLoading(true)
+      try {
+        const params = new URLSearchParams({ limit: '50' })
+        if (filterValue === MAIN_WAREHOUSE_KEY) {
+          params.set('mainOnly', 'true')
+        } else if (filterValue && filterValue !== 'ALL') {
+          params.set('warehouseId', filterValue)
+        }
+        const data = await apiRequest(`/admin/warehouses/transfers?${params.toString()}`, {
+          token: session.token,
+        })
+        setTransfers(Array.isArray(data) ? data : [])
+      } catch {
+        setTransfers([])
+      } finally {
+        setTransfersLoading(false)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session?.token, transferFilter],
+  )
+
   useEffect(() => {
     loadWarehouses()
   }, [loadWarehouses])
+
+  useEffect(() => {
+    loadTransfers(transferFilter)
+  }, [loadTransfers, transferFilter])
 
   // Ingredient options for the «stock linking» picker — failure is fine
   // (viewer-only admins cannot restock anyway).
@@ -375,6 +427,15 @@ export function WarehousesPage() {
               <button type="button" className="link-button" onClick={() => openStockPanel(warehouse.id)}>
                 موجودی
               </button>
+              {canTransfer && warehouse.isActive ? (
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => openTransferModal({ sourceKey: warehouse.id })}
+                >
+                  انتقال
+                </button>
+              ) : null}
               <button type="button" className="link-button" onClick={() => startEdit(warehouse)} disabled={!canUpdate}>
                 ویرایش
               </button>
@@ -396,6 +457,31 @@ export function WarehousesPage() {
     setStockAction(null)
   }
 
+  function openTransferModal({
+    sourceKey = MAIN_WAREHOUSE_KEY,
+    destinationKey = '',
+    ingredientId = '',
+  } = {}) {
+    setTransferModal({
+      open: true,
+      sourceKey,
+      destinationKey,
+      ingredientId,
+    })
+  }
+
+  async function handleTransferCompleted(result) {
+    setPageError('')
+    setPageMessage(
+      `حواله انتقال ${result?.referenceNumber ?? ''} با موفقیت ثبت شد (${toPersian(result?.lines?.length ?? 0)} قلم از «${result?.sourceWarehouseName ?? ''}» به «${result?.destinationWarehouseName ?? ''}»).`,
+    )
+    await Promise.all([
+      loadWarehouses(),
+      loadTransfers(transferFilter),
+      stockWarehouseId ? loadStock(stockWarehouseId) : Promise.resolve(),
+    ])
+  }
+
   function toPersian(value) {
     return String(value).replace(/\d/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[digit])
   }
@@ -407,11 +493,31 @@ export function WarehousesPage() {
           <h2>
             انبارها و انبارک‌ها <Tip k="warehouses.list" />
           </h2>
-          <p className="muted">تعریف، ویرایش و مدیریت موجودی انبارها. موجودی انبار اصلی (موجودی فعلی) دست‌نخورده می‌ماند.</p>
+          <p className="muted">تعریف، ویرایش، مدیریت موجودی و انتقال بین انبارها و انبار اصلی با ثبت خودکار کاردکس.</p>
         </div>
-        <button type="button" className="ghost-button" onClick={loadWarehouses} disabled={loading}>
-          تازه‌سازی
-        </button>
+        <div className="option-groups-actions">
+          {canTransfer ? (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => openTransferModal()}
+              disabled={loading || warehouses.filter((w) => w.isActive).length === 0}
+            >
+              ⇄ انتقال بین انبارها
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => {
+              loadWarehouses()
+              loadTransfers(transferFilter)
+            }}
+            disabled={loading}
+          >
+            تازه‌سازی
+          </button>
+        </div>
       </header>
 
       {pageError ? <p className="feedback feedback-error" role="alert">{pageError}</p> : null}
@@ -622,6 +728,20 @@ export function WarehousesPage() {
                             <button type="button" className="link-button" onClick={() => openStockAction(item)} disabled={!canRestock && !canAdjust}>
                               شارژ / تعدیل
                             </button>
+                            {canTransfer && Number(item.quantity) > 0 ? (
+                              <button
+                                type="button"
+                                className="link-button"
+                                onClick={() =>
+                                  openTransferModal({
+                                    sourceKey: stockWarehouseId,
+                                    ingredientId: item.ingredientId,
+                                  })
+                                }
+                              >
+                                انتقال به انبار دیگر
+                              </button>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -665,6 +785,115 @@ export function WarehousesPage() {
           ) : null}
         </section>
       ) : null}
+
+      {/* ── inter-warehouse transfers history ── */}
+      <section className="panel warehouses-transfers-panel">
+        <div className="panel-head">
+          <div>
+            <h3>تاریخچه انتقال‌های بین انبارها ({toPersian(transfers.length)})</h3>
+            <p className="muted">تمامی حواله‌های انتقال بین انبار اصلی، انبارها و انبارک‌ها همراه با موجودی قبل و بعد</p>
+          </div>
+          <div className="warehouses-toolbar">
+            <select
+              aria-label="فیلتر انبار در تاریخچه انتقال"
+              value={transferFilter}
+              onChange={(event) => setTransferFilter(event.target.value)}
+            >
+              <option value="ALL">همهٔ انبارها</option>
+              <option value={MAIN_WAREHOUSE_KEY}>انبار اصلی (موجودی مرکزی)</option>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.isSubWarehouse ? `↳ ${w.name}` : w.name}
+                </option>
+              ))}
+            </select>
+            {canTransfer ? (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => openTransferModal()}
+                disabled={warehouses.filter((w) => w.isActive).length === 0}
+              >
+                + حواله انتقال جدید
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {transfersLoading ? (
+          <p className="feedback">در حال بارگذاری تاریخچه انتقال‌ها...</p>
+        ) : transfers.length === 0 ? (
+          <p className="feedback">هنوز انتقالی بین انبارها ثبت نشده است.</p>
+        ) : (
+          <div className="data-table-scroll">
+            <table className="warehouses-table">
+              <thead>
+                <tr>
+                  <th>شماره حواله</th>
+                  <th>تاریخ و ساعت</th>
+                  <th>مسیر انتقال</th>
+                  <th>اقلام و مقادیر</th>
+                  <th>توضیحات / کاربر</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transfers.map((trf) => (
+                  <tr key={trf.id}>
+                    <td className="ltr-text" style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
+                      {trf.referenceNumber}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(trf.transferredAt)}</td>
+                    <td>
+                      <div className="warehouse-transfer-path">
+                        <span className="warehouse-badge">{trf.sourceWarehouseName}</span>
+                        <span aria-hidden="true">←</span>
+                        <span className="warehouse-badge warehouse-badge-ok">{trf.destinationWarehouseName}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="warehouse-transfer-lines-summary">
+                        {(trf.lines ?? []).map((line) => (
+                          <div key={line.id} className="warehouse-transfer-line-pill">
+                            <strong>{line.ingredientPersianName}</strong>
+                            <span>
+                              {toPersian(line.quantity)} {line.unit}
+                            </span>
+                            <span className="table-subtext">
+                              (مبدا: {toPersian(line.sourceQuantityBefore)} ← {toPersian(line.sourceQuantityAfter)} | مقصد: {toPersian(line.destinationQuantityBefore)} ← {toPersian(line.destinationQuantityAfter)})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      {trf.note ? <div>{trf.note}</div> : null}
+                      {trf.transferredBy ? (
+                        <div className="table-subtext">{trf.transferredBy}</div>
+                      ) : !trf.note ? (
+                        '—'
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <WarehouseTransferModal
+        open={transferModal.open}
+        onClose={() => setTransferModal((curr) => ({ ...curr, open: false }))}
+        warehouses={warehouses}
+        initialSourceKey={transferModal.sourceKey}
+        initialDestinationKey={transferModal.destinationKey}
+        initialIngredientId={transferModal.ingredientId}
+        session={session}
+        apiRequest={apiRequest}
+        getReadableError={getReadableError}
+        toPersianNumber={toPersianNumber}
+        onTransferred={handleTransferCompleted}
+      />
 
       {/* ── stock action modal ── */}
       {stockAction ? (

@@ -12,6 +12,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.MenuItem> MenuItems { get; }
 
+    DbSet<Sugarista.Domain.Entities.MenuItemPriceHistory> MenuItemPriceHistories { get; }
+
     DbSet<Sugarista.Domain.Entities.MenuItemBundleItem> MenuItemBundleItems { get; }
 
     DbSet<Sugarista.Domain.Entities.AddonItem> AddonItems { get; }
@@ -205,6 +207,10 @@ public interface IApplicationDbContext
     DbSet<Sugarista.Domain.Entities.Warehouse> Warehouses { get; }
 
     DbSet<Sugarista.Domain.Entities.WarehouseStock> WarehouseStocks { get; }
+
+    DbSet<Sugarista.Domain.Entities.WarehouseTransfer> WarehouseTransfers { get; }
+
+    DbSet<Sugarista.Domain.Entities.WarehouseTransferLine> WarehouseTransferLines { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

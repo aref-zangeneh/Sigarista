@@ -150,4 +150,48 @@ public class InventoryStock : BaseAuditableEntity
             orderId,
             orderLineId);
     }
+
+    public StockMovement TransferOut(decimal quantity, string? note)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("مقدار انتقال باید بزرگ‌تر از صفر باشد.");
+        }
+
+        if (CurrentQuantity < quantity)
+        {
+            throw new DomainException(
+                $"موجودی کافی در انبار اصلی نیست. موجود: {CurrentQuantity:0.###} — درخواست انتقال: {quantity:0.###}.");
+        }
+
+        CurrentQuantity -= quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            -quantity,
+            StockMovementType.TransferOut,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: null);
+    }
+
+    public StockMovement TransferIn(decimal quantity, string? note)
+    {
+        if (quantity <= 0)
+        {
+            throw new DomainException("مقدار انتقال باید بزرگ‌تر از صفر باشد.");
+        }
+
+        CurrentQuantity += quantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+
+        return StockMovement.Create(
+            IngredientId,
+            quantity,
+            StockMovementType.TransferIn,
+            note,
+            sourceMenuItemName: null,
+            warehouseId: null);
+    }
 }

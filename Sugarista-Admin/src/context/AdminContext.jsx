@@ -114,6 +114,7 @@ export function AdminProvider({ children }) {
   const [tipOverrides, setTipOverrides] = useState({})
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [menuItemForm, setMenuItemForm] = useState(emptyMenuItemForm)
+  const [priceHistoryMenuItem, setPriceHistoryMenuItem] = useState(null)
   const [addonForm, setAddonForm] = useState(emptyAddonForm)
   const [discountForm, setDiscountForm] = useState(emptyDiscountForm)
   const [modifierForm, setModifierForm] = useState(emptyModifierForm)
@@ -1345,6 +1346,15 @@ export function AdminProvider({ children }) {
           displayOrder: Number(menuItemForm.displayOrder),
           isActive: menuItemForm.isActive,
           price: optionalNumber(menuItemForm.price),
+          purchasePrice: optionalNumber(menuItemForm.purchasePrice),
+          trackInventory: Boolean(menuItemForm.trackInventory),
+          stockQuantity: menuItemForm.trackInventory
+            ? (optionalNumber(menuItemForm.stockQuantity) ?? 0)
+            : null,
+          minStockAlert: menuItemForm.trackInventory
+            ? (optionalNumber(menuItemForm.minStockAlert) ?? 0)
+            : null,
+          priceChangeNote: menuItemForm.priceChangeNote?.trim() || null,
         },
       })
 
@@ -1578,6 +1588,11 @@ export function AdminProvider({ children }) {
       shortLabel: item.shortLabel,
       displayOrder: item.displayOrder,
       isActive: item.isActive,
+      purchasePrice: item.purchasePrice ?? '',
+      trackInventory: Boolean(item.trackInventory),
+      stockQuantity: item.stockQuantity ?? '',
+      minStockAlert: item.minStockAlert ?? '',
+      priceChangeNote: '',
       recipeLines: [],
     })
     navigate('/menu-items')
@@ -1674,6 +1689,17 @@ export function AdminProvider({ children }) {
     [categoryOptions.length, tableReloadToken],
   )
 
+  const openMenuItemPriceHistory = (item) => {
+    if (!item?.id) return
+    setPriceHistoryMenuItem({
+      id: item.id,
+      persianName: item.persianName ?? item.name ?? '',
+      englishName: item.englishName ?? '',
+    })
+  }
+
+  const closeMenuItemPriceHistory = () => setPriceHistoryMenuItem(null)
+
   const menuItemColumns = useMemo(
     () =>
       buildMenuItemColumns({
@@ -1681,6 +1707,7 @@ export function AdminProvider({ children }) {
         joinTags,
         editMenuItem,
         handleDuplicateMenuItem,
+        openMenuItemPriceHistory,
         handleDeleteMenuItem,
       }),
     [categoryOptions.length, tableReloadToken],
@@ -1937,6 +1964,9 @@ export function AdminProvider({ children }) {
     handleMenuItemSubmit,
     handleDuplicateMenuItem,
     handleDeleteMenuItem,
+    priceHistoryMenuItem,
+    openMenuItemPriceHistory,
+    closeMenuItemPriceHistory,
     handleSettingsSubmit,
     editCategory,
     editMenuItem,

@@ -93,8 +93,33 @@ public class DuplicateMenuItemCommandHandler
         clone.SetMarkupPercent(source.MarkupPercent);
         clone.UpdateRecipeDescription(source.RecipeDescription);
         clone.SetIsBundle(source.IsBundle);
+        clone.SetPurchasePrice(source.PurchasePrice);
 
         _dbContext.MenuItems.Add(clone);
+
+        var sourceStock = await _dbContext.MenuItemStocks
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.MenuItemId == source.Id, cancellationToken);
+
+        if (sourceStock is not null)
+        {
+            var clonedStock = new MenuItemStock(clone.Id, sourceStock.MinAlertQuantity);
+            clonedStock.SetStock(sourceStock.CurrentQuantity, sourceStock.MinAlertQuantity);
+            _dbContext.MenuItemStocks.Add(clonedStock);
+        }
+
+        if (clone.PurchasePrice.HasValue || clone.Price > 0m)
+        {
+            _dbContext.MenuItemPriceHistories.Add(
+                MenuItemPriceHistory.Create(
+                    clone.Id,
+                    null,
+                    clone.PurchasePrice,
+                    null,
+                    clone.Price,
+                    MenuItemPriceHistory.SourceDuplicate,
+                    $"کپی از «{source.PersianName}»"));
+        }
 
         foreach (var recipe in source.RecipeItems)
         {
@@ -197,7 +222,12 @@ public class DuplicateMenuItemCommandHandler
             clone.IsActive,
             clone.IsBundle,
             source.BundleItems.Count,
-            null);
+            null,
+            clone.PurchasePrice,
+            sourceStock is not null,
+            sourceStock?.CurrentQuantity,
+            sourceStock?.MinAlertQuantity,
+            clone.PurchasePrice.HasValue || clone.Price > 0m ? 1 : 0);
 
         return new DuplicateMenuItemResultDto(
             clone.Id,

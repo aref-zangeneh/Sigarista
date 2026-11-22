@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Sugarista.Api.Authorization;
 using Sugarista.Application.Warehouses.Commands.CreateWarehouse;
 using Sugarista.Application.Warehouses.Commands.DeleteWarehouse;
+using Sugarista.Application.Warehouses.Commands.TransferWarehouseStock;
 using Sugarista.Application.Warehouses.Commands.UpdateWarehouse;
 using Sugarista.Application.Warehouses.Dto;
+using Sugarista.Application.Warehouses.Queries.GetMainWarehouseStock;
 using Sugarista.Application.Warehouses.Queries.GetWarehouseStock;
 using Sugarista.Application.Warehouses.Queries.GetWarehouses;
+using Sugarista.Application.Warehouses.Queries.GetWarehouseTransfers;
 using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
@@ -29,8 +32,40 @@ public class AdminWarehousesController : ApiControllerBase
         return Ok(await Mediator.Send(new GetWarehousesQuery(), cancellationToken));
     }
 
+    /// <summary>Stock rows of the main operational inventory (انبار اصلی) for inter-warehouse transfers.</summary>
+    [HttpGet("main-stock")]
+    [RequireAnyPermission(AdminPermissions.Warehouses.View, AdminPermissions.Inventory.View)]
+    public async Task<ActionResult<WarehouseStockResultDto>> GetMainStock(
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(new GetMainWarehouseStockQuery(), cancellationToken));
+    }
+
+    /// <summary>History of inter-warehouse transfers (تاریخچه انتقال‌های بین انبارها).</summary>
+    [HttpGet("transfers")]
+    [RequireAnyPermission(AdminPermissions.Warehouses.View, AdminPermissions.Inventory.View)]
+    public async Task<ActionResult<IReadOnlyCollection<WarehouseTransferDto>>> GetTransfers(
+        [FromQuery] Guid? warehouseId = null,
+        [FromQuery] bool mainOnly = false,
+        [FromQuery] int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(new GetWarehouseTransfersQuery(warehouseId, mainOnly, limit), cancellationToken));
+    }
+
+    /// <summary>Atomically transfers one or more ingredients between warehouses (including Main Inventory).</summary>
+    [HttpPost("transfers")]
+    [RequireAnyPermission(AdminPermissions.Warehouses.Update, AdminPermissions.Inventory.Update)]
+    public async Task<ActionResult<WarehouseTransferDto>> TransferStock(
+        [FromBody] TransferWarehouseStockCommand request,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await Mediator.Send(request, cancellationToken);
+        return Ok(result);
+    }
+
     /// <summary>Stock rows linked to one warehouse (with ingredient info).</summary>
-    [HttpGet("{id}/stock")]
+    [HttpGet("{id:guid}/stock")]
     [RequirePermission(AdminPermissions.Warehouses.View)]
     public async Task<ActionResult<WarehouseStockResultDto>> GetStock(
         Guid id,

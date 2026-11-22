@@ -39,6 +39,9 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
         builder.Property(item => item.Price)
             .HasColumnType("numeric(18,2)");
 
+        builder.Property(item => item.PurchasePrice)
+            .HasColumnType("numeric(18,2)");
+
         builder.Property(item => item.SpecialOfferPrice)
             .HasColumnType("numeric(18,2)");
 

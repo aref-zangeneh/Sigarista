@@ -62,6 +62,11 @@ export const emptyMenuItemForm = {
   displayOrder: 0,
   isActive: true,
   price: '',
+  purchasePrice: '',
+  trackInventory: false,
+  stockQuantity: '',
+  minStockAlert: '',
+  priceChangeNote: '',
   recipeLines: [],
 }
 

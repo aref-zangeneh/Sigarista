@@ -21,6 +21,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
 
+    public DbSet<MenuItemPriceHistory> MenuItemPriceHistories => Set<MenuItemPriceHistory>();
+
     public DbSet<MenuItemBundleItem> MenuItemBundleItems => Set<MenuItemBundleItem>();
 
     public DbSet<AddonItem> AddonItems => Set<AddonItem>();
@@ -214,6 +216,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
 
     public DbSet<WarehouseStock> WarehouseStocks => Set<WarehouseStock>();
+
+    public DbSet<WarehouseTransfer> WarehouseTransfers => Set<WarehouseTransfer>();
+
+    public DbSet<WarehouseTransferLine> WarehouseTransferLines => Set<WarehouseTransferLine>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

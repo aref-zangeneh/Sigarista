@@ -38,7 +38,12 @@ public record UpsertMenuItemCommand(
     string ShortLabel,
     int DisplayOrder,
     bool IsActive,
-    decimal? Price = null) : IRequest<Guid>;
+    decimal? Price = null,
+    decimal? PurchasePrice = null,
+    bool TrackInventory = false,
+    decimal? StockQuantity = null,
+    decimal? MinStockAlert = null,
+    string? PriceChangeNote = null) : IRequest<Guid>;
 
 public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCommand>
 {
@@ -74,6 +79,16 @@ public class UpsertMenuItemCommandValidator : AbstractValidator<UpsertMenuItemCo
         RuleFor(command => command.LargeVolume).MaximumLength(100);
         RuleFor(command => command.LargeName).MaximumLength(60);
         RuleFor(command => command.Price).GreaterThanOrEqualTo(0);
+        RuleFor(command => command.PurchasePrice)
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("قیمت خرید نمی‌تواند منفی باشد.");
+        RuleFor(command => command.StockQuantity)
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("تعداد موجودی نمی‌تواند منفی باشد.");
+        RuleFor(command => command.MinStockAlert)
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("حداقل موجودی هشدار نمی‌تواند منفی باشد.");
+        RuleFor(command => command.PriceChangeNote).MaximumLength(500);
         // No price rule anymore: an item without any price is simply saved
         // unpriced and the domain turns ordering off for it automatically.
         RuleFor(command => command.Accent).MaximumLength(200);
@@ -86,11 +101,16 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly IImageFileStore _imageStore;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UpsertMenuItemCommandHandler(IApplicationDbContext dbContext, IImageFileStore imageStore)
+    public UpsertMenuItemCommandHandler(
+        IApplicationDbContext dbContext,
+        IImageFileStore imageStore,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
         _imageStore = imageStore;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Guid> Handle(UpsertMenuItemCommand request, CancellationToken cancellationToken)
@@ -104,12 +124,16 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
         }
 
         List<string> replacedImageUrls = [];
+        var changedBy = await ResolveActorNameAsync(_currentUserService.UserId, cancellationToken);
 
         if (request.Id is { } itemId)
         {
             var existingItem = await _dbContext.MenuItems
                 .FirstOrDefaultAsync(item => item.Id == itemId, cancellationToken)
                 ?? throw new KeyNotFoundException("Menu item was not found.");
+
+            var previousPurchasePrice = existingItem.PurchasePrice;
+            var previousSalePrice = existingItem.Price;
 
             replacedImageUrls = CollectReplacedImageUrls(
                 existingItem.ImageUrl,
@@ -151,6 +175,31 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
                 request.DisplayOrder,
                 request.IsActive,
                 request.Price);
+
+            existingItem.SetPurchasePrice(request.PurchasePrice);
+
+            await SyncInventoryStockAsync(
+                existingItem.Id,
+                request.TrackInventory,
+                request.StockQuantity,
+                request.MinStockAlert,
+                cancellationToken);
+
+            var purchaseChanged = previousPurchasePrice != existingItem.PurchasePrice;
+            var saleChanged = previousSalePrice != existingItem.Price;
+            if (purchaseChanged || saleChanged)
+            {
+                _dbContext.MenuItemPriceHistories.Add(
+                    MenuItemPriceHistory.Create(
+                        existingItem.Id,
+                        previousPurchasePrice,
+                        existingItem.PurchasePrice,
+                        previousSalePrice,
+                        existingItem.Price,
+                        MenuItemPriceHistory.SourceManualEdit,
+                        request.PriceChangeNote,
+                        changedBy));
+            }
         }
         else
         {
@@ -189,7 +238,31 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
                 request.IsActive,
                 request.Price);
 
+            menuItem.SetPurchasePrice(request.PurchasePrice);
+
             _dbContext.MenuItems.Add(menuItem);
+
+            if (request.TrackInventory)
+            {
+                var stock = new MenuItemStock(menuItem.Id, request.MinStockAlert ?? 0m);
+                stock.SetStock(request.StockQuantity ?? 0m, request.MinStockAlert ?? 0m);
+                _dbContext.MenuItemStocks.Add(stock);
+            }
+
+            if (menuItem.PurchasePrice.HasValue || menuItem.Price > 0m)
+            {
+                _dbContext.MenuItemPriceHistories.Add(
+                    MenuItemPriceHistory.Create(
+                        menuItem.Id,
+                        null,
+                        menuItem.PurchasePrice,
+                        null,
+                        menuItem.Price,
+                        MenuItemPriceHistory.SourceInitial,
+                        request.PriceChangeNote,
+                        changedBy));
+            }
+
             await _dbContext.SaveChangesAsync(cancellationToken);
 
             return menuItem.Id;
@@ -243,6 +316,58 @@ public class UpsertMenuItemCommandHandler : IRequestHandler<UpsertMenuItemComman
         }
 
         return request.Id!.Value;
+    }
+
+    private async Task<string?> ResolveActorNameAsync(string? userId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        if (Guid.TryParse(userId, out var adminId))
+        {
+            var admin = await _dbContext.AdminUsers
+                .AsNoTracking()
+                .Where(u => u.Id == adminId)
+                .Select(u => new { u.DisplayName, u.Username })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (admin is not null)
+            {
+                return string.IsNullOrWhiteSpace(admin.DisplayName) ? admin.Username : admin.DisplayName;
+            }
+        }
+
+        return userId;
+    }
+
+    private async Task SyncInventoryStockAsync(
+        Guid menuItemId,
+        bool trackInventory,
+        decimal? stockQuantity,
+        decimal? minStockAlert,
+        CancellationToken cancellationToken)
+    {
+        var existingStock = await _dbContext.MenuItemStocks
+            .FirstOrDefaultAsync(stock => stock.MenuItemId == menuItemId, cancellationToken);
+
+        if (trackInventory)
+        {
+            if (existingStock is null)
+            {
+                existingStock = new MenuItemStock(menuItemId, minStockAlert ?? 0m);
+                _dbContext.MenuItemStocks.Add(existingStock);
+            }
+
+            existingStock.SetStock(
+                stockQuantity ?? existingStock.CurrentQuantity,
+                minStockAlert ?? existingStock.MinAlertQuantity);
+        }
+        else if (existingStock is not null)
+        {
+            _dbContext.MenuItemStocks.Remove(existingStock);
+        }
     }
 
     internal static List<string> CollectReplacedImageUrls(

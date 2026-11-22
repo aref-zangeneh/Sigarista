@@ -55,6 +55,17 @@ public class DeleteWarehouseCommandHandler
             throw new DomainException("این انبار تراکنش ثبت‌شده دارد و حذف آن مجاز نیست؛ انبار را غیرفعال کنید.");
         }
 
+        var hasTransfers = await _dbContext.WarehouseTransfers
+            .AsNoTracking()
+            .AnyAsync(
+                t => t.SourceWarehouseId == warehouse.Id || t.DestinationWarehouseId == warehouse.Id,
+                cancellationToken);
+
+        if (hasTransfers)
+        {
+            throw new DomainException("این انبار سابقه انتقال بین انبارها دارد و حذف آن مجاز نیست؛ انبار را غیرفعال کنید.");
+        }
+
         _dbContext.Warehouses.Remove(warehouse);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

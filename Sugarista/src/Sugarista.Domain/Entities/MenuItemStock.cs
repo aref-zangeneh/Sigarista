@@ -66,4 +66,21 @@ public class MenuItemStock : BaseAuditableEntity
         CurrentQuantity += quantity;
         LastUpdatedAt = DateTimeOffset.UtcNow;
     }
+
+    public void SetStock(decimal currentQuantity, decimal minAlertQuantity)
+    {
+        if (currentQuantity < 0)
+        {
+            throw new DomainException("تعداد موجودی آیتم نمی‌تواند منفی باشد.");
+        }
+
+        if (minAlertQuantity < 0)
+        {
+            throw new DomainException("حداقل موجودی هشدار نمی‌تواند منفی باشد.");
+        }
+
+        CurrentQuantity = currentQuantity;
+        MinAlertQuantity = minAlertQuantity;
+        LastUpdatedAt = DateTimeOffset.UtcNow;
+    }
 }

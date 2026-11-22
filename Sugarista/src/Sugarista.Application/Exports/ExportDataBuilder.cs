@@ -757,6 +757,9 @@ public sealed class ExportDataBuilder(IApplicationDbContext dbContext, ISender s
         "PackagingConsumption" => "مصرف بسته‌بندی",
         "Production" => "تولید",
         "Adjustment" => "اصلاح موجودی",
+        "ManualAdjustment" => "اصلاح دستی موجودی",
+        "TransferOut" => "خروج انتقالی",
+        "TransferIn" => "ورود انتقالی",
         "Waste" => "ضایعات",
         _ => movementType,
     };

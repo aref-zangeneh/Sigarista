@@ -28,10 +28,14 @@ public class ApplyMenuPricingCommandValidator : AbstractValidator<ApplyMenuPrici
 public class ApplyMenuPricingCommandHandler : IRequestHandler<ApplyMenuPricingCommand, IReadOnlyList<Guid>>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ApplyMenuPricingCommandHandler(IApplicationDbContext dbContext)
+    public ApplyMenuPricingCommandHandler(
+        IApplicationDbContext dbContext,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
+        _currentUserService = currentUserService;
     }
 
     public async Task<IReadOnlyList<Guid>> Handle(ApplyMenuPricingCommand request, CancellationToken cancellationToken)
@@ -96,6 +100,8 @@ public class ApplyMenuPricingCommandHandler : IRequestHandler<ApplyMenuPricingCo
                 continue;
             }
 
+            var previousSalePrice = item.Price;
+
             item.Update(
                 item.CategoryId,
                 item.PersianName,
@@ -129,6 +135,22 @@ public class ApplyMenuPricingCommandHandler : IRequestHandler<ApplyMenuPricingCo
                 item.ShortLabel,
                 item.DisplayOrder,
                 item.IsActive);
+
+            if (item.Price != previousSalePrice)
+            {
+                _dbContext.MenuItemPriceHistories.Add(
+                    MenuItemPriceHistory.Create(
+                        item.Id,
+                        item.PurchasePrice,
+                        item.PurchasePrice,
+                        previousSalePrice,
+                        item.Price,
+                        MenuItemPriceHistory.SourceAutoPricing,
+                        usesManualPrice
+                            ? "قیمت‌گذاری دستی گروهی"
+                            : $"قیمت‌گذاری خودکار با سود {markupPercent:0.#}٪",
+                        _currentUserService.UserId));
+            }
 
             if (!usesManualPrice)
             {

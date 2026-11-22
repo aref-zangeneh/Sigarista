@@ -5,6 +5,8 @@ import { DataTable, formatMoney } from '../components/DataTable'
 import { ImageUploader } from '../components/ImageUploader'
 import { MenuItemOptionGroupsPanel } from '../components/MenuItemOptionGroupsPanel'
 import { MenuItemBundlePanel } from '../components/MenuItemBundlePanel.jsx'
+import { MenuItemPriceHistoryModal } from '../components/MenuItemPriceHistoryModal.jsx'
+import { NumberStepperInput } from '../components/NumberStepperInput.jsx'
 import { Tip } from '../components/Tip'
 import { buildMenuItemPricingColumns } from '../components/adminTableColumns'
 import {
@@ -32,10 +34,14 @@ export function MenuItemsPage() {
     saving: sharedSaving,
     setSaving,
     toPersianNumber,
+    formatDateTime,
     ingredientOptions,
     menuItemOptions,
     bumpTableReload,
     loadAdminData,
+    priceHistoryMenuItem,
+    openMenuItemPriceHistory,
+    closeMenuItemPriceHistory,
   } = useAdmin()
 
   const [pricingItems, setPricingItems] = useState([])
@@ -321,12 +327,12 @@ export function MenuItemsPage() {
             <h4>قیمت‌گذاری و سایزها</h4>
             <div className="form-row form-row-base-price">
               <label>
-                <span>قیمت پایه (آیتم بدون سایز)</span>
+                <span>قیمت فروش پایه (آیتم بدون سایز)</span>
                 <input
                   className="ltr-input"
                   type="number"
                   min="0"
-                  placeholder="مثلاً اسپرسو: ۱۲۰۰۰۰"
+                  placeholder="مثلاً چیزکیک: ۲۰۰۰۰۰"
                   value={menuItemForm.price ?? ''}
                   onChange={(event) =>
                     setMenuItemForm((currentForm) => ({
@@ -337,9 +343,159 @@ export function MenuItemsPage() {
                 />
                 <Tip k="menu-items.base_price" />
               </label>
-              <p className="form-hint">
-                اگر آیتم سایز ندارد (مثل اسپرسو)، فقط همین قیمت را پر کنید؛ بخش سایزها را خالی بگذارید.
-              </p>
+              <label>
+                <span>قیمت خرید / بهای تمام‌شده (تومان — اختیاری)</span>
+                <input
+                  className="ltr-input"
+                  type="number"
+                  min="0"
+                  placeholder="مثلاً کیک خریداری‌شده: ۱۰۰۰۰۰"
+                  value={menuItemForm.purchasePrice ?? ''}
+                  onChange={(event) =>
+                    setMenuItemForm((currentForm) => ({
+                      ...currentForm,
+                      purchasePrice: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            {(() => {
+              const saleVal =
+                Number(menuItemForm.price) ||
+                Number(menuItemForm.mediumPrice) ||
+                Number(menuItemForm.smallPrice) ||
+                Number(menuItemForm.largePrice) ||
+                0
+              const buyVal = Number(menuItemForm.purchasePrice)
+              const hasBuy = menuItemForm.purchasePrice !== '' && Number.isFinite(buyVal) && buyVal >= 0
+              const profit = hasBuy && saleVal > 0 ? saleVal - buyVal : null
+              const marginPct = profit != null && saleVal > 0 ? Math.round((profit / saleVal) * 1000) / 10 : null
+              const markupPct = profit != null && buyVal > 0 ? Math.round((profit / buyVal) * 1000) / 10 : null
+
+              return (
+                <>
+                  {hasBuy && saleVal > 0 ? (
+                    <div className={`price-profit-banner ${profit <= 0 ? 'is-warning' : ''}`}>
+                      <div>
+                        <strong>
+                          سود خالص هر عدد: {formatMoney(profit)}
+                        </strong>
+                        <span>
+                          حاشیه سود فروش: {toPersianNumber(marginPct)}٪
+                          {markupPct != null ? ` • درصد سود روی خرید: ${toPersianNumber(markupPct)}٪` : ''}
+                        </span>
+                      </div>
+                      {menuItemForm.id ? (
+                        <button
+                          type="button"
+                          className="link-button"
+                          onClick={() =>
+                            openMenuItemPriceHistory({
+                              id: menuItemForm.id,
+                              persianName: menuItemForm.persianName,
+                              englishName: menuItemForm.englishName,
+                            })
+                          }
+                        >
+                          مشاهده لاگ و روند قیمت
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : menuItemForm.id ? (
+                    <div className="option-groups-actions" style={{ marginTop: 4 }}>
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() =>
+                          openMenuItemPriceHistory({
+                            id: menuItemForm.id,
+                            persianName: menuItemForm.persianName,
+                            englishName: menuItemForm.englishName,
+                          })
+                        }
+                      >
+                        مشاهده لاگ و روند تغییرات قیمت
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <label style={{ marginTop: 6 }}>
+                    <span>یادداشت تغییر قیمت (اختیاری — در لاگ تاریخچه قیمت ثبت می‌شود)</span>
+                    <input
+                      maxLength="500"
+                      placeholder="مثلاً افزایش قیمت خرید از قنادی به ۱۲۰ هزار تومان"
+                      value={menuItemForm.priceChangeNote ?? ''}
+                      onChange={(event) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          priceChangeNote: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </>
+              )
+            })()}
+
+            <div className="inventory-track-box">
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={Boolean(menuItemForm.trackInventory)}
+                  onChange={(event) =>
+                    setMenuItemForm((currentForm) => ({
+                      ...currentForm,
+                      trackInventory: event.target.checked,
+                      stockQuantity:
+                        event.target.checked && currentForm.stockQuantity === ''
+                          ? 0
+                          : currentForm.stockQuantity,
+                      minStockAlert:
+                        event.target.checked && currentForm.minStockAlert === ''
+                          ? 2
+                          : currentForm.minStockAlert,
+                    }))
+                  }
+                />
+                <span>
+                  <strong>مدیریت تعداد موجودی برای این آیتم فعال باشد</strong>{' '}
+                  (مناسب کیک، دسر و کالاهای آماده — با هر فروش خودکار کسر و هنگام اتمام غیرقابل سفارش می‌شود)
+                </span>
+              </label>
+
+              {menuItemForm.trackInventory ? (
+                <div className="field-grid compact-grid" style={{ marginTop: 10 }}>
+                  <label>
+                    <span>تعداد موجودی فعلی</span>
+                    <NumberStepperInput
+                      min={0}
+                      value={menuItemForm.stockQuantity ?? 0}
+                      ariaLabel="تعداد موجودی فعلی"
+                      onChange={(nextValue) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          stockQuantity: nextValue,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>حداقل موجودی هشدار (موجودی کم)</span>
+                    <NumberStepperInput
+                      min={0}
+                      value={menuItemForm.minStockAlert ?? 0}
+                      ariaLabel="حداقل موجودی هشدار"
+                      onChange={(nextValue) =>
+                        setMenuItemForm((currentForm) => ({
+                          ...currentForm,
+                          minStockAlert: nextValue,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              ) : null}
             </div>
             <div className="variant-grid">
               {[
@@ -806,6 +962,16 @@ export function MenuItemsPage() {
           toPersianNumber={toPersianNumber}
           formatMoney={formatMoney}
           focusMenuItemId={menuItemForm.id ?? ''}
+        />
+
+        <MenuItemPriceHistoryModal
+          menuItem={priceHistoryMenuItem}
+          onClose={closeMenuItemPriceHistory}
+          session={session}
+          apiRequest={apiRequest}
+          getReadableError={getReadableError}
+          toPersianNumber={toPersianNumber}
+          formatDateTime={formatDateTime}
         />
       </section>
   )

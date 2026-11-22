@@ -2899,6 +2899,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<decimal>("Price")
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<decimal?>("PurchasePrice")
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<string>("RecipeDescription")
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
@@ -3090,6 +3093,64 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.HasIndex("OptionId", "IngredientId");
 
                     b.ToTable("MenuItemOptionIngredients");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemPriceHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChangedBy")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("MenuItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("NewPurchasePrice")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("NewSalePrice")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal?>("PreviousPurchasePrice")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("PreviousSalePrice")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("PurchasePriceChangePercent")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<decimal?>("PurchasePriceDelta")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("SalePriceChangePercent")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<decimal?>("SalePriceDelta")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MenuItemId", "RecordedAt");
+
+                    b.ToTable("MenuItemPriceHistories");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemStock", b =>
@@ -5903,6 +5964,96 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("WarehouseStocks");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.WarehouseTransfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DestinationWarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("SourceWarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("TransferredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TransferredBy")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinationWarehouseId");
+
+                    b.HasIndex("ReferenceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("SourceWarehouseId");
+
+                    b.HasIndex("TransferredAt");
+
+                    b.ToTable("WarehouseTransfers");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.WarehouseTransferLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("DestinationQuantityAfter")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.Property<decimal>("DestinationQuantityBefore")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.Property<decimal>("SourceQuantityAfter")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.Property<decimal>("SourceQuantityBefore")
+                        .HasColumnType("numeric(12,3)");
+
+                    b.Property<Guid>("TransferId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IngredientId");
+
+                    b.HasIndex("TransferId", "IngredientId");
+
+                    b.ToTable("WarehouseTransferLines");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.AdminRolePermission", b =>
                 {
                     b.HasOne("Sugarista.Domain.Entities.AdminRole", "AdminRole")
@@ -6418,6 +6569,17 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Navigation("Option");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemPriceHistory", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemStock", b =>
                 {
                     b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
@@ -6792,6 +6954,42 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.WarehouseTransfer", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Warehouse", "DestinationWarehouse")
+                        .WithMany()
+                        .HasForeignKey("DestinationWarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Sugarista.Domain.Entities.Warehouse", "SourceWarehouse")
+                        .WithMany()
+                        .HasForeignKey("SourceWarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("DestinationWarehouse");
+
+                    b.Navigation("SourceWarehouse");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.WarehouseTransferLine", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.Ingredient", "Ingredient")
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sugarista.Domain.Entities.WarehouseTransfer", "Transfer")
+                        .WithMany("Lines")
+                        .HasForeignKey("TransferId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ingredient");
+
+                    b.Navigation("Transfer");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.Account", b =>
                 {
                     b.Navigation("JournalLines");
@@ -6980,6 +7178,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
             modelBuilder.Entity("Sugarista.Domain.Entities.Supplier", b =>
                 {
                     b.Navigation("IngredientSuppliers");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.WarehouseTransfer", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

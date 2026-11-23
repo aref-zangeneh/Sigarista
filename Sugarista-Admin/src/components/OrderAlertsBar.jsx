@@ -151,7 +151,7 @@ export function OrderAlertsBar({
                 onClick={() => {
                   const nextEnabled = !normalizedSound.enabled
                   if (nextEnabled) {
-                    playOrderAlertSound()
+                    playOrderAlertSound({ force: true })
                   }
                   onUpdateSoundSettings({
                     enabled: nextEnabled,

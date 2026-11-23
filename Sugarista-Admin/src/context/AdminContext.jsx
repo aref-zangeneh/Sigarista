@@ -20,8 +20,12 @@ import {
   getRepeatAlertSoundDelayMs,
   normalizeAlertSoundSettings,
   playOrderAlertSound,
+  setOrderAlertSoundMuted,
   unlockOrderAlertSound,
 } from '../utils/orderAlertSound'
+
+const SOUND_OVERRIDE_STORAGE_KEY = 'sugarista.admin.orderAlertSoundOverride'
+const SOUND_SYNC_STORAGE_KEY = 'sugarista.admin.orderAlertSoundSync'
 import { isKnownAdminPath, pathForTab, tabForPath, adminRoutes } from '../adminRoutes'
 import { apiRequest, getReadableError, normalizeRecipeResponse } from '../utils/adminApi'
 import { getDefaultRoutePath, hasPermission, PERMISSIONS } from '../utils/adminPermissions'
@@ -102,15 +106,21 @@ export function AdminProvider({ children }) {
   const [salonStatus, setSalonStatus] = useState(emptySalonStatus)
   const [siteSettings, setSiteSettings] = useState(emptySettings)
   const [orderAlertSoundSaving, setOrderAlertSoundSaving] = useState(false)
+  const orderAlertSoundSavingRef = useRef(false)
   const [localSoundOverride, setLocalSoundOverride] = useState(() => {
     try {
-      const raw = window.localStorage.getItem('sugarista.admin.orderAlertSoundOverride')
+      const raw = window.localStorage.getItem(SOUND_OVERRIDE_STORAGE_KEY)
       return raw ? JSON.parse(raw) : null
     } catch {
       return null
     }
   })
-  const orderAlertSoundSettingsRef = useRef(normalizeAlertSoundSettings(emptySettings))
+  const [soundSettingsHydrated, setSoundSettingsHydrated] = useState(() => Boolean(localSoundOverride))
+  const soundSettingsHydratedRef = useRef(Boolean(localSoundOverride))
+  const localSoundOverrideRef = useRef(localSoundOverride)
+  const orderAlertSoundSettingsRef = useRef(
+    normalizeAlertSoundSettings(localSoundOverride ?? emptySettings),
+  )
   const [tipOverrides, setTipOverrides] = useState({})
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm)
   const [menuItemForm, setMenuItemForm] = useState(emptyMenuItemForm)
@@ -137,15 +147,64 @@ export function AdminProvider({ children }) {
   }, [localSoundOverride, siteSettings.orderAlertSoundEnabled, siteSettings.orderAlertSoundIntervalSeconds])
 
   useEffect(() => {
+    localSoundOverrideRef.current = localSoundOverride
+  }, [localSoundOverride])
+
+  useEffect(() => {
     orderAlertSoundSettingsRef.current = orderAlertSoundSettings
-  }, [orderAlertSoundSettings])
+    setOrderAlertSoundMuted(!soundSettingsHydrated || !orderAlertSoundSettings.enabled)
+  }, [orderAlertSoundSettings, soundSettingsHydrated])
+
+  useEffect(() => {
+    soundSettingsHydratedRef.current = soundSettingsHydrated
+  }, [soundSettingsHydrated])
+
+  useEffect(() => {
+    const handleStorageSync = (event) => {
+      if (event.key === SOUND_OVERRIDE_STORAGE_KEY) {
+        try {
+          const parsed = event.newValue ? JSON.parse(event.newValue) : null
+          setLocalSoundOverride(parsed)
+          if (parsed) {
+            const normalized = normalizeAlertSoundSettings(parsed)
+            orderAlertSoundSettingsRef.current = normalized
+            soundSettingsHydratedRef.current = true
+            setSoundSettingsHydrated(true)
+            setOrderAlertSoundMuted(!normalized.enabled)
+          }
+        } catch {
+          // ignore malformed storage values
+        }
+      } else if (event.key === SOUND_SYNC_STORAGE_KEY && event.newValue) {
+        try {
+          const parsed = JSON.parse(event.newValue)
+          const normalized = normalizeAlertSoundSettings(parsed)
+          setLocalSoundOverride(null)
+          setSiteSettings((current) => ({
+            ...current,
+            orderAlertSoundEnabled: normalized.enabled,
+            orderAlertSoundIntervalSeconds: normalized.intervalSeconds,
+          }))
+          orderAlertSoundSettingsRef.current = normalized
+          soundSettingsHydratedRef.current = true
+          setSoundSettingsHydrated(true)
+          setOrderAlertSoundMuted(!normalized.enabled)
+        } catch {
+          // ignore malformed storage values
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageSync)
+    return () => window.removeEventListener('storage', handleStorageSync)
+  }, [])
 
   useEffect(() => {
     orderAlertsRef.current = orderAlerts
   }, [orderAlerts])
 
   useEffect(() => {
-    if (!session?.token) {
+    if (!session?.token || !soundSettingsHydrated) {
       return undefined
     }
 
@@ -156,6 +215,7 @@ export function AdminProvider({ children }) {
 
     const soundIntervalId = window.setInterval(() => {
       if (
+        soundSettingsHydratedRef.current &&
         orderAlertSoundSettingsRef.current.enabled &&
         countUnhandledKitchenOrders(orderAlertsRef.current) > 0
       ) {
@@ -164,7 +224,12 @@ export function AdminProvider({ children }) {
     }, delayMs)
 
     return () => window.clearInterval(soundIntervalId)
-  }, [session?.token, orderAlertSoundSettings.enabled, orderAlertSoundSettings.intervalSeconds])
+  }, [
+    session?.token,
+    soundSettingsHydrated,
+    orderAlertSoundSettings.enabled,
+    orderAlertSoundSettings.intervalSeconds,
+  ])
 
   useEffect(() => {
     document.documentElement.lang = 'fa'
@@ -277,6 +342,39 @@ export function AdminProvider({ children }) {
           return
         }
 
+        // Sync master sound settings directly from alerts response so every role,
+        // tab, and POS screen stays aligned even without site-settings.view permission.
+        if (
+          !orderAlertSoundSavingRef.current &&
+          typeof alerts.orderAlertSoundEnabled === 'boolean'
+        ) {
+          const serverSound = normalizeAlertSoundSettings({
+            enabled: alerts.orderAlertSoundEnabled,
+            intervalSeconds: alerts.orderAlertSoundIntervalSeconds,
+          })
+          setSiteSettings((current) => {
+            if (
+              current.orderAlertSoundEnabled === serverSound.enabled &&
+              current.orderAlertSoundIntervalSeconds === serverSound.intervalSeconds
+            ) {
+              return current
+            }
+            return {
+              ...current,
+              orderAlertSoundEnabled: serverSound.enabled,
+              orderAlertSoundIntervalSeconds: serverSound.intervalSeconds,
+            }
+          })
+          if (!localSoundOverrideRef.current) {
+            orderAlertSoundSettingsRef.current = serverSound
+            setOrderAlertSoundMuted(!serverSound.enabled)
+          }
+          if (!soundSettingsHydratedRef.current) {
+            soundSettingsHydratedRef.current = true
+            setSoundSettingsHydrated(true)
+          }
+        }
+
         const kitchenOrders = alerts.activeKitchenOrders ?? []
         const visibleKitchenOrders = kitchenOrders.filter(
           (order) => !dismissedOrderAlertIds.has(order.id),
@@ -330,7 +428,9 @@ export function AdminProvider({ children }) {
               notifiedKitchenOrderIdsRef.current.add(order.id)
             }
 
-            if (orderAlertSoundSettingsRef.current.enabled) {
+            const soundEnabledNow =
+              soundSettingsHydratedRef.current && orderAlertSoundSettingsRef.current.enabled
+            if (soundEnabledNow) {
               playOrderAlertSound()
             }
             setOrderAlertPulse(true)
@@ -351,6 +451,7 @@ export function AdminProvider({ children }) {
                 new Notification('سفارش جدید پرداخت شد', {
                   body: `${order.trackingCode} — ${order.customerName}`,
                   tag: `order-${order.id}`,
+                  silent: !soundEnabledNow,
                 })
               }
             }
@@ -958,6 +1059,13 @@ export function AdminProvider({ children }) {
 
       if (data.siteSettings) {
         setSiteSettings(data.siteSettings)
+        const serverSound = normalizeAlertSoundSettings(data.siteSettings)
+        if (!localSoundOverrideRef.current) {
+          orderAlertSoundSettingsRef.current = serverSound
+          setOrderAlertSoundMuted(!serverSound.enabled)
+        }
+        soundSettingsHydratedRef.current = true
+        setSoundSettingsHydrated(true)
       }
 
       if (data.salonStatus) {
@@ -1451,11 +1559,17 @@ export function AdminProvider({ children }) {
 
   async function updateOrderAlertSoundSettings(patch) {
     const next = normalizeAlertSoundSettings({
-      ...orderAlertSoundSettings,
+      ...orderAlertSoundSettingsRef.current,
       ...patch,
     })
 
-    // Instant optimistic update so sound/mute applies immediately
+    // Synchronous audio kill-switch + ref update so no in-flight timer/poll can beep
+    orderAlertSoundSettingsRef.current = next
+    soundSettingsHydratedRef.current = true
+    setSoundSettingsHydrated(true)
+    setOrderAlertSoundMuted(!next.enabled)
+
+    // Instant optimistic update so sound/mute applies immediately in UI
     setSiteSettings((current) => ({
       ...current,
       orderAlertSoundEnabled: next.enabled,
@@ -1468,22 +1582,25 @@ export function AdminProvider({ children }) {
         hasPermission(session, PERMISSIONS.orders?.update))
 
     if (!canPersistToServer) {
+      localSoundOverrideRef.current = next
       setLocalSoundOverride(next)
       try {
-        window.localStorage.setItem('sugarista.admin.orderAlertSoundOverride', JSON.stringify(next))
+        window.localStorage.setItem(SOUND_OVERRIDE_STORAGE_KEY, JSON.stringify(next))
       } catch {
         // ignore storage quota errors
       }
       return
     }
 
+    localSoundOverrideRef.current = null
     setLocalSoundOverride(null)
     try {
-      window.localStorage.removeItem('sugarista.admin.orderAlertSoundOverride')
+      window.localStorage.removeItem(SOUND_OVERRIDE_STORAGE_KEY)
     } catch {
       // ignore
     }
 
+    orderAlertSoundSavingRef.current = true
     setOrderAlertSoundSaving(true)
     setError('')
     try {
@@ -1495,14 +1612,37 @@ export function AdminProvider({ children }) {
           intervalSeconds: next.intervalSeconds,
         },
       })
+      const resolved = normalizeAlertSoundSettings({
+        enabled: saved?.enabled ?? next.enabled,
+        intervalSeconds: saved?.intervalSeconds ?? next.intervalSeconds,
+      })
+      orderAlertSoundSettingsRef.current = resolved
+      setOrderAlertSoundMuted(!resolved.enabled)
       setSiteSettings((current) => ({
         ...current,
-        orderAlertSoundEnabled: saved?.enabled ?? next.enabled,
-        orderAlertSoundIntervalSeconds: saved?.intervalSeconds ?? next.intervalSeconds,
+        orderAlertSoundEnabled: resolved.enabled,
+        orderAlertSoundIntervalSeconds: resolved.intervalSeconds,
       }))
+      try {
+        window.localStorage.setItem(
+          SOUND_SYNC_STORAGE_KEY,
+          JSON.stringify({ ...resolved, updatedAt: Date.now() }),
+        )
+      } catch {
+        // ignore storage quota errors
+      }
     } catch (requestError) {
+      // Fall back to local browser override so user's mute choice still works immediately
+      localSoundOverrideRef.current = next
+      setLocalSoundOverride(next)
+      try {
+        window.localStorage.setItem(SOUND_OVERRIDE_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // ignore
+      }
       setError(getReadableError(requestError))
     } finally {
+      orderAlertSoundSavingRef.current = false
       setOrderAlertSoundSaving(false)
     }
   }
@@ -1525,9 +1665,16 @@ export function AdminProvider({ children }) {
         },
       })
 
+      localSoundOverrideRef.current = null
       setLocalSoundOverride(null)
+      orderAlertSoundSettingsRef.current = normalizedSound
+      setOrderAlertSoundMuted(!normalizedSound.enabled)
       try {
-        window.localStorage.removeItem('sugarista.admin.orderAlertSoundOverride')
+        window.localStorage.removeItem(SOUND_OVERRIDE_STORAGE_KEY)
+        window.localStorage.setItem(
+          SOUND_SYNC_STORAGE_KEY,
+          JSON.stringify({ ...normalizedSound, updatedAt: Date.now() }),
+        )
       } catch {
         // ignore
       }

@@ -22,7 +22,9 @@ public record AdminOrderAlertsDto(
     IReadOnlyCollection<AdminOrderAlertItemDto> NewPaidOrders,
     IReadOnlyCollection<AdminOrderAlertItemDto> ActiveKitchenOrders,
     IReadOnlyCollection<AdminOrderAlertItemDto> ReadyForPickupOrders,
-    DateTimeOffset ServerTime);
+    DateTimeOffset ServerTime,
+    bool OrderAlertSoundEnabled = true,
+    int OrderAlertSoundIntervalSeconds = 10);
 
 public class GetAdminOrderAlertsQueryHandler : IRequestHandler<GetAdminOrderAlertsQuery, AdminOrderAlertsDto>
 {
@@ -82,12 +84,23 @@ public class GetAdminOrderAlertsQueryHandler : IRequestHandler<GetAdminOrderAler
             .OrderBy(o => o.PaidAt)
             .ToList();
 
+        var soundSettings = await _dbContext.SiteSettings
+            .AsNoTracking()
+            .Select(s => new
+            {
+                s.OrderAlertSoundEnabled,
+                s.OrderAlertSoundIntervalSeconds,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
         return new AdminOrderAlertsDto(
             pendingKitchen.Count,
             readyOrders.Count,
             newPaidOrders,
             activeKitchenOrders,
             readyOrders,
-            now);
+            now,
+            soundSettings?.OrderAlertSoundEnabled ?? true,
+            soundSettings?.OrderAlertSoundIntervalSeconds ?? 10);
     }
 }

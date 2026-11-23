@@ -98,6 +98,9 @@ export function SiteSettingsPage() {
     setSiteSettings,
     saving,
     handleSettingsSubmit,
+    orderAlertSoundSettings,
+    orderAlertSoundSaving,
+    updateOrderAlertSoundSettings,
   } = useAdmin()
 
   const updateField = (fieldName, value) =>
@@ -442,19 +445,23 @@ export function SiteSettingsPage() {
                   صدای اعلان سفارش
                   <span
                     className={`settings-pill ${
-                      siteSettings.orderAlertSoundEnabled !== false ? 'is-on' : 'is-off'
+                      orderAlertSoundSettings.enabled ? 'is-on' : 'is-off'
                     }`}
                   >
-                    {siteSettings.orderAlertSoundEnabled !== false ? 'روشن' : 'خاموش'}
+                    {orderAlertSoundSaving
+                      ? 'در حال ذخیره…'
+                      : orderAlertSoundSettings.enabled
+                        ? 'روشن'
+                        : 'خاموش'}
                   </span>
                 </h2>
-                <p>{formatAlertSoundDescription(siteSettings)}</p>
+                <p>{formatAlertSoundDescription(orderAlertSoundSettings)}</p>
               </div>
             </div>
             <button
               type="button"
               className="ghost-button"
-              onClick={() => playOrderAlertSound()}
+              onClick={() => playOrderAlertSound({ force: true })}
             >
               🔊 پخش صدای آزمایشی
             </button>
@@ -465,21 +472,27 @@ export function SiteSettingsPage() {
               <div className="settings-switch-text">
                 <strong>پخش صدای اعلان برای سفارش‌های جدید</strong>
                 <p>
-                  با خاموش کردن این گزینه، صدای بوق اعلان سفارش در پنل مدیریت به‌طور کامل قطع
-                  می‌شود (بنر اعلان سفارش‌ها همچنان نمایش داده می‌شود).
+                  تغییر این کلید بلافاصله روی سرور و تمام تب‌های باز پنل ذخیره می‌شود. با خاموش کردن،
+                  صدای بوق و صدای نوتیفیکیشن سفارش به‌طور کامل قطع می‌شود (بنر اعلان سفارش‌ها همچنان
+                  نمایش داده می‌شود).
                 </p>
               </div>
               <span
                 className={`switch ${
-                  siteSettings.orderAlertSoundEnabled !== false ? 'switch-on' : ''
+                  orderAlertSoundSettings.enabled ? 'switch-on' : ''
                 }`}
               >
                 <input
                   type="checkbox"
-                  checked={siteSettings.orderAlertSoundEnabled !== false}
-                  onChange={(event) =>
-                    updateField('orderAlertSoundEnabled', event.target.checked)
-                  }
+                  disabled={orderAlertSoundSaving}
+                  checked={orderAlertSoundSettings.enabled}
+                  onChange={(event) => {
+                    const nextEnabled = event.target.checked
+                    if (nextEnabled) {
+                      playOrderAlertSound({ force: true })
+                    }
+                    updateOrderAlertSoundSettings({ enabled: nextEnabled })
+                  }}
                 />
                 <span className="switch-track">
                   <span className="switch-thumb" />
@@ -494,8 +507,8 @@ export function SiteSettingsPage() {
                   type="number"
                   min="0"
                   max="300"
-                  value={siteSettings.orderAlertSoundIntervalSeconds ?? 10}
-                  disabled={siteSettings.orderAlertSoundEnabled === false}
+                  value={siteSettings.orderAlertSoundIntervalSeconds ?? orderAlertSoundSettings.intervalSeconds}
+                  disabled={orderAlertSoundSaving || !orderAlertSoundSettings.enabled}
                   onChange={(event) => {
                     const raw = event.target.value
                     updateField(
@@ -503,9 +516,19 @@ export function SiteSettingsPage() {
                       raw === '' ? 0 : Math.max(0, Math.min(300, Number(raw) || 0)),
                     )
                   }}
+                  onBlur={(event) => {
+                    const normalized = normalizeAlertSoundSettings({
+                      enabled: orderAlertSoundSettings.enabled,
+                      intervalSeconds: event.target.value === '' ? 0 : Number(event.target.value),
+                    })
+                    updateOrderAlertSoundSettings({
+                      enabled: normalized.enabled,
+                      intervalSeconds: normalized.intervalSeconds,
+                    })
+                  }}
                 />
                 <small className="settings-hint">
-                  عدد ۰ = فقط یک‌بار هنگام ورود سفارش جدید (بدون تکرار). مقادیر مجاز برای تکرار: ۳ تا ۳۰۰ ثانیه.
+                  عدد ۰ = فقط یک‌بار هنگام ورود سفارش جدید (بدون تکرار). مقادیر مجاز برای تکرار: ۳ تا ۳۰۰ ثانیه (ذخیرهٔ خودکار).
                 </small>
               </label>
 
@@ -515,15 +538,20 @@ export function SiteSettingsPage() {
                 </span>
                 <div className="orders-table-filters">
                   {ALERT_SOUND_INTERVAL_PRESETS.map((seconds) => {
-                    const currentInterval = normalizeAlertSoundSettings(siteSettings).intervalSeconds
+                    const currentInterval = orderAlertSoundSettings.intervalSeconds
                     const active = currentInterval === seconds
                     return (
                       <button
                         key={seconds}
                         type="button"
                         className={active ? 'primary-button' : 'ghost-button'}
-                        disabled={siteSettings.orderAlertSoundEnabled === false}
-                        onClick={() => updateField('orderAlertSoundIntervalSeconds', seconds)}
+                        disabled={orderAlertSoundSaving || !orderAlertSoundSettings.enabled}
+                        onClick={() =>
+                          updateOrderAlertSoundSettings({
+                            enabled: orderAlertSoundSettings.enabled,
+                            intervalSeconds: seconds,
+                          })
+                        }
                       >
                         {seconds === 0 ? 'فقط یک‌بار' : `هر ${toPersianDigits(seconds)} ثانیه`}
                       </button>

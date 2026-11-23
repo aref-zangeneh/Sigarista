@@ -48,6 +48,8 @@ export function formatAlertSoundDescription(settings) {
 }
 
 let audioContext = null
+let alertSoundMuted = false
+const activeOscillators = new Set()
 
 function getAudioContext() {
   if (typeof window === 'undefined') {
@@ -66,26 +68,65 @@ function getAudioContext() {
   return audioContext
 }
 
+export function stopOrderAlertSound() {
+  for (const oscillator of activeOscillators) {
+    try {
+      oscillator.stop()
+    } catch {
+      // ignore already-stopped oscillators
+    }
+    try {
+      oscillator.disconnect()
+    } catch {
+      // ignore disconnect errors
+    }
+  }
+  activeOscillators.clear()
+
+  if (audioContext && audioContext.state === 'running') {
+    void audioContext.suspend().catch(() => {})
+  }
+}
+
+export function setOrderAlertSoundMuted(muted) {
+  alertSoundMuted = Boolean(muted)
+  if (alertSoundMuted) {
+    stopOrderAlertSound()
+  }
+}
+
+export function isOrderAlertSoundMuted() {
+  return alertSoundMuted
+}
+
 export function unlockOrderAlertSound() {
+  if (alertSoundMuted) {
+    return
+  }
+
   const context = getAudioContext()
   if (!context) {
     return
   }
 
   if (context.state === 'suspended') {
-    void context.resume()
+    void context.resume().catch(() => {})
   }
 }
 
-export function playOrderAlertSound() {
+export function playOrderAlertSound({ force = false } = {}) {
+  if (!force && alertSoundMuted) {
+    return false
+  }
+
   try {
     const context = getAudioContext()
     if (!context) {
-      return
+      return false
     }
 
     if (context.state === 'suspended') {
-      void context.resume()
+      void context.resume().catch(() => {})
     }
 
     const startAt = context.currentTime + 0.01
@@ -103,10 +144,23 @@ export function playOrderAlertSound() {
     gain.gain.exponentialRampToValueAtTime(0.12, startAt + 0.02)
     gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.22)
 
+    activeOscillators.add(oscillator)
+    oscillator.onended = () => {
+      activeOscillators.delete(oscillator)
+      try {
+        oscillator.disconnect()
+        gain.disconnect()
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+
     oscillator.start(startAt)
     oscillator.stop(startAt + 0.24)
+    return true
   } catch {
     // Browsers may block audio until a user gesture unlocks it.
+    return false
   }
 }
 

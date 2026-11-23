@@ -423,7 +423,7 @@ export function AdminLayout() {
                 onClick={() => {
                   const nextEnabled = !orderAlertSoundSettings.enabled
                   if (nextEnabled) {
-                    playOrderAlertSound()
+                    playOrderAlertSound({ force: true })
                   }
                   updateOrderAlertSoundSettings({ enabled: nextEnabled })
                 }}

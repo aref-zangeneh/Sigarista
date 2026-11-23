@@ -4,8 +4,11 @@ import {
   DEFAULT_ALERT_SOUND_INTERVAL_SECONDS,
   formatAlertSoundDescription,
   getRepeatAlertSoundDelayMs,
+  isOrderAlertSoundMuted,
   normalizeAlertSoundInterval,
   normalizeAlertSoundSettings,
+  playOrderAlertSound,
+  setOrderAlertSoundMuted,
 } from './orderAlertSound.js'
 
 test('normalizeAlertSoundInterval clamps values while preserving 0 (play once)', () => {
@@ -38,4 +41,12 @@ test('formatAlertSoundDescription reflects muted, play-once, and custom Persian 
   assert.match(formatAlertSoundDescription({ enabled: false, intervalSeconds: 10 }), /خاموش است/)
   assert.match(formatAlertSoundDescription({ enabled: true, intervalSeconds: 0 }), /فقط یک‌بار/)
   assert.match(formatAlertSoundDescription({ enabled: true, intervalSeconds: 25 }), /هر ۲۵ ثانیه/)
+})
+
+test('setOrderAlertSoundMuted enforces module-level audio kill-switch unless force=true', () => {
+  setOrderAlertSoundMuted(true)
+  assert.equal(isOrderAlertSoundMuted(), true)
+  assert.equal(playOrderAlertSound(), false)
+  setOrderAlertSoundMuted(false)
+  assert.equal(isOrderAlertSoundMuted(), false)
 })

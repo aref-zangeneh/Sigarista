@@ -2560,7 +2560,7 @@
       </aside>
     </div>
 
-    <!-- پاپ‌آپ ورود موبایلی: فقط شماره، بدون رمز و کد تایید. دکمهٔ skip برای
+    <!-- پاپ‌آپ ورود موبایلی با کد تایید پیامکی (OTP). دکمهٔ skip برای
          کسی که فقط منو را می‌بیند؛ بعد از skip در همین مرورگر دیگر پرسیده نمی‌شود. -->
     <div
       class="auth-popup-overlay"
@@ -2573,26 +2573,78 @@
         <button type="button" class="profile-close" @click="skipAuthPrompt()" aria-label="بستن">
           <i class="bi bi-x-lg"></i>
         </button>
-        <span class="profile-badge-icon"><i class="bi bi-person-badge"></i></span>
-        <h2 id="auth-popup-title" class="h5 mb-1" x-text="settings.authPopupTitle || 'به کافه خوش آمدی'"></h2>
-        <p class="auth-popup-sub" x-text="settings.authPopupDescription || 'شماره موبایلت را وارد کن تا حساب کاربری‌ات — کارت مهر، امتیازها و بج‌هایت — همیشه آماده باشد؛ بدون ثبت‌نام و رمز.'"></p>
-        <div class="mb-3">
-          <input
-            type="tel"
-            inputmode="numeric"
-            class="form-control ltr-text"
-            placeholder="۰۹xxxxxxxxx"
-            x-model="authPhoneInput"
-            @keydown.enter.prevent="submitAuthPhone()"
-          />
-        </div>
-        <button type="button" class="btn btn-accent w-100 profile-submit" :disabled="authSubmitting" @click="submitAuthPhone()">
-          <span x-show="!authSubmitting" x-text="settings.authPopupLoginButtonLabel || 'ورود با شماره موبایل'"></span>
-          <span x-show="authSubmitting">در حال ورود...</span>
-        </button>
-        <button type="button" class="auth-popup-skip" @click="skipAuthPrompt()">
-          <span x-text="settings.authPopupSkipButtonLabel || 'فقط منو را ببینم'"></span>
-        </button>
+        <span class="profile-badge-icon">
+          <i class="bi" :class="authStep === 'otp' ? 'bi-shield-check' : 'bi-person-badge'"></i>
+        </span>
+        <h2 id="auth-popup-title" class="h5 mb-1" x-text="authStep === 'otp' ? 'تایید شماره موبایل' : (settings.authPopupTitle || 'به کافه خوش آمدی')"></h2>
+
+        <!-- مرحله ۱: ورود شماره موبایل -->
+        <template x-if="authStep === 'phone'">
+          <div>
+            <p class="auth-popup-sub" x-text="settings.authPopupDescription || 'شماره موبایلت را وارد کن تا با کد تایید پیامکی وارد حسابت شوی و امتیازها، کارت مهر و بج‌هایت همیشه آماده باشد.'"></p>
+            <div class="mb-3">
+              <input
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel"
+                class="form-control ltr-text"
+                placeholder="۰۹xxxxxxxxx"
+                x-model="authPhoneInput"
+                @keydown.enter.prevent="submitAuthPhone()"
+              />
+            </div>
+            <button type="button" class="btn btn-accent w-100 profile-submit" :disabled="authSubmitting" @click="submitAuthPhone()">
+              <span x-show="!authSubmitting" x-text="settings.authPopupLoginButtonLabel || 'دریافت کد تایید'"></span>
+              <span x-show="authSubmitting">در حال ارسال کد...</span>
+            </button>
+            <button type="button" class="auth-popup-skip" @click="skipAuthPrompt()">
+              <span x-text="settings.authPopupSkipButtonLabel || 'فقط منو را ببینم'"></span>
+            </button>
+          </div>
+        </template>
+
+        <!-- مرحله ۲: ورود کد تایید ۶ رقمی -->
+        <template x-if="authStep === 'otp'">
+          <div>
+            <div class="auth-otp-phone-bar">
+              <span>کد تایید به <strong dir="ltr" x-text="toPersianDigits(authOtpPhone)"></strong> پیامک شد</span>
+              <button type="button" class="auth-otp-link" @click="resetAuthOtpStep()">ویرایش شماره</button>
+            </div>
+            <p class="auth-otp-notice" x-show="authOtpNotice" x-text="authOtpNotice"></p>
+            <div class="mb-3">
+              <input
+                type="text"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
+                class="form-control auth-otp-input"
+                placeholder="— — — — — —"
+                x-model="authOtpCode"
+                @input="handleAuthOtpInput(true)"
+                @keydown.enter.prevent="verifyCustomerOtp(true)"
+              />
+            </div>
+            <button type="button" class="btn btn-accent w-100 profile-submit" :disabled="authSubmitting" @click="verifyCustomerOtp(true)">
+              <span x-show="!authSubmitting">تایید و ورود</span>
+              <span x-show="authSubmitting">در حال بررسی...</span>
+            </button>
+            <div class="auth-otp-resend-row">
+              <span class="auth-otp-timer" x-show="authOtpCooldown > 0">
+                ارسال مجدد کد تا <strong x-text="formatAuthCountdown(authOtpCooldown)"></strong>
+              </span>
+              <button
+                type="button"
+                class="auth-otp-link"
+                x-show="authOtpCooldown === 0"
+                :disabled="authSubmitting"
+                @click="resendCustomerOtp(true)"
+              >
+                ارسال مجدد کد تایید
+              </button>
+            </div>
+          </div>
+        </template>
+
         <p class="profile-error" x-show="authPopupError" x-text="authPopupError" x-cloak></p>
       </div>
     </div>
@@ -2608,29 +2660,79 @@
         <button type="button" class="profile-close" @click="closeProfile()" aria-label="بستن">
           <i class="bi bi-x-lg"></i>
         </button>
-        <span class="profile-badge-icon"><i class="bi bi-person-badge"></i></span>
-        <h2 id="profile-title" class="h5 mb-1">کارت مهر مشتری</h2>
+        <span class="profile-badge-icon">
+          <i class="bi" :class="(!profilePhone && authStep === 'otp') ? 'bi-shield-check' : 'bi-person-badge'"></i>
+        </span>
+        <h2 id="profile-title" class="h5 mb-1" x-text="(!profilePhone && authStep === 'otp') ? 'تایید شماره موبایل' : 'کارت مهر مشتری'"></h2>
 
-        <!-- مرحلهٔ شناسایی: فقط شماره موبایل، بدون ثبت‌نام و لاگین -->
+        <!-- مرحلهٔ احراز هویت پیامکی (OTP) از پروفایل -->
         <template x-if="!profilePhone">
           <div class="profile-identify">
-            <p class="text-secondary mb-3">
-             شماره موبایل خود را وارد کنید.
-            </p>
-            <div class="mb-3">
-              <input
-                type="tel"
-                inputmode="numeric"
-                class="form-control ltr-text"
-                placeholder="۰۹xxxxxxxxx"
-                x-model="profilePhoneInput"
-                @keydown.enter.prevent="submitProfilePhone()"
-              />
-            </div>
-            <button type="button" class="btn btn-accent w-100 profile-submit" @click="submitProfilePhone()">
-              <i class="bi bi-person-check"></i>
-              شناسایی من
-            </button>
+            <template x-if="authStep === 'phone'">
+              <div>
+                <p class="text-secondary mb-3">
+                  شماره موبایل خود را وارد کنید تا کد تایید پیامک شود.
+                </p>
+                <div class="mb-3">
+                  <input
+                    type="tel"
+                    inputmode="numeric"
+                    autocomplete="tel"
+                    class="form-control ltr-text"
+                    placeholder="۰۹xxxxxxxxx"
+                    x-model="profilePhoneInput"
+                    @keydown.enter.prevent="submitProfilePhone()"
+                  />
+                </div>
+                <button type="button" class="btn btn-accent w-100 profile-submit" :disabled="authSubmitting" @click="submitProfilePhone()">
+                  <i class="bi bi-chat-dots"></i>
+                  <span x-show="!authSubmitting">دریافت کد تایید</span>
+                  <span x-show="authSubmitting">در حال ارسال کد...</span>
+                </button>
+              </div>
+            </template>
+
+            <template x-if="authStep === 'otp'">
+              <div>
+                <div class="auth-otp-phone-bar">
+                  <span>کد تایید به <strong dir="ltr" x-text="toPersianDigits(authOtpPhone)"></strong> پیامک شد</span>
+                  <button type="button" class="auth-otp-link" @click="resetAuthOtpStep()">ویرایش شماره</button>
+                </div>
+                <div class="mb-3">
+                  <input
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    maxlength="6"
+                    class="form-control auth-otp-input"
+                    placeholder="— — — — — —"
+                    x-model="authOtpCode"
+                    @input="handleAuthOtpInput(false)"
+                    @keydown.enter.prevent="verifyCustomerOtp(false)"
+                  />
+                </div>
+                <button type="button" class="btn btn-accent w-100 profile-submit" :disabled="authSubmitting" @click="verifyCustomerOtp(false)">
+                  <i class="bi bi-shield-check"></i>
+                  <span x-show="!authSubmitting">تایید و ورود</span>
+                  <span x-show="authSubmitting">در حال بررسی...</span>
+                </button>
+                <div class="auth-otp-resend-row">
+                  <span class="auth-otp-timer" x-show="authOtpCooldown > 0">
+                    ارسال مجدد کد تا <strong x-text="formatAuthCountdown(authOtpCooldown)"></strong>
+                  </span>
+                  <button
+                    type="button"
+                    class="auth-otp-link"
+                    x-show="authOtpCooldown === 0"
+                    :disabled="authSubmitting"
+                    @click="resendCustomerOtp(false)"
+                  >
+                    ارسال مجدد کد تایید
+                  </button>
+                </div>
+              </div>
+            </template>
+
             <p class="profile-error" x-show="profileError" x-text="profileError" x-cloak></p>
           </div>
         </template>

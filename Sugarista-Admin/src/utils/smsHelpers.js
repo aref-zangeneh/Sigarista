@@ -70,6 +70,7 @@ export const SMS_TEMPLATE_PLACEHOLDERS = [
   'Amount',
   'Date',
   'TrackingCode',
+  'Code',
 ]
 
 export function toPersian(value) {

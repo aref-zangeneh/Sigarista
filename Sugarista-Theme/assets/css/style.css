@@ -1518,6 +1518,74 @@ a {
   margin-bottom: 1rem;
 }
 
+.auth-otp-phone-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  background: var(--bg-soft, rgba(170, 49, 113, 0.06));
+  border: 1px solid var(--line);
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.auth-otp-phone-bar strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.auth-otp-notice {
+  margin: 0 0 0.7rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 600;
+  text-align: center;
+}
+
+.auth-otp-input {
+  direction: ltr;
+  text-align: center;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.45em;
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+}
+
+.auth-otp-resend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.85rem;
+  min-height: 1.6rem;
+  font-size: 0.84rem;
+}
+
+.auth-otp-timer {
+  color: var(--muted);
+}
+
+.auth-otp-link {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.83rem;
+  font-weight: 700;
+  padding: 0.15rem 0.35rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.auth-otp-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .auth-popup-skip {
   display: block;
   width: 100%;

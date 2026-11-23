@@ -41,6 +41,18 @@ public interface ISmsGateway
         string message,
         string action,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a one-time verification code (OTP) using the default SMS provider.
+    /// Automatically uses the provider's native Verify/Pattern API (e.g. SMS.ir /v1/send/verify)
+    /// when an active OTP template has a matching ProviderTemplateMapping, falling back to
+    /// standard text send otherwise.
+    /// </summary>
+    Task<SmsSendOutcome> SendOtpAsync(
+        string? mobile,
+        string code,
+        string? cafeName = null,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record SmsSendRequest(

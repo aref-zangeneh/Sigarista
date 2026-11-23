@@ -1,3 +1,5 @@
+using Sugarista.Application.Common.Text;
+
 namespace Sugarista.Application.Customers.Auth;
 
 /// <summary>
@@ -11,7 +13,7 @@ public static class CustomerLoginRules
     /// <summary>Canonical form: digits only, leading `+98/98/0098` folded to `0`.</summary>
     public static string NormalizePhone(string? phone)
     {
-        var raw = (phone ?? string.Empty).Trim();
+        var raw = (DigitNormalizer.ToEnglishDigits(phone) ?? string.Empty).Trim();
         if (raw.Length == 0)
         {
             return raw;

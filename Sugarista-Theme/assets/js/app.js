@@ -209,10 +209,16 @@ document.addEventListener("alpine:init", () => {
     profilePhoneInput: "",
     profilePhone: null,
     profile: null,
-    // ── ورود موبایلی (بدون رمز و کد تایید) ────────────────────────────────
+    // ── ورود موبایلی با کد تایید پیامکی (OTP) ────────────────────────────
     customerSession: null,
     authPopupOpen: false,
     authPhoneInput: "",
+    authStep: "phone", // 'phone' | 'otp'
+    authOtpPhone: "",
+    authOtpCode: "",
+    authOtpCooldown: 0,
+    authOtpTimer: null,
+    authOtpNotice: "",
     authSubmitting: false,
     authPopupError: "",
     flashSale: null,
@@ -983,14 +989,14 @@ document.addEventListener("alpine:init", () => {
         this.loadProfile();
       }
     },
-    // ── ورود موبایلی (فقط شماره، بدون رمز و کد تایید) ─────────────────────
-    // مشتری با شماره موبایل وارد حسابش می‌شود؛ یک کوکی HttpOnly امیدار تا
-    // تعداد روزی که ادمین در تنظیمات کنترل می‌کند (پیش‌فرض ۶۰ روز) هر بار
-    // باز کردن سایت، بدون هیچ تایپی حساب فعال است. «فقط منو را ببینم» بدون
-    // حساب جلو می‌رود و دیگر پاپ‌آپ باز نمی‌شود.
+    // ── ورود موبایلی با کد تایید پیامکی (OTP) ──────────────────────────────
+    // مشتری شماره موبایلش را وارد می‌کند، کد ۶ رقمی پیامک می‌شود و پس از تایید
+    // یک کوکی HttpOnly ماندگار (بر اساس تنظیمات سایت، پیش‌فرض ۶۰ روز) دریافت می‌کند.
+    // «فقط منو را ببینم» بدون حساب جلو می‌رود و دیگر پاپ‌آپ باز نمی‌شود.
     AUTH_PROMPT_STORAGE_KEY: "sugarista_auth_prompt_skipped",
     async initCustomerAuth() {
       this.authPopupError = "";
+      this.authOtpNotice = "";
       try {
         const response = await fetch(`${this.apiBaseUrl}/customers/auth/me`, { cache: "no-store" });
         if (response.ok) {
@@ -998,6 +1004,12 @@ document.addEventListener("alpine:init", () => {
           if (identity?.phoneNumber) {
             this.customerSession = identity;
             this.profilePhone = identity.phoneNumber;
+            this.profilePhoneInput = this.toPersianDigits(identity.phoneNumber);
+            try {
+              window.localStorage.setItem(PROFILE_STORAGE_KEY, identity.phoneNumber);
+            } catch {
+              // Private mode
+            }
             if (!this.checkoutForm.customerPhone.trim()) {
               this.checkoutForm.customerPhone = identity.phoneNumber;
             }
@@ -1011,66 +1023,171 @@ document.addEventListener("alpine:init", () => {
         // شبکه قطع است؛ این بار به‌عنوان مهمان ادامه بده
       }
       this.customerSession = null;
-      // پاپ‌آپ فقط در اولین نگاه: نه بعد از skip، نه وقتی شماره از قبل هست
+      this.profilePhone = null;
       let dismissed = false;
-      let storedPhone = "";
       try {
         dismissed = window.localStorage.getItem(this.AUTH_PROMPT_STORAGE_KEY) === "1";
-        storedPhone = window.localStorage.getItem(PROFILE_STORAGE_KEY) || "";
       } catch {
         dismissed = false;
       }
-      this.authPopupOpen = !dismissed && !storedPhone;
+      this.authPopupOpen = !dismissed;
+    },
+    startAuthOtpCooldown(seconds) {
+      if (this.authOtpTimer) {
+        window.clearInterval(this.authOtpTimer);
+        this.authOtpTimer = null;
+      }
+      this.authOtpCooldown = Math.max(0, Number(seconds) || 0);
+      if (this.authOtpCooldown <= 0) {
+        return;
+      }
+      this.authOtpTimer = window.setInterval(() => {
+        if (this.authOtpCooldown <= 1) {
+          this.authOtpCooldown = 0;
+          window.clearInterval(this.authOtpTimer);
+          this.authOtpTimer = null;
+        } else {
+          this.authOtpCooldown -= 1;
+        }
+      }, 1000);
+    },
+    formatAuthCountdown(seconds) {
+      const s = Math.max(0, Number(seconds) || 0);
+      const mins = Math.floor(s / 60);
+      const rem = s % 60;
+      const padded = `${String(mins).padStart(2, "0")}:${String(rem).padStart(2, "0")}`;
+      return this.toPersianDigits(padded);
+    },
+    resetAuthOtpStep() {
+      this.authStep = "phone";
+      this.authOtpCode = "";
+      this.authOtpNotice = "";
+      this.authPopupError = "";
+      this.profileError = "";
     },
     async submitAuthPhone() {
       const digits = this.toEnglishDigits(this.authPhoneInput || "").replace(/\D/g, "");
-      if (digits.length < 8) {
-        this.authPopupError = "شماره موبایل معتبر وارد کنید.";
+      if (digits.length < 10) {
+        this.authPopupError = "شماره موبایل معتبر وارد کنید (مثلاً ۰۹۱۲۳۴۵۶۷۸۹).";
         return;
       }
-      await this.loginCustomer(digits, true);
+      await this.requestCustomerOtp(digits, true);
     },
-    async loginCustomer(phoneDigits, isAuthPopup = false) {
-      this.authSubmitting = isAuthPopup;
+    async requestCustomerOtp(phoneDigits, isAuthPopup = false) {
+      this.authSubmitting = true;
       this.authPopupError = "";
       this.profileError = "";
+      this.authOtpNotice = "";
       try {
-        const response = await fetch(`${this.apiBaseUrl}/customers/auth/login`, {
+        const response = await fetch(`${this.apiBaseUrl}/customers/auth/otp/request`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: this.jsonBody({ phoneNumber: phoneDigits })
         });
+        const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.detail || payload.title || "ورود انجام نشد.");
+          if (response.status === 429 && payload.retryAfterSeconds > 0) {
+            this.authOtpPhone = payload.phoneNumber || phoneDigits;
+            this.authStep = "otp";
+            this.startAuthOtpCooldown(payload.retryAfterSeconds);
+          }
+          const fieldErrors = payload.errors ? Object.values(payload.errors).flat().join("، ") : "";
+          throw new Error(payload.message || fieldErrors || payload.detail || payload.title || "ارسال کد تایید انجام نشد.");
         }
-        const result = await response.json();
-        this.customerSession = result.customer;
-        this.profilePhone = result.customer.phoneNumber;
-        this.profilePhoneInput = this.toPersianDigits(result.customer.phoneNumber);
-        try {
-          window.localStorage.setItem(PROFILE_STORAGE_KEY, result.customer.phoneNumber);
-        } catch {
-          // Private mode
-        }
-        if (!this.checkoutForm.customerPhone.trim()) {
-          this.checkoutForm.customerPhone = result.customer.phoneNumber;
-        }
-        this.authPopupOpen = false;
-        await this.loadProfile();
+        this.authOtpPhone = payload.phoneNumber || phoneDigits;
+        this.authOtpCode = "";
+        this.authStep = "otp";
+        this.authOtpNotice = payload.message || "کد تایید ۶ رقمی به شماره موبایل شما ارسال شد.";
+        this.startAuthOtpCooldown(payload.retryAfterSeconds ?? 60);
+        this.$nextTick(() => {
+          const input = document.querySelector(".auth-otp-input");
+          if (input) input.focus();
+        });
         return true;
       } catch (error) {
-        this.authPopupError = error.message || "ورود انجام نشد.";
-        if (!isAuthPopup) {
-          this.profileError = this.authPopupError;
+        const msg = error.message || "ارسال کد تایید انجام نشد.";
+        if (isAuthPopup) {
+          this.authPopupError = msg;
+        } else {
+          this.profileError = msg;
         }
         return false;
       } finally {
         this.authSubmitting = false;
       }
     },
+    handleAuthOtpInput(isAuthPopup = true) {
+      const clean = this.toEnglishDigits(this.authOtpCode || "").replace(/\D/g, "").slice(0, 6);
+      this.authOtpCode = this.toPersianDigits(clean);
+      if (clean.length === 6 && !this.authSubmitting) {
+        this.verifyCustomerOtp(isAuthPopup);
+      }
+    },
+    async verifyCustomerOtp(isAuthPopup = true) {
+      const code = this.toEnglishDigits(this.authOtpCode || "").replace(/\D/g, "");
+      if (code.length < 4) {
+        const msg = "کد تایید ۶ رقمی پیامک‌شده را وارد کنید.";
+        if (isAuthPopup) this.authPopupError = msg;
+        else this.profileError = msg;
+        return false;
+      }
+      this.authSubmitting = true;
+      this.authPopupError = "";
+      this.profileError = "";
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/customers/auth/otp/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: this.jsonBody({
+            phoneNumber: this.authOtpPhone || this.authPhoneInput || this.profilePhoneInput,
+            code
+          })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const fieldErrors = payload.errors ? Object.values(payload.errors).flat().join("، ") : "";
+          throw new Error(fieldErrors || payload.detail || payload.title || "کد تایید نامعتبر است.");
+        }
+        this.customerSession = payload.customer;
+        this.profilePhone = payload.customer.phoneNumber;
+        this.profilePhoneInput = this.toPersianDigits(payload.customer.phoneNumber);
+        try {
+          window.localStorage.setItem(PROFILE_STORAGE_KEY, payload.customer.phoneNumber);
+        } catch {
+          // Private mode
+        }
+        if (!this.checkoutForm.customerPhone.trim()) {
+          this.checkoutForm.customerPhone = payload.customer.phoneNumber;
+        }
+        this.authPopupOpen = false;
+        this.resetAuthOtpStep();
+        this.startAuthOtpCooldown(0);
+        this.actionMessage = "ورود شما با موفقیت انجام شد. خوش آمدید!";
+        await this.loadProfile();
+        return true;
+      } catch (error) {
+        const msg = error.message || "کد تایید نامعتبر است.";
+        if (isAuthPopup) this.authPopupError = msg;
+        else this.profileError = msg;
+        return false;
+      } finally {
+        this.authSubmitting = false;
+      }
+    },
+    async resendCustomerOtp(isAuthPopup = true) {
+      if (this.authOtpCooldown > 0 || this.authSubmitting) {
+        return;
+      }
+      const targetPhone = this.authOtpPhone || this.toEnglishDigits(this.authPhoneInput || this.profilePhoneInput || "").replace(/\D/g, "");
+      if (!targetPhone) {
+        this.resetAuthOtpStep();
+        return;
+      }
+      await this.requestCustomerOtp(targetPhone, isAuthPopup);
+    },
     skipAuthPrompt() {
       this.authPopupOpen = false;
+      this.resetAuthOtpStep();
       try {
         window.localStorage.setItem(this.AUTH_PROMPT_STORAGE_KEY, "1");
       } catch {
@@ -1088,6 +1205,8 @@ document.addEventListener("alpine:init", () => {
       this.profile = null;
       this.profilePhone = null;
       this.profilePhoneInput = "";
+      this.resetAuthOtpStep();
+      this.startAuthOtpCooldown(0);
       this.checkoutForm.customerName = "";
       this.checkoutForm.customerPhone = "";
       this.checkoutForm.email = "";
@@ -1097,10 +1216,13 @@ document.addEventListener("alpine:init", () => {
       } catch {
         // Private mode
       }
-      this.actionMessage = "از حساب خارج شدی. دفعهٔ بعد دوباره با شماره‌ات وارد می‌شوی.";
+      this.actionMessage = "از حساب خارج شدی. دفعهٔ بعد دوباره با کد پیامکی وارد می‌شوی.";
     },
     closeProfile() {
       this.profileOpen = false;
+      if (!this.profilePhone) {
+        this.resetAuthOtpStep();
+      }
     },
     profileStatusChip() {
       if (this.profile?.activeReward) {
@@ -1118,26 +1240,11 @@ document.addEventListener("alpine:init", () => {
     },
     async submitProfilePhone() {
       const digits = this.toEnglishDigits(this.profilePhoneInput || "").replace(/\D/g, "");
-      if (digits.length < 8) {
-        this.profileError = "شماره موبایل معتبر وارد کنید.";
+      if (digits.length < 10) {
+        this.profileError = "شماره موبایل معتبر وارد کنید (مثلاً ۰۹۱۲۳۴۵۶۷۸۹).";
         return;
       }
-      // ورود از پاپ‌آپ پروفایل هم یک لاگین واقعی است: ذخیرهٔ session و
-      // کوکی فقط از مسیر endpoint اصیل انجام می‌شود.
-      const loggedIn = await this.loginCustomer(digits);
-      if (!loggedIn) {
-        return;
-      }
-      this.profilePhone = digits;
-      try {
-        window.localStorage.setItem(PROFILE_STORAGE_KEY, digits);
-      } catch {
-        // Private mode
-      }
-      if (!this.checkoutForm.customerPhone.trim()) {
-        this.checkoutForm.customerPhone = digits;
-      }
-      await this.loadProfile();
+      await this.requestCustomerOtp(digits, false);
     },
     // ثبت/تغییر تاریخ تولد (خود-سرویس، فقط شمارهٔ موبایل). ادمین می‌تواند
     // این حق را از تنظیمات قفل کند؛ آنگاه پیام خطای «قفل توسط مدیریت» می‌آید.

@@ -41,6 +41,7 @@ public interface IApplicationDbContext
     DbSet<Sugarista.Domain.Entities.Customer> Customers { get; }
 
     DbSet<Sugarista.Domain.Entities.CustomerSession> CustomerSessions { get; }
+    DbSet<Sugarista.Domain.Entities.CustomerOtpCode> CustomerOtpCodes { get; }
 
     DbSet<Sugarista.Domain.Entities.ExportJob> ExportJobs { get; }
 

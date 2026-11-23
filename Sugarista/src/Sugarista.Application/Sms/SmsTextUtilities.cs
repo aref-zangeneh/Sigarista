@@ -46,7 +46,7 @@ public static class SmsTextUtilities
 
     /// <summary>Placeholder tokens the template engine supports.</summary>
     public static readonly IReadOnlyList<string> PlaceholderNames =
-        ["FirstName", "LastName", "Mobile", "OrderNumber", "Amount", "Date", "TrackingCode"];
+        ["FirstName", "LastName", "Mobile", "OrderNumber", "Amount", "Date", "TrackingCode", "Code"];
 
     public static IReadOnlyDictionary<string, string> SampleValues { get; } = new Dictionary<string, string>
     {
@@ -56,7 +56,8 @@ public static class SmsTextUtilities
         ["OrderNumber"] = "1042",
         ["Amount"] = "285,000",
         ["Date"] = "۱۴۰۵/۰۸/۲۴",
-        ["TrackingCode"] = "SG-8831"
+        ["TrackingCode"] = "SG-8831",
+        ["Code"] = "482916"
     };
 
     /// <summary>

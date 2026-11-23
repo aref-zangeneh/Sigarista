@@ -54,6 +54,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Customer> Customers => Set<Customer>();
 
     public DbSet<CustomerSession> CustomerSessions => Set<CustomerSession>();
+    public DbSet<CustomerOtpCode> CustomerOtpCodes => Set<CustomerOtpCode>();
 
     public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
 

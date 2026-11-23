@@ -235,6 +235,138 @@ public sealed class SmsGateway(
         }
     }
 
+    public async Task<SmsSendOutcome> SendOtpAsync(
+        string? mobile,
+        string code,
+        string? cafeName = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = SmsTextUtilities.NormalizeMobile(mobile);
+        if (normalized is null)
+        {
+            return new SmsSendOutcome(false, null, SmsSendStatus.Failed, null, "شماره موبایل معتبر نیست.", string.Empty);
+        }
+
+        var provider = await resolver.ResolveDefaultAsync(cancellationToken);
+        if (provider is not { IsEnabled: true })
+        {
+            return new SmsSendOutcome(
+                false,
+                null,
+                SmsSendStatus.Failed,
+                null,
+                "سرویس پیامک فعالی در پنل مدیریت تنظیم نشده است.",
+                SmsTextUtilities.ToDisplayMobile(normalized));
+        }
+
+        var otpTemplate = await dbContext.SmsTemplates
+            .AsNoTracking()
+            .Include(t => t.ProviderMappings)
+            .Where(t => t.IsActive && t.Kind == SmsMessageKind.Otp)
+            .OrderByDescending(t => t.IsDefault)
+            .ThenByDescending(t => t.LastModifiedAt ?? t.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var brand = string.IsNullOrWhiteSpace(cafeName) ? "شوگریستا" : cafeName.Trim();
+        var rawTemplate = !string.IsNullOrWhiteSpace(otpTemplate?.Body)
+            ? otpTemplate.Body
+            : $"کد تایید ورود به {brand}: {{Code}}\nاعتبار: ۲ دقیقه";
+
+        var maskedBody = RenderOtpBody(rawTemplate, "••••••");
+        var actualBody = RenderOtpBody(rawTemplate, code);
+
+        var dbMessage = new SmsMessage(
+            provider.Id,
+            normalized,
+            maskedBody,
+            SmsMessageKind.Otp,
+            SmsSendType.System,
+            otpTemplate?.Id,
+            campaignId: null,
+            batchNumber: 0,
+            requestedBy: "customer-otp");
+        dbContext.SmsMessages.Add(dbMessage);
+
+        var gateway = gatewayFactory.Create(resolver.Decrypt(provider));
+        var mapping = otpTemplate?.ProviderMappings
+            .FirstOrDefault(m => m.ProviderType == provider.ProviderType
+                                 && !string.IsNullOrWhiteSpace(m.ProviderTemplateId));
+
+        SmsSendResult result;
+        if (gateway.SupportsPatternSend && mapping is not null)
+        {
+            var paramName = ResolveOtpPatternParamName(rawTemplate, provider.ProviderType);
+            var parameters = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [paramName] = code
+            };
+            result = await gateway.SendPatternAsync(
+                normalized,
+                mapping.ProviderTemplateId.Trim(),
+                parameters,
+                SenderLineFor(provider),
+                cancellationToken);
+        }
+        else
+        {
+            result = await gateway.SendAsync(
+                normalized,
+                actualBody,
+                SenderLineFor(provider),
+                cancellationToken);
+        }
+
+        ApplyResult(dbMessage, result, provider, attemptNumber: 0);
+        await RecordHealthAndLogAsync(provider, result, "customer-otp", cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new SmsSendOutcome(
+            result.Success,
+            dbMessage.Id,
+            dbMessage.Status,
+            dbMessage.ProviderMessageId,
+            dbMessage.ErrorMessage,
+            SmsTextUtilities.ToDisplayMobile(normalized));
+    }
+
+    private static string RenderOtpBody(string template, string code)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Code"] = code,
+            ["Otp"] = code,
+            ["Token"] = code,
+        };
+
+        var rendered = SmsTextUtilities.RenderTemplate(template, values);
+        // If the admin wrote a template without any placeholder, append the code cleanly.
+        return rendered.Contains(code, StringComparison.Ordinal)
+            ? rendered
+            : $"{rendered.Trim()} {code}";
+    }
+
+    private static string ResolveOtpPatternParamName(string templateBody, SmsProviderType providerType)
+    {
+        var placeholders = SmsTextUtilities.ExtractPlaceholders(templateBody);
+        var match = placeholders.FirstOrDefault(name =>
+            name.Equals("code", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("otp", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("token", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("verificationcode", StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(match))
+        {
+            return match;
+        }
+
+        return providerType switch
+        {
+            SmsProviderType.SmsIr => "CODE",
+            SmsProviderType.Kavenegar => "token",
+            _ => "code",
+        };
+    }
+
     // ---- internals -------------------------------------------------------
 
     /// <summary>One send including (policy-safe) failover attempt. Saves health/log internally.</summary>

@@ -107,6 +107,86 @@ public class ReceiptLayoutTests
             ReceiptLayoutJsonParser.Serialize(ReceiptLayoutJsonParser.Parse("{ truncated")));
     }
 
+    [Fact]
+    public void Parse_LegacyStoredJsonWithoutNewFields_UpgradesCleanlyWithDefaults()
+    {
+        var legacyJson = """
+        {"customer":{"header":{"showAddress":false,"showPhone":true},"headerRows":["code","customerName"],"items":{"columns":[{"key":"name","label":"","visible":true},{"key":"total","label":"جمع","visible":true}],"subLines":["options"],"showHeaderRow":true,"showOptionPrices":true,"showUnitPriceNote":true,"fontSize":28},"totals":{"rows":[{"key":"subtotal","label":"جمع اقلام","visible":true},{"key":"total","label":"قابل پرداخت","visible":true}]},"paymentRows":["paymentMethod"],"footer":{"text":"پانویس قدیم","showThanks":true,"showCafeName":true},"fonts":{"header":34,"info":20,"item":28,"subtotal":22,"total":32}},"barista":{"title":"آشپزخانه","infoRows":["paidAt"],"items":{"columns":[{"key":"name","label":"","visible":true}],"subLines":["options"],"showHeaderRow":false,"showOptionPrices":false,"showUnitPriceNote":false,"fontSize":40},"showOrderNote":true,"footer":{"text":"","showSign":true},"fonts":{"title":30,"code":48,"info":24,"item":40}}}
+        """;
+
+        var parsed = ReceiptLayoutJsonParser.Parse(legacyJson);
+
+        Assert.False(parsed.Customer.Header.ShowAddress);
+        Assert.True(parsed.Customer.Header.ShowPhone);
+        Assert.True(parsed.Customer.Header.ShowOrnament);
+        Assert.Equal("صورت‌حساب سفارش", parsed.Customer.Header.Subtitle);
+        Assert.Equal("پانویس قدیم", parsed.Customer.Footer.Text);
+        Assert.Equal(22, parsed.Customer.Fonts.FooterCafe);
+        Assert.Equal(24, parsed.Customer.Fonts.TopPadding);
+        Assert.Equal(96, parsed.Customer.Fonts.BottomPadding);
+        Assert.Equal("dashed", parsed.Customer.Style?.DividerStyle);
+        Assert.Equal("☕", parsed.Customer.Style?.OrnamentIcon);
+        Assert.Equal("rounded", parsed.Customer.Style?.CodeBoxStyle);
+        Assert.Contains(parsed.Customer.Totals.Rows, r => r.Key == ReceiptLayoutKeys.TotalRowDiscount);
+    }
+
+    [Fact]
+    public void Resolve_ModernBrandWifiQrPromoAndStyleFields_RoundTripCleanly()
+    {
+        var resolved = ReceiptLayoutResolver.Resolve(
+            new ReceiptLayoutPatch(
+                Customer: new CustomerReceiptPatch(
+                    Header: new CustomerHeaderPatch(
+                        ShowAddress: true,
+                        ShowPhone: true,
+                        CafeName: "کافه قنادی شوگاریستا",
+                        Subtitle: "Specialty Coffee & Pastry",
+                        CustomAddress: "تهران، جردن، پلاک ۵",
+                        CustomPhone: "۰۲۱-۸۸۷۷۶۶۵۵",
+                        TaxId: "۴۱۱۱۲۲۲۲۳۳۳۳",
+                        ShowOrnament: true),
+                    HeaderRows: null,
+                    Items: null,
+                    Totals: new ReceiptTotalsPatch(null, ShowItemCount: true, ShowSavingsBanner: true),
+                    PaymentRows: null,
+                    Footer: new CustomerFooterPatch(
+                        Text: "هر روز ۸ تا ۲۳",
+                        ShowThanks: true,
+                        ShowCafeName: true,
+                        ThanksText: "از حضور گرم شما سپاسگزاریم ✨",
+                        CafeNameText: "کافه قنادی شوگاریستا — شعبه جردن",
+                        ShowWifi: true,
+                        WifiSsid: "Sugarista_Guest",
+                        WifiPassword: "coffee2026",
+                        InstagramHandle: "@sugarista.cafe",
+                        WebsiteUrl: "sugarista.ir",
+                        PromoBanner: "با ارائه این فیش ۱۰٪ تخفیف در سفارش بعدی بگیرید!",
+                        ShowQrCode: true,
+                        QrCodeUrl: "https://sugarista.ir",
+                        QrCodeLabel: "اسکن برای منوی دیجیتال"),
+                    Fonts: new ReceiptFontSizesPatch(42, 22, 30, 24, 36, FooterCafe: 24, TopPadding: 32, BottomPadding: 110),
+                    Style: new CustomerStylePatch("dotted", "✨", "solid")),
+                Barista: null));
+
+        var json = ReceiptLayoutJsonParser.Serialize(resolved);
+        var parsed = ReceiptLayoutJsonParser.Parse(json);
+
+        Assert.Equal("کافه قنادی شوگاریستا", parsed.Customer.Header.CafeName);
+        Assert.Equal("Specialty Coffee & Pastry", parsed.Customer.Header.Subtitle);
+        Assert.Equal("۴۱۱۱۲۲۲۲۳۳۳۳", parsed.Customer.Header.TaxId);
+        Assert.True(parsed.Customer.Totals.ShowItemCount);
+        Assert.True(parsed.Customer.Footer.ShowWifi);
+        Assert.Equal("Sugarista_Guest", parsed.Customer.Footer.WifiSsid);
+        Assert.Equal("@sugarista.cafe", parsed.Customer.Footer.InstagramHandle);
+        Assert.True(parsed.Customer.Footer.ShowQrCode);
+        Assert.Equal("https://sugarista.ir", parsed.Customer.Footer.QrCodeUrl);
+        Assert.Equal("کافه قنادی شوگاریستا — شعبه جردن", parsed.Customer.Footer.CafeNameText);
+        Assert.Equal(32, parsed.Customer.Fonts.TopPadding);
+        Assert.Equal(110, parsed.Customer.Fonts.BottomPadding);
+        Assert.Equal("dotted", parsed.Customer.Style?.DividerStyle);
+        Assert.Equal("solid", parsed.Customer.Style?.CodeBoxStyle);
+    }
+
     // ── validation ───────────────────────────────────────────────────────────
 
     [Fact]

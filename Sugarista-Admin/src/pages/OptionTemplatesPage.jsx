@@ -45,20 +45,23 @@ function templateToForm(template) {
     maxSelections: template.maxSelections ?? 1,
     displayOrder: template.displayOrder ?? 0,
     isActive: template.isActive ?? true,
-    options: (template.options ?? []).map((option, index) => ({
-      uid: nextUid(),
-      persianName: option.persianName ?? '',
-      englishName: option.englishName ?? '',
-      priceDelta: option.priceDelta ?? 0,
-      isDefault: Boolean(option.isDefault),
-      isActive: option.isActive ?? true,
-      displayOrder: option.displayOrder ?? index,
-      ingredients: (option.ingredients ?? []).map((row) => ({
-        uid: nextUid(),
-        ingredientId: row.ingredientId ?? '',
-        quantity: row.quantity ?? 0,
-      })),
-    })),
+    options:
+      (template.options ?? []).length > 0
+        ? template.options.map((option, index) => ({
+            uid: nextUid(),
+            persianName: option.persianName ?? '',
+            englishName: option.englishName ?? '',
+            priceDelta: option.priceDelta ?? 0,
+            isDefault: Boolean(option.isDefault),
+            isActive: option.isActive ?? true,
+            displayOrder: option.displayOrder ?? index,
+            ingredients: (option.ingredients ?? []).map((row) => ({
+              uid: nextUid(),
+              ingredientId: row.ingredientId ?? '',
+              quantity: row.quantity ?? 0,
+            })),
+          }))
+        : [emptyOption(0)],
   }
 }
 
@@ -263,6 +266,8 @@ export function OptionTemplatesPage() {
   }
 
   const handleEdit = (template) => {
+    setError('')
+    setMessage('')
     setForm(templateToForm(template))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }

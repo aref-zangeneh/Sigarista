@@ -4116,6 +4116,135 @@ select:focus-visible {
   text-align: center;
 }
 
+/* ── Receipt Designer Studio (Presets, Modern Fields, Preview Cards & QR) ─── */
+
+.receipt-presets-bar {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  background: color-mix(in srgb, var(--panel) 88%, var(--accent) 4%);
+}
+
+.receipt-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.receipt-preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: right;
+  cursor: pointer;
+  transition: border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.receipt-preset-btn:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.receipt-preset-btn strong {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.receipt-preset-btn small {
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.receipt-layout-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .receipt-layout-grid--3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.receipt-layout-field--full {
+  grid-column: 1 / -1;
+}
+
+.receipt-layout-field select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.receipt-layout-toggle-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.receipt-preview-divider--dashed {
+  border-top: 1px dashed #9a9a9a;
+}
+
+.receipt-preview-divider--dotted {
+  border-top: 1px dotted #9a9a9a;
+}
+
+.receipt-preview-divider--solid {
+  border-top: 1px solid #333;
+}
+
+.receipt-preview-divider--double {
+  border-top: 3px double #1c1c1c;
+}
+
+.receipt-preview-card-box {
+  margin: 7px 0;
+  padding: 6px 9px;
+  border: 1.5px solid #1c1c1c;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.82em;
+  line-height: 1.5;
+}
+
+.receipt-preview-card-box--promo {
+  border-style: double;
+  border-width: 3px;
+  font-weight: 700;
+}
+
+.receipt-preview-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 8px 0;
+  text-align: center;
+}
+
+.receipt-preview-qr svg {
+  display: block;
+  background: #fff;
+  padding: 4px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+}
+
 .orders-table-filters {
   display: flex;
   flex-wrap: wrap;

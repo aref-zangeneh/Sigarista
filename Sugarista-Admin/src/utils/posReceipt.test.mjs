@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildCustomerReceiptHtml, buildPosReceiptBundle, formatCustomerReceiptText } from './posReceipt.js'
 import { buildUpsertPayload, computeManualDiscount } from './posCart.js'
+import { buildQrSvg, encodeQrMatrix } from './qrSvg.js'
 
 test('buildUpsertPayload preserves InternalUse and Complimentary order kinds and disables discounts', () => {
   const cart = [
@@ -223,4 +224,114 @@ test('buildPosReceiptBundle renders manual POS discount on customer receipt, HTM
   const html = buildCustomerReceiptHtml(bundle.customer)
   assert.match(html, /تخفیف دلخواه \(۱۰٪\)/)
   assert.match(html, /مشتری وفادار/)
+})
+
+test('encodeQrMatrix and buildQrSvg generate valid scannable ISO QR SVG markup', () => {
+  const matrix = encodeQrMatrix('https://sugarista.ir')
+  assert.ok(Array.isArray(matrix))
+  assert.ok(matrix.length >= 21 && (matrix.length - 17) % 4 === 0)
+  // Top-left finder pattern 7x7 corners must be dark (true)
+  assert.equal(matrix[0][0], true)
+  assert.equal(matrix[0][6], true)
+  assert.equal(matrix[6][0], true)
+  assert.equal(matrix[6][6], true)
+
+  const svg = buildQrSvg('https://sugarista.ir', 120)
+  assert.match(svg, /^<svg\s/)
+  assert.match(svg, /width="120"/)
+  assert.match(svg, /<path d="/)
+
+  assert.equal(buildQrSvg(''), '')
+})
+
+test('buildPosReceiptBundle and buildCustomerReceiptHtml honor dynamic customer receipt layout fields', () => {
+  const bundle = buildPosReceiptBundle({
+    result: {
+      trackingCode: 'SG-DYN01',
+      totalAmount: 180000,
+      discountTotal: 20000,
+      paymentMethod: 'Card',
+    },
+    cart: [
+      {
+        name: 'لاته',
+        quantity: 2,
+        unitPrice: 100000,
+        modifierLabels: [],
+        options: [],
+      },
+    ],
+    serviceType: 'DineIn',
+    siteSettings: {
+      cafeName: 'نام قدیمی',
+      address: 'آدرس قدیمی',
+      contactPhone: '02100000000',
+      receiptLayout: {
+        customer: {
+          header: {
+            cafeName: 'کافه و شیرینی‌پزی شوگریستا',
+            subtitle: 'Specialty Coffee & Bakery',
+            showAddress: true,
+            customAddress: 'تهران، بلوار اندرزگو، پلاک ۴۲',
+            showPhone: true,
+            customPhone: '021-22446688',
+            taxId: '411122223333',
+            showOrnament: true,
+          },
+          totals: {
+            showItemCount: true,
+            showSavingsBanner: true,
+          },
+          footer: {
+            promoBanner: 'با ارائه این فیش ۱۰٪ تخفیف بگیرید',
+            showWifi: true,
+            wifiSsid: 'Sugarista_VIP',
+            wifiPassword: 'latte2026',
+            showQrCode: true,
+            qrCodeUrl: 'https://sugarista.ir/menu',
+            qrCodeLabel: 'اسکن برای منوی دیجیتال',
+            instagramHandle: 'sugarista.cafe',
+            websiteUrl: 'sugarista.ir',
+            showThanks: true,
+            thanksText: 'روزتان شیرین!',
+            showCafeName: true,
+            cafeNameText: 'شوگریستا — شعبه اندرزگو',
+          },
+          style: {
+            dividerStyle: 'double',
+            ornamentIcon: '✨',
+            codeBoxStyle: 'solid',
+          },
+        },
+      },
+    },
+  })
+
+  assert.equal(bundle.customer.cafeName, 'کافه و شیرینی‌پزی شوگریستا')
+  assert.equal(bundle.customer.footerCafeName, 'شوگریستا — شعبه اندرزگو')
+  assert.equal(bundle.customer.title, 'Specialty Coffee & Bakery')
+  assert.equal(bundle.customer.address, 'تهران، بلوار اندرزگو، پلاک ۴۲')
+  assert.equal(bundle.customer.contactPhone, '021-22446688')
+  assert.equal(bundle.customer.taxId, '411122223333')
+  assert.equal(bundle.customer.instagramHandle, 'sugarista.cafe')
+  assert.equal(bundle.customer.showWifi, true)
+  assert.equal(bundle.customer.wifiSsid, 'Sugarista_VIP')
+  assert.equal(bundle.customer.showQrCode, true)
+  assert.equal(bundle.customer.qrCodeUrl, 'https://sugarista.ir/menu')
+  assert.equal(bundle.renderPayload.header.cafeName, 'کافه و شیرینی‌پزی شوگریستا')
+  assert.equal(bundle.renderPayload.header.address, 'تهران، بلوار اندرزگو، پلاک ۴۲')
+
+  const html = buildCustomerReceiptHtml(bundle.customer)
+  assert.match(html, /کافه و شیرینی‌پزی شوگریستا/)
+  assert.match(html, /Specialty Coffee &amp; Bakery/)
+  assert.match(html, /۴۱۱۱۲۲۲۲۳۳۳۳/)
+  assert.match(html, /تعداد کل اقلام/)
+  assert.match(html, /سود شما از این سفارش/)
+  assert.match(html, /با ارائه این فیش ۱۰٪ تخفیف بگیرید/)
+  assert.match(html, /Sugarista_VIP/)
+  assert.match(html, /latte2026/)
+  assert.match(html, /<svg\s/)
+  assert.match(html, /اسکن برای منوی دیجیتال/)
+  assert.match(html, /@sugarista\.cafe/)
+  assert.match(html, /شوگریستا — شعبه اندرزگو/)
 })

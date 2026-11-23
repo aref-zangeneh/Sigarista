@@ -27,13 +27,16 @@ public static class ReceiptLayoutJsonParser
 
         try
         {
-            var document = JsonSerializer.Deserialize<ResolvedReceiptLayout>(storedJson, SerializerOptions);
-            if (document?.Customer is not null && document.Barista is not null)
+            // Deserialize as a partial patch and resolve against built-in defaults
+            // so legacy stored JSON documents automatically inherit newly added
+            // customization fields without losing any saved merchant preferences.
+            var patch = JsonSerializer.Deserialize<ReceiptLayoutPatch>(storedJson, SerializerOptions);
+            if (patch?.Customer is not null || patch?.Barista is not null)
             {
-                return document;
+                return ReceiptLayoutResolver.Resolve(patch);
             }
         }
-        catch (JsonException)
+        catch (Exception)
         {
             // Fall through to the defaults below.
         }

@@ -45,6 +45,31 @@ public static class ReceiptLayoutResolver
             "سطرهای پرداخت فیش مشتری",
             errors);
 
+        if (patch.Header?.CafeName is { Length: > 120 })
+        {
+            errors.Add("نام نمایشی کافه در سربرگ فیش حداکثر می‌تواند ۱۲۰ نویسه باشد.");
+        }
+
+        if (patch.Header?.Subtitle is { Length: > 120 })
+        {
+            errors.Add("زیرعنوان سربرگ فیش حداکثر می‌تواند ۱۲۰ نویسه باشد.");
+        }
+
+        if (patch.Header?.CustomAddress is { Length: > 240 })
+        {
+            errors.Add("آدرس اختصاصی فیش حداکثر می‌تواند ۲۴۰ نویسه باشد.");
+        }
+
+        if (patch.Header?.CustomPhone is { Length: > 60 })
+        {
+            errors.Add("تلفن اختصاصی فیش حداکثر می‌تواند ۶۰ نویسه باشد.");
+        }
+
+        if (patch.Header?.TaxId is { Length: > 60 })
+        {
+            errors.Add("شناسه مالیاتی / اقتصادی فیش حداکثر می‌تواند ۶۰ نویسه باشد.");
+        }
+
         if (patch.Footer?.Text is { Length: > 300 })
         {
             errors.Add("متن پانویس فیش مشتری حداکثر می‌تواند ۳۰۰ نویسه باشد.");
@@ -55,10 +80,68 @@ public static class ReceiptLayoutResolver
             errors.Add("متن سپاسگزاری فیش مشتری حداکثر می‌تواند ۱۵۰ نویسه باشد.");
         }
 
+        if (patch.Footer?.CafeNameText is { Length: > 120 })
+        {
+            errors.Add("نام کافه در انتهای فیش حداکثر می‌تواند ۱۲۰ نویسه باشد.");
+        }
+
+        if (patch.Footer?.WifiSsid is { Length: > 80 } || patch.Footer?.WifiPassword is { Length: > 80 })
+        {
+            errors.Add("نام و رمز وای‌فای حداکثر می‌تواند ۸۰ نویسه باشد.");
+        }
+
+        if (patch.Footer?.InstagramHandle is { Length: > 80 } || patch.Footer?.WebsiteUrl is { Length: > 120 })
+        {
+            errors.Add("شناسه اینستاگرام یا آدرس وب‌سایت بیش از حد طولانی است.");
+        }
+
+        if (patch.Footer?.PromoBanner is { Length: > 200 })
+        {
+            errors.Add("پیام تبلیغاتی / کوپن روی فیش حداکثر می‌تواند ۲۰۰ نویسه باشد.");
+        }
+
+        if (patch.Footer?.QrCodeUrl is { Length: > 220 })
+        {
+            errors.Add("لینک کد QR حداکثر می‌تواند ۲۲۰ نویسه باشد.");
+        }
+
+        if (patch.Footer?.QrCodeLabel is { Length: > 100 })
+        {
+            errors.Add("عنوان زیر کد QR حداکثر می‌تواند ۱۰۰ نویسه باشد.");
+        }
+
+        var defaultStyle = defaults.Style ?? new CustomerStyleLayout();
+        var dividerStyle = patch.Style?.DividerStyle?.Trim();
+        if (!string.IsNullOrEmpty(dividerStyle) && !ReceiptLayoutKeys.DividerStyles.Contains(dividerStyle))
+        {
+            errors.Add("سبک خط جداکننده فیش نامعتبر است.");
+            dividerStyle = defaultStyle.DividerStyle;
+        }
+
+        var ornamentIcon = patch.Style?.OrnamentIcon?.Trim();
+        if (!string.IsNullOrEmpty(ornamentIcon) && !ReceiptLayoutKeys.OrnamentIcons.Contains(ornamentIcon))
+        {
+            errors.Add("نماد تزئینی فیش نامعتبر است.");
+            ornamentIcon = defaultStyle.OrnamentIcon;
+        }
+
+        var codeBoxStyle = patch.Style?.CodeBoxStyle?.Trim();
+        if (!string.IsNullOrEmpty(codeBoxStyle) && !ReceiptLayoutKeys.CodeBoxStyles.Contains(codeBoxStyle))
+        {
+            errors.Add("سبک کادر شماره سفارش نامعتبر است.");
+            codeBoxStyle = defaultStyle.CodeBoxStyle;
+        }
+
         return new CustomerReceiptLayout(
             Header: new CustomerHeaderLayout(
-                header.ShowAddress ?? defaults.Header.ShowAddress,
-                header.ShowPhone ?? defaults.Header.ShowPhone),
+                ShowAddress: header.ShowAddress ?? defaults.Header.ShowAddress,
+                ShowPhone: header.ShowPhone ?? defaults.Header.ShowPhone,
+                CafeName: (header.CafeName ?? defaults.Header.CafeName ?? string.Empty).Trim(),
+                Subtitle: (header.Subtitle ?? defaults.Header.Subtitle ?? string.Empty).Trim(),
+                CustomAddress: (header.CustomAddress ?? defaults.Header.CustomAddress ?? string.Empty).Trim(),
+                CustomPhone: (header.CustomPhone ?? defaults.Header.CustomPhone ?? string.Empty).Trim(),
+                TaxId: (header.TaxId ?? defaults.Header.TaxId ?? string.Empty).Trim(),
+                ShowOrnament: header.ShowOrnament ?? defaults.Header.ShowOrnament),
             HeaderRows: headerRows,
             Items: MergeItems(
                 patch.Items, defaults.Items,
@@ -69,11 +152,25 @@ public static class ReceiptLayoutResolver
             Footer: patch.Footer is null
                 ? defaults.Footer
                 : new CustomerFooterLayout(
-                    patch.Footer.Text ?? defaults.Footer.Text,
-                    patch.Footer.ShowThanks ?? defaults.Footer.ShowThanks,
-                    patch.Footer.ShowCafeName ?? defaults.Footer.ShowCafeName,
-                    patch.Footer.ThanksText ?? defaults.Footer.ThanksText),
-            Fonts: MergeFonts(patch.Fonts, defaults.Fonts, errors));
+                    Text: (patch.Footer.Text ?? defaults.Footer.Text).Trim(),
+                    ShowThanks: patch.Footer.ShowThanks ?? defaults.Footer.ShowThanks,
+                    ShowCafeName: patch.Footer.ShowCafeName ?? defaults.Footer.ShowCafeName,
+                    ThanksText: (patch.Footer.ThanksText ?? defaults.Footer.ThanksText ?? string.Empty).Trim(),
+                    CafeNameText: (patch.Footer.CafeNameText ?? defaults.Footer.CafeNameText ?? string.Empty).Trim(),
+                    ShowWifi: patch.Footer.ShowWifi ?? defaults.Footer.ShowWifi,
+                    WifiSsid: (patch.Footer.WifiSsid ?? defaults.Footer.WifiSsid ?? string.Empty).Trim(),
+                    WifiPassword: (patch.Footer.WifiPassword ?? defaults.Footer.WifiPassword ?? string.Empty).Trim(),
+                    InstagramHandle: (patch.Footer.InstagramHandle ?? defaults.Footer.InstagramHandle ?? string.Empty).Trim(),
+                    WebsiteUrl: (patch.Footer.WebsiteUrl ?? defaults.Footer.WebsiteUrl ?? string.Empty).Trim(),
+                    PromoBanner: (patch.Footer.PromoBanner ?? defaults.Footer.PromoBanner ?? string.Empty).Trim(),
+                    ShowQrCode: patch.Footer.ShowQrCode ?? defaults.Footer.ShowQrCode,
+                    QrCodeUrl: (patch.Footer.QrCodeUrl ?? defaults.Footer.QrCodeUrl ?? string.Empty).Trim(),
+                    QrCodeLabel: (patch.Footer.QrCodeLabel ?? defaults.Footer.QrCodeLabel ?? string.Empty).Trim()),
+            Fonts: MergeFonts(patch.Fonts, defaults.Fonts, errors),
+            Style: new CustomerStyleLayout(
+                DividerStyle: string.IsNullOrEmpty(dividerStyle) ? defaultStyle.DividerStyle : dividerStyle,
+                OrnamentIcon: string.IsNullOrEmpty(ornamentIcon) ? defaultStyle.OrnamentIcon : ornamentIcon,
+                CodeBoxStyle: string.IsNullOrEmpty(codeBoxStyle) ? defaultStyle.CodeBoxStyle : codeBoxStyle));
     }
 
     // ── barista ticket ───────────────────────────────────────────────────────
@@ -234,9 +331,12 @@ public static class ReceiptLayoutResolver
 
     private static ReceiptTotalsLayout MergeTotals(ReceiptTotalsPatch? patch, ReceiptTotalsLayout defaults, List<string> errors)
     {
+        var showItemCount = patch?.ShowItemCount ?? defaults.ShowItemCount;
+        var showSavingsBanner = patch?.ShowSavingsBanner ?? defaults.ShowSavingsBanner;
+
         if (patch?.Rows is null)
         {
-            return new ReceiptTotalsLayout([.. defaults.Rows]);
+            return new ReceiptTotalsLayout([.. defaults.Rows], showItemCount, showSavingsBanner);
         }
 
         var seen = new Dictionary<string, ReceiptTotalRowLayout>();
@@ -277,7 +377,7 @@ public static class ReceiptLayoutResolver
                 : defaults.Rows.First(candidate => candidate.Key == key))
             .ToList();
 
-        return new ReceiptTotalsLayout(rows);
+        return new ReceiptTotalsLayout(rows, showItemCount, showSavingsBanner);
     }
 
     // ── fonts ────────────────────────────────────────────────────────────────
@@ -290,7 +390,26 @@ public static class ReceiptLayoutResolver
             Info: ValidateFont(patch.Info, defaults.Info, "اندازه فونت اطلاعات فیش مشتری", errors),
             Item: ValidateFont(patch.Item, defaults.Item, "اندازه فونت آیتم‌های فیش مشتری", errors),
             Subtotal: ValidateFont(patch.Subtotal, defaults.Subtotal, "اندازه فونت جمع اقلام", errors),
-            Total: ValidateFont(patch.Total, defaults.Total, "اندازه فونت مبلغ نهایی", errors));
+            Total: ValidateFont(patch.Total, defaults.Total, "اندازه فونت مبلغ نهایی", errors),
+            FooterCafe: ValidateFont(patch.FooterCafe, defaults.FooterCafe, "اندازه فونت نام کافه در انتها", errors),
+            TopPadding: ValidatePadding(patch.TopPadding, defaults.TopPadding, "حاشیه ایمن بالای فیش", errors),
+            BottomPadding: ValidatePadding(patch.BottomPadding, defaults.BottomPadding, "حاشیه ایمن پایین فیش", errors));
+    }
+
+    private static int ValidatePadding(int? value, int fallback, string name, List<string> errors)
+    {
+        if (value is null)
+        {
+            return fallback;
+        }
+
+        if (value < ReceiptLayoutKeys.MinPadding || value > ReceiptLayoutKeys.MaxPadding)
+        {
+            errors.Add($"{name} باید عددی بین {ReceiptLayoutKeys.MinPadding} تا {ReceiptLayoutKeys.MaxPadding} باشد.");
+            return fallback;
+        }
+
+        return value.Value;
     }
 
     private static BaristaFontSizes MergeBaristaFonts(BaristaFontSizesPatch? patch, BaristaFontSizes defaults, List<string> errors)

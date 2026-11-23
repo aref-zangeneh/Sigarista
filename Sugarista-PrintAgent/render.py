@@ -24,6 +24,11 @@ from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
 from bidi.algorithm import get_display
 
+try:
+    from qr_matrix import encode_qr_matrix
+except Exception:
+    encode_qr_matrix = None  # type: ignore[assignment]
+
 # 72 mm printable area at 203 dpi.
 WIDTH = 576
 MARGIN = 18
@@ -315,11 +320,12 @@ def wrap(text: str, size: int, bold: bool, max_width: int) -> list[str]:
 class Receipt:
     """A tall canvas we draw on and then crop to the printed content."""
 
-    def __init__(self):
+    def __init__(self, top_padding: int = 24, bottom_pad: int = 96):
         self.height = 2600
         self.image = Image.new("1", (WIDTH, self.height), 1)
         self.draw = ImageDraw.Draw(self.image)
-        self.y = MARGIN
+        self.y = max(12, int(top_padding))
+        self.bottom_pad = max(24, int(bottom_pad))
 
     def _ensure(self, extra: int):
         if self.y + extra < self.height:
@@ -330,33 +336,58 @@ class Receipt:
         self.height += 1600
         self.draw = ImageDraw.Draw(self.image)
 
-    def centered(self, text: str, size: int, bold=False, gap=8):
-        for line in wrap(text, size, bold, CONTENT_W):
-            self._ensure(size + gap)
+    def _line_height(self, size: int, bold: bool = False) -> int:
+        try:
+            ascent, descent = font(size, bold).getmetrics()
+            return max(size + 4, int(ascent + descent))
+        except Exception:
+            return int(size * 1.35)
+
+    def centered(self, text: str, size: int, bold=False, gap=8, auto_fit: bool = True):
+        if not text:
+            return
+        lines = wrap(text, size, bold, CONTENT_W)
+        # If any single wrapped line still exceeds CONTENT_W (e.g. a very long single word
+        # or large cafe brand name), gently step down font size so left/right edges never clip.
+        effective_size = size
+        if auto_fit:
+            while effective_size > 16:
+                max_w = max((visual_width(rtl(line), effective_size, bold) for line in lines), default=0.0)
+                if max_w <= CONTENT_W:
+                    break
+                effective_size -= 2
+                lines = wrap(text, effective_size, bold, CONTENT_W)
+
+        lh = self._line_height(effective_size, bold)
+        for line in lines:
+            self._ensure(lh + gap + 6)
             visual = rtl(line)
-            w = visual_width(visual, size, bold)
-            draw_visual(self.draw, (WIDTH - w) / 2, self.y, visual, size, bold)
-            self.y += size + gap
+            w = visual_width(visual, effective_size, bold)
+            x = max(float(MARGIN), (WIDTH - w) / 2.0)
+            draw_visual(self.draw, x, self.y, visual, effective_size, bold)
+            self.y += lh + gap
 
     def row(self, right_text: str, left_text: str = "", size=26, bold=False, gap=10):
         """RTL row: right_text hugs the right margin, left_text the left."""
-        self._ensure(size + gap)
+        lh = self._line_height(size, bold)
+        self._ensure(lh + gap)
         if right_text:
             visual = rtl(right_text)
             w = visual_width(visual, size, bold)
-            draw_visual(self.draw, WIDTH - MARGIN - w, self.y, visual, size, bold)
+            draw_visual(self.draw, max(float(MARGIN), WIDTH - MARGIN - w), self.y, visual, size, bold)
         if left_text:
             visual = rtl(left_text)
             draw_visual(self.draw, MARGIN, self.y, visual, size, bold)
-        self.y += size + gap
+        self.y += lh + gap
 
     def paragraph(self, text: str, size=22, bold=False, indent=0, gap=6):
+        lh = self._line_height(size, bold)
         for line in wrap(text, size, bold, CONTENT_W - indent):
-            self._ensure(size + gap)
+            self._ensure(lh + gap)
             visual = rtl(line)
             w = visual_width(visual, size, bold)
-            draw_visual(self.draw, WIDTH - MARGIN - indent - w, self.y, visual, size, bold)
-            self.y += size + gap
+            draw_visual(self.draw, max(float(MARGIN), WIDTH - MARGIN - indent - w), self.y, visual, size, bold)
+            self.y += lh + gap
 
     def divider(self, style="dashed"):
         self._ensure(22)
@@ -378,23 +409,98 @@ class Receipt:
                 x += 16
         self.y += 22
 
-    def badge_box(self, title: str, code: str, size: int = 28, gap: int = 12):
-        """Draw an elegant rounded box highlighting the order code."""
-        box_h = size + 34
+    def badge_box(self, title: str, code: str, size: int = 28, gap: int = 12, box_style: str = "rounded"):
+        """Draw an order-code highlight honoring the admin-selected box style."""
+        full_text = f"{title}: {code}"
+        if box_style == "minimal":
+            self.centered(full_text, size, bold=True, gap=gap)
+            return
+
+        lh = self._line_height(size, True)
+        box_h = lh + 22
         self._ensure(box_h + gap)
         y0 = self.y + 4
         y1 = y0 + box_h
         x0 = MARGIN + 4
         x1 = WIDTH - MARGIN - 4
-        self.draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=12, outline=0, width=2)
-        full_text = f"{title}: {code}"
+        if box_style == "solid":
+            self.draw.rectangle([(x0, y0), (x1, y1)], outline=0, width=3)
+        else:
+            self.draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=12, outline=0, width=2)
         visual = rtl(full_text)
         w = visual_width(visual, size, True)
-        draw_visual(self.draw, (WIDTH - w) / 2, y0 + 10, visual, size, True)
+        draw_visual(self.draw, max(float(x0 + 6), (WIDTH - w) / 2.0), y0 + 9, visual, size, True)
         self.y = y1 + gap
+
+    def boxed_card(self, lines: list[tuple[str, int, bool]], gap: int = 12, dashed: bool = False):
+        """Draw a framed info/promo/Wi-Fi card centered on the receipt."""
+        if not lines:
+            return
+        pad_x = 16
+        pad_y = 12
+        inner_w = CONTENT_W - pad_x * 2 - 8
+        rendered_lines: list[tuple[str, int, bool, int]] = []
+        total_h = pad_y * 2
+        for text, sz, is_bold in lines:
+            lh = self._line_height(sz, is_bold)
+            for wrapped in wrap(text, sz, is_bold, inner_w):
+                rendered_lines.append((wrapped, sz, is_bold, lh))
+                total_h += lh + 4
+        if rendered_lines:
+            total_h -= 4
+
+        self._ensure(total_h + gap + 8)
+        x0 = MARGIN + 4
+        x1 = WIDTH - MARGIN - 4
+        y0 = self.y + 2
+        y1 = y0 + total_h
+        if dashed:
+            self.draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=10, outline=0, width=2)
+            self.draw.rounded_rectangle([(x0 + 4, y0 + 4), (x1 - 4, y1 - 4)], radius=7, outline=0, width=1)
+        else:
+            self.draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=10, outline=0, width=2)
+
+        cy = y0 + pad_y
+        for text, sz, is_bold, lh in rendered_lines:
+            visual = rtl(text)
+            w = visual_width(visual, sz, is_bold)
+            draw_visual(self.draw, max(float(x0 + 8), (WIDTH - w) / 2.0), cy, visual, sz, is_bold)
+            cy += lh + 4
+        self.y = y1 + gap
+
+    def qr_code(self, url: str, label: str = "", target_px: int = 196, gap: int = 12):
+        """Draw a crisp 1-bit ISO/IEC 18004 QR code centered on the receipt."""
+        if not url or encode_qr_matrix is None:
+            return
+        matrix = encode_qr_matrix(url)
+        if not matrix:
+            return
+        n = len(matrix)
+        scale = max(3, min(8, target_px // n))
+        qr_px = n * scale
+        quiet = scale * 2
+        total_box = qr_px + quiet * 2
+        self._ensure(total_box + gap + 60)
+
+        x0 = (WIDTH - qr_px) // 2
+        y0 = self.y + quiet // 2
+        for r_idx, row in enumerate(matrix):
+            for c_idx, dark in enumerate(row):
+                if dark:
+                    rx = x0 + c_idx * scale
+                    ry = y0 + r_idx * scale
+                    self.draw.rectangle([(rx, ry), (rx + scale - 1, ry + scale - 1)], fill=0)
+
+        self.y = y0 + qr_px + 10
+        if label:
+            self.centered(label, 20, bold=False, gap=gap)
+        else:
+            self.y += gap
 
     def cafe_ornament(self, icon: str = "☕", gap: int = 10):
         """Draw a boutique cafe divider with centered vector icon flanked by stars & lines."""
+        if not icon or icon == "none":
+            return
         h = 34
         self._ensure(h + gap)
         center_seq = f"✦  {icon}  ✦"
@@ -412,17 +518,19 @@ class Receipt:
     def gap(self, pixels=10):
         self.y += pixels
 
-    def cropped_image(self, bottom_pad=90) -> Image.Image:
-        """The drawn receipt cropped to its content plus trailing white space."""
+    def cropped_image(self, bottom_pad: int | None = None) -> Image.Image:
+        """The drawn receipt cropped to its full ink bounding box plus safe trailing space."""
+        pad = self.bottom_pad if bottom_pad is None else int(bottom_pad)
         bbox = self.image.point(lambda p: 0 if p else 255).getbbox()
         if bbox is None:
             content_bottom = self.y
         else:
-            content_bottom = min(bbox[3] + 12, self.y)
-        height = max(content_bottom + bottom_pad, 160)
+            # Always keep the full ink bottom (never min()) so bottom cafe name/descenders never clip!
+            content_bottom = max(bbox[3] + 18, self.y)
+        height = max(content_bottom + pad, 160)
         return self.image.crop((0, 0, WIDTH, min(height, self.height)))
 
-    def save(self, path: str, bottom_pad=90):
+    def save(self, path: str, bottom_pad: int | None = None):
         self.cropped_image(bottom_pad).save(path, "PNG")
 
 
@@ -440,7 +548,7 @@ ESC_FEED_LINES = b"\x1bd\x04"  # print and feed 4 lines (cutter clearance)
 GS_CUT = b"\x1dV\x00"        # full cut at the paper's current position
 
 
-def receipt_to_escpos(receipt: Receipt, bottom_pad=90) -> bytes:
+def receipt_to_escpos(receipt: Receipt, bottom_pad: int | None = None) -> bytes:
     image = receipt.cropped_image(bottom_pad)
     width, height = image.size
     if width % 8 != 0:
@@ -607,11 +715,11 @@ def service_with_table(order: dict) -> str:
 
 
 def customer_header_row(contract, payload, order: dict, key: str) -> None:
-    r, size = contract
+    r, size, code_box_style = contract
     if key == "code":
         code = order.get("code", "")
         if code:
-            r.badge_box("شماره سفارش", f"#{code}", size=26, gap=10)
+            r.badge_box("شماره سفارش", f"#{code}", size=26, gap=10, box_style=code_box_style)
     elif key == "createdAt":
         created = order.get("createdAtLabel", "")
         if created:
@@ -804,42 +912,73 @@ BARISTA_DEFAULT_SUB_LINES = ["size", "modifiers", "options", "customDrink", "bar
 
 
 def customer_receipt(payload) -> Receipt:
-    r = Receipt()
     layout_data = dict(copy_layout(payload, "customer"))
     layout_data["_barista"] = False
     header = payload.get("header", {})
     order = payload.get("order", {})
     items = payload.get("items", [])
     totals = payload.get("totals", {})
-    fonts_header = font_size(layout_data, "header", 40)
 
-    cafe_name = header.get("cafeName") or "کافه شوگاریستا"
-    r.centered(cafe_name, fonts_header, bold=True, gap=6)
+    fonts_section = layout_data.get("fonts", {}) if isinstance(layout_data.get("fonts"), dict) else {}
+    top_padding = int(fonts_section.get("topPadding", 24) or 24)
+    bottom_padding = int(fonts_section.get("bottomPadding", 96) or 96)
+    r = Receipt(top_padding=top_padding, bottom_pad=bottom_padding)
+
+    fonts_header = font_size(layout_data, "header", 40)
     fonts_info = font_size(layout_data, "info", 22)
-    r.centered("صورت‌حساب سفارش", fonts_info, bold=False, gap=8)
+    fonts_footer_cafe = int(fonts_section.get("footerCafe", 22) or 22)
 
     header_section = layout_data.get("header", {}) if isinstance(layout_data.get("header"), dict) else {}
-    if header_section.get("showAddress", True) and header.get("address"):
-        r.centered(header["address"], max(18, fonts_info - 2), gap=4)
-    if header_section.get("showPhone", True) and header.get("contactPhone"):
-        r.centered(f"تلفن تماس: {header['contactPhone']}", max(18, fonts_info - 2), gap=6)
+    style_section = layout_data.get("style", {}) if isinstance(layout_data.get("style"), dict) else {}
+    divider_style = str(style_section.get("dividerStyle") or "dashed")
+    ornament_icon = str(style_section.get("ornamentIcon") or "☕")
+    code_box_style = str(style_section.get("codeBoxStyle") or "rounded")
+
+    cafe_name = (header_section.get("cafeName") or "").strip() or header.get("cafeName") or "کافه شوگاریستا"
+    r.centered(cafe_name, fonts_header, bold=True, gap=6)
+
+    subtitle = header_section.get("subtitle")
+    if subtitle is None:
+        subtitle = "صورت‌حساب سفارش"
+    subtitle = str(subtitle).strip()
+    if subtitle:
+        r.centered(subtitle, fonts_info, bold=False, gap=6)
+
+    resolved_address = (header_section.get("customAddress") or "").strip() or (header.get("address") or "").strip()
+    resolved_phone = (header_section.get("customPhone") or "").strip() or (header.get("contactPhone") or "").strip()
+    tax_id = (header_section.get("taxId") or "").strip()
+
+    if header_section.get("showAddress", True) and resolved_address:
+        r.centered(resolved_address, max(18, fonts_info - 2), gap=4)
+    if header_section.get("showPhone", True) and resolved_phone:
+        r.centered(f"تلفن تماس: {resolved_phone}", max(18, fonts_info - 2), gap=4)
+    if tax_id:
+        r.centered(f"شناسه اقتصادی / صنفی: {tax_id}", max(17, fonts_info - 3), gap=4)
+
     r.gap(4)
-    r.cafe_ornament("☕", gap=8)
+    if header_section.get("showOrnament", True) and ornament_icon != "none":
+        r.cafe_ornament(ornament_icon, gap=8)
+    else:
+        r.divider(divider_style)
     r.gap(2)
 
     for row_key in info_rows(layout_data, "headerRows", list(DEFAULT_CUSTOMER_HEADER_ROW_LABELS)):
-        customer_header_row((r, fonts_info), payload, order, row_key)
+        customer_header_row((r, fonts_info, code_box_style), payload, order, row_key)
     r.gap(4)
-    r.divider("dashed")
+    r.divider(divider_style)
     r.gap(6)
 
     draw_items_table(r, payload, items, layout_data)
 
-    r.divider("dashed")
+    r.divider(divider_style)
     r.gap(4)
 
     # Admin-configured totals rows.
     totals_section = layout_data.get("totals", {}) if isinstance(layout_data.get("totals"), dict) else {}
+    if totals_section.get("showItemCount", False) and items:
+        total_qty = sum(int(it.get("quantity", 1) or 1) for it in items)
+        r.row("تعداد کل اقلام", f"{to_persian_digits_safe(str(total_qty))} عدد", size=max(18, fonts_info))
+
     rows = totals_section.get("rows")
     if not isinstance(rows, list) or not rows:
         rows = [
@@ -890,6 +1029,12 @@ def customer_receipt(payload) -> Receipt:
             r.divider("double")
             r.gap(4)
 
+    if totals_section.get("showSavingsBanner", True) and totals.get("discountLabel"):
+        r.boxed_card(
+            [(f"✨ سود شما از این سفارش: {totals['discountLabel']} تومان ✨", max(19, fonts_info), True)],
+            gap=10,
+        )
+
     for row_key in info_rows(layout_data, "paymentRows", ["paymentMethod", "reference", "amountPaid"]):
         if row_key == "paymentMethod":
             method = order.get("paymentLabel") or "کارت‌خوان (پوز)"
@@ -905,18 +1050,50 @@ def customer_receipt(payload) -> Receipt:
                 r.row("وضعیت پرداخت", paid_display, size=fonts_info, bold=True)
 
     r.gap(6)
-    r.divider("dotted")
+    r.divider("dotted" if divider_style == "dashed" else divider_style)
     r.gap(6)
     footer = layout_data.get("footer", {}) if isinstance(layout_data.get("footer"), dict) else {}
-    footer_text = footer.get("text") or payload.get("footerText")
+
+    promo_banner = (footer.get("promoBanner") or "").strip()
+    if promo_banner:
+        r.boxed_card([(promo_banner, max(20, fonts_info), True)], gap=10, dashed=True)
+
+    if footer.get("showWifi", False):
+        wifi_ssid = (footer.get("wifiSsid") or "").strip()
+        wifi_pass = (footer.get("wifiPassword") or "").strip()
+        if wifi_ssid or wifi_pass:
+            wifi_lines = [("وای‌فای رایگان مهمان (Wi-Fi)", max(18, fonts_info - 1), True)]
+            if wifi_ssid:
+                wifi_lines.append((f"شبکه: {wifi_ssid}", max(18, fonts_info - 2), False))
+            if wifi_pass:
+                wifi_lines.append((f"رمز عبور: {wifi_pass}", max(18, fonts_info - 2), False))
+            r.boxed_card(wifi_lines, gap=10)
+
+    if footer.get("showQrCode", False):
+        qr_url = (footer.get("qrCodeUrl") or "").strip()
+        qr_label = (footer.get("qrCodeLabel") or "").strip()
+        if qr_url:
+            r.qr_code(qr_url, qr_label, target_px=196, gap=10)
+
+    ig_handle = (footer.get("instagramHandle") or "").strip()
+    website_url = (footer.get("websiteUrl") or "").strip()
+    if ig_handle:
+        clean_ig = ig_handle if ig_handle.startswith("@") else f"@{ig_handle}"
+        r.centered(f"اینستاگرام: {clean_ig}", max(18, fonts_info - 2), gap=4)
+    if website_url:
+        r.centered(f"وب‌سایت: {website_url}", max(18, fonts_info - 2), gap=6)
+
+    footer_text = (footer.get("text") or "").strip() or (payload.get("footerText") or "").strip()
     if footer_text:
         r.centered(footer_text, 22, gap=6)
     if footer.get("showThanks", True):
-        thanks_text = footer.get("thanksText") or "نوش جان! از میزبانی شما خرسندیم ✨"
+        thanks_text = (footer.get("thanksText") or "").strip() or "نوش جان! از میزبانی شما خرسندیم ✨"
         r.centered(thanks_text, 24, bold=True, gap=8)
     if footer.get("showCafeName", True):
-        r.centered(f"« {cafe_name} »", 20, bold=False, gap=6)
-    r.cafe_ornament("☕", gap=4)
+        footer_cafe_name = (footer.get("cafeNameText") or "").strip() or cafe_name
+        r.centered(f"« {footer_cafe_name} »", fonts_footer_cafe, bold=True, gap=8)
+    if header_section.get("showOrnament", True) and ornament_icon != "none":
+        r.cafe_ornament(ornament_icon, gap=6)
     return r
 
 

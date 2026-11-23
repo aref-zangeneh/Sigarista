@@ -94,4 +94,15 @@ public static class ReceiptLayoutKeys
     public const int MinWidthPct = 15;
     public const int MaxWidthPct = 90;
     public const int MaxLabelLength = 40;
+    public const int MinPadding = 0;
+    public const int MaxPadding = 160;
+
+    public static readonly IReadOnlyList<string> DividerStyles =
+        ["dashed", "dotted", "solid", "double"];
+
+    public static readonly IReadOnlyList<string> OrnamentIcons =
+        ["☕", "✦", "♥", "✨", "none"];
+
+    public static readonly IReadOnlyList<string> CodeBoxStyles =
+        ["rounded", "solid", "minimal"];
 }

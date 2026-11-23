@@ -2068,7 +2068,15 @@ export function SiteSettingsPage() {
       </form>
 
       {/* ---------- طرح فیش‌های چاپی (ذخیرهٔ مستقل) ---------- */}
-      <ReceiptLayoutPanel session={session} apiRequest={apiRequest} getReadableError={getReadableError} />
+      <ReceiptLayoutPanel
+        session={session}
+        siteSettings={siteSettings}
+        onLayoutSaved={(nextLayout) =>
+          setSiteSettings((current) => ({ ...current, receiptLayout: nextLayout }))
+        }
+        apiRequest={apiRequest}
+        getReadableError={getReadableError}
+      />
     </div>
   )
 }

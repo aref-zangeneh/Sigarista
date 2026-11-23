@@ -87,10 +87,20 @@ public class ReceiptPrintJobService : IPrintJobService
                 deliveryLabel = deliveryMethod?.PersianName;
             }
 
+            var resolvedCafeName = !string.IsNullOrWhiteSpace(layout.Customer.Header.CafeName)
+                ? layout.Customer.Header.CafeName
+                : (settings?.CafeName ?? "Sugarista Cafe");
+            var resolvedAddress = !string.IsNullOrWhiteSpace(layout.Customer.Header.CustomAddress)
+                ? layout.Customer.Header.CustomAddress
+                : settings?.Address;
+            var resolvedPhone = !string.IsNullOrWhiteSpace(layout.Customer.Header.CustomPhone)
+                ? layout.Customer.Header.CustomPhone
+                : settings?.ContactPhone;
+
             var header = new ReceiptHeaderPayload(
-                settings?.CafeName ?? "Sugarista Cafe",
-                settings?.Address,
-                settings?.ContactPhone);
+                resolvedCafeName,
+                resolvedAddress,
+                resolvedPhone);
 
             var basePayload = BuildReceiptPayload(order, settings, layout, tableLabel, deliveryLabel, header);
 

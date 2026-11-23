@@ -25,12 +25,25 @@ public sealed record CustomerReceiptLayout(
     /// <summary>Ordered payment rows drawn under the totals (moneyfree notes live in HeaderRows).</summary>
     List<string> PaymentRows,
     CustomerFooterLayout Footer,
-    ReceiptFontSizes Fonts);
+    ReceiptFontSizes Fonts,
+    CustomerStyleLayout? Style = null);
+
+/// <summary>Visual theme/decoration options for the customer receipt.</summary>
+public sealed record CustomerStyleLayout(
+    string DividerStyle = "dashed",
+    string OrnamentIcon = "☕",
+    string CodeBoxStyle = "rounded");
 
 /// <summary>Cafe identity block of the customer receipt.</summary>
 public sealed record CustomerHeaderLayout(
     bool ShowAddress,
-    bool ShowPhone);
+    bool ShowPhone,
+    string? CafeName = null,
+    string? Subtitle = null,
+    string? CustomAddress = null,
+    string? CustomPhone = null,
+    string? TaxId = null,
+    bool ShowOrnament = true);
 
 /// <summary>One column of the receipt items table.</summary>
 /// <param name="Key">Column key: name, qty, unitPrice or total.</param>
@@ -56,26 +69,42 @@ public sealed record ReceiptItemsLayout(
     int FontSize);
 
 /// <summary>Order-total rows of the customer receipt.</summary>
-public sealed record ReceiptTotalsLayout(List<ReceiptTotalRowLayout> Rows);
+public sealed record ReceiptTotalsLayout(
+    List<ReceiptTotalRowLayout> Rows,
+    bool ShowItemCount = false,
+    bool ShowSavingsBanner = true);
 
-/// <summary>One total row; Key = subtotal, deliveryFee, tax or total.</summary>
+/// <summary>One total row; Key = subtotal, deliveryFee, tax, discount or total.</summary>
 public sealed record ReceiptTotalRowLayout(string Key, string Label, bool Visible);
 
-/// <summary>Thank-you block at the bottom of the customer receipt.</summary>
+/// <summary>Thank-you and modern engagement block at the bottom of the customer receipt.</summary>
 public sealed record CustomerFooterLayout(
     /// <summary>Overrides SiteSettings.FooterText when non-empty.</summary>
     string Text,
     bool ShowThanks,
     bool ShowCafeName,
-    string? ThanksText = null);
+    string? ThanksText = null,
+    string? CafeNameText = null,
+    bool ShowWifi = false,
+    string? WifiSsid = null,
+    string? WifiPassword = null,
+    string? InstagramHandle = null,
+    string? WebsiteUrl = null,
+    string? PromoBanner = null,
+    bool ShowQrCode = false,
+    string? QrCodeUrl = null,
+    string? QrCodeLabel = null);
 
-/// <summary>Font sizes (pt of the 384/576-dot bitmap) of the customer receipt.</summary>
+/// <summary>Font sizes (pt of the 384/576-dot bitmap) and safe margins of the customer receipt.</summary>
 public sealed record ReceiptFontSizes(
     int Header,
     int Info,
     int Item,
     int Subtotal,
-    int Total);
+    int Total,
+    int FooterCafe = 22,
+    int TopPadding = 24,
+    int BottomPadding = 96);
 
 /// <summary>Layout of the barista/kitchen ticket.</summary>
 public sealed record BaristaReceiptLayout(

@@ -19,10 +19,25 @@ public sealed record CustomerReceiptPatch(
     ReceiptTotalsPatch? Totals,
     List<string>? PaymentRows,
     CustomerFooterPatch? Footer,
-    ReceiptFontSizesPatch? Fonts);
+    ReceiptFontSizesPatch? Fonts,
+    CustomerStylePatch? Style = null);
+
+/// <summary>Partial visual style block.</summary>
+public sealed record CustomerStylePatch(
+    string? DividerStyle = null,
+    string? OrnamentIcon = null,
+    string? CodeBoxStyle = null);
 
 /// <summary>Partial cafe identity block.</summary>
-public sealed record CustomerHeaderPatch(bool? ShowAddress, bool? ShowPhone);
+public sealed record CustomerHeaderPatch(
+    bool? ShowAddress,
+    bool? ShowPhone,
+    string? CafeName = null,
+    string? Subtitle = null,
+    string? CustomAddress = null,
+    string? CustomPhone = null,
+    string? TaxId = null,
+    bool? ShowOrnament = null);
 
 /// <summary>Partial items table of both copies.</summary>
 public sealed record ReceiptItemsPatch(
@@ -41,16 +56,41 @@ public sealed record ReceiptColumnPatch(
     int? WidthPct);
 
 /// <summary>Partial totals block.</summary>
-public sealed record ReceiptTotalsPatch(List<ReceiptTotalRowPatch>? Rows);
+public sealed record ReceiptTotalsPatch(
+    List<ReceiptTotalRowPatch>? Rows,
+    bool? ShowItemCount = null,
+    bool? ShowSavingsBanner = null);
 
 /// <summary>Partial total row; Key is required, the rest falls back.</summary>
 public sealed record ReceiptTotalRowPatch(string Key, string? Label, bool? Visible);
 
 /// <summary>Partial footer block.</summary>
-public sealed record CustomerFooterPatch(string? Text, bool? ShowThanks, bool? ShowCafeName, string? ThanksText = null);
+public sealed record CustomerFooterPatch(
+    string? Text,
+    bool? ShowThanks,
+    bool? ShowCafeName,
+    string? ThanksText = null,
+    string? CafeNameText = null,
+    bool? ShowWifi = null,
+    string? WifiSsid = null,
+    string? WifiPassword = null,
+    string? InstagramHandle = null,
+    string? WebsiteUrl = null,
+    string? PromoBanner = null,
+    bool? ShowQrCode = null,
+    string? QrCodeUrl = null,
+    string? QrCodeLabel = null);
 
-/// <summary>Partial font sizes of the customer receipt.</summary>
-public sealed record ReceiptFontSizesPatch(int? Header, int? Info, int? Item, int? Subtotal, int? Total);
+/// <summary>Partial font sizes and safe paper margins of the customer receipt.</summary>
+public sealed record ReceiptFontSizesPatch(
+    int? Header,
+    int? Info,
+    int? Item,
+    int? Subtotal,
+    int? Total,
+    int? FooterCafe = null,
+    int? TopPadding = null,
+    int? BottomPadding = null);
 
 /// <summary>Partial barista ticket layout.</summary>
 public sealed record BaristaReceiptPatch(

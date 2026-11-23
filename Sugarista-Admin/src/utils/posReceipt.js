@@ -1,5 +1,6 @@
 import { formatPrice } from './posCart.js'
 import { formatBundleSummaryLabels } from './bundlePricing.js'
+import { buildQrSvg } from './qrSvg.js'
 
 const PAYMENT_LABELS = {
   Cash: 'پرداخت نقدی',
@@ -132,11 +133,48 @@ export function buildPosReceiptBundle(input) {
     createdAt,
   } = input
 
-  const cafeName = normalizeText(siteSettings?.cafeName) || 'شوگاریستا'
-  const address = normalizeText(siteSettings?.address)
-  const contactPhone = normalizeText(siteSettings?.contactPhone)
-  const footerText = normalizeText(siteSettings?.footerText)
   const layout = siteSettings?.receiptLayout ?? {}
+  const customerLayout = layout?.customer ?? {}
+  const headerLayout = customerLayout?.header ?? {}
+  const footerLayout = customerLayout?.footer ?? {}
+  const totalsLayout = customerLayout?.totals ?? {}
+  const styleLayout = customerLayout?.style ?? {}
+
+  const cafeName =
+    normalizeText(headerLayout.cafeName) || normalizeText(siteSettings?.cafeName) || 'شوگاریستا'
+  const subtitle =
+    headerLayout.subtitle !== undefined && headerLayout.subtitle !== null
+      ? normalizeText(headerLayout.subtitle)
+      : 'صورت‌حساب سفارش'
+  const showAddress = headerLayout.showAddress !== false
+  const showPhone = headerLayout.showPhone !== false
+  const address = showAddress
+    ? normalizeText(headerLayout.customAddress) || normalizeText(siteSettings?.address)
+    : ''
+  const contactPhone = showPhone
+    ? normalizeText(headerLayout.customPhone) || normalizeText(siteSettings?.contactPhone)
+    : ''
+  const taxId = normalizeText(headerLayout.taxId)
+  const showOrnament = headerLayout.showOrnament !== false
+  const ornamentIcon = normalizeText(styleLayout.ornamentIcon) || '☕'
+  const dividerStyle = normalizeText(styleLayout.dividerStyle) || 'dashed'
+  const codeBoxStyle = normalizeText(styleLayout.codeBoxStyle) || 'rounded'
+  const footerText = normalizeText(footerLayout.text) || normalizeText(siteSettings?.footerText)
+  const showThanks = footerLayout.showThanks !== false
+  const thanksText = normalizeText(footerLayout.thanksText) || 'نوش جان! از میزبانی شما خرسندیم ✨'
+  const showCafeNameInFooter = footerLayout.showCafeName !== false
+  const footerCafeName = normalizeText(footerLayout.cafeNameText) || cafeName
+  const showWifi = footerLayout.showWifi === true
+  const wifiSsid = normalizeText(footerLayout.wifiSsid)
+  const wifiPassword = normalizeText(footerLayout.wifiPassword)
+  const instagramHandle = normalizeText(footerLayout.instagramHandle)
+  const websiteUrl = normalizeText(footerLayout.websiteUrl)
+  const promoBanner = normalizeText(footerLayout.promoBanner)
+  const showQrCode = footerLayout.showQrCode === true
+  const qrCodeUrl = normalizeText(footerLayout.qrCodeUrl)
+  const qrCodeLabel = normalizeText(footerLayout.qrCodeLabel)
+  const showItemCount = totalsLayout.showItemCount === true
+  const showSavingsBanner = totalsLayout.showSavingsBanner !== false
   const printedAt = formatReceiptDate(createdAt ? new Date(createdAt) : new Date())
   const trackingCode = result?.trackingCode ?? input?.trackingCode ?? '—'
 
@@ -250,11 +288,32 @@ export function buildPosReceiptBundle(input) {
 
   const customer = {
     type: 'customer',
-    title: 'صورت‌حساب سفارش',
+    title: subtitle,
     cafeName,
+    footerCafeName,
     address,
     contactPhone,
+    taxId,
     footerText,
+    showThanks,
+    thanksText,
+    showCafeNameInFooter,
+    showOrnament,
+    ornamentIcon,
+    dividerStyle,
+    codeBoxStyle,
+    showWifi,
+    wifiSsid,
+    wifiPassword,
+    instagramHandle,
+    websiteUrl,
+    promoBanner,
+    showQrCode,
+    qrCodeUrl,
+    qrCodeLabel,
+    showItemCount,
+    showSavingsBanner,
+    totalItemCount: normalizedLines.reduce((sum, line) => sum + (line.quantity || 1), 0),
     trackingCode,
     printedAt,
     guestName,
@@ -453,19 +512,46 @@ function escapeHtml(value) {
 }
 
 function buildCustomerBodyHtml(receipt) {
+  const dividerClass =
+    receipt.dividerStyle === 'dotted'
+      ? 'divider divider--dotted'
+      : receipt.dividerStyle === 'solid'
+        ? 'divider divider--solid'
+        : receipt.dividerStyle === 'double'
+          ? 'divider divider--double'
+          : 'divider'
+  const ornamentIcon = receipt.ornamentIcon && receipt.ornamentIcon !== 'none' ? receipt.ornamentIcon : ''
+  const ornamentHtml =
+    receipt.showOrnament !== false && ornamentIcon
+      ? `<div class="cafe-ornament">✦ ${escapeHtml(ornamentIcon)} ✦</div>`
+      : `<div class="${dividerClass}"></div>`
+  const codeBadgeClass =
+    receipt.codeBoxStyle === 'solid'
+      ? 'ticket-badge ticket-badge--solid'
+      : receipt.codeBoxStyle === 'minimal'
+        ? 'ticket-badge ticket-badge--minimal'
+        : 'ticket-badge'
+  const qrSvg = receipt.showQrCode && receipt.qrCodeUrl ? buildQrSvg(receipt.qrCodeUrl, 128) : ''
+  const cleanIg = receipt.instagramHandle
+    ? receipt.instagramHandle.startsWith('@')
+      ? receipt.instagramHandle
+      : `@${receipt.instagramHandle}`
+    : ''
+
   return `
     <div class="center brand">${escapeHtml(toPersianDigits(receipt.cafeName))}</div>
-    <div class="center section-title" style="font-size:12px;color:#444;margin-bottom:6px;">${escapeHtml(receipt.title)}</div>
+    ${receipt.title ? `<div class="center section-title" style="font-size:12px;color:#444;margin-bottom:6px;">${escapeHtml(toPersianDigits(receipt.title))}</div>` : ''}
     ${receipt.address ? `<div class="center muted">${escapeHtml(toPersianDigits(receipt.address))}</div>` : ''}
     ${receipt.contactPhone ? `<div class="center muted">تلفن تماس: ${escapeHtml(toPersianDigits(receipt.contactPhone))}</div>` : ''}
-    <div class="cafe-ornament">✦ ☕ ✦</div>
-    <div class="ticket-badge">شماره سفارش: #${escapeHtml(receipt.trackingCode)}</div>
+    ${receipt.taxId ? `<div class="center muted">شناسه اقتصادی / صنفی: ${escapeHtml(toPersianDigits(receipt.taxId))}</div>` : ''}
+    ${ornamentHtml}
+    <div class="${codeBadgeClass}">شماره سفارش: #${escapeHtml(receipt.trackingCode)}</div>
     <div class="row"><span>تاریخ و ساعت</span><span>${escapeHtml(receipt.printedAt)}</span></div>
     <div class="row"><span>شیوهٔ پذیرایی</span><strong>${escapeHtml(toPersianDigits(receipt.service))}${receipt.table ? ` · میز شماره ${escapeHtml(toPersianDigits(receipt.table))}` : ''}</strong></div>
     <div class="row"><span>مشتری گرامی</span><span>${escapeHtml(toPersianDigits(receipt.guestName))}</span></div>
     ${receipt.guestPhone ? `<div class="row"><span>شماره همراه</span><span>${escapeHtml(toPersianDigits(receipt.guestPhone))}</span></div>` : ''}
     ${receipt.note ? `<div class="line-meta" style="margin-top:4px;">توضیحات مهمان: ${escapeHtml(toPersianDigits(receipt.note))}</div>` : ''}
-    <div class="divider"></div>
+    <div class="${dividerClass}"></div>
     ${receipt.lines
       .map(
         (line) => `
@@ -476,20 +562,27 @@ function buildCustomerBodyHtml(receipt) {
         `,
       )
       .join('')}
-    <div class="divider"></div>
+    <div class="${dividerClass}"></div>
+    ${receipt.showItemCount ? `<div class="row"><span>تعداد کل اقلام</span><span>${escapeHtml(toPersianDigits(receipt.totalItemCount ?? receipt.lines.length))} عدد</span></div>` : ''}
     <div class="row"><span>جمع کل اقلام</span><span>${escapeHtml(formatPrice(receipt.subtotalAmount))} تومان</span></div>
     ${receipt.deliveryFee > 0 ? `<div class="row"><span>هزینه ارسال / پیک</span><span>${escapeHtml(formatPrice(receipt.deliveryFee))} تومان</span></div>` : ''}
     ${receipt.taxTotal > 0 ? `<div class="row"><span>مالیات بر ارزش افزوده</span><span>${escapeHtml(formatPrice(receipt.taxTotal))} تومان</span></div>` : ''}
     ${receipt.discountTotal > 0 ? `<div class="row" style="font-weight:700;"><span>${escapeHtml(receipt.discountTitle || 'تخفیف')}</span><span>−${escapeHtml(formatPrice(receipt.discountTotal))} تومان</span></div>` : ''}
     ${receipt.discountTotal > 0 && receipt.manualDiscountReason ? `<div class="line-meta" style="margin-bottom:4px;">بابت تخفیف: ${escapeHtml(toPersianDigits(receipt.manualDiscountReason))}</div>` : ''}
     <div class="row total"><span>مبلغ قابل پرداخت</span><span>${escapeHtml(formatPrice(receipt.totalAmount))} تومان</span></div>
+    ${receipt.discountTotal > 0 && receipt.showSavingsBanner !== false ? `<div class="receipt-box">✨ سود شما از این سفارش: ${escapeHtml(formatPrice(receipt.discountTotal))} تومان ✨</div>` : ''}
     <div class="row" style="margin-top:6px;"><span>شیوهٔ پرداخت</span><span>${escapeHtml(receipt.paymentMethod)}</span></div>
     <div class="row" style="font-weight:700;"><span>وضعیت پرداخت</span><span>تسویه شد ✓</span></div>
-    <div class="divider" style="border-top:1px dotted #000;margin:10px 0;"></div>
-    ${receipt.footerText ? `<div class="center muted" style="margin-bottom:4px;">${escapeHtml(toPersianDigits(receipt.footerText))}</div>` : ''}
-    <div class="center" style="font-weight:700;font-size:12px;margin:6px 0;">${escapeHtml(toPersianDigits(receipt.layout?.customer?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'))}</div>
-    <div class="center muted" style="font-size:10px;">« ${escapeHtml(toPersianDigits(receipt.cafeName))} »</div>
-    <div class="cafe-ornament" style="margin-top:6px;">✦ ☕ ✦</div>
+    <div class="divider divider--dotted" style="margin:10px 0;"></div>
+    ${receipt.promoBanner ? `<div class="receipt-box receipt-box--promo">${escapeHtml(toPersianDigits(receipt.promoBanner))}</div>` : ''}
+    ${receipt.showWifi && (receipt.wifiSsid || receipt.wifiPassword) ? `<div class="receipt-box"><div style="font-weight:800;">وای‌فای رایگان مهمان (Wi-Fi)</div>${receipt.wifiSsid ? `<div>شبکه: <span dir="ltr">${escapeHtml(receipt.wifiSsid)}</span></div>` : ''}${receipt.wifiPassword ? `<div>رمز عبور: <span dir="ltr">${escapeHtml(receipt.wifiPassword)}</span></div>` : ''}</div>` : ''}
+    ${qrSvg ? `<div class="center" style="margin:8px 0;">${qrSvg}${receipt.qrCodeLabel ? `<div class="muted" style="margin-top:3px;">${escapeHtml(toPersianDigits(receipt.qrCodeLabel))}</div>` : ''}</div>` : ''}
+    ${cleanIg ? `<div class="center muted">اینستاگرام: <span dir="ltr">${escapeHtml(cleanIg)}</span></div>` : ''}
+    ${receipt.websiteUrl ? `<div class="center muted">وب‌سایت: <span dir="ltr">${escapeHtml(receipt.websiteUrl)}</span></div>` : ''}
+    ${receipt.footerText ? `<div class="center muted" style="margin-top:4px;margin-bottom:4px;">${escapeHtml(toPersianDigits(receipt.footerText))}</div>` : ''}
+    ${receipt.showThanks !== false ? `<div class="center" style="font-weight:700;font-size:12px;margin:6px 0;">${escapeHtml(toPersianDigits(receipt.thanksText || receipt.layout?.customer?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'))}</div>` : ''}
+    ${receipt.showCafeNameInFooter !== false ? `<div class="center" style="font-weight:700;font-size:11px;margin:4px 0;">« ${escapeHtml(toPersianDigits(receipt.footerCafeName || receipt.cafeName))} »</div>` : ''}
+    ${ornamentHtml}
   `
 }
 
@@ -548,6 +641,24 @@ function wrapReceiptHtmlDocument(title, bodyHtml) {
     .section-title { font-weight: 700; margin-bottom: 4px; }
     .muted { color: #222; font-size: 11px; }
     .divider { border-top: 1px dashed #000; margin: 8px 0; }
+    .divider--dotted { border-top-style: dotted; }
+    .divider--solid { border-top-style: solid; }
+    .divider--double { border-top: 3px double #000; }
+    .ticket-badge--solid { border-radius: 0; border-width: 2px; }
+    .ticket-badge--minimal { border: none; padding: 2px 0; }
+    .receipt-box {
+      border: 1.5px solid #000;
+      border-radius: 6px;
+      padding: 5px 8px;
+      text-align: center;
+      font-size: 11px;
+      margin: 6px 0;
+    }
+    .receipt-box--promo {
+      border-style: double;
+      border-width: 3px;
+      font-weight: 700;
+    }
     .row { display: flex; justify-content: space-between; gap: 8px; }
     .line-title { font-weight: 700; margin-top: 6px; font-size: 13px; }
     .line-meta { color: #111; font-size: 11px; margin-top: 2px; }

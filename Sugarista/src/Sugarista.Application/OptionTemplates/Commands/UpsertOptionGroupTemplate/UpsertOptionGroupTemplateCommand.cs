@@ -55,12 +55,18 @@ public class UpsertOptionGroupTemplateCommandHandler
                 request.DisplayOrder,
                 request.IsActive);
 
-            foreach (var existingOption in template.Options)
+            foreach (var existingOption in template.Options.ToList())
             {
-                _dbContext.OptionGroupTemplateItemIngredients.RemoveRange(existingOption.Ingredients);
+                if (existingOption.Ingredients.Count > 0)
+                {
+                    _dbContext.OptionGroupTemplateItemIngredients.RemoveRange(existingOption.Ingredients.ToList());
+                }
             }
-            _dbContext.OptionGroupTemplateItems.RemoveRange(template.Options);
-            template.Options.Clear();
+            if (template.Options.Count > 0)
+            {
+                _dbContext.OptionGroupTemplateItems.RemoveRange(template.Options.ToList());
+                template.Options.Clear();
+            }
         }
         else
         {
@@ -89,13 +95,19 @@ public class UpsertOptionGroupTemplateCommandHandler
                 optionInput.IsActive,
                 optionInput.DisplayOrder >= 0 ? optionInput.DisplayOrder : index);
 
+            // Explicitly register newly instantiated BaseEntity children (which have
+            // client-generated Guids) as Added so EF Core never mistakes them for
+            // Modified rows when updating an existing tracked template.
+            _dbContext.OptionGroupTemplateItems.Add(option);
+
             foreach (var ingredientRow in optionInput.Ingredients)
             {
-                option.Ingredients.Add(
-                    new OptionGroupTemplateItemIngredient(
-                        option.Id,
-                        ingredientRow.IngredientId,
-                        ingredientRow.Quantity));
+                var ingredientEntity = new OptionGroupTemplateItemIngredient(
+                    option.Id,
+                    ingredientRow.IngredientId,
+                    ingredientRow.Quantity);
+                option.Ingredients.Add(ingredientEntity);
+                _dbContext.OptionGroupTemplateItemIngredients.Add(ingredientEntity);
             }
 
             index++;

@@ -6,7 +6,15 @@ public static class ReceiptLayoutDefault
     public static ResolvedReceiptLayout All() => new(Customer(), Barista());
 
     public static CustomerReceiptLayout Customer() => new(
-        Header: new CustomerHeaderLayout(ShowAddress: true, ShowPhone: true),
+        Header: new CustomerHeaderLayout(
+            ShowAddress: true,
+            ShowPhone: true,
+            CafeName: string.Empty,
+            Subtitle: "صورت‌حساب سفارش",
+            CustomAddress: string.Empty,
+            CustomPhone: string.Empty,
+            TaxId: string.Empty,
+            ShowOrnament: true),
         HeaderRows:
         [
             ReceiptLayoutKeys.HeaderRowCode,
@@ -21,21 +29,38 @@ public static class ReceiptLayoutDefault
         ],
         Items: CustomerItems(),
         Totals: new ReceiptTotalsLayout(
-        [
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowSubtotal, "جمع کل اقلام", true),
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowDeliveryFee, "هزینه ارسال / پیک", true),
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTax, "مالیات بر ارزش افزوده", true),
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowDiscount, "تخفیف", true),
-            new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTotal, "مبلغ قابل پرداخت", true),
-        ]),
+            [
+                new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowSubtotal, "جمع کل اقلام", true),
+                new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowDeliveryFee, "هزینه ارسال / پیک", true),
+                new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTax, "مالیات بر ارزش افزوده", true),
+                new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowDiscount, "تخفیف", true),
+                new ReceiptTotalRowLayout(ReceiptLayoutKeys.TotalRowTotal, "مبلغ قابل پرداخت", true),
+            ],
+            ShowItemCount: false,
+            ShowSavingsBanner: true),
         PaymentRows:
         [
             ReceiptLayoutKeys.PaymentRowMethod,
             ReceiptLayoutKeys.PaymentRowReference,
             ReceiptLayoutKeys.PaymentRowPaid,
         ],
-        Footer: new CustomerFooterLayout(Text: string.Empty, ShowThanks: true, ShowCafeName: true, ThanksText: "نوش جان! از میزبانی شما خرسندیم ✨"),
-        Fonts: new ReceiptFontSizes(Header: 40, Info: 22, Item: 30, Subtotal: 24, Total: 36));
+        Footer: new CustomerFooterLayout(
+            Text: string.Empty,
+            ShowThanks: true,
+            ShowCafeName: true,
+            ThanksText: "نوش جان! از میزبانی شما خرسندیم ✨",
+            CafeNameText: string.Empty,
+            ShowWifi: false,
+            WifiSsid: string.Empty,
+            WifiPassword: string.Empty,
+            InstagramHandle: string.Empty,
+            WebsiteUrl: string.Empty,
+            PromoBanner: string.Empty,
+            ShowQrCode: false,
+            QrCodeUrl: string.Empty,
+            QrCodeLabel: "اسکن برای منوی دیجیتال و نظرسنجی"),
+        Fonts: new ReceiptFontSizes(Header: 40, Info: 22, Item: 30, Subtotal: 24, Total: 36, FooterCafe: 22, TopPadding: 24, BottomPadding: 96),
+        Style: new CustomerStyleLayout(DividerStyle: "dashed", OrnamentIcon: "☕", CodeBoxStyle: "rounded"));
 
     public static ReceiptItemsLayout CustomerItems() => new(
         Columns:

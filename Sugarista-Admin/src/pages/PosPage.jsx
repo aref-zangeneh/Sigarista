@@ -524,10 +524,17 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
               ) : (
                 <div className="pos-receipt-paper">
                   <div className="pos-receipt-center pos-receipt-brand">{customer.cafeName}</div>
-                  <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.8rem', marginBottom: 6 }}>صورت‌حساب سفارش</div>
+                  {customer.title ? (
+                    <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.8rem', marginBottom: 6 }}>{customer.title}</div>
+                  ) : null}
                   {customer.address ? <div className="pos-receipt-center pos-receipt-muted">{customer.address}</div> : null}
                   {customer.contactPhone ? <div className="pos-receipt-center pos-receipt-muted">تلفن تماس: {customer.contactPhone}</div> : null}
-                  <div className="pos-receipt-ornament" aria-hidden="true">✦ ☕ ✦</div>
+                  {customer.taxId ? <div className="pos-receipt-center pos-receipt-muted">شناسه اقتصادی: {customer.taxId}</div> : null}
+                  {customer.showOrnament !== false && customer.ornamentIcon !== 'none' ? (
+                    <div className="pos-receipt-ornament" aria-hidden="true">✦ {customer.ornamentIcon || '☕'} ✦</div>
+                  ) : (
+                    <div className="pos-receipt-divider" />
+                  )}
                   <div style={{ border: '1.5px solid #000', borderRadius: 6, padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', margin: '6px 0', fontSize: '0.88rem' }}>
                     شماره سفارش: #{customer.trackingCode}
                   </div>
@@ -574,11 +581,41 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
                   <div className="pos-receipt-row" style={{ marginTop: 6 }}><span>شیوهٔ پرداخت</span><span>{customer.paymentMethod}</span></div>
                   <div className="pos-receipt-row" style={{ fontWeight: 'bold' }}><span>وضعیت پرداخت</span><span>تسویه شد ✓</span></div>
                   <div className="pos-receipt-divider" style={{ borderTop: '1px dotted #000', margin: '8px 0' }} />
-                  <div className="pos-receipt-center" style={{ fontWeight: 'bold', fontSize: '0.85rem', margin: '4px 0' }}>
-                    {customer.layout?.customer?.footer?.thanksText || customer.layout?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'}
-                  </div>
-                  <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.75rem' }}>« {customer.cafeName} »</div>
-                  <div className="pos-receipt-ornament" aria-hidden="true">✦ ☕ ✦</div>
+                  {customer.promoBanner ? (
+                    <div className="pos-receipt-center" style={{ border: '1.5px double #000', borderRadius: 6, padding: '4px 6px', fontWeight: 'bold', fontSize: '0.78rem', marginBottom: 6 }}>
+                      {customer.promoBanner}
+                    </div>
+                  ) : null}
+                  {customer.showWifi && (customer.wifiSsid || customer.wifiPassword) ? (
+                    <div className="pos-receipt-center" style={{ border: '1px solid #000', borderRadius: 6, padding: '4px 6px', fontSize: '0.75rem', marginBottom: 6 }}>
+                      <strong>وای‌فای مهمان (Wi-Fi)</strong>
+                      {customer.wifiSsid ? <div>شبکه: <span dir="ltr" data-latin-digits="true">{customer.wifiSsid}</span></div> : null}
+                      {customer.wifiPassword ? <div>رمز: <span dir="ltr" data-latin-digits="true">{customer.wifiPassword}</span></div> : null}
+                    </div>
+                  ) : null}
+                  {customer.instagramHandle ? (
+                    <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.75rem' }}>
+                      اینستاگرام: <span dir="ltr" data-latin-digits="true">{customer.instagramHandle.startsWith('@') ? customer.instagramHandle : `@${customer.instagramHandle}`}</span>
+                    </div>
+                  ) : null}
+                  {customer.websiteUrl ? (
+                    <div className="pos-receipt-center pos-receipt-muted" style={{ fontSize: '0.75rem' }}>
+                      وب‌سایت: <span dir="ltr" data-latin-digits="true">{customer.websiteUrl}</span>
+                    </div>
+                  ) : null}
+                  {customer.showThanks !== false ? (
+                    <div className="pos-receipt-center" style={{ fontWeight: 'bold', fontSize: '0.85rem', margin: '4px 0' }}>
+                      {customer.thanksText || customer.layout?.customer?.footer?.thanksText || 'نوش جان! از میزبانی شما خرسندیم ✨'}
+                    </div>
+                  ) : null}
+                  {customer.showCafeNameInFooter !== false ? (
+                    <div className="pos-receipt-center" style={{ fontWeight: 'bold', fontSize: '0.78rem' }}>
+                      « {customer.footerCafeName || customer.cafeName} »
+                    </div>
+                  ) : null}
+                  {customer.showOrnament !== false && customer.ornamentIcon !== 'none' ? (
+                    <div className="pos-receipt-ornament" aria-hidden="true">✦ {customer.ornamentIcon || '☕'} ✦</div>
+                  ) : null}
                 </div>
               )}
             </div>

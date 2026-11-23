@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Options;
 using Sugarista.Application.Orders;
+using Sugarista.Application.Printing;
+using Sugarista.Application.Printing.ReceiptLayout;
 
 namespace Sugarista.Application.SiteSettings.Queries.GetSiteSettings;
 
@@ -136,6 +138,7 @@ public record SiteSettingsDto
     public bool OrderAlertSoundEnabled { get; init; } = true;
     public int OrderAlertSoundIntervalSeconds { get; init; } = 10;
     public bool IsBlogEnabled { get; init; } = true;
+    public ResolvedReceiptLayout? ReceiptLayout { get; init; }
     public IReadOnlyDictionary<string, string> MenuTooltips { get; init; } = new Dictionary<string, string>();
 }
 
@@ -294,9 +297,16 @@ public class GetSiteSettingsQueryHandler : IRequestHandler<GetSiteSettingsQuery,
                 entry => entry.IsActive ? entry.Text : string.Empty,
                 cancellationToken);
 
+        var receiptLayoutJson = await _dbContext.SiteSettings
+            .AsNoTracking()
+            .Where(entry => entry.Id == settings.Id)
+            .Select(entry => entry.ReceiptLayoutJson)
+            .FirstOrDefaultAsync(cancellationToken);
+
         return settings with
         {
             IsOnlineOrderingAvailable = PaymentAvailability.IsOnlinePaymentConfigured(_paymentOptions),
+            ReceiptLayout = ReceiptLayoutJsonParser.Parse(receiptLayoutJson),
             MenuTooltips = menuTooltips
         };
     }

@@ -136,26 +136,42 @@ public class UpsertSmsProviderCommandValidator : AbstractValidator<UpsertSmsProv
         RuleFor(command => command.ProviderType).Must(BeKnownProviderType)
             .WithMessage("نوع سرویس‌دهنده پشتیبانی نمی‌شود.");
         RuleFor(command => command.BaseUrl).MaximumLength(300)
-            .Must(url => url is null || Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            .Must(url => string.IsNullOrWhiteSpace(url) || Uri.IsWellFormedUriString(url, UriKind.Absolute))
             .WithMessage("آدرس API نامعتبر است.");
         RuleFor(command => command.TimeoutSeconds).InclusiveBetween(3, 120);
         RuleFor(command => command.DeliveryWebhookSecret).MaximumLength(128);
         RuleFor(command => command)
-            .Must(command => !string.IsNullOrWhiteSpace(command.Username)
-                             || !string.IsNullOrWhiteSpace(command.ApiKey)
-                             || IsCredentiallessType(command.ProviderType))
+            .Must(HasValidCredentialsForUpsert)
             .WithMessage("برای ملی پیامک نام کاربری/رمز و برای بقیه کلید API لازم است.");
         RuleFor(command => command.ExtraSettingsJson)
-            .Must(json => json is null || IsJson(json)).WithMessage("تنظیمات اضافه باید JSON معتبر باشد.");
+            .Must(json => string.IsNullOrWhiteSpace(json) || IsJson(json)).WithMessage("تنظیمات اضافه باید JSON معتبر باشد.");
     }
 
     private static bool BeKnownProviderType(string value) =>
         Enum.TryParse<SmsProviderType>(value, ignoreCase: true, out _)
         && value.Equals(Enum.Parse<SmsProviderType>(value, true).ToString(), StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsCredentiallessType(string value) =>
-        Enum.TryParse<SmsProviderType>(value, ignoreCase: true, out var type)
-        && (type == SmsProviderType.Logging || type == SmsProviderType.Melipayamak);
+    private static bool HasValidCredentialsForUpsert(UpsertSmsProviderCommand command)
+    {
+        // On update (Id != Empty), empty credential fields keep the existing stored secrets.
+        if (command.Id != Guid.Empty)
+        {
+            return true;
+        }
+
+        if (!Enum.TryParse<SmsProviderType>(command.ProviderType, ignoreCase: true, out var type))
+        {
+            return true; // Handled by ProviderType rule.
+        }
+
+        return type switch
+        {
+            SmsProviderType.Logging => true,
+            SmsProviderType.Melipayamak => !string.IsNullOrWhiteSpace(command.Username)
+                                           && !string.IsNullOrWhiteSpace(command.Password),
+            _ => !string.IsNullOrWhiteSpace(command.ApiKey),
+        };
+    }
 
     private static bool IsJson(string value)
     {
@@ -271,12 +287,23 @@ public class UpsertSmsProviderCommandHandler(
         }
 
         // Sender lines: replace-all semantics (the panel submits the full list).
+        // Remove existing rows explicitly and mark new BaseEntity rows as Added so EF Core
+        // does not treat client-generated Guid Ids as Modified on existing providers.
+        if (request.Id != Guid.Empty && provider.SenderLines.Count > 0)
+        {
+            dbContext.SmsSenderLines.RemoveRange(provider.SenderLines);
+        }
         provider.SenderLines.Clear();
         foreach (var line in request.SenderLines.Take(10))
         {
             if (!string.IsNullOrWhiteSpace(line.Number))
             {
-                provider.SenderLines.Add(new SmsSenderLine(provider.Id, line.Number, line.Label, line.IsDefault));
+                var entity = new SmsSenderLine(provider.Id, line.Number, line.Label, line.IsDefault);
+                provider.SenderLines.Add(entity);
+                if (request.Id != Guid.Empty)
+                {
+                    dbContext.SmsSenderLines.Add(entity);
+                }
             }
         }
 

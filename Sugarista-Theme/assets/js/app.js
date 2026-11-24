@@ -1117,8 +1117,12 @@ document.addEventListener("alpine:init", () => {
       }
     },
     handleAuthOtpInput(isAuthPopup = true) {
-      const clean = this.toEnglishDigits(this.authOtpCode || "").replace(/\D/g, "").slice(0, 6);
-      this.authOtpCode = this.toPersianDigits(clean);
+      const typed = (this.authOtpCode || "")
+        .replace(/[٠-٩]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"["٠١٢٣٤٥٦٧٨٩".indexOf(d)])
+        .replace(/[^0-9۰-۹]/g, "")
+        .slice(0, 6);
+      this.authOtpCode = typed;
+      const clean = this.toEnglishDigits(typed);
       if (clean.length === 6 && !this.authSubmitting) {
         this.verifyCustomerOtp(isAuthPopup);
       }
@@ -3823,15 +3827,28 @@ document.addEventListener("alpine:init", () => {
         : payload;
       return JSON.stringify(normalized);
     },
+    formatTypedDigits(value, script = null) {
+      if (value === null || value === undefined || value === "") {
+        return "";
+      }
+      if (script === "latin") {
+        return this.toEnglishDigits(String(value));
+      }
+      return this.toPersianDigits(String(value));
+    },
     setSplitSharePercentage(index, rawValue, inputEl = null) {
       const share = this.checkoutForm.splitShares[index];
       if (!share) {
         return;
       }
-      const { english } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
+      const { english, script } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
         allowDecimal: true,
-        allowNegative: false
+        allowNegative: false,
+        preserveScript: true
       });
+      if (script) {
+        share._pctScript = script;
+      }
       if (english === "") {
         share.sharePercentage = "";
         return;
@@ -3840,7 +3857,7 @@ document.addEventListener("alpine:init", () => {
       if (Number.isFinite(num) && num > 100) {
         share.sharePercentage = 100;
         if (inputEl) {
-          inputEl.value = this.toPersianDigits(100);
+          inputEl.value = this.formatTypedDigits(100, share._pctScript);
         }
         return;
       }
@@ -3859,10 +3876,14 @@ document.addEventListener("alpine:init", () => {
       if (!share) {
         return;
       }
-      const { english } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
+      const { english, script } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
         allowDecimal: false,
-        allowNegative: false
+        allowNegative: false,
+        preserveScript: true
       });
+      if (script) {
+        share._amtScript = script;
+      }
       share.shareAmount = english === "" ? "" : Math.max(0, Number(english));
     },
     finalizeSplitShareAmount(index) {
@@ -3874,10 +3895,14 @@ document.addEventListener("alpine:init", () => {
       share.shareAmount = Number.isFinite(num) ? Math.max(0, num) : 0;
     },
     setRedeemPoints(rawValue) {
-      const { english } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
+      const { english, script } = window.SugaristaDigits.sanitizeNumericInput(rawValue, {
         allowDecimal: false,
-        allowNegative: false
+        allowNegative: false,
+        preserveScript: true
       });
+      if (script) {
+        this.checkoutForm._redeemPointsScript = script;
+      }
       this.checkoutForm.redeemPoints = english;
     },
     toPersianNumber(value) {

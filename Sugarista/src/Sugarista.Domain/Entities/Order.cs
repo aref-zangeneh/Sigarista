@@ -44,6 +44,9 @@ public class Order : BaseAuditableEntity
 
     public string? Note { get; private set; }
 
+    /// <summary>Confidential note visible and editable strictly by cafe management; never printed on receipts.</summary>
+    public string? ManagerNote { get; private set; }
+
     public OrderStatus Status { get; private set; } = OrderStatus.PendingPayment;
 
     public decimal TotalAmount { get; private set; }
@@ -529,6 +532,34 @@ public class Order : BaseAuditableEntity
         HeldAt = null;
     }
 
+    public void SetManagerNote(string? managerNote)
+    {
+        if (string.IsNullOrWhiteSpace(managerNote))
+        {
+            ManagerNote = null;
+            return;
+        }
+
+        var trimmed = managerNote.Trim();
+        if (trimmed.Length > 1000)
+        {
+            throw new DomainException("یادداشت مدیریت نمی‌تواند بیش از ۱۰۰۰ کاراکتر باشد.");
+        }
+
+        ManagerNote = trimmed;
+    }
+
+    public static string GetPaymentMethodLabel(PosPaymentMethod method) => method switch
+    {
+        PosPaymentMethod.Cash => "نقدی",
+        PosPaymentMethod.Card => "کارت‌خوان (پوز)",
+        PosPaymentMethod.CardToCard => "کارت به کارت",
+        PosPaymentMethod.Split => "پرداخت ترکیبی",
+        PosPaymentMethod.OnlineGateway => "درگاه اینترنتی",
+        PosPaymentMethod.Complimentary => "رایگان",
+        _ => method.ToString()
+    };
+
     public void PayAtPos(PosPaymentMethod paymentMethod)
     {
         if (paymentMethod == PosPaymentMethod.Complimentary)
@@ -547,6 +578,66 @@ public class Order : BaseAuditableEntity
         }
 
         MarkPaid();
+    }
+
+    public IReadOnlyList<OrderPayment> RecordPosPayments(
+        IReadOnlyCollection<(PosPaymentMethod Method, decimal Amount, string? Reference)> allocations)
+    {
+        if (allocations is null || allocations.Count == 0)
+        {
+            throw new DomainException("حداقل یک روش پرداخت باید مشخص شود.");
+        }
+
+        var roundedTotal = Math.Round(TotalAmount, 2, MidpointRounding.AwayFromZero);
+        foreach (var leg in allocations)
+        {
+            if (leg.Method is not (PosPaymentMethod.Cash or PosPaymentMethod.Card or PosPaymentMethod.CardToCard))
+            {
+                throw new DomainException("روش پرداخت در تسویه صندوق فقط می‌تواند نقدی، کارت‌خوان یا کارت به کارت باشد.");
+            }
+
+            if (leg.Amount < 0m || (roundedTotal > 0m && leg.Amount <= 0m))
+            {
+                throw new DomainException("مبلغ هر بخش از پرداخت باید بزرگ‌تر از صفر باشد.");
+            }
+        }
+
+        var sum = Math.Round(allocations.Sum(leg => leg.Amount), 2, MidpointRounding.AwayFromZero);
+        if (roundedTotal > 0m && sum != roundedTotal)
+        {
+            throw new DomainException(
+                $"مجموع مبالغ پرداختی ({sum:N0} تومان) باید دقیقاً برابر مبلغ قابل پرداخت سفارش ({roundedTotal:N0} تومان) باشد.");
+        }
+
+        var positiveLegs = allocations.Where(leg => leg.Amount > 0m).ToList();
+        var distinctMethods = positiveLegs.Select(leg => leg.Method).Distinct().ToList();
+        var effectiveMethod = distinctMethods.Count switch
+        {
+            0 => allocations.First().Method,
+            1 => distinctMethods[0],
+            _ => PosPaymentMethod.Split
+        };
+
+        PayAtPos(effectiveMethod);
+
+        var createdPayments = new List<OrderPayment>(positiveLegs.Count);
+        var index = 1;
+        foreach (var leg in positiveLegs)
+        {
+            var payment = new OrderPayment(
+                Id,
+                payerKey: $"pos-{index}",
+                payerLabel: GetPaymentMethodLabel(leg.Method),
+                amount: Math.Round(leg.Amount, 2, MidpointRounding.AwayFromZero),
+                paymentAuthority: $"POS-{leg.Method}-{Guid.NewGuid():N}",
+                paymentMethod: leg.Method);
+            payment.MarkPaid(string.IsNullOrWhiteSpace(leg.Reference) ? null : leg.Reference);
+            Payments.Add(payment);
+            createdPayments.Add(payment);
+            index++;
+        }
+
+        return createdPayments;
     }
 
     public void ConfigureOrderKind(OrderKind orderKind, string? reason = null)

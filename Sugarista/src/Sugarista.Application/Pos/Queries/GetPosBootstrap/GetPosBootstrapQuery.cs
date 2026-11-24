@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Menu.Queries.GetPublicMenu;
 using Sugarista.Application.Salon.Queries.GetSalonStatus;
+using Sugarista.Domain.Constants;
 using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Pos.Queries.GetPosBootstrap;
@@ -13,15 +14,18 @@ public class GetPosBootstrapQueryHandler : IRequestHandler<GetPosBootstrapQuery,
     private readonly IApplicationDbContext _dbContext;
     private readonly ISender _sender;
     private readonly IDateTime _dateTime;
+    private readonly ICurrentUserService _currentUserService;
 
     public GetPosBootstrapQueryHandler(
         IApplicationDbContext dbContext,
         ISender sender,
-        IDateTime dateTime)
+        IDateTime dateTime,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
         _sender = sender;
         _dateTime = dateTime;
+        _currentUserService = currentUserService;
     }
 
     public async Task<PosBootstrapDto> Handle(GetPosBootstrapQuery request, CancellationToken cancellationToken)
@@ -29,6 +33,7 @@ public class GetPosBootstrapQueryHandler : IRequestHandler<GetPosBootstrapQuery,
         var menu = await _sender.Send(new GetPublicMenuQuery(), cancellationToken);
         var salon = await _sender.Send(new GetSalonStatusQuery(), cancellationToken);
         var now = _dateTime.UtcNow;
+        var includeManagerNote = _currentUserService.HasPermission(AdminPermissions.Pos.ManagerNote);
 
         var openBalances = await _dbContext.Orders
             .AsNoTracking()
@@ -73,6 +78,7 @@ public class GetPosBootstrapQueryHandler : IRequestHandler<GetPosBootstrapQuery,
                     order.Channel == OrderChannel.Pos &&
                     order.Status == OrderStatus.Held),
             tableNames,
+            includeManagerNote,
             cancellationToken);
 
         var recentOrders = await LoadOrderSummariesAsync(
@@ -83,6 +89,7 @@ public class GetPosBootstrapQueryHandler : IRequestHandler<GetPosBootstrapQuery,
                     order.Status != OrderStatus.Held &&
                     order.CreatedAt >= now.AddDays(-2)),
             tableNames,
+            includeManagerNote,
             cancellationToken,
             limit: 30);
 
@@ -92,17 +99,19 @@ public class GetPosBootstrapQueryHandler : IRequestHandler<GetPosBootstrapQuery,
     private static async Task<IReadOnlyCollection<PosOrderSummaryDto>> LoadOrderSummariesAsync(
         IQueryable<Order> query,
         IReadOnlyDictionary<Guid, string> tableNames,
+        bool includeManagerNote,
         CancellationToken cancellationToken,
         int limit = 50)
     {
         var orders = await query
             .Include(order => order.Lines)
+            .Include(order => order.Payments)
             .OrderByDescending(order => order.HeldAt ?? order.CreatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken);
 
         return orders
-            .Select(order => PosOrderMapper.ToSummary(order, tableNames))
+            .Select(order => PosOrderMapper.ToSummary(order, tableNames, includeManagerNote))
             .ToArray();
     }
 }

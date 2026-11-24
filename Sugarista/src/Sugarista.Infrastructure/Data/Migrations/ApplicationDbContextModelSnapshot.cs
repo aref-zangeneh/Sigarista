@@ -3491,6 +3491,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("ManagerNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<decimal>("ManualDiscountAmount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("numeric(18,2)")
@@ -3787,6 +3791,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("ReferenceId")
                         .HasMaxLength(100)

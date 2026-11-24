@@ -1,6 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildCustomerReceiptHtml, buildPosReceiptBundle, formatCustomerReceiptText } from './posReceipt.js'
+import {
+  buildBaristaReceiptHtml,
+  buildCustomerReceiptHtml,
+  buildPosReceiptBundle,
+  formatCustomerReceiptText,
+  formatPaymentBreakdown,
+} from './posReceipt.js'
 import { buildUpsertPayload, computeManualDiscount } from './posCart.js'
 import { buildQrSvg, encodeQrMatrix } from './qrSvg.js'
 
@@ -334,4 +340,50 @@ test('buildPosReceiptBundle and buildCustomerReceiptHtml honor dynamic customer 
   assert.match(html, /اسکن برای منوی دیجیتال/)
   assert.match(html, /@sugarista\.cafe/)
   assert.match(html, /شوگریستا — شعبه اندرزگو/)
+})
+
+test('formatPaymentBreakdown and buildPosReceiptBundle render CardToCard and Split breakdown while never leaking managerNote', () => {
+  assert.equal(formatPaymentBreakdown('CardToCard', []), 'کارت به کارت')
+  assert.equal(
+    formatPaymentBreakdown('Split', [
+      { method: 'Cash', amount: 100000 },
+      { method: 'CardToCard', amount: 155000 },
+    ]),
+    'پرداخت ترکیبی (۱۰۰٬۰۰۰ نقدی + ۱۵۵٬۰۰۰ کارت به کارت)',
+  )
+
+  const secretManagerNote = 'یادداشت کاملاً محرمانه ویژه مدیر کل'
+  const bundle = buildPosReceiptBundle({
+    result: {
+      trackingCode: 'SG-SPL01',
+      totalAmount: 255000,
+      paymentMethod: 'Split',
+      paymentLegs: [
+        { method: 'Cash', amount: 100000 },
+        { method: 'CardToCard', amount: 155000 },
+      ],
+      managerNote: secretManagerNote,
+    },
+    cart: [{ name: 'کاپوچینو', quantity: 1, unitPrice: 255000, modifierLabels: [], options: [] }],
+    orderNote: 'دارچین اضافه',
+    managerNote: secretManagerNote,
+    serviceType: 'DineIn',
+    siteSettings: { cafeName: 'شوگریستا' },
+  })
+
+  assert.equal(
+    bundle.customer.paymentMethod,
+    'پرداخت ترکیبی (۱۰۰٬۰۰۰ نقدی + ۱۵۵٬۰۰۰ کارت به کارت)',
+  )
+
+  const customerHtml = buildCustomerReceiptHtml(bundle.customer)
+  const customerText = formatCustomerReceiptText(bundle.customer)
+  const baristaHtml = buildBaristaReceiptHtml(bundle.barista)
+  const serializedPayload = JSON.stringify(bundle.renderPayload)
+
+  assert.match(customerHtml, /پرداخت ترکیبی \(۱۰۰٬۰۰۰ نقدی \+ ۱۵۵٬۰۰۰ کارت به کارت\)/)
+  assert.equal(customerHtml.includes(secretManagerNote), false)
+  assert.equal(customerText.includes(secretManagerNote), false)
+  assert.equal(baristaHtml.includes(secretManagerNote), false)
+  assert.equal(serializedPayload.includes(secretManagerNote), false)
 })

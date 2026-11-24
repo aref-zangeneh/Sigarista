@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.MenuItems.Bundles;
 using Sugarista.Application.Orders;
 using Sugarista.Application.Orders.Services;
+using Sugarista.Domain.Constants;
 using Sugarista.Domain.Entities;
+using Sugarista.Domain.Exceptions;
 
 namespace Sugarista.Application.Orders.Commands.UpdateAdminOrder;
 
@@ -23,7 +26,8 @@ public record UpdateAdminOrderCommand(
     string? CustomerName,
     string? CustomerPhone,
     string? Note,
-    IReadOnlyCollection<AdminOrderLineRequest>? Lines) : IRequest<AdminOrderDetailDto>;
+    IReadOnlyCollection<AdminOrderLineRequest>? Lines,
+    string? ManagerNote = null) : IRequest<AdminOrderDetailDto>;
 
 public record AdminOrderDetailDto(
     Guid Id,
@@ -60,7 +64,9 @@ public record AdminOrderDetailDto(
     decimal ManualDiscountAmount = 0m,
     string? ManualDiscountReason = null,
     string? ManualDiscountAppliedBy = null,
-    IReadOnlyCollection<AdminOrderDiscountDto>? Discounts = null);
+    IReadOnlyCollection<AdminOrderDiscountDto>? Discounts = null,
+    string? ManagerNote = null,
+    Guid? CustomerId = null);
 
 public record AdminOrderDiscountDto(
     Guid Id,
@@ -96,7 +102,9 @@ public record AdminOrderPaymentDto(
     string PayerLabel,
     decimal Amount,
     string Status,
-    DateTimeOffset? PaidAt);
+    DateTimeOffset? PaidAt,
+    string? PaymentMethod = null,
+    string? ReferenceId = null);
 
 public class UpdateAdminOrderCommandValidator : AbstractValidator<UpdateAdminOrderCommand>
 {
@@ -106,20 +114,31 @@ public class UpdateAdminOrderCommandValidator : AbstractValidator<UpdateAdminOrd
         RuleFor(c => c.CustomerName).MaximumLength(200);
         RuleFor(c => c.CustomerPhone).MaximumLength(30);
         RuleFor(c => c.Note).MaximumLength(500);
+        RuleFor(c => c.ManagerNote).MaximumLength(1000);
     }
 }
 
 public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCommand, AdminOrderDetailDto>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UpdateAdminOrderCommandHandler(IApplicationDbContext dbContext)
+    public UpdateAdminOrderCommandHandler(
+        IApplicationDbContext dbContext,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
+        _currentUserService = currentUserService;
     }
 
     public async Task<AdminOrderDetailDto> Handle(UpdateAdminOrderCommand request, CancellationToken cancellationToken)
     {
+        var canManageManagerNote = _currentUserService.HasPermission(AdminPermissions.Pos.ManagerNote);
+        if (!canManageManagerNote && !string.IsNullOrWhiteSpace(request.ManagerNote))
+        {
+            throw new DomainException("شما مجوز ثبت یا ویرایش یادداشت مدیریت را ندارید.");
+        }
+
         var order = await _dbContext.Orders
             .Include(o => o.Lines)
             .Include(o => o.Payments)
@@ -130,6 +149,11 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
         if (order.Status == OrderStatus.Cancelled)
         {
             throw new InvalidOperationException("Cancelled orders cannot be modified.");
+        }
+
+        if (canManageManagerNote && request.ManagerNote is not null)
+        {
+            order.SetManagerNote(request.ManagerNote);
         }
 
         if (!string.IsNullOrWhiteSpace(request.CustomerName) &&
@@ -171,7 +195,7 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
-        return AdminOrderMapper.ToDetail(order);
+        return AdminOrderMapper.ToDetail(order, canManageManagerNote);
     }
 
     private async Task ApplyLineChangesAsync(
@@ -288,9 +312,9 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
     }
 }
 
-internal static class AdminOrderMapper
+public static class AdminOrderMapper
 {
-    internal static AdminOrderDetailDto ToDetail(Order order)
+    public static AdminOrderDetailDto ToDetail(Order order, bool includeManagerNote = false)
     {
         return new AdminOrderDetailDto(
             order.Id,
@@ -341,7 +365,9 @@ internal static class AdminOrderMapper
                     payment.PayerLabel,
                     payment.Amount,
                     payment.Status.ToString(),
-                    payment.PaidAt))
+                    payment.PaidAt,
+                    payment.PaymentMethod?.ToString(),
+                    payment.ReferenceId))
                 .ToArray(),
             order.OrderKind.ToString(),
             order.ComplimentaryReason,
@@ -364,6 +390,8 @@ internal static class AdminOrderMapper
                     discount.Amount,
                     discount.Code,
                     discount.RedeemedAt))
-                .ToArray());
+                .ToArray(),
+            includeManagerNote ? order.ManagerNote : null,
+            order.CustomerId);
     }
 }

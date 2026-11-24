@@ -72,7 +72,8 @@ public class AdminOrdersController : ApiControllerBase
                 request.CustomerName,
                 request.CustomerPhone,
                 request.Note,
-                request.Lines),
+                request.Lines,
+                request.ManagerNote),
             cancellationToken));
     }
 
@@ -150,4 +151,5 @@ public record UpdateAdminOrderRequest(
     string? CustomerName,
     string? CustomerPhone,
     string? Note,
-    IReadOnlyCollection<AdminOrderLineRequest>? Lines);
+    IReadOnlyCollection<AdminOrderLineRequest>? Lines,
+    string? ManagerNote = null);

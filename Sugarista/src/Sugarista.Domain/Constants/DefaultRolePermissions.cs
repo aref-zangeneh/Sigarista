@@ -71,6 +71,7 @@ public static class DefaultRolePermissions
         AdminPermissions.Pos.Update,
         AdminPermissions.Pos.Pay,
         AdminPermissions.Pos.ApplyManualDiscount,
+        AdminPermissions.Pos.ManagerNote,
         AdminPermissions.Hr.View,
         AdminPermissions.Hr.Create,
         AdminPermissions.Hr.Update,

@@ -158,6 +158,7 @@ public static class AdminPermissions
         public const string Delete = "admin.pos.delete";
         public const string Pay = "admin.pos.pay";
         public const string ApplyManualDiscount = "admin.pos.apply-discount";
+        public const string ManagerNote = "admin.pos.manager-note";
     }
 
     public static class Hr
@@ -314,6 +315,7 @@ public static class AdminPermissions
         new(Pos.Delete, "pos", "delete", "صندوق فروش", "حذف سفارش"),
         new(Pos.Pay, "pos", "pay", "صندوق فروش", "دریافت پرداخت"),
         new(Pos.ApplyManualDiscount, "pos", "apply-discount", "صندوق فروش", "اعمال تخفیف دلخواه روی سفارش"),
+        new(Pos.ManagerNote, "pos", "manager-note", "صندوق فروش", "مشاهده و ثبت یادداشت محرمانه مدیریت"),
         new(Accounting.View, "accounting", "view", "حسابداری", "مشاهده"),
         new(Accounting.Create, "accounting", "create", "حسابداری", "ثبت سند / سرمایه"),
         new(Accounting.Update, "accounting", "update", "حسابداری", "ویرایش شرکا / تقسیم سود"),

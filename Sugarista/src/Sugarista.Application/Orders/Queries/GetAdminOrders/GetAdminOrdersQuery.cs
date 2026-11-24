@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Common.Extensions;
-using Sugarista.Domain.Entities;
+using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Common.Models;
+using Sugarista.Domain.Constants;
+using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Orders.Queries.GetAdminOrders;
 
@@ -40,20 +42,26 @@ public record AdminOrderListItemDto(
     decimal? ManualDiscountValue = null,
     decimal ManualDiscountAmount = 0m,
     string? ManualDiscountReason = null,
-    string? ManualDiscountAppliedBy = null);
+    string? ManualDiscountAppliedBy = null,
+    string? ManagerNote = null);
 
 public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, PaginatedList<AdminOrderListItemDto>>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly ICurrentUserService _currentUserService;
 
-    public GetAdminOrdersQueryHandler(IApplicationDbContext dbContext)
+    public GetAdminOrdersQueryHandler(
+        IApplicationDbContext dbContext,
+        ICurrentUserService currentUserService)
     {
         _dbContext = dbContext;
+        _currentUserService = currentUserService;
     }
 
     public async Task<PaginatedList<AdminOrderListItemDto>> Handle(GetAdminOrdersQuery request, CancellationToken cancellationToken)
     {
         var pagination = new PaginationQuery(request.Page, request.PageSize, request.Search);
+        var includeManagerNote = _currentUserService.HasPermission(AdminPermissions.Pos.ManagerNote);
 
         var query = _dbContext.Orders.AsNoTracking();
 
@@ -117,7 +125,8 @@ public class GetAdminOrdersQueryHandler : IRequestHandler<GetAdminOrdersQuery, P
                 order.ManualDiscountValue,
                 order.ManualDiscountAmount,
                 order.ManualDiscountReason,
-                order.ManualDiscountAppliedBy))
+                order.ManualDiscountAppliedBy,
+                includeManagerNote ? order.ManagerNote : null))
             .ToPaginatedListAsync(pagination, cancellationToken);
     }
 }

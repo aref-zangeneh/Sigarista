@@ -166,6 +166,7 @@ export const PERMISSIONS = {
     delete: 'admin.pos.delete',
     pay: 'admin.pos.pay',
     applyDiscount: 'admin.pos.apply-discount',
+    managerNote: 'admin.pos.manager-note',
   },
   accounting: {
     view: 'admin.accounting.view',

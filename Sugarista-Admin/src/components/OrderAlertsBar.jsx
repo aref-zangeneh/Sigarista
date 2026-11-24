@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import './OrderAlertsBar.css'
 import {
   ALERT_SOUND_INTERVAL_PRESETS,
@@ -12,15 +13,33 @@ export function fulfillmentStatusLabel(status) {
     case 'Registered':
     case 'None':
     case '':
-      return 'سفارش ثبت شده — منتظر آماده‌سازی'
+      return 'ثبت‌شده (منتظر آماده‌سازی)'
     case 'Preparing':
       return 'در حال آماده‌سازی'
     case 'Ready':
-      return 'سفارش آماده'
+      return 'آماده تحویل'
     case 'Completed':
       return 'تحویل داده شد'
     default:
       return '—'
+  }
+}
+
+function shortFulfillmentLabel(status, isNew) {
+  if (isNew) return 'جدید'
+  switch (status) {
+    case 'Registered':
+    case 'None':
+    case '':
+      return 'منتظر آماده‌سازی'
+    case 'Preparing':
+      return 'در حال آماده‌سازی'
+    case 'Ready':
+      return 'آماده تحویل'
+    case 'Completed':
+      return 'تحویل شد'
+    default:
+      return 'ثبت‌شده'
   }
 }
 
@@ -31,8 +50,7 @@ export function FulfillmentBadge({ status }) {
     ) : null
   }
 
-  const normalized =
-    status === 'None' || status === '' ? 'Registered' : status
+  const normalized = status === 'None' || status === '' ? 'Registered' : status
 
   const className =
     normalized === 'Registered'
@@ -46,54 +64,76 @@ export function FulfillmentBadge({ status }) {
   return <span className={className}>{fulfillmentStatusLabel(status)}</span>
 }
 
-function OrderAlertItem({ order, tone = 'default', busyState = null, onOpenOrder, onDismissNew }) {
-  const isNew = tone === 'new'
+function OrderAlertRow({ order, isNew = false, busyState = null, onOpenOrder, onDismissNew }) {
   const isBusy = Boolean(busyState)
+  const normalizedStatus =
+    !order.fulfillmentStatus || order.fulfillmentStatus === 'None'
+      ? 'Registered'
+      : order.fulfillmentStatus
+  const cleanPhone =
+    order.customerPhone && String(order.customerPhone).toUpperCase() !== 'POS'
+      ? order.customerPhone
+      : null
+
+  const statusMod = isNew
+    ? 'new'
+    : normalizedStatus === 'Ready'
+      ? 'ready'
+      : normalizedStatus === 'Preparing'
+        ? 'preparing'
+        : 'registered'
 
   return (
-    <article
-      className={`order-alert-item ${isNew ? 'order-alert-item--new' : ''} ${isBusy ? 'order-alert-item--busy' : ''}`}
+    <div
+      className={`order-alert-row ${isNew ? 'is-new' : ''} ${isBusy ? 'is-busy' : ''}`}
       aria-busy={isBusy || undefined}
     >
-      <div>
-        <strong>
-          {isNew ? 'سفارش جدید پرداخت شد — ' : ''}
-          {order.trackingCode}
+      <div className="order-alert-row-main">
+        <span className={`order-alert-pill order-alert-pill--${statusMod}`}>
+          {shortFulfillmentLabel(normalizedStatus, isNew)}
+        </span>
+        <strong className="order-alert-code" dir="ltr" data-latin-digits="true">
+          #{order.trackingCode}
         </strong>
-        <div className="table-subtext">
-          {order.customerName} · {order.customerPhone}
-          {order.orderKind === 'InternalUse' ? ' · مصرف داخلی' : null}
-          {order.orderKind === 'Complimentary' ? ' · مهمان / رایگان' : null}
-          {order.complimentaryReason ? ` (${order.complimentaryReason})` : null}
-        </div>
-        <FulfillmentBadge status={order.fulfillmentStatus} />
+        <span className="order-alert-customer">
+          {order.customerName || 'مهمان'}
+          {cleanPhone ? (
+            <small className="order-alert-phone" dir="ltr">
+              {cleanPhone}
+            </small>
+          ) : null}
+        </span>
+        {order.orderKind === 'InternalUse' ? (
+          <span className="order-alert-kind">مصرف داخلی</span>
+        ) : order.orderKind === 'Complimentary' ? (
+          <span className="order-alert-kind">مهمان</span>
+        ) : null}
       </div>
-      <div className="order-fulfillment-actions">
+
+      <div className="order-alert-row-actions">
         <button
           type="button"
-          className="ghost-button"
+          className="order-alert-btn order-alert-btn--primary"
           disabled={isBusy}
-          aria-disabled={isBusy}
           onClick={() => {
-            if (!isBusy) {
-              onOpenOrder(order)
-            }
+            if (!isBusy) onOpenOrder(order)
           }}
         >
-          {busyState?.label || 'مدیریت'}
+          {busyState?.label || 'بررسی'}
         </button>
         {isNew && onDismissNew ? (
           <button
             type="button"
-            className="ghost-button"
+            className="order-alert-btn order-alert-btn--ghost"
             disabled={isBusy}
+            title="متوجه شدم"
             onClick={() => onDismissNew(order.id)}
           >
-            متوجه شدم
+            ✓ دیدم
           </button>
         ) : null}
       </div>
-    </article>
+    </div>
   )
 }
 
@@ -108,17 +148,47 @@ export function OrderAlertsBar({
   onOpenOrder,
   onDismissNew,
 }) {
-  if (!alerts) {
-    return null
-  }
-
-  const kitchenOrders = alerts.activeKitchenOrders ?? []
-  const readyOrders = alerts.readyForPickupOrders ?? []
-  const newOrders = alerts.newPaidOrders ?? []
+  const kitchenOrders = alerts?.activeKitchenOrders ?? []
+  const readyOrders = alerts?.readyForPickupOrders ?? []
+  const newOrders = alerts?.newPaidOrders ?? []
   const hasKitchen = kitchenOrders.length > 0
   const hasReady = readyOrders.length > 0
 
-  if (!hasKitchen && !hasReady) {
+  const [expanded, setExpanded] = useState(() => newOrders.length > 0)
+
+  useEffect(() => {
+    if (pulse && newOrders.length > 0) {
+      setExpanded(true)
+    }
+  }, [pulse, newOrders.length])
+
+  const unifiedOrders = useMemo(() => {
+    const newIdSet = new Set(newOrders.map((o) => o.id))
+    const seen = new Set()
+    const list = []
+
+    for (const order of newOrders) {
+      if (!seen.has(order.id)) {
+        seen.add(order.id)
+        list.push({ order, isNew: true })
+      }
+    }
+    for (const order of kitchenOrders) {
+      if (!seen.has(order.id)) {
+        seen.add(order.id)
+        list.push({ order, isNew: newIdSet.has(order.id) })
+      }
+    }
+    for (const order of readyOrders) {
+      if (!seen.has(order.id)) {
+        seen.add(order.id)
+        list.push({ order, isNew: newIdSet.has(order.id) })
+      }
+    }
+    return list
+  }, [newOrders, kitchenOrders, readyOrders])
+
+  if (!alerts || (!hasKitchen && !hasReady)) {
     return null
   }
 
@@ -127,27 +197,111 @@ export function OrderAlertsBar({
     ? ALERT_SOUND_INTERVAL_PRESETS
     : [...ALERT_SOUND_INTERVAL_PRESETS, normalizedSound.intervalSeconds].sort((a, b) => a - b)
 
+  const kitchenCount = alerts.pendingKitchenCount ?? kitchenOrders.length
+  const readyCount = alerts.readyCount ?? readyOrders.length
+  const isUrgent = newOrders.length > 0 || kitchenCount > 0
+
   return (
-    <section className={`order-alerts-bar ${pulse ? 'order-alerts-bar--pulse' : ''}`}>
-      <div className="order-alerts-head">
-        <div>
-          <strong>اعلان سفارش</strong>
-          <p className="table-subtext">{formatAlertSoundDescription(normalizedSound)}</p>
-        </div>
-        <div className="order-alerts-stats">
-          <span className="order-alert-stat order-alert-stat--urgent">
-            نیاز به آماده‌سازی: <strong>{alerts.pendingKitchenCount ?? kitchenOrders.length}</strong>
-          </span>
-          <span className="order-alert-stat">
-            آماده تحویل: <strong>{alerts.readyCount ?? readyOrders.length}</strong>
-          </span>
-          {onUpdateSoundSettings ? (
-            <div className="order-alert-sound-controls">
+    <section
+      className={`order-alerts-bar ${isUrgent ? 'is-urgent' : 'is-ready-only'} ${pulse ? 'order-alerts-bar--pulse' : ''}`}
+      aria-label="نوار اعلان سفارش‌ها"
+    >
+      <div className="order-alerts-strip">
+        <div className="order-alerts-strip-start">
+          <button
+            type="button"
+            className="order-alerts-toggle-btn"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((prev) => !prev)}
+            title={expanded ? 'جمع کردن لیست سفارش‌ها' : 'نمایش لیست سفارش‌های فعال'}
+          >
+            <span className={`order-alerts-dot ${isUrgent ? 'is-urgent' : 'is-ready'}`} />
+            <span className="order-alerts-title">سفارش‌های فعال</span>
+            <svg
+              className={`order-alerts-chevron ${expanded ? 'is-open' : ''}`}
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m5 7.5 5 5 5-5" />
+            </svg>
+          </button>
+
+          <div className="order-alerts-counters">
+            {newOrders.length > 0 ? (
               <button
                 type="button"
-                className={`ghost-button order-alert-sound-toggle ${normalizedSound.enabled ? 'is-on' : 'is-muted'}`}
+                className="order-alert-chip order-alert-chip--new"
+                onClick={() => setExpanded(true)}
+              >
+                <span>جدید</span>
+                <strong>{toPersianDigits(newOrders.length)}</strong>
+              </button>
+            ) : null}
+
+            {kitchenCount > 0 ? (
+              <button
+                type="button"
+                className="order-alert-chip order-alert-chip--kitchen"
+                onClick={() => setExpanded((prev) => !prev)}
+              >
+                <span>در صف آماده‌سازی</span>
+                <strong>{toPersianDigits(kitchenCount)}</strong>
+              </button>
+            ) : null}
+
+            {readyCount > 0 ? (
+              <button
+                type="button"
+                className="order-alert-chip order-alert-chip--ready"
+                onClick={() => setExpanded((prev) => !prev)}
+              >
+                <span>آماده تحویل</span>
+                <strong>{toPersianDigits(readyCount)}</strong>
+              </button>
+            ) : null}
+          </div>
+
+          {!expanded && unifiedOrders.length > 0 ? (
+            <div className="order-alerts-inline-preview">
+              {unifiedOrders.slice(0, 2).map(({ order, isNew }) => (
+                <button
+                  key={order.id}
+                  type="button"
+                  className={`order-alerts-mini-order ${isNew ? 'is-new' : ''}`}
+                  onClick={() => onOpenOrder(order)}
+                  title="کلیک برای بررسی سریع سفارش"
+                >
+                  <span dir="ltr" data-latin-digits="true">#{order.trackingCode}</span>
+                  <small>{order.customerName || 'مهمان'}</small>
+                </button>
+              ))}
+              {unifiedOrders.length > 2 ? (
+                <button
+                  type="button"
+                  className="order-alerts-more-btn"
+                  onClick={() => setExpanded(true)}
+                >
+                  +{toPersianDigits(unifiedOrders.length - 2)} مورد دیگر
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="order-alerts-strip-end">
+          {onUpdateSoundSettings ? (
+            <div className="order-alert-sound-pill">
+              <button
+                type="button"
+                className={`order-alert-sound-btn ${normalizedSound.enabled ? 'is-on' : 'is-off'}`}
                 disabled={soundSaving}
                 aria-pressed={normalizedSound.enabled}
+                title={formatAlertSoundDescription(normalizedSound)}
                 onClick={() => {
                   const nextEnabled = !normalizedSound.enabled
                   if (nextEnabled) {
@@ -159,73 +313,64 @@ export function OrderAlertsBar({
                   })
                 }}
               >
-                {normalizedSound.enabled ? '🔊 صدا روشن' : '🔇 صدا خاموش'}
+                {normalizedSound.enabled ? (
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M9.5 4.5 5.8 7.5H3.2v5h2.6l3.7 3V4.5Z" />
+                    <path d="M13 7.2a4 4 0 0 1 0 5.6M15.4 5a7.2 7.2 0 0 1 0 10" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M9.5 4.5 5.8 7.5H3.2v5h2.6l3.7 3V4.5Z" />
+                    <path d="m13 7.5 4 5m0-5-4 5" />
+                  </svg>
+                )}
+                <span>{normalizedSound.enabled ? 'صدا' : 'بی‌صدا'}</span>
               </button>
-              <select
-                className="order-alert-interval-select"
-                aria-label="فاصله تکرار صدای اعلان سفارش"
-                value={String(normalizedSound.intervalSeconds)}
-                disabled={soundSaving || !normalizedSound.enabled}
-                onChange={(event) =>
-                  onUpdateSoundSettings({
-                    enabled: normalizedSound.enabled,
-                    intervalSeconds: Number(event.target.value),
-                  })
-                }
-              >
-                {intervalOptions.map((seconds) => (
-                  <option key={seconds} value={String(seconds)}>
-                    {seconds === 0 ? 'فقط یک‌بار (بدون تکرار)' : `هر ${toPersianDigits(seconds)} ثانیه`}
-                  </option>
-                ))}
-              </select>
+
+              {normalizedSound.enabled ? (
+                <select
+                  className="order-alert-interval-mini"
+                  aria-label="فاصله تکرار صدای اعلان سفارش"
+                  value={String(normalizedSound.intervalSeconds)}
+                  disabled={soundSaving}
+                  onChange={(event) =>
+                    onUpdateSoundSettings({
+                      enabled: true,
+                      intervalSeconds: Number(event.target.value),
+                    })
+                  }
+                >
+                  {intervalOptions.map((seconds) => (
+                    <option key={seconds} value={String(seconds)}>
+                      {seconds === 0 ? 'یک‌بار' : `هر ${toPersianDigits(seconds)}ث`}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
             </div>
           ) : null}
-          <button type="button" className="ghost-button" onClick={onOpenOrders}>
-            مشاهده همه سفارش‌ها
+
+          <button
+            type="button"
+            className="order-alerts-all-btn"
+            onClick={onOpenOrders}
+          >
+            <span>همه سفارش‌ها</span>
+            <span aria-hidden="true">←</span>
           </button>
         </div>
       </div>
 
-      {newOrders.length > 0 ? (
-        <div className="order-alerts-list">
-          <p className="order-alerts-section-title">سفارش‌های تازه پرداخت‌شده</p>
-          {newOrders.map((order) => (
-            <OrderAlertItem
-              key={`new-${order.id}`}
+      {expanded && unifiedOrders.length > 0 ? (
+        <div className="order-alerts-drawer">
+          {unifiedOrders.map(({ order, isNew }) => (
+            <OrderAlertRow
+              key={order.id}
               order={order}
-              tone="new"
+              isNew={isNew}
               busyState={busyOrders?.[String(order.id)] ?? null}
               onOpenOrder={onOpenOrder}
               onDismissNew={onDismissNew}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {hasKitchen ? (
-        <div className="order-alerts-list">
-          <p className="order-alerts-section-title">در صف آماده‌سازی</p>
-          {kitchenOrders.map((order) => (
-            <OrderAlertItem
-              key={`kitchen-${order.id}`}
-              order={order}
-              busyState={busyOrders?.[String(order.id)] ?? null}
-              onOpenOrder={onOpenOrder}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {hasReady ? (
-        <div className="order-alerts-list">
-          <p className="order-alerts-section-title">آماده تحویل به مشتری</p>
-          {readyOrders.map((order) => (
-            <OrderAlertItem
-              key={`ready-${order.id}`}
-              order={order}
-              busyState={busyOrders?.[String(order.id)] ?? null}
-              onOpenOrder={onOpenOrder}
             />
           ))}
         </div>
@@ -246,17 +391,15 @@ export function OrderFulfillmentActions({ order, saving, onUpdateStatus }) {
 
   return (
     <div className="order-fulfillment-panel">
-      <div>
+      <div className="order-fulfillment-head">
         <strong>وضعیت آماده‌سازی</strong>
-        <div>
-          <FulfillmentBadge status={status} />
-        </div>
+        <FulfillmentBadge status={status} />
       </div>
 
       {order.readySmsSentAt ? (
-        <p>پیامک «سفارش آماده» ارسال شده است.</p>
+        <p className="order-fulfillment-note">پیامک «سفارش آماده» ارسال شده است.</p>
       ) : status === 'Ready' ? (
-        <p>با علامت‌گذاری «آماده شد»، پیامک به مشتری ارسال می‌شود.</p>
+        <p className="order-fulfillment-note">با علامت‌گذاری «آماده شد»، پیامک به مشتری ارسال می‌شود.</p>
       ) : null}
 
       <div className="order-fulfillment-actions">

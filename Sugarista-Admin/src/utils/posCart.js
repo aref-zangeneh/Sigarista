@@ -1,3 +1,9 @@
+export const POS_TENDER_METHODS = [
+  { key: 'Cash', label: 'نقدی', icon: '💵' },
+  { key: 'Card', label: 'کارت‌خوان (POS)', icon: '💳' },
+  { key: 'CardToCard', label: 'کارت به کارت', icon: '📲' },
+]
+
 export function formatPrice(value) {
   const amount = Number(value) || 0
   return amount.toLocaleString('fa-IR')
@@ -32,6 +38,177 @@ export function resolveDefaultSizeKey(item) {
   )
 }
 
+export function parseNumericInput(raw) {
+  if (raw === null || raw === undefined || raw === '') return 0
+  const ascii = String(raw)
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[,٬\s]/g, '')
+  const parsed = Number(ascii)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
+export function computeSplitPaymentSummary(payableTotal, rawAllocations = {}) {
+  const target = Math.max(0, Math.round(Number(payableTotal) || 0))
+  const cashAmount = Math.round(parseNumericInput(rawAllocations.Cash ?? rawAllocations.cash))
+  const cardAmount = Math.round(parseNumericInput(rawAllocations.Card ?? rawAllocations.card))
+  const cardToCardAmount = Math.round(
+    parseNumericInput(rawAllocations.CardToCard ?? rawAllocations.cardToCard),
+  )
+  const cardToCardReference = (rawAllocations.cardToCardReference ?? '').toString().trim() || null
+  const cardReference = (rawAllocations.cardReference ?? '').toString().trim() || null
+
+  const legs = []
+  if (cashAmount > 0) {
+    legs.push({ method: 'Cash', label: 'نقدی', amount: cashAmount, reference: null })
+  }
+  if (cardAmount > 0) {
+    legs.push({
+      method: 'Card',
+      label: 'کارت‌خوان (پوز)',
+      amount: cardAmount,
+      reference: cardReference,
+    })
+  }
+  if (cardToCardAmount > 0) {
+    legs.push({
+      method: 'CardToCard',
+      label: 'کارت به کارت',
+      amount: cardToCardAmount,
+      reference: cardToCardReference,
+    })
+  }
+
+  const allocatedTotal = cashAmount + cardAmount + cardToCardAmount
+  const diff = target - allocatedTotal
+  const remainingAmount = Math.max(0, diff)
+  const excessAmount = Math.max(0, -diff)
+  const isExactMatch = target === 0 ? allocatedTotal === 0 : allocatedTotal === target && legs.length > 0
+
+  return {
+    payableTotal: target,
+    cashAmount,
+    cardAmount,
+    cardToCardAmount,
+    allocatedTotal,
+    remainingAmount,
+    excessAmount,
+    isExactMatch,
+    legs,
+    effectiveMethod:
+      legs.length === 0 ? null : legs.length === 1 ? legs[0].method : 'Split',
+  }
+}
+
+export function computeCustomerClubPreview({
+  itemsTotal = 0,
+  grandTotalBeforeDiscounts = 0,
+  customerLookup = null,
+  personalCup = false,
+  siteSettings = null,
+  redeemPoints = 0,
+  discountCode = '',
+}) {
+  const safeItemsTotal = Math.max(0, Number(itemsTotal) || 0)
+  let remainingOrderTotal = Math.max(0, Number(grandTotalBeforeDiscounts) || safeItemsTotal)
+  let remainingCap =
+    customerLookup?.remainingDailyDiscountAllowance !== null &&
+    customerLookup?.remainingDailyDiscountAllowance !== undefined
+      ? Math.max(0, Number(customerLookup.remainingDailyDiscountAllowance))
+      : null
+
+  const breakdown = []
+
+  function applyRow(key, label, rawAmount) {
+    let amount = Math.max(0, Math.round(Number(rawAmount) || 0))
+    if (amount <= 0 || remainingOrderTotal <= 0) return 0
+    amount = Math.min(amount, remainingOrderTotal)
+    if (remainingCap !== null) {
+      amount = Math.min(amount, remainingCap)
+    }
+    if (amount <= 0) return 0
+    remainingOrderTotal -= amount
+    if (remainingCap !== null) {
+      remainingCap = Math.max(0, remainingCap - amount)
+    }
+    breakdown.push({ key, label, amount })
+    return amount
+  }
+
+  let cappedRedeemPoints = 0
+  const requestedPoints = Math.floor(parseNumericInput(redeemPoints))
+  const redeemRate = Number(customerLookup?.loyaltyRedeemTomanPerPoint || siteSettings?.loyaltyRedeemTomanPerPoint || 0)
+  const availablePoints = Math.floor(Number(customerLookup?.loyaltyPoints || 0))
+  const loyaltyEnabled = Boolean(customerLookup?.loyaltyEnabled ?? siteSettings?.loyaltyEnabled)
+
+  if (customerLookup?.exists && loyaltyEnabled && redeemRate > 0 && requestedPoints > 0 && availablePoints > 0) {
+    let pts = Math.min(requestedPoints, availablePoints)
+    pts = Math.min(pts, Math.floor(remainingOrderTotal / redeemRate))
+    if (remainingCap !== null) {
+      pts = Math.min(pts, Math.floor(remainingCap / redeemRate))
+    }
+    if (pts > 0) {
+      const applied = applyRow('loyalty', 'امتیاز باشگاه مشتریان', pts * redeemRate)
+      if (applied > 0) {
+        cappedRedeemPoints = pts
+      }
+    }
+  }
+
+  if (
+    customerLookup?.exists &&
+    customerLookup.hasActiveStampReward &&
+    Number(customerLookup.stampRewardPercent) > 0 &&
+    !String(discountCode || '').trim()
+  ) {
+    applyRow(
+      'stamp',
+      `پاداش کارت مهر (${customerLookup.stampRewardPercent}٪)`,
+      Math.round((safeItemsTotal * Number(customerLookup.stampRewardPercent)) / 100),
+    )
+  }
+
+  if (customerLookup?.exists && Number(customerLookup.membershipTierDiscountPercent) > 0) {
+    applyRow(
+      'tier',
+      `${customerLookup.membershipTierName || 'سطح عضویت'} (${customerLookup.membershipTierDiscountPercent}٪)`,
+      Math.round((safeItemsTotal * Number(customerLookup.membershipTierDiscountPercent)) / 100),
+    )
+  }
+
+  if (customerLookup?.exists && customerLookup.isBirthdayDiscountActive && Number(customerLookup.birthdayDiscountPercent) > 0) {
+    applyRow(
+      'birthday',
+      `هدیهٔ تولد (${customerLookup.birthdayDiscountPercent}٪)`,
+      Math.round((safeItemsTotal * Number(customerLookup.birthdayDiscountPercent)) / 100),
+    )
+  }
+
+  if (customerLookup?.exists && Number(customerLookup.activeGroupDiscountPercent) > 0) {
+    applyRow(
+      'group',
+      `${customerLookup.activeGroupName || 'گروه مشتریان'} (${customerLookup.activeGroupDiscountPercent}٪)`,
+      Math.round((safeItemsTotal * Number(customerLookup.activeGroupDiscountPercent)) / 100),
+    )
+  }
+
+  if (personalCup && siteSettings?.personalCupDiscountEnabled && Number(siteSettings.personalCupDiscountAmount) > 0) {
+    applyRow(
+      'cup',
+      'لیوان شخصی',
+      Math.min(safeItemsTotal, Number(siteSettings.personalCupDiscountAmount)),
+    )
+  }
+
+  const totalClubDiscount = breakdown.reduce((sum, item) => sum + item.amount, 0)
+  return {
+    totalClubDiscount,
+    afterClubTotal: remainingOrderTotal,
+    breakdown,
+    cappedRedeemPoints,
+  }
+}
+
 export function buildUpsertPayload({
   orderId,
   customerName,
@@ -54,6 +231,11 @@ export function buildUpsertPayload({
   manualDiscountType = 'Amount',
   manualDiscountValue = null,
   manualDiscountReason = '',
+  paymentAllocations = null,
+  paymentReference = '',
+  discountCode = '',
+  redeemPoints = 0,
+  managerNote = undefined,
 }) {
   const isNonRevenue =
     action === 'InternalUse' ||
@@ -65,8 +247,19 @@ export function buildUpsertPayload({
   const parsedManualValue = parseNumericInput(manualDiscountValue)
   const hasManualDiscount = !isNonRevenue && parsedManualValue > 0
   const resolvedManualType = manualDiscountType === 'Percent' ? 'Percent' : 'Amount'
+  const parsedRedeemPoints = !isNonRevenue ? Math.floor(parseNumericInput(redeemPoints)) : 0
+  const normalizedAllocations =
+    action === 'PaySplit' && Array.isArray(paymentAllocations)
+      ? paymentAllocations
+          .filter((leg) => leg && Number(leg.amount) > 0)
+          .map((leg) => ({
+            method: leg.method,
+            amount: Math.round(Number(leg.amount)),
+            reference: leg.reference?.toString().trim() || null,
+          }))
+      : null
 
-  return {
+  const payload = {
     orderId: orderId ?? null,
     customerName: customerName?.trim() || null,
     customerPhone: customerPhone?.trim() || null,
@@ -97,17 +290,17 @@ export function buildUpsertPayload({
     manualDiscountType: hasManualDiscount ? resolvedManualType : null,
     manualDiscountValue: hasManualDiscount ? parsedManualValue : null,
     manualDiscountReason: hasManualDiscount ? manualDiscountReason?.trim() || null : null,
+    paymentAllocations: normalizedAllocations,
+    paymentReference: !isNonRevenue ? paymentReference?.toString().trim() || null : null,
+    discountCode: !isNonRevenue ? discountCode?.toString().trim() || null : null,
+    redeemPoints: parsedRedeemPoints,
   }
-}
 
-export function parseNumericInput(raw) {
-  if (raw === null || raw === undefined || raw === '') return 0
-  const ascii = String(raw)
-    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
-    .replace(/[,٬\s]/g, '')
-  const parsed = Number(ascii)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  if (managerNote !== undefined && managerNote !== null) {
+    payload.managerNote = String(managerNote).trim()
+  }
+
+  return payload
 }
 
 export function computeManualDiscount(baseAmount, type = 'Amount', rawValue = 0) {

@@ -96,51 +96,92 @@ export function toPersianDisplayText(text) {
 }
 
 /**
+ * Preserves the script the user typed in an input:
+ * - English digits (0-9) stay English (0-9)
+ * - Persian digits (۰-۹) stay Persian (۰-۹)
+ * - Arabic-Indic digits (٠-٩) normalize visually to Persian (۰-۹)
+ */
+export function preserveTypedDigitsDisplay(text) {
+  if (typeof text !== 'string' || !text || !/[٠-٩]/.test(text)) {
+    return text ?? ''
+  }
+
+  return text.replace(/[٠-٩]/g, (digit) => {
+    const idx = ARABIC_INDIC_DIGITS.indexOf(digit)
+    return idx >= 0 ? PERSIAN_DIGITS[idx] : digit
+  })
+}
+
+/**
  * Sanitizes a user-typed numeric string (from Persian, Arabic, or English keyboard)
- * and computes canonical English value, Persian display string, and adjusted caret.
+ * and computes canonical English value, display string, and adjusted caret.
+ * When `preserveScript` is true:
+ *   - digits typed with a Persian/Arabic keyboard stay Persian in `display`
+ *   - digits typed with an English keyboard stay English in `display`
+ *   - `english` is ALWAYS canonical ASCII (0-9) for state & DB storage.
  */
 export function sanitizeNumericInput(
   rawValue,
-  { allowDecimal = true, allowNegative = false, caret = null } = {},
+  { allowDecimal = true, allowNegative = false, caret = null, preserveScript = false } = {},
 ) {
   const source = String(rawValue ?? '')
   let english = ''
+  let display = ''
   let seenDecimal = false
   let seenSign = false
   let nextCaret = 0
+  let lastDigitScript = null
   const hasCaret = typeof caret === 'number' && !Number.isNaN(caret)
 
   for (let i = 0; i < source.length; i++) {
     const ch = source[i]
     let mapped = null
+    let displayCh = null
 
     if (ch >= '0' && ch <= '9') {
       mapped = ch
+      displayCh = preserveScript ? ch : PERSIAN_DIGITS[Number(ch)]
+      lastDigitScript = 'latin'
     } else if (ch >= '۰' && ch <= '۹') {
       mapped = String(ch.charCodeAt(0) - 0x06f0)
+      displayCh = ch
+      lastDigitScript = 'persian'
     } else if (ch >= '٠' && ch <= '٩') {
-      mapped = String(ch.charCodeAt(0) - 0x0660)
+      const idx = ch.charCodeAt(0) - 0x0660
+      mapped = String(idx)
+      displayCh = PERSIAN_DIGITS[idx]
+      lastDigitScript = 'persian'
     } else if ((ch === '.' || ch === '٫') && allowDecimal && !seenDecimal) {
       mapped = '.'
+      displayCh = '.'
       seenDecimal = true
     } else if ((ch === '-' || ch === '−') && allowNegative && english.length === 0 && !seenSign) {
       mapped = '-'
+      displayCh = '-'
       seenSign = true
     }
 
     if (mapped !== null) {
       english += mapped
+      display += displayCh
       if (hasCaret && i < caret) {
         nextCaret += 1
       }
     }
   }
 
-  return {
-    english,
-    display: toPersianDigits(english),
-    caret: hasCaret ? nextCaret : null,
-  }
+  return preserveScript
+    ? {
+        english,
+        display,
+        caret: hasCaret ? nextCaret : null,
+        script: lastDigitScript,
+      }
+    : {
+        english,
+        display: toPersianDigits(english),
+        caret: hasCaret ? nextCaret : null,
+      }
 }
 
 export function isSensitiveFieldKey(key) {

@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react'
 import {
+  preserveTypedDigitsDisplay,
   sanitizeNumericInput,
   toEnglishDigits,
   toPersianDigits,
@@ -138,8 +139,9 @@ function getNumericConfig(props) {
   }
 }
 
-function resolveNumericDisplayValue(propValue, isFocused, draftEnglish) {
-  if (isFocused && draftEnglish !== null) {
+function resolveNumericDisplayValue(propValue, isFocused, draft) {
+  if (draft !== null) {
+    const draftEnglish = draft.english
     const isEmptyProp =
       propValue === '' ||
       propValue === 0 ||
@@ -148,8 +150,8 @@ function resolveNumericDisplayValue(propValue, isFocused, draftEnglish) {
       Number.isNaN(propValue)
 
     if (
-      (draftEnglish === '' && isEmptyProp) ||
-      (draftEnglish === '-' && (isEmptyProp || propValue === '-')) ||
+      (isFocused && draftEnglish === '' && isEmptyProp) ||
+      (isFocused && draftEnglish === '-' && (isEmptyProp || propValue === '-')) ||
       (draftEnglish !== '' &&
         draftEnglish !== '-' &&
         (String(propValue) === draftEnglish ||
@@ -159,7 +161,7 @@ function resolveNumericDisplayValue(propValue, isFocused, draftEnglish) {
             propValue !== undefined &&
             Number(draftEnglish) === Number(propValue))))
     ) {
-      return toPersianDigits(draftEnglish)
+      return draft.display
     }
   }
 
@@ -168,6 +170,19 @@ function resolveNumericDisplayValue(propValue, isFocused, draftEnglish) {
   }
 
   return toPersianDigits(String(propValue))
+}
+
+function resolveTextDisplayValue(propValue, draft) {
+  if (propValue === undefined || propValue === null) {
+    return ''
+  }
+
+  const rawProp = String(propValue)
+  if (draft !== null && toEnglishDigits(rawProp) === draft.english) {
+    return draft.display
+  }
+
+  return toPersianDisplayText(rawProp)
 }
 
 export function PersianFieldInput(props) {
@@ -192,7 +207,11 @@ export function PersianFieldInput(props) {
 
   const localRef = useRef(null)
   const isFocusedRef = useRef(false)
-  const draftEnglishRef = useRef(null)
+  // Stores { english, display } for the last value typed by the user so their
+  // keyboard script (Persian vs English digits) is preserved visually while
+  // React state and DB payloads always receive English digits.
+  const draftRef = useRef(null)
+  const preferredScriptRef = useRef('persian')
   const pendingCaretRef = useRef(null)
   const [, forceBlurSync] = useState(0)
 
@@ -212,8 +231,8 @@ export function PersianFieldInput(props) {
 
   const displayValue = isControlled
     ? isNumeric
-      ? resolveNumericDisplayValue(value, isFocusedRef.current, draftEnglishRef.current)
-      : formatForDisplay(value)
+      ? resolveNumericDisplayValue(value, isFocusedRef.current, draftRef.current)
+      : resolveTextDisplayValue(value, draftRef.current)
     : undefined
 
   const displayDefaultValue =
@@ -252,9 +271,12 @@ export function PersianFieldInput(props) {
     )
   }, [isNumeric, isControlled, value, min, max])
 
-  const emitNumericValue = (event, english, nextDisplay, nextCaret) => {
+  const emitNumericValue = (event, english, nextDisplay, nextCaret, script = null) => {
     const el = localRef.current ?? event.target
-    draftEnglishRef.current = english
+    if (script) {
+      preferredScriptRef.current = script
+    }
+    draftRef.current = { english, display: nextDisplay }
     pendingCaretRef.current = nextCaret
 
     applyNumericValidity(el, english, min, max)
@@ -269,10 +291,16 @@ export function PersianFieldInput(props) {
 
   const handleBlur = (event) => {
     isFocusedRef.current = false
-    const hadDraft = draftEnglishRef.current !== null
-    draftEnglishRef.current = null
     pendingCaretRef.current = null
-    if (hadDraft) {
+    const draft = draftRef.current
+    // Clear incomplete numeric drafts ("", "-", trailing ".") on blur while keeping
+    // valid typed script drafts so English-typed numbers stay English after blur.
+    if (
+      isNumeric &&
+      draft !== null &&
+      (draft.english === '' || draft.english === '-' || draft.english.endsWith('.'))
+    ) {
+      draftRef.current = null
       forceBlurSync((tick) => tick + 1)
     }
     onBlur?.(event)
@@ -284,17 +312,19 @@ export function PersianFieldInput(props) {
     const rawCaret = typeof el.selectionStart === 'number' ? el.selectionStart : null
 
     if (isNumeric) {
-      const { english, display, caret } = sanitizeNumericInput(rawValue, {
+      const { english, display, caret, script } = sanitizeNumericInput(rawValue, {
         allowDecimal,
         allowNegative,
         caret: rawCaret,
+        preserveScript: true,
       })
-      emitNumericValue(event, english, display, caret)
+      emitNumericValue(event, english, display, caret, script)
       return
     }
 
     const english = toEnglishDigits(rawValue)
-    const display = toPersianDisplayText(rawValue)
+    const display = preserveTypedDigitsDisplay(rawValue)
+    draftRef.current = { english, display }
     pendingCaretRef.current = rawCaret
     onChange?.(createNormalizedEvent(event, el, english, false))
     setNativeValueAndCaret(el, display, rawCaret)
@@ -336,8 +366,8 @@ export function PersianFieldInput(props) {
     }
 
     const english = String(nextNum)
-    const display = toPersianDigits(english)
-    emitNumericValue(event, english, display, display.length)
+    const display = preferredScriptRef.current === 'latin' ? english : toPersianDigits(english)
+    emitNumericValue(event, english, display, display.length, preferredScriptRef.current)
   }
 
   const resolvedType = isNumeric ? 'text' : (type ?? 'text')
@@ -377,13 +407,12 @@ export function PersianFieldTextarea(props) {
   } = props
 
   const localRef = useRef(null)
+  const draftRef = useRef(null)
   const pendingCaretRef = useRef(null)
   const isControlled = value !== undefined
 
   const displayValue = isControlled
-    ? value === null || value === undefined
-      ? ''
-      : toPersianDisplayText(String(value))
+    ? resolveTextDisplayValue(value, draftRef.current)
     : undefined
 
   const displayDefaultValue =
@@ -420,7 +449,8 @@ export function PersianFieldTextarea(props) {
     const rawCaret = typeof el.selectionStart === 'number' ? el.selectionStart : null
 
     const english = toEnglishDigits(rawValue)
-    const display = toPersianDisplayText(rawValue)
+    const display = preserveTypedDigitsDisplay(rawValue)
+    draftRef.current = { english, display }
     pendingCaretRef.current = rawCaret
 
     onChange?.(createNormalizedEvent(event, el, english, false))

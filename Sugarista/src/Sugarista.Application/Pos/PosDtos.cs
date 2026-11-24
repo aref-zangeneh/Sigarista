@@ -24,6 +24,37 @@ public record PosTableDto(
     string? Note,
     decimal CurrentBalance);
 
+public record PosPaymentLegDto(
+    string Method,
+    string Label,
+    decimal Amount,
+    string? Reference = null);
+
+public record PosCustomerLookupDto(
+    bool Exists,
+    Guid? CustomerId,
+    string NormalizedPhone,
+    string? PersianName,
+    bool InSmsContacts,
+    decimal LoyaltyPoints,
+    bool LoyaltyEnabled,
+    decimal LoyaltyRedeemTomanPerPoint,
+    decimal WalletBalance,
+    bool WalletEnabled,
+    string? MembershipTierName,
+    decimal MembershipTierDiscountPercent,
+    string? ActiveGroupName,
+    decimal ActiveGroupDiscountPercent,
+    bool IsBirthdayDiscountActive,
+    decimal BirthdayDiscountPercent,
+    bool HasActiveStampReward,
+    decimal StampRewardPercent,
+    int PaidOrdersCount,
+    int StampOrdersPerCard,
+    string? ActiveSubscriptionName,
+    int SubscriptionRemainingUnits,
+    decimal? RemainingDailyDiscountAllowance);
+
 public record PosOrderSummaryDto(
     Guid Id,
     string TrackingCode,
@@ -45,7 +76,11 @@ public record PosOrderSummaryDto(
     decimal? ManualDiscountValue = null,
     decimal ManualDiscountAmount = 0m,
     string? ManualDiscountReason = null,
-    string? ManualDiscountAppliedBy = null);
+    string? ManualDiscountAppliedBy = null,
+    string? PaymentMethod = null,
+    IReadOnlyCollection<PosPaymentLegDto>? PaymentLegs = null,
+    string? ManagerNote = null,
+    string? CustomerPhone = null);
 
 public record PosOrderDetailDto(
     Guid Id,
@@ -79,7 +114,10 @@ public record PosOrderDetailDto(
     decimal? ManualDiscountValue = null,
     decimal ManualDiscountAmount = 0m,
     string? ManualDiscountReason = null,
-    string? ManualDiscountAppliedBy = null);
+    string? ManualDiscountAppliedBy = null,
+    Guid? CustomerId = null,
+    IReadOnlyCollection<PosPaymentLegDto>? PaymentLegs = null,
+    string? ManagerNote = null);
 
 public record PosOrderLineDto(
     Guid Id,
@@ -122,4 +160,9 @@ public record UpsertPosOrderResultDto(
     decimal? ManualDiscountValue = null,
     decimal ManualDiscountAmount = 0m,
     string? ManualDiscountReason = null,
-    string? ManualDiscountAppliedBy = null);
+    string? ManualDiscountAppliedBy = null,
+    Guid? CustomerId = null,
+    string? CustomerName = null,
+    string? CustomerPhone = null,
+    IReadOnlyCollection<PosPaymentLegDto>? PaymentLegs = null,
+    string? ManagerNote = null);

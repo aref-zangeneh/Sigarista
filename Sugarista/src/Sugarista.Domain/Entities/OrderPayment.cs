@@ -14,7 +14,8 @@ public class OrderPayment : BaseEntity
         string payerKey,
         string payerLabel,
         decimal amount,
-        string paymentAuthority)
+        string paymentAuthority,
+        PosPaymentMethod? paymentMethod = null)
     {
         if (orderId == Guid.Empty)
         {
@@ -41,6 +42,7 @@ public class OrderPayment : BaseEntity
         PayerLabel = string.IsNullOrWhiteSpace(payerLabel) ? PayerKey : payerLabel.Trim();
         Amount = amount;
         PaymentAuthority = paymentAuthority.Trim();
+        PaymentMethod = paymentMethod;
         Status = OrderPaymentStatus.PendingPayment;
     }
 
@@ -55,6 +57,8 @@ public class OrderPayment : BaseEntity
     public decimal Amount { get; private set; }
 
     public string PaymentAuthority { get; private set; } = string.Empty;
+
+    public PosPaymentMethod? PaymentMethod { get; private set; }
 
     public OrderPaymentStatus Status { get; private set; } = OrderPaymentStatus.PendingPayment;
 

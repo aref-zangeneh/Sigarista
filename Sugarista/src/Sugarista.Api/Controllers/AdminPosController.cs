@@ -5,12 +5,16 @@ using Sugarista.Api.Authorization;
 using Sugarista.Application.Pos;
 using Sugarista.Application.Pos.Commands.CancelPosOrder;
 using Sugarista.Application.Pos.Commands.CopyPosOrder;
+using Sugarista.Application.Pos.Commands.UpdatePosOrderManagerNote;
 using Sugarista.Application.Pos.Commands.UpsertPosOrder;
 using Sugarista.Application.Pos.Queries.GetPosBootstrap;
+using Sugarista.Application.Pos.Queries.GetPosCustomerByPhone;
 using Sugarista.Application.Pos.Queries.GetPosOrder;
 using Sugarista.Domain.Constants;
 
 namespace Sugarista.Api.Controllers;
+
+public sealed record UpdateManagerNoteBody(string? ManagerNote);
 
 [Authorize]
 [Route("api/admin/pos")]
@@ -21,6 +25,15 @@ public class AdminPosController : ApiControllerBase
     public async Task<ActionResult<PosBootstrapDto>> GetBootstrap(CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new GetPosBootstrapQuery(), cancellationToken));
+    }
+
+    [HttpGet("customers/lookup")]
+    [RequirePermission(AdminPermissions.Pos.View)]
+    public async Task<ActionResult<PosCustomerLookupDto>> LookupCustomer(
+        [FromQuery] string? phone,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await Mediator.Send(new GetPosCustomerByPhoneQuery(phone), cancellationToken));
     }
 
     [HttpGet("orders/{id:guid}")]
@@ -51,6 +64,19 @@ public class AdminPosController : ApiControllerBase
         return Ok(await Mediator.Send(
             command with { OrderId = id, ServedByAdminUserId = adminUserId },
             cancellationToken));
+    }
+
+    [HttpPatch("orders/{id:guid}/manager-note")]
+    [RequirePermission(AdminPermissions.Pos.ManagerNote)]
+    public async Task<ActionResult<object>> UpdateManagerNote(
+        Guid id,
+        [FromBody] UpdateManagerNoteBody body,
+        CancellationToken cancellationToken)
+    {
+        var updated = await Mediator.Send(
+            new UpdatePosOrderManagerNoteCommand(id, body.ManagerNote),
+            cancellationToken);
+        return Ok(new { orderId = id, managerNote = updated });
     }
 
     [HttpPost("orders/{id:guid}/copy")]

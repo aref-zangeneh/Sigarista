@@ -17,7 +17,9 @@ public enum PosPaymentMethod
     Cash,
     Card,
     OnlineGateway,
-    Complimentary
+    Complimentary,
+    CardToCard,
+    Split
 }
 
 public enum OrderKind

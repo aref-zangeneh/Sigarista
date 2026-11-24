@@ -178,19 +178,7 @@ public class ReceiptPrintJobService : IPrintJobService
             serviceLabel = $"ارسال با {deliveryLabel}";
         }
 
-        var paymentLabel = order.OrderKind switch
-        {
-            OrderKind.InternalUse => "مصرف داخلی پرسنل (رایگان)",
-            OrderKind.Complimentary => "مهمان مجموعه / آشنا (رایگان)",
-            _ => order.PaymentMethod switch
-            {
-                PosPaymentMethod.Cash => "پرداخت نقدی",
-                PosPaymentMethod.Card => "کارت‌خوان (پوز)",
-                PosPaymentMethod.OnlineGateway => "درگاه پرداخت اینترنتی",
-                PosPaymentMethod.Complimentary => "رایگان / بدون دریافت وجه",
-                _ => order.Channel == OrderChannel.Pos ? "پرداخت صندوق" : "پرداخت اینترنتی"
-            }
-        };
+        var paymentLabel = BuildPaymentLabel(order);
 
         var effectiveNote = order.IsNonRevenue && !string.IsNullOrWhiteSpace(order.ComplimentaryReason)
             ? string.IsNullOrWhiteSpace(order.Note)
@@ -252,6 +240,47 @@ public class ReceiptPrintJobService : IPrintJobService
             FooterText: settings?.FooterText,
             TimeZoneId: settings?.TimeZoneId ?? "Asia/Tehran",
             Layout: layout);
+    }
+
+    private static string BuildPaymentLabel(Order order)
+    {
+        if (order.OrderKind == OrderKind.InternalUse)
+        {
+            return "مصرف داخلی پرسنل (رایگان)";
+        }
+
+        if (order.OrderKind == OrderKind.Complimentary)
+        {
+            return "مهمان مجموعه / آشنا (رایگان)";
+        }
+
+        var paidPosLegs = order.Payments
+            .Where(p => p.Status == OrderPaymentStatus.Paid && p.PaymentMethod != null && p.Amount > 0m)
+            .ToList();
+
+        if (order.PaymentMethod == PosPaymentMethod.Split || paidPosLegs.Select(p => p.PaymentMethod).Distinct().Count() > 1)
+        {
+            if (paidPosLegs.Count > 0)
+            {
+                var breakdown = string.Join(" + ", paidPosLegs
+                    .GroupBy(p => p.PaymentMethod!.Value)
+                    .Select(g => $"{Money(g.Sum(x => x.Amount))} {Order.GetPaymentMethodLabel(g.Key)}"));
+                return $"پرداخت ترکیبی ({breakdown})";
+            }
+
+            return "پرداخت ترکیبی";
+        }
+
+        return order.PaymentMethod switch
+        {
+            PosPaymentMethod.Cash => "پرداخت نقدی",
+            PosPaymentMethod.Card => "کارت‌خوان (پوز)",
+            PosPaymentMethod.CardToCard => "کارت به کارت",
+            PosPaymentMethod.Split => "پرداخت ترکیبی",
+            PosPaymentMethod.OnlineGateway => "درگاه پرداخت اینترنتی",
+            PosPaymentMethod.Complimentary => "رایگان / بدون دریافت وجه",
+            _ => order.Channel == OrderChannel.Pos ? "پرداخت صندوق" : "پرداخت اینترنتی"
+        };
     }
 
     private static string? BuildDiscountTitle(Order order)

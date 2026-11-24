@@ -92,39 +92,60 @@
     return result;
   }
 
+  function preserveTypedDigitsDisplay(text) {
+    if (text === null || text === undefined) {
+      return "";
+    }
+    return String(text).replace(/[٠-٩]/g, (d) => PERSIAN_DIGITS[ARABIC_DIGITS.indexOf(d)]);
+  }
+
   function sanitizeNumericInput(rawValue, options) {
     const opts = options || {};
     const allowDecimal = opts.allowDecimal !== undefined ? Boolean(opts.allowDecimal) : true;
     const allowNegative = Boolean(opts.allowNegative);
     const caret = opts.caret !== undefined ? opts.caret : null;
+    const preserveScript = Boolean(opts.preserveScript);
 
     const source = String(rawValue ?? "");
     let english = "";
+    let display = "";
     let seenDecimal = false;
     let seenSign = false;
     let nextCaret = 0;
+    let lastScript = null;
     const hasCaret = typeof caret === "number" && !Number.isNaN(caret);
 
     for (let i = 0; i < source.length; i++) {
       const ch = source[i];
       let mapped = null;
+      let displayChar = null;
 
       if (ch >= "0" && ch <= "9") {
         mapped = ch;
+        displayChar = preserveScript ? ch : PERSIAN_DIGITS[ch.charCodeAt(0) - 0x0030];
+        lastScript = "latin";
       } else if (ch >= "۰" && ch <= "۹") {
         mapped = String(ch.charCodeAt(0) - 0x06f0);
+        displayChar = ch;
+        lastScript = "persian";
       } else if (ch >= "٠" && ch <= "٩") {
-        mapped = String(ch.charCodeAt(0) - 0x0660);
+        const idx = ch.charCodeAt(0) - 0x0660;
+        mapped = String(idx);
+        displayChar = PERSIAN_DIGITS[idx];
+        lastScript = "persian";
       } else if ((ch === "." || ch === "٫") && allowDecimal && !seenDecimal) {
         mapped = ".";
+        displayChar = ".";
         seenDecimal = true;
       } else if ((ch === "-" || ch === "−") && allowNegative && english.length === 0 && !seenSign) {
         mapped = "-";
+        displayChar = "-";
         seenSign = true;
       }
 
       if (mapped !== null) {
         english += mapped;
+        display += displayChar;
         if (hasCaret && i < caret) {
           nextCaret += 1;
         }
@@ -133,8 +154,9 @@
 
     return {
       english,
-      display: toPersianDigits(english),
+      display: preserveScript ? display : toPersianDigits(english),
       caret: hasCaret ? nextCaret : null,
+      script: lastScript,
     };
   }
 
@@ -368,8 +390,10 @@
       attributeFilter: ["placeholder"],
     });
 
-    // 2. Capture-phase input listener so typed English/Arabic/Persian digits render
-    // as Persian digits inside inputs before Alpine x-model/@input handlers read them.
+    // 2. Capture-phase input listener: preserve the user's keyboard digit script
+    // visually (Persian keyboard -> Persian digits, English keyboard -> English digits)
+    // while sanitizing numeric fields and normalizing Arabic-Indic digits to Persian.
+    // API payloads are always normalized to canonical ASCII 0-9 via normalizePayloadDigits.
     document.addEventListener(
       "input",
       (event) => {
@@ -397,6 +421,7 @@
             allowDecimal,
             allowNegative,
             caret: rawCaret,
+            preserveScript: true,
           });
           if (target.value !== result.display) {
             target.value = result.display;
@@ -405,11 +430,11 @@
           return;
         }
 
-        if (!raw || !/[0-9٠-٩]/.test(raw)) {
+        if (!raw || !/[٠-٩]/.test(raw)) {
           return;
         }
 
-        const converted = toPersianDisplayText(raw);
+        const converted = preserveTypedDigitsDisplay(raw);
         if (converted !== raw) {
           target.value = converted;
           setInputCaret(target, rawCaret);
@@ -423,6 +448,7 @@
     toEnglishDigits,
     toPersianDigits,
     toPersianDisplayText,
+    preserveTypedDigitsDisplay,
     sanitizeNumericInput,
     isSensitiveFieldKey,
     normalizePayloadDigits,

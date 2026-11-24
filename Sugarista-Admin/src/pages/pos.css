@@ -666,6 +666,11 @@
   box-shadow: 0 0 0 2px var(--pos-green-soft);
 }
 
+.pos-meta-input.ltr-input::placeholder {
+  direction: rtl;
+  text-align: right;
+}
+
 .pos-table-picker-btn {
   width: 100%;
   min-width: 0;
@@ -2377,4 +2382,309 @@
     transition: none;
     animation: none;
   }
+}
+
+/* ── Customer Club Lookup Banner, Manager Note & Split Payment ── */
+
+.pos-actions .pos-pay-btn {
+  padding: 8px 8px;
+  font-size: 0.81rem;
+}
+
+.pos-pay-c2c-btn {
+  background: linear-gradient(135deg, #1d4ed8, #0f766e) !important;
+  color: #fff !important;
+}
+
+.pos-pay-split-btn {
+  border: 1px solid var(--pos-green) !important;
+  background: var(--pos-green-soft) !important;
+  color: var(--pos-ink) !important;
+}
+
+.pos-customer-club-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  border: 1px solid var(--pos-border-soft);
+  background: var(--pos-surface);
+}
+
+.pos-customer-club-banner--member {
+  border-color: rgba(16, 185, 129, 0.42);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.pos-customer-club-banner--new {
+  border-style: dashed;
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.07);
+  color: var(--pos-ink);
+}
+
+.pos-customer-club-banner--loading {
+  color: var(--pos-muted);
+}
+
+.pos-club-banner-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.pos-club-banner-top strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.79rem;
+  color: var(--pos-ink);
+}
+
+.pos-club-member-tag {
+  font-style: normal;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--pos-green);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.pos-club-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pos-club-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--pos-surface);
+  border: 1px solid var(--pos-border);
+  color: var(--pos-ink);
+  font-size: 0.69rem;
+  font-weight: 700;
+}
+
+.pos-club-chip--highlight {
+  border-color: rgba(217, 119, 6, 0.45);
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.pos-club-chip--action {
+  font: inherit;
+  font-size: 0.69rem;
+  font-weight: 700;
+  cursor: pointer;
+  border-style: dashed;
+}
+
+.pos-club-chip--action.is-active {
+  border-style: solid;
+  border-color: var(--pos-green);
+  background: var(--pos-green);
+  color: #fff;
+}
+
+/* Confidential Manager Note Box */
+.pos-manager-note-box {
+  border: 1px dashed rgba(217, 119, 6, 0.55);
+  border-radius: 11px;
+  padding: 7px 10px;
+  background: rgba(245, 158, 11, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pos-manager-note-box.is-active {
+  border-style: solid;
+  border-color: rgba(217, 119, 6, 0.75);
+  background: rgba(245, 158, 11, 0.11);
+}
+
+.pos-manager-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.pos-manager-note-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--pos-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: right;
+}
+
+.pos-manager-note-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.2);
+  color: #b45309;
+  font-size: 0.68rem;
+}
+
+.pos-manager-note-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pos-manager-note-hint {
+  font-size: 0.7rem;
+  color: var(--pos-muted);
+}
+
+.pos-manager-note-snippet {
+  margin-top: 4px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  font-size: 0.72rem;
+  color: var(--pos-ink);
+  line-height: 1.4;
+}
+
+/* Split Payment Modal */
+.pos-split-pay-modal {
+  max-width: 480px;
+}
+
+.pos-split-pay-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pos-split-pay-target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: var(--pos-paper);
+  border: 1px solid var(--pos-border);
+  font-size: 0.88rem;
+}
+
+.pos-split-pay-target strong {
+  font-size: 1.05rem;
+  color: var(--pos-green);
+}
+
+.pos-split-pay-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pos-split-pay-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  background: var(--pos-paper);
+  border: 1px solid var(--pos-border-soft);
+}
+
+.pos-split-pay-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pos-split-pay-row-head label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--pos-ink);
+}
+
+.pos-split-pay-quick {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pos-split-pay-quick button {
+  border: 1px solid var(--pos-border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  background: var(--pos-surface);
+  color: var(--pos-green);
+  font: inherit;
+  font-size: 0.71rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pos-split-pay-quick button:hover {
+  border-color: var(--pos-green);
+  background: var(--pos-green-soft);
+}
+
+.pos-split-pay-quick button.is-clear {
+  color: var(--pos-danger-ink);
+}
+
+.pos-split-ref-input {
+  margin-top: 3px;
+  font-size: 0.75rem;
+}
+
+.pos-split-pay-status {
+  padding: 9px 12px;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  border: 1px solid var(--pos-border);
+}
+
+.pos-split-pay-status.is-balanced {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.11);
+}
+
+.pos-split-pay-status.is-remaining {
+  border-color: rgba(217, 119, 6, 0.5);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.pos-split-pay-status.is-excess {
+  border-color: rgba(220, 38, 38, 0.5);
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.pos-split-status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pos-split-status-badge {
+  font-size: 0.77rem;
+  font-weight: 700;
 }

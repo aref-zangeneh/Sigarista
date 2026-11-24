@@ -7,9 +7,25 @@ using Sugarista.Domain.Entities;
 
 namespace Sugarista.Application.Pos;
 
-internal static class PosOrderMapper
+public static class PosOrderMapper
 {
-    internal static PosOrderDetailDto ToDetail(Order order, IReadOnlyDictionary<Guid, string>? tableNames = null)
+    public static IReadOnlyCollection<PosPaymentLegDto> MapPaymentLegs(Order order)
+    {
+        return order.Payments
+            .Where(p => p.Status == OrderPaymentStatus.Paid && p.PaymentMethod != null && p.Amount > 0m)
+            .OrderBy(p => p.PaidAt)
+            .Select(p => new PosPaymentLegDto(
+                p.PaymentMethod!.Value.ToString(),
+                Order.GetPaymentMethodLabel(p.PaymentMethod.Value),
+                p.Amount,
+                p.ReferenceId))
+            .ToArray();
+    }
+
+    public static PosOrderDetailDto ToDetail(
+        Order order,
+        IReadOnlyDictionary<Guid, string>? tableNames = null,
+        bool includeManagerNote = false)
     {
         var tableName = order.SalonTableId.HasValue && tableNames?.TryGetValue(order.SalonTableId.Value, out var name) == true
             ? name
@@ -54,10 +70,13 @@ internal static class PosOrderMapper
             order.ManualDiscountValue,
             order.ManualDiscountAmount,
             order.ManualDiscountReason,
-            order.ManualDiscountAppliedBy);
+            order.ManualDiscountAppliedBy,
+            order.CustomerId,
+            MapPaymentLegs(order),
+            includeManagerNote ? order.ManagerNote : null);
     }
 
-    internal static PosOrderLineDto ToLine(OrderLine line)
+    public static PosOrderLineDto ToLine(OrderLine line)
     {
         IReadOnlyCollection<Guid> optionIds = [];
         if (!string.IsNullOrWhiteSpace(line.OptionsJson))
@@ -91,13 +110,21 @@ internal static class PosOrderMapper
             BundlePricingService.DeserializeSnapshot(line.BundleSnapshotJson));
     }
 
-    internal static PosOrderSummaryDto ToSummary(Order order, IReadOnlyDictionary<Guid, string>? tableNames = null)
+    public static PosOrderSummaryDto ToSummary(
+        Order order,
+        IReadOnlyDictionary<Guid, string>? tableNames = null,
+        bool includeManagerNote = false)
     {
         string? tableName = null;
         if (order.SalonTableId.HasValue && tableNames?.TryGetValue(order.SalonTableId.Value, out tableName) != true)
         {
             tableName = null;
         }
+
+        var cleanPhone = string.IsNullOrWhiteSpace(order.CustomerPhone) ||
+                         string.Equals(order.CustomerPhone, "POS", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : order.CustomerPhone;
 
         return new PosOrderSummaryDto(
             order.Id,
@@ -120,7 +147,11 @@ internal static class PosOrderMapper
             order.ManualDiscountValue,
             order.ManualDiscountAmount,
             order.ManualDiscountReason,
-            order.ManualDiscountAppliedBy);
+            order.ManualDiscountAppliedBy,
+            order.PaymentMethod?.ToString(),
+            MapPaymentLegs(order),
+            includeManagerNote ? order.ManagerNote : null,
+            cleanPhone);
     }
 
     internal static async Task<IReadOnlyDictionary<Guid, string>> LoadTableNamesAsync(

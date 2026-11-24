@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   normalizePayloadDigits,
   normalizeUrlQueryDigits,
+  preserveTypedDigitsDisplay,
   sanitizeNumericInput,
   toEnglishDigits,
   toPersianDigits,
@@ -90,4 +91,28 @@ test('normalizeUrlQueryDigits normalizes query parameters cleanly', () => {
   const raw = '/admin/orders?page=%DB%B2&search=%DB%B0%DB%B9%DB%B1%DB%B2&token=%DB%B9%DB%B9'
   const normalized = normalizeUrlQueryDigits(raw)
   assert.equal(normalized, '/admin/orders?page=2&search=0912&token=%DB%B9%DB%B9')
+})
+
+test('sanitizeNumericInput with preserveScript keeps typed script visually while normalizing english for storage', () => {
+  assert.deepEqual(
+    sanitizeNumericInput('۱۲۵۰۰۰', { allowDecimal: false, allowNegative: false, caret: 6, preserveScript: true }),
+    { english: '125000', display: '۱۲۵۰۰۰', caret: 6, script: 'persian' },
+  )
+
+  assert.deepEqual(
+    sanitizeNumericInput('125000', { allowDecimal: false, allowNegative: false, caret: 6, preserveScript: true }),
+    { english: '125000', display: '125000', caret: 6, script: 'latin' },
+  )
+
+  assert.deepEqual(
+    sanitizeNumericInput('45.5a', { allowDecimal: true, allowNegative: false, caret: 5, preserveScript: true }),
+    { english: '45.5', display: '45.5', caret: 4, script: 'latin' },
+  )
+})
+
+test('preserveTypedDigitsDisplay preserves Persian and English digits as typed while normalizing Arabic-Indic to Persian', () => {
+  assert.equal(preserveTypedDigitsDisplay('لاته ۲۰۰ میلی‌لیتر'), 'لاته ۲۰۰ میلی‌لیتر')
+  assert.equal(preserveTypedDigitsDisplay('Latte 200ml'), 'Latte 200ml')
+  assert.equal(preserveTypedDigitsDisplay('قیمت 150000 تومان'), 'قیمت 150000 تومان')
+  assert.equal(preserveTypedDigitsDisplay('کد ٤٥٦'), 'کد ۴۵۶')
 })

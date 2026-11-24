@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Accounting.Services;
+using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
-using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Discounts.Engine;
 using Sugarista.Application.Discounts.Security;
 using Sugarista.Application.DrinkBuilder;
 using Sugarista.Application.MenuItems.Bundles;
@@ -21,9 +22,16 @@ public enum PosOrderAction
     Hold,
     PayCash,
     PayCard,
+    PayCardToCard,
+    PaySplit,
     InternalUse,
     Complimentary
 }
+
+public record PosPaymentAllocationRequest(
+    string Method,
+    decimal Amount,
+    string? Reference = null);
 
 public record PosOrderLineRequest(
     Guid MenuItemId,
@@ -58,7 +66,12 @@ public record UpsertPosOrderCommand(
     bool ExcludeFromAccounting = false,
     string? ManualDiscountType = null,
     decimal? ManualDiscountValue = null,
-    string? ManualDiscountReason = null) : IRequest<UpsertPosOrderResultDto>;
+    string? ManualDiscountReason = null,
+    IReadOnlyCollection<PosPaymentAllocationRequest>? PaymentAllocations = null,
+    string? PaymentReference = null,
+    string? DiscountCode = null,
+    int RedeemPoints = 0,
+    string? ManagerNote = null) : IRequest<UpsertPosOrderResultDto>;
 
 public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCommand>
 {
@@ -76,12 +89,16 @@ public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCo
             .WithMessage("Service type must be DineIn or TakeAway.");
         RuleFor(c => c.Action)
             .Must(value => Enum.TryParse<PosOrderAction>(value, true, out _))
-            .WithMessage("Action must be Hold, PayCash, PayCard, InternalUse, or Complimentary.");
+            .WithMessage("Action must be Hold, PayCash, PayCard, PayCardToCard, PaySplit, InternalUse, or Complimentary.");
         RuleFor(c => c.OrderKind)
             .Must(value => string.IsNullOrWhiteSpace(value) || Enum.TryParse<OrderKind>(value, true, out _))
             .WithMessage("OrderKind must be Standard, InternalUse, or Complimentary.");
         RuleFor(c => c.ComplimentaryReason).MaximumLength(300);
         RuleFor(c => c.Note).MaximumLength(500);
+        RuleFor(c => c.ManagerNote).MaximumLength(1000);
+        RuleFor(c => c.PaymentReference).MaximumLength(100);
+        RuleFor(c => c.DiscountCode).MaximumLength(64);
+        RuleFor(c => c.RedeemPoints).GreaterThanOrEqualTo(0);
         RuleFor(c => c.ManualDiscountType)
             .Must(value => string.IsNullOrWhiteSpace(value) || Enum.TryParse<ManualDiscountType>(value, true, out _))
             .WithMessage("ManualDiscountType must be Amount or Percent.");
@@ -95,7 +112,30 @@ public class UpsertPosOrderCommandValidator : AbstractValidator<UpsertPosOrderCo
                 string.Equals(c.ManualDiscountType, nameof(Domain.Entities.ManualDiscountType.Percent), StringComparison.OrdinalIgnoreCase))
             .WithMessage("Manual discount percentage cannot exceed 100.");
         RuleFor(c => c.ManualDiscountReason).MaximumLength(300);
+
+        When(c => string.Equals(c.Action, nameof(PosOrderAction.PaySplit), StringComparison.OrdinalIgnoreCase), () =>
+        {
+            RuleFor(c => c.PaymentAllocations)
+                .NotEmpty()
+                .WithMessage("در پرداخت ترکیبی باید حداقل یک ردیف پرداخت ثبت شود.");
+
+            RuleForEach(c => c.PaymentAllocations!).ChildRules(leg =>
+            {
+                leg.RuleFor(l => l.Method)
+                    .NotEmpty()
+                    .Must(IsAllowedPosTenderMethod)
+                    .WithMessage("روش پرداخت باید نقدی (Cash)، کارت‌خوان (Card) یا کارت به کارت (CardToCard) باشد.");
+                leg.RuleFor(l => l.Amount)
+                    .GreaterThan(0m)
+                    .WithMessage("مبلغ هر ردیف پرداخت ترکیبی باید بزرگ‌تر از صفر باشد.");
+                leg.RuleFor(l => l.Reference).MaximumLength(100);
+            });
+        });
     }
+
+    private static bool IsAllowedPosTenderMethod(string? method) =>
+        Enum.TryParse<PosPaymentMethod>(method, true, out var parsed) &&
+        parsed is PosPaymentMethod.Cash or PosPaymentMethod.Card or PosPaymentMethod.CardToCard;
 }
 
 public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderCommand, UpsertPosOrderResultDto>
@@ -104,17 +144,23 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
     private readonly IAccountingService _accountingService;
     private readonly IPrintJobService _printJobService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ILoyaltyService _loyaltyService;
+    private readonly IDiscountEngine _discountEngine;
 
     public UpsertPosOrderCommandHandler(
         IApplicationDbContext dbContext,
         IAccountingService accountingService,
         IPrintJobService printJobService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ILoyaltyService loyaltyService,
+        IDiscountEngine discountEngine)
     {
         _dbContext = dbContext;
         _accountingService = accountingService;
         _printJobService = printJobService;
         _currentUserService = currentUserService;
+        _loyaltyService = loyaltyService;
+        _discountEngine = discountEngine;
     }
 
     public async Task<UpsertPosOrderResultDto> Handle(UpsertPosOrderCommand request, CancellationToken cancellationToken)
@@ -127,6 +173,12 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         if (!Enum.TryParse<PosServiceType>(request.ServiceType, true, out var serviceType))
         {
             throw new InvalidOperationException("Invalid service type.");
+        }
+
+        var canManageManagerNote = _currentUserService.HasPermission(AdminPermissions.Pos.ManagerNote);
+        if (!canManageManagerNote && !string.IsNullOrWhiteSpace(request.ManagerNote))
+        {
+            throw new DomainException("شما مجوز ثبت یا ویرایش یادداشت مدیریت را ندارید.");
         }
 
         var splitBillMode = ResolveSplitBillMode(request);
@@ -159,6 +211,14 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             "pos",
             cancellationToken);
 
+        var normalizedPhone = CustomerDirectoryService.NormalizePhone(request.CustomerPhone);
+        var effectivePhone = customer?.PhoneNumber ?? (string.IsNullOrWhiteSpace(normalizedPhone) ? null : normalizedPhone);
+        var effectiveName = !string.IsNullOrWhiteSpace(request.CustomerName)
+            ? request.CustomerName.Trim()
+            : customer is not null && CustomerDirectoryService.IsMeaningfulCustomerName(customer.PersianName, customer.PhoneNumber)
+                ? customer.PersianName
+                : null;
+
         var tableSessionId = await ResolveTableSessionIdAsync(request.SalonTableId, serviceType, cancellationToken);
 
         Order order;
@@ -166,6 +226,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         {
             order = await _dbContext.Orders
                 .Include(o => o.Lines)
+                .Include(o => o.Payments)
                 .Include(o => o.SplitShares)
                 .FirstOrDefaultAsync(o => o.Id == request.OrderId.Value, cancellationToken)
                 ?? throw new KeyNotFoundException("Order was not found.");
@@ -189,8 +250,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             var trackingCode = await OrderTrackingCodeGenerator.GenerateAsync(_dbContext, cancellationToken);
             order = Order.CreatePosDraft(
                 trackingCode,
-                request.CustomerName,
-                request.CustomerPhone,
+                effectiveName,
+                effectivePhone,
                 request.Note,
                 totalAmount,
                 serviceType,
@@ -213,7 +274,12 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             _dbContext.Orders.Add(order);
         }
 
-        order.UpdateCustomerForPos(request.CustomerName, request.CustomerPhone, request.Note);
+        order.UpdateCustomerForPos(effectiveName, effectivePhone, request.Note);
+        if (canManageManagerNote && request.ManagerNote is not null)
+        {
+            order.SetManagerNote(request.ManagerNote);
+        }
+
         order.ConfigurePos(
             OrderChannel.Pos,
             serviceType,
@@ -224,16 +290,10 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         order.ApplyDeliveryMethod(deliveryMethod?.Id, deliveryFee);
         order.AssignCustomer(customer?.Id);
 
-        // Loyalty-style benefits for the POS channel: customer-group standing
-        // discount and the personal-cup fixed discount are recomputed on every
-        // upsert (the total is recalculated first, so they never stack twice).
         var siteSettings = await _dbContext.SiteSettings
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
 
-        // Recomputing an existing order replaces its discount rows; the daily
-        // allowance is calculated excluding this order so an edit cannot spend
-        // the customer's cap twice.
         if (request.OrderId.HasValue)
         {
             var existingDiscounts = await _dbContext.OrderDiscounts
@@ -252,6 +312,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         }
 
         var isNonRevenueAction = action is PosOrderAction.InternalUse or PosOrderAction.Complimentary;
+        var isPaidRevenueAction = action is PosOrderAction.PayCash or PosOrderAction.PayCard or PosOrderAction.PayCardToCard or PosOrderAction.PaySplit;
         var resolvedOrderKind = action switch
         {
             PosOrderAction.InternalUse => Domain.Entities.OrderKind.InternalUse,
@@ -261,6 +322,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 ? parsedKind
                 : Domain.Entities.OrderKind.Standard
         };
+
+        var adjustedCodeApplications = new List<DiscountApplication>();
 
         if (!isNonRevenueAction)
         {
@@ -279,13 +342,182 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 remainingDailyCap,
                 _dbContext.OrderDiscounts);
 
+            var categoryByMenuItem = resolvedLines
+                .GroupBy(line => line.resolved.MenuItemId)
+                .ToDictionary(group => group.Key, group => (Guid?)group.First().resolved.CategoryId);
+
+            // 1. Discount Engine (automatic POS campaigns + optional promo code)
+            var requestedDiscountCode = string.IsNullOrWhiteSpace(request.DiscountCode)
+                ? null
+                : Discount.NormalizeCode(request.DiscountCode);
+
+            var customerGroups = new List<DiscountCustomerGroup>();
+            if (customer is not null)
+            {
+                var hasPriorPaidOrders = await _dbContext.Orders
+                    .AnyAsync(o => o.CustomerId == customer.Id && o.Id != order.Id && o.Status == OrderStatus.Paid, cancellationToken);
+                customerGroups.Add(hasPriorPaidOrders
+                    ? DiscountCustomerGroup.Returning
+                    : DiscountCustomerGroup.New);
+            }
+
+            var discountLines = resolvedLines
+                .Select(entry => new DiscountLineInput(
+                    entry.resolved.MenuItemId,
+                    entry.resolved.CategoryId,
+                    entry.resolved.PersianName,
+                    entry.resolved.SizeKey,
+                    entry.resolved.Quantity,
+                    entry.resolved.UnitPrice,
+                    entry.request.PayerKey))
+                .ToList();
+
+            var discountEvaluation = await _discountEngine.EvaluateAsync(
+                new DiscountEvaluationContext(
+                    discountLines,
+                    DeliveryFee: deliveryFee,
+                    Code: requestedDiscountCode,
+                    CustomerId: customer?.Id,
+                    CustomerGroups: customerGroups,
+                    Now: DateTimeOffset.UtcNow,
+                    Channel: "pos",
+                    IsOnlinePayment: false,
+                    TimeZoneId: siteSettings?.TimeZoneId ?? "Asia/Tehran"),
+                cancellationToken);
+
+            if (requestedDiscountCode is not null &&
+                discountEvaluation.Applications.Count == 0 &&
+                discountEvaluation.Rejections.Count > 0)
+            {
+                throw new DomainException(
+                    discountEvaluation.CodeRejection?.Message ?? "این کد تخفیف معتبر نیست.");
+            }
+
+            foreach (var application in discountEvaluation.Applications)
+            {
+                var scopes = application.LineShares
+                    .GroupBy(share => categoryByMenuItem.GetValueOrDefault(share.MenuItemId))
+                    .Select(group => new DiscountScopeAmount(group.Key, group.Sum(share => share.Amount)))
+                    .ToList();
+
+                var applied = discountTracker.Apply(
+                    OrderDiscountKind.Code,
+                    application.Name,
+                    application.Amount,
+                    application.DiscountId,
+                    application.Code,
+                    scopes);
+
+                if (applied > 0)
+                {
+                    adjustedCodeApplications.Add(application with { Amount = applied });
+                }
+            }
+
+            if (requestedDiscountCode is not null &&
+                discountEvaluation.Applications.Count > 0 &&
+                adjustedCodeApplications.Count == 0)
+            {
+                throw new DomainException("سقف تخفیف روزانهٔ این مشتری تکمیل شده است.");
+            }
+
+            // 2. Loyalty Points Redemption (only burned at final payment, not on Hold)
+            if (isPaidRevenueAction &&
+                request.RedeemPoints > 0 &&
+                customer is not null &&
+                siteSettings is { LoyaltyEnabled: true } &&
+                siteSettings.LoyaltyRedeemTomanPerPoint > 0)
+            {
+                var points = Math.Min(request.RedeemPoints, (int)Math.Floor(customer.LoyaltyPoints));
+                var maxPointsByOrder = (int)Math.Floor(order.TotalAmount / siteSettings.LoyaltyRedeemTomanPerPoint);
+                points = Math.Min(points, maxPointsByOrder);
+                if (discountTracker.RemainingCap is { } loyaltyCap)
+                {
+                    var maxPointsByCap = (int)Math.Floor(loyaltyCap / siteSettings.LoyaltyRedeemTomanPerPoint);
+                    points = Math.Min(points, maxPointsByCap);
+                }
+
+                if (points > 0)
+                {
+                    var loyaltyDiscount = points * siteSettings.LoyaltyRedeemTomanPerPoint;
+                    var appliedLoyalty = discountTracker.Apply(
+                        OrderDiscountKind.LoyaltyPoints,
+                        "امتیاز باشگاه مشتریان",
+                        loyaltyDiscount);
+
+                    if (appliedLoyalty > 0)
+                    {
+                        customer.DeductLoyaltyPoints(points);
+                        _dbContext.LoyaltyTransactions.Add(new LoyaltyTransaction(
+                            customer.Id,
+                            LoyaltyTransactionType.Redeem,
+                            -points,
+                            customer.LoyaltyPoints,
+                            $"مصرف امتیاز در سفارش صندوق {order.TrackingCode}",
+                            order.Id,
+                            null));
+                    }
+                }
+            }
+
+            // 3. Stamp Card Reward (only burned at final payment when no manual discount code was typed)
+            if (isPaidRevenueAction &&
+                string.IsNullOrWhiteSpace(request.DiscountCode) &&
+                customer is not null &&
+                siteSettings is { StampCardEnabled: true } &&
+                siteSettings.StampCardRewardPercent > 0)
+            {
+                var stampPercent = await StampCardService.SpendActiveRewardAsync(_dbContext, customer, order.Id, cancellationToken);
+                if (stampPercent > 0)
+                {
+                    var stampDiscount = Math.Round(itemsTotal * stampPercent / 100m, 0, MidpointRounding.AwayFromZero);
+                    if (stampDiscount > 0)
+                    {
+                        discountTracker.Apply(OrderDiscountKind.StampCard, "پاداش کارت مهر", stampDiscount);
+                    }
+                }
+            }
+
+            // 4. Membership Tier Standing Discount
+            if (customer is not null &&
+                siteSettings is { MembershipTiersEnabled: true } &&
+                customer.MembershipTierId is not null)
+            {
+                var tier = await _dbContext.MembershipTiers
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(entry => entry.Id == customer.MembershipTierId, cancellationToken);
+                if (tier is { IsEnabled: true } && tier.DiscountPercent > 0)
+                {
+                    var tierDiscount = Math.Round(itemsTotal * tier.DiscountPercent / 100m, 0, MidpointRounding.AwayFromZero);
+                    if (tierDiscount > 0)
+                    {
+                        discountTracker.Apply(OrderDiscountKind.Tier, tier.Name, tierDiscount);
+                    }
+                }
+            }
+
+            // 5. Birthday Automatic Benefit
+            if (customer is not null &&
+                siteSettings is { BirthdayDiscountEnabled: true, BirthdayDiscountMode: BirthdayDiscountMode.Automatic } &&
+                siteSettings.BirthdayDiscountPercent > 0 &&
+                customer.DateOfBirth is not null &&
+                BirthdayDiscountService.IsBirthdayActive(customer.DateOfBirth.Value, siteSettings.BirthdayDiscountWindowDays))
+            {
+                var birthdayDiscount = Math.Round(itemsTotal * siteSettings.BirthdayDiscountPercent / 100m, 0, MidpointRounding.AwayFromZero);
+                if (birthdayDiscount > 0)
+                {
+                    discountTracker.Apply(OrderDiscountKind.Birthday, "هدیهٔ تولد", birthdayDiscount);
+                }
+            }
+
+            // 6. Customer Group Standing Discount
             if (customer is not null)
             {
                 var groupMembership = await CustomerGroupService.GetActiveMembershipAsync(
                     _dbContext, customer.Id, cancellationToken);
                 if (groupMembership is { } membership && membership.Group.DiscountPercent > 0)
                 {
-                    var groupDiscount = Math.Round(itemsTotal * membership.Group.DiscountPercent / 100m, 2);
+                    var groupDiscount = Math.Round(itemsTotal * membership.Group.DiscountPercent / 100m, 0, MidpointRounding.AwayFromZero);
                     if (groupDiscount > 0)
                     {
                         discountTracker.Apply(
@@ -296,7 +528,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 }
             }
 
-            if (request.PersonalCup && customer is not null &&
+            // 7. Personal Cup Discount
+            if (request.PersonalCup &&
                 siteSettings is { PersonalCupDiscountEnabled: true } &&
                 siteSettings.PersonalCupDiscountAmount > 0)
             {
@@ -323,11 +556,11 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 }
             }
 
-            // Monthly subscription: consumed exactly once, at the moment the order
-            // is actually paid (holding an order must not burn the customer's uses).
-            // A fully-discounted order must not burn uses for no benefit.
-            if (request.UseSubscription && customer is not null && order.TotalAmount > 0 &&
-                action is PosOrderAction.PayCash or PosOrderAction.PayCard)
+            // 8. Monthly Subscription (burned only at final payment)
+            if (request.UseSubscription &&
+                customer is not null &&
+                order.TotalAmount > 0 &&
+                isPaidRevenueAction)
             {
                 var subscription = await SubscriptionService.GetActiveAsync(
                     _dbContext, customer.Id, cancellationToken);
@@ -340,10 +573,6 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                             line.resolved.Quantity,
                             line.resolved.UnitPrice,
                             (IReadOnlyCollection<Guid>)new[] { line.resolved.CategoryId })));
-
-                    var categoryByMenuItem = resolvedLines
-                        .GroupBy(line => line.resolved.MenuItemId)
-                        .ToDictionary(group => group.Key, group => (Guid?)group.First().resolved.CategoryId);
 
                     var unitsToConsume = 0;
                     foreach (var unit in plan.Units)
@@ -389,6 +618,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 }
             }
 
+            // 9. Authorized Manual POS Discount
             if (request.ManualDiscountValue is > 0m)
             {
                 if (!_currentUserService.HasPermission(AdminPermissions.Pos.ApplyManualDiscount))
@@ -447,45 +677,58 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 order.ConfigureOrderKind(resolvedOrderKind, request.ComplimentaryReason);
                 order.Hold();
                 break;
+
             case PosOrderAction.PayCash:
-                order.PayAtPos(PosPaymentMethod.Cash);
-                await OrderInventoryService.DeductInventoryForOrderLinesAsync(
-                    _dbContext,
-                    order,
-                    order.Lines.ToList(),
-                    cancellationToken);
-                await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
+                RecordSinglePosPayment(order, PosPaymentMethod.Cash, request.PaymentReference);
+                await DeductPosOrderInventoryAsync(order, cancellationToken);
                 break;
+
             case PosOrderAction.PayCard:
-                order.PayAtPos(PosPaymentMethod.Card);
-                await OrderInventoryService.DeductInventoryForOrderLinesAsync(
-                    _dbContext,
-                    order,
-                    order.Lines.ToList(),
-                    cancellationToken);
-                await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
+                RecordSinglePosPayment(order, PosPaymentMethod.Card, request.PaymentReference);
+                await DeductPosOrderInventoryAsync(order, cancellationToken);
                 break;
+
+            case PosOrderAction.PayCardToCard:
+                RecordSinglePosPayment(order, PosPaymentMethod.CardToCard, request.PaymentReference);
+                await DeductPosOrderInventoryAsync(order, cancellationToken);
+                break;
+
+            case PosOrderAction.PaySplit:
+                RecordSplitPosPayments(order, request.PaymentAllocations);
+                await DeductPosOrderInventoryAsync(order, cancellationToken);
+                break;
+
             case PosOrderAction.InternalUse:
             case PosOrderAction.Complimentary:
                 order.CompleteWithoutCharge(resolvedOrderKind, request.ComplimentaryReason);
-                await OrderInventoryService.DeductInventoryForOrderLinesAsync(
-                    _dbContext,
-                    order,
-                    order.Lines.ToList(),
-                    cancellationToken);
-                await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
+                await DeductPosOrderInventoryAsync(order, cancellationToken);
                 break;
+        }
+
+        if (isPaidRevenueAction && adjustedCodeApplications.Count > 0)
+        {
+            await _discountEngine.RecordRedemptionsAsync(
+                order.Id,
+                customer?.Id,
+                adjustedCodeApplications,
+                cancellationToken);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        if (action is PosOrderAction.PayCash or PosOrderAction.PayCard or PosOrderAction.InternalUse or PosOrderAction.Complimentary)
+        if (isPaidRevenueAction || isNonRevenueAction)
         {
             await _accountingService.PostOrderPaymentAsync(order, cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
 
             // Queue the thermal receipt copies (customer + barista) for the print agent.
             await _printJobService.EnqueueOrderReceiptsAsync(order, cancellationToken);
+        }
+
+        if (isPaidRevenueAction)
+        {
+            // Award loyalty points, stamp cards, badges, membership tiers, and wallet cashback.
+            await _loyaltyService.AwardForPaidOrderAsync(order, cancellationToken);
         }
 
         return new UpsertPosOrderResultDto(
@@ -502,7 +745,63 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             order.ManualDiscountValue,
             order.ManualDiscountAmount,
             order.ManualDiscountReason,
-            order.ManualDiscountAppliedBy);
+            order.ManualDiscountAppliedBy,
+            order.CustomerId,
+            order.CustomerName,
+            string.Equals(order.CustomerPhone, "POS", StringComparison.OrdinalIgnoreCase) ? null : order.CustomerPhone,
+            PosOrderMapper.MapPaymentLegs(order),
+            canManageManagerNote ? order.ManagerNote : null);
+    }
+
+    private void RecordSinglePosPayment(Order order, PosPaymentMethod method, string? reference)
+    {
+        if (order.TotalAmount <= 0m)
+        {
+            order.PayAtPos(method);
+            return;
+        }
+
+        var created = order.RecordPosPayments([(method, order.TotalAmount, reference)]);
+        _dbContext.OrderPayments.AddRange(created);
+    }
+
+    private void RecordSplitPosPayments(Order order, IReadOnlyCollection<PosPaymentAllocationRequest>? allocations)
+    {
+        if (allocations is null || allocations.Count == 0)
+        {
+            throw new DomainException("در پرداخت ترکیبی باید حداقل یک ردیف پرداخت ثبت شود.");
+        }
+
+        var parsed = new List<(PosPaymentMethod Method, decimal Amount, string? Reference)>(allocations.Count);
+        foreach (var item in allocations)
+        {
+            if (!Enum.TryParse<PosPaymentMethod>(item.Method, true, out var method) ||
+                method is not (PosPaymentMethod.Cash or PosPaymentMethod.Card or PosPaymentMethod.CardToCard))
+            {
+                throw new DomainException("روش پرداخت نامعتبر است. فقط نقدی، کارت‌خوان یا کارت به کارت مجاز است.");
+            }
+
+            parsed.Add((method, item.Amount, item.Reference));
+        }
+
+        if (order.TotalAmount <= 0m)
+        {
+            order.PayAtPos(parsed[0].Method);
+            return;
+        }
+
+        var created = order.RecordPosPayments(parsed);
+        _dbContext.OrderPayments.AddRange(created);
+    }
+
+    private async Task DeductPosOrderInventoryAsync(Order order, CancellationToken cancellationToken)
+    {
+        await OrderInventoryService.DeductInventoryForOrderLinesAsync(
+            _dbContext,
+            order,
+            order.Lines.ToList(),
+            cancellationToken);
+        await DeliveryMethodInventoryService.DeductForOrderAsync(_dbContext, order, cancellationToken);
     }
 
     private async Task<string?> ResolveAdminDisplayNameAsync(Guid? adminUserId, CancellationToken cancellationToken)

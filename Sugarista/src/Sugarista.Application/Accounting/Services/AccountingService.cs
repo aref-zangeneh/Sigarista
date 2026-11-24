@@ -127,9 +127,6 @@ internal sealed class AccountingService : IAccountingService
         var cogsAccount = await GetAccountAsync(AccountingAccountCodes.CostOfGoodsSold, cancellationToken);
         var inventoryAccount = await GetAccountAsync(AccountingAccountCodes.Inventory, cancellationToken);
 
-        var assetAccount = order.PaymentMethod == PosPaymentMethod.Cash
-            ? cashAccount
-            : cardAccount;
         var reference = await NextReferenceAsync(entryDate, cancellationToken);
         var discountMemo = order.ManualDiscountAmount > 0m
             ? $" (تخفیف دلخواه: {order.ManualDiscountAmount:N0})"
@@ -145,7 +142,55 @@ internal sealed class AccountingService : IAccountingService
 
         if (order.TotalAmount > 0)
         {
-            entry.AddLine(new JournalLine(entry.Id, assetAccount.Id, order.TotalAmount, 0, "Receipt of payment"));
+            var paidLegs = order.Payments
+                .Where(p => p.Status == OrderPaymentStatus.Paid && p.PaymentMethod != null && p.Amount > 0m)
+                .ToList();
+
+            if (paidLegs.Count == 0)
+            {
+                paidLegs = await _dbContext.OrderPayments
+                    .AsNoTracking()
+                    .Where(p => p.OrderId == order.Id && p.Status == OrderPaymentStatus.Paid && p.PaymentMethod != null && p.Amount > 0m)
+                    .ToListAsync(cancellationToken);
+            }
+
+            var legsSum = Math.Round(paidLegs.Sum(p => p.Amount), 2, MidpointRounding.AwayFromZero);
+            if (paidLegs.Count > 0 && legsSum == Math.Round(order.TotalAmount, 2, MidpointRounding.AwayFromZero))
+            {
+                foreach (var group in paidLegs.GroupBy(p => p.PaymentMethod!.Value))
+                {
+                    var groupAmount = Math.Round(group.Sum(p => p.Amount), 2, MidpointRounding.AwayFromZero);
+                    if (groupAmount <= 0m)
+                    {
+                        continue;
+                    }
+
+                    var targetAsset = group.Key == PosPaymentMethod.Cash ? cashAccount : cardAccount;
+                    var lineMemo = group.Key switch
+                    {
+                        PosPaymentMethod.Cash => "دریافت نقدی صندوق",
+                        PosPaymentMethod.Card => "دریافت کارت‌خوان (POS)",
+                        PosPaymentMethod.CardToCard => "دریافت کارت به کارت",
+                        _ => "Receipt of payment"
+                    };
+                    entry.AddLine(new JournalLine(entry.Id, targetAsset.Id, groupAmount, 0, lineMemo));
+                }
+            }
+            else
+            {
+                var assetAccount = order.PaymentMethod == PosPaymentMethod.Cash
+                    ? cashAccount
+                    : cardAccount;
+                var lineMemo = order.PaymentMethod switch
+                {
+                    PosPaymentMethod.Cash => "دریافت نقدی صندوق",
+                    PosPaymentMethod.Card => "دریافت کارت‌خوان (POS)",
+                    PosPaymentMethod.CardToCard => "دریافت کارت به کارت",
+                    _ => "Receipt of payment"
+                };
+                entry.AddLine(new JournalLine(entry.Id, assetAccount.Id, order.TotalAmount, 0, lineMemo));
+            }
+
             entry.AddLine(new JournalLine(entry.Id, revenueAccount.Id, 0, order.TotalAmount, "Sales revenue"));
         }
 

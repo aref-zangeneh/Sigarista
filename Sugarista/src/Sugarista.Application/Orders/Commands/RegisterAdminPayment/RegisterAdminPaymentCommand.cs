@@ -31,7 +31,7 @@ public class RegisterAdminPaymentCommandValidator : AbstractValidator<RegisterAd
         RuleFor(command => command.PaymentMethod)
             .Must(method => string.IsNullOrWhiteSpace(method) ||
                             Enum.TryParse<PosPaymentMethod>(method, true, out _))
-            .WithMessage("Payment method must be Cash, Card, OnlineGateway, or Complimentary.");
+            .WithMessage("Payment method must be Cash, Card, CardToCard, Split, OnlineGateway, or Complimentary.");
 
         RuleFor(command => command.OrderKind)
             .Must(kind => string.IsNullOrWhiteSpace(kind) ||
@@ -121,9 +121,10 @@ public class RegisterAdminPaymentCommandHandler : IRequestHandler<RegisterAdminP
         var payment = new OrderPayment(
             order.Id,
             payerKey: "admin",
-            payerLabel: "ثبت توسط صندوق‌دار",
+            payerLabel: $"ثبت توسط صندوق‌دار ({Order.GetPaymentMethodLabel(parsedMethod)})",
             amount,
-            paymentAuthority: $"ADMIN-{parsedMethod}-{Guid.NewGuid():N}");
+            paymentAuthority: $"ADMIN-{parsedMethod}-{Guid.NewGuid():N}",
+            paymentMethod: parsedMethod);
         payment.MarkPaid(referenceId: $"manual-{parsedMethod}");
         _dbContext.OrderPayments.Add(payment);
         order.AddPayment(payment);

@@ -25,6 +25,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Note)
             .HasMaxLength(500);
 
+        builder.Property(o => o.ManagerNote)
+            .HasMaxLength(1000);
+
         builder.Property(o => o.Status)
             .HasConversion<string>()
             .HasMaxLength(30)

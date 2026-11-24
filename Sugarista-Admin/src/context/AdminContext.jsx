@@ -655,6 +655,7 @@ export function AdminProvider({ children }) {
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         note: order.note ?? '',
+        managerNote: order.managerNote ?? '',
         lines: order.lines.map((line) => ({
           id: line.id,
           menuItemId: line.menuItemId,
@@ -669,6 +670,7 @@ export function AdminProvider({ children }) {
           payerLabel: line.payerLabel,
           inventoryDeductedQuantity: line.inventoryDeductedQuantity,
           modifierLabels: line.modifierLabels ?? [],
+          optionLabels: line.optionLabels ?? [],
           customDrinkSummary: line.customDrinkSummary ?? [],
           customDrink: line.customDrink ?? null,
           remove: false,
@@ -730,6 +732,9 @@ export function AdminProvider({ children }) {
           customerName: orderEditForm.customerName,
           customerPhone: orderEditForm.customerPhone,
           note: orderEditForm.note,
+          ...(hasPermission(session, PERMISSIONS.pos.managerNote)
+            ? { managerNote: orderEditForm.managerNote ?? '' }
+            : {}),
           lines: orderEditForm.lines.map((line) => ({
             id: line.id,
             menuItemId: line.menuItemId,

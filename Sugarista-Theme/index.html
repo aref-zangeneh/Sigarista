@@ -1155,7 +1155,7 @@
                       data-numeric-input="true"
                       data-allow-decimal="true"
                       class="form-control ltr-text"
-                      :value="toPersianDigits(share.sharePercentage)"
+                      :value="formatTypedDigits(share.sharePercentage, share._pctScript)"
                       @input="setSplitSharePercentage(index, $event.target.value, $event.target)"
                       @blur="finalizeSplitSharePercentage(index)"
                     >
@@ -1180,7 +1180,7 @@
                     dir="ltr"
                     data-numeric-input="true"
                     class="form-control form-control-sm ltr-text guest-select"
-                    :value="toPersianDigits(share.shareAmount)"
+                    :value="formatTypedDigits(share.shareAmount, share._amtScript)"
                     @input="setSplitShareAmount(index, $event.target.value)"
                     @blur="finalizeSplitShareAmount(index)"
                     placeholder="مبلغ به تومان"
@@ -1265,7 +1265,7 @@
                   dir="ltr"
                   data-numeric-input="true"
                   class="form-control ltr-text"
-                  :value="toPersianDigits(checkoutForm.redeemPoints)"
+                  :value="formatTypedDigits(checkoutForm.redeemPoints, checkoutForm._redeemPointsScript)"
                   @input="setRedeemPoints($event.target.value)"
                   placeholder="تعداد امتیاز"
                 >

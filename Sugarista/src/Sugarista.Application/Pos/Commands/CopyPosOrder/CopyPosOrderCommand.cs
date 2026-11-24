@@ -84,6 +84,7 @@ public class CopyPosOrderCommandHandler : IRequestHandler<CopyPosOrderCommand, P
         }
 
         copy.ApplyDeliveryMethod(source.DeliveryMethodId, source.DeliveryFee);
+        copy.AssignCustomer(source.CustomerId);
 
         _dbContext.Orders.Add(copy);
         await _dbContext.SaveChangesAsync(cancellationToken);

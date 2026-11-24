@@ -7,9 +7,19 @@ const PAYMENT_LABELS = {
   PayCash: 'پرداخت نقدی',
   Card: 'کارت‌خوان (پوز)',
   PayCard: 'کارت‌خوان (پوز)',
+  CardToCard: 'کارت به کارت',
+  PayCardToCard: 'کارت به کارت',
+  Split: 'پرداخت ترکیبی',
+  PaySplit: 'پرداخت ترکیبی',
   OnlineGateway: 'درگاه پرداخت آنلاین',
   Complimentary: 'رایگان (بدون دریافت وجه)',
   InternalUse: 'مصرف داخلی پرسنل (رایگان)',
+}
+
+const SHORT_LEG_LABELS = {
+  Cash: 'نقدی',
+  Card: 'کارت‌خوان (پوز)',
+  CardToCard: 'کارت به کارت',
 }
 
 const SERVICE_LABELS = {
@@ -73,8 +83,36 @@ function formatReceiptDate(date = new Date()) {
   )
 }
 
-function paymentLabel(method) {
+export function formatPaymentBreakdown(method, paymentLegs = []) {
+  const validLegs = Array.isArray(paymentLegs)
+    ? paymentLegs.filter((leg) => leg && Number(leg.amount) > 0)
+    : []
+
+  const grouped = new Map()
+  for (const leg of validLegs) {
+    const key = leg.method || leg.Method
+    if (!key) continue
+    grouped.set(key, (grouped.get(key) || 0) + Number(leg.amount || leg.Amount || 0))
+  }
+
+  if (grouped.size > 1 || (method === 'Split' && grouped.size > 0)) {
+    const parts = Array.from(grouped.entries()).map(([key, amt]) => {
+      const label = SHORT_LEG_LABELS[key] ?? PAYMENT_LABELS[key] ?? key
+      return `${formatReceiptMoney(amt)} ${label}`
+    })
+    return `پرداخت ترکیبی (${parts.join(' + ')})`
+  }
+
+  if (grouped.size === 1) {
+    const [singleMethod] = grouped.keys()
+    return PAYMENT_LABELS[singleMethod] ?? PAYMENT_LABELS[method] ?? singleMethod
+  }
+
   return PAYMENT_LABELS[method] ?? method ?? 'پرداخت صندوق'
+}
+
+function paymentLabel(method, paymentLegs = []) {
+  return formatPaymentBreakdown(method, paymentLegs)
 }
 
 function serviceLabel(serviceType, deliveryMethodName) {
@@ -217,12 +255,13 @@ export function buildPosReceiptBundle(input) {
         result?.totalAmount ??
           Math.max(0, resolvedSubtotal + resolvedDeliveryFee + resolvedTaxTotal - discountTotal),
       )
+  const rawLegs = result?.paymentLegs ?? input?.paymentLegs ?? []
   const paymentMethod =
     orderKind === 'InternalUse'
       ? 'مصرف داخلی پرسنل (رایگان)'
       : orderKind === 'Complimentary'
         ? 'مهمان مجموعه / آشنا (رایگان)'
-        : paymentLabel(result?.paymentMethod ?? input?.paymentMethod)
+        : paymentLabel(result?.paymentMethod ?? input?.paymentMethod, rawLegs)
   const service = serviceLabel(serviceType, deliveryMethodName)
   const rawGuestName = normalizeText(customerName)
   const guestName = rawGuestName || (orderKind === 'InternalUse' ? 'مصرف داخلی' : 'مهمان گرامی')

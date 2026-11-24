@@ -8,6 +8,7 @@ import {
   buildPosReceiptBundle,
   fetchPosReceiptPreviews,
   fetchPrintAgentHealth,
+  formatPaymentBreakdown,
   printPosReceipts,
 } from '../utils/posReceipt'
 import { Tip } from '../components/Tip'
@@ -17,10 +18,13 @@ import {
   buildCartLineKey,
   buildUpsertPayload,
   computeCartTotals,
+  computeCustomerClubPreview,
   computeManualDiscount,
+  computeSplitPaymentSummary,
   findMissingRequiredOptionGroup,
   formatPrice,
   orderToCart,
+  parseNumericInput,
   resolveDefaultSizeKey,
   resolveItemPrice,
 } from '../utils/posCart'
@@ -698,6 +702,302 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
   )
 }
 
+function PosSplitPaymentModal({ payableTotal, submitting, onClose, onConfirm }) {
+  const [cashInput, setCashInput] = useState('')
+  const [cardInput, setCardInput] = useState('')
+  const [cardToCardInput, setCardToCardInput] = useState('')
+  const [cardToCardRef, setCardToCardRef] = useState('')
+
+  useEscapeKey(!submitting, onClose)
+
+  const summary = useMemo(
+    () =>
+      computeSplitPaymentSummary(payableTotal, {
+        Cash: cashInput,
+        Card: cardInput,
+        CardToCard: cardToCardInput,
+        cardToCardReference: cardToCardRef,
+      }),
+    [payableTotal, cashInput, cardInput, cardToCardInput, cardToCardRef],
+  )
+
+  function fillRemainingFor(method) {
+    const cashVal = Math.round(parseNumericInput(cashInput))
+    const cardVal = Math.round(parseNumericInput(cardInput))
+    const c2cVal = Math.round(parseNumericInput(cardToCardInput))
+    const target = Math.max(0, Math.round(Number(payableTotal) || 0))
+
+    if (method === 'Cash') {
+      const rem = Math.max(0, target - cardVal - c2cVal)
+      setCashInput(rem > 0 ? String(rem) : '')
+    } else if (method === 'Card') {
+      const rem = Math.max(0, target - cashVal - c2cVal)
+      setCardInput(rem > 0 ? String(rem) : '')
+    } else if (method === 'CardToCard') {
+      const rem = Math.max(0, target - cashVal - cardVal)
+      setCardToCardInput(rem > 0 ? String(rem) : '')
+    }
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    if (!summary.isExactMatch || submitting) return
+    onConfirm(summary.legs)
+  }
+
+  return (
+    <div className="pos-modal-backdrop" onClick={() => !submitting && onClose()}>
+      <div
+        className="pos-modal pos-split-pay-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pos-split-pay-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="pos-modal-head">
+          <div>
+            <h3 id="pos-split-pay-title">⚖️ ثبت پرداخت ترکیبی / چندروشی</h3>
+            <p>مبلغ دریافتی از هر روش (نقدی، کارت‌خوان، کارت به کارت) را مشخص کنید.</p>
+          </div>
+          <button
+            type="button"
+            className="pos-modal-close"
+            onClick={onClose}
+            disabled={submitting}
+            aria-label="بستن"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="pos-split-pay-form">
+          <div className="pos-split-pay-target">
+            <span>مبلغ قابل پرداخت سفارش:</span>
+            <strong>{formatPrice(summary.payableTotal)} تومان</strong>
+          </div>
+
+          <div className="pos-split-pay-rows">
+            <div className="pos-split-pay-row">
+              <div className="pos-split-pay-row-head">
+                <label htmlFor="pos-split-cash">💵 دریافت نقدی</label>
+                <div className="pos-split-pay-quick">
+                  <button type="button" onClick={() => fillRemainingFor('Cash')}>
+                    الباقی
+                  </button>
+                  {cashInput ? (
+                    <button type="button" className="is-clear" onClick={() => setCashInput('')}>
+                      پاک
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <input
+                id="pos-split-cash"
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                className="pos-meta-input ltr-input"
+                placeholder="مبلغ نقدی به تومان..."
+                value={cashInput}
+                onChange={(event) => setCashInput(event.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="pos-split-pay-row">
+              <div className="pos-split-pay-row-head">
+                <label htmlFor="pos-split-card">💳 دستگاه کارت‌خوان (POS)</label>
+                <div className="pos-split-pay-quick">
+                  <button type="button" onClick={() => fillRemainingFor('Card')}>
+                    الباقی
+                  </button>
+                  {cardInput ? (
+                    <button type="button" className="is-clear" onClick={() => setCardInput('')}>
+                      پاک
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <input
+                id="pos-split-card"
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                className="pos-meta-input ltr-input"
+                placeholder="مبلغ کارت‌خوان به تومان..."
+                value={cardInput}
+                onChange={(event) => setCardInput(event.target.value)}
+              />
+            </div>
+
+            <div className="pos-split-pay-row">
+              <div className="pos-split-pay-row-head">
+                <label htmlFor="pos-split-c2c">📲 کارت به کارت</label>
+                <div className="pos-split-pay-quick">
+                  <button type="button" onClick={() => fillRemainingFor('CardToCard')}>
+                    الباقی
+                  </button>
+                  {cardToCardInput ? (
+                    <button type="button" className="is-clear" onClick={() => setCardToCardInput('')}>
+                      پاک
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <input
+                id="pos-split-c2c"
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                className="pos-meta-input ltr-input"
+                placeholder="مبلغ کارت به کارت به تومان..."
+                value={cardToCardInput}
+                onChange={(event) => setCardToCardInput(event.target.value)}
+              />
+              {summary.cardToCardAmount > 0 ? (
+                <input
+                  type="text"
+                  className="pos-meta-input pos-split-ref-input"
+                  placeholder="شماره پیگیری / ۴ رقم آخر کارت (اختیاری)..."
+                  value={cardToCardRef}
+                  onChange={(event) => setCardToCardRef(event.target.value)}
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <div
+            className={`pos-split-pay-status ${
+              summary.isExactMatch
+                ? 'is-balanced'
+                : summary.excessAmount > 0
+                  ? 'is-excess'
+                  : 'is-remaining'
+            }`}
+          >
+            <div className="pos-split-status-line">
+              <span>جمع مبالغ واردشده:</span>
+              <strong>{formatPrice(summary.allocatedTotal)} تومان</strong>
+            </div>
+            {summary.isExactMatch ? (
+              <div className="pos-split-status-badge">
+                ✓ تراز کامل ({formatPaymentBreakdown('Split', summary.legs)})
+              </div>
+            ) : summary.remainingAmount > 0 ? (
+              <div className="pos-split-status-badge">
+                ماندهٔ تسویه‌نشده: <strong>{formatPrice(summary.remainingAmount)} تومان</strong>
+              </div>
+            ) : (
+              <div className="pos-split-status-badge">
+                مبلغ واردشده <strong>{formatPrice(summary.excessAmount)} تومان</strong> بیشتر از جمع فاکتور است
+              </div>
+            )}
+          </div>
+
+          <div className="pos-modal-actions">
+            <button
+              type="button"
+              className="pos-secondary-button"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              انصراف
+            </button>
+            <button
+              type="submit"
+              className="pos-primary-button"
+              disabled={!summary.isExactMatch || submitting}
+            >
+              {submitting ? 'در حال ثبت پرداخت...' : 'ثبت نهایی پرداخت ترکیبی'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function PosManagerNoteModal({ order, token, onClose, onSaved }) {
+  const [noteText, setNoteText] = useState(order?.managerNote ?? '')
+  const [savingNote, setSavingNote] = useState(false)
+  const [noteError, setNoteError] = useState('')
+
+  useEscapeKey(!savingNote, onClose)
+
+  async function handleSave(event) {
+    event.preventDefault()
+    setSavingNote(true)
+    setNoteError('')
+    try {
+      const res = await apiRequest(`/admin/pos/orders/${order.id}/manager-note`, {
+        method: 'PATCH',
+        token,
+        body: { managerNote: noteText },
+      })
+      onSaved(res?.managerNote ?? null)
+    } catch (err) {
+      setNoteError(getReadableError(err))
+      setSavingNote(false)
+    }
+  }
+
+  return (
+    <div className="pos-modal-backdrop" onClick={() => !savingNote && onClose()}>
+      <div
+        className="pos-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pos-manager-note-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="pos-modal-head">
+          <div>
+            <h3 id="pos-manager-note-modal-title">
+              🔒 یادداشت محرمانه مدیریت — سفارش #{order.trackingCode}
+            </h3>
+            <p>این یادداشت فقط برای مدیریت قابل مشاهده است و روی هیچ فیشی چاپ نمی‌شود.</p>
+          </div>
+          <button
+            type="button"
+            className="pos-modal-close"
+            onClick={onClose}
+            disabled={savingNote}
+            aria-label="بستن"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSave} className="pos-split-pay-form">
+          <textarea
+            rows={4}
+            className="pos-meta-input"
+            placeholder="یادداشت مدیریتی مربوط به این سفارش را بنویسید..."
+            value={noteText}
+            onChange={(event) => setNoteText(event.target.value)}
+            maxLength={1000}
+            autoFocus
+          />
+          {noteError ? <p className="pos-modal-error">{noteError}</p> : null}
+          <div className="pos-modal-actions">
+            <button
+              type="button"
+              className="pos-secondary-button"
+              onClick={onClose}
+              disabled={savingNote}
+            >
+              انصراف
+            </button>
+            <button type="submit" className="pos-primary-button" disabled={savingNote}>
+              {savingNote ? 'در حال ذخیره...' : 'ذخیره یادداشت مدیریت'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export function PosPage() {
   const {
     session,
@@ -720,6 +1020,8 @@ export function PosPage() {
   const [mobilePane, setMobilePane] = useState('catalog') // 'catalog' | 'order'
   const [productModal, setProductModal] = useState(null)
   const [printModal, setPrintModal] = useState(null)
+  const [splitPaymentModalOpen, setSplitPaymentModalOpen] = useState(false)
+  const [managerNoteModalOrder, setManagerNoteModalOrder] = useState(null)
   const [expandedLineNoteKey, setExpandedLineNoteKey] = useState(null)
   const [orderExtrasOpen, setOrderExtrasOpen] = useState(false)
 
@@ -729,7 +1031,14 @@ export function PosPage() {
   const [serviceType, setServiceType] = useState('DineIn')
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
+  const [customerLookup, setCustomerLookup] = useState(null)
+  const [customerLookupLoading, setCustomerLookupLoading] = useState(false)
+  const autoFilledCustomerNameRef = useRef('')
+  const [discountCode, setDiscountCode] = useState('')
+  const [redeemLoyaltyPoints, setRedeemLoyaltyPoints] = useState(false)
   const [orderNote, setOrderNote] = useState('')
+  const [managerNote, setManagerNote] = useState('')
+  const [managerNoteOpen, setManagerNoteOpen] = useState(false)
   const [personalCup, setPersonalCup] = useState(false)
   const [useSubscription, setUseSubscription] = useState(false)
   const [orderKind, setOrderKind] = useState('Standard') // 'Standard' | 'InternalUse' | 'Complimentary'
@@ -747,6 +1056,7 @@ export function PosPage() {
   const canSubmit = canSubmitPosOrder(session, orderId)
   const canDelete = hasPermission(session, PERMISSIONS.pos.delete) || hasPermission(session, PERMISSIONS.orders.delete)
   const canApplyManualDiscount = hasPermission(session, PERMISSIONS.pos.applyDiscount)
+  const canManageManagerNote = hasPermission(session, PERMISSIONS.pos.managerNote)
 
   const loadBootstrap = useCallback(async () => {
     setLoading(true)
@@ -776,11 +1086,62 @@ export function PosPage() {
   }, [message])
 
   useEffect(() => {
+    const rawDigits = String(customerPhone || '')
+      .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+      .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+      .replace(/\D/g, '')
+
+    if (rawDigits.length < 10) {
+      setCustomerLookup(null)
+      setCustomerLookupLoading(false)
+      return undefined
+    }
+
+    let active = true
+    setCustomerLookupLoading(true)
+    const timer = window.setTimeout(async () => {
+      try {
+        const data = await apiRequest(
+          `/admin/pos/customers/lookup?phone=${encodeURIComponent(customerPhone)}`,
+          { token: session.token },
+        )
+        if (!active) return
+        setCustomerLookup(data)
+        if (data?.persianName) {
+          setCustomerName((prev) => {
+            const trimmed = prev.trim()
+            if (!trimmed || trimmed === autoFilledCustomerNameRef.current) {
+              autoFilledCustomerNameRef.current = data.persianName
+              return data.persianName
+            }
+            return prev
+          })
+        }
+      } catch {
+        if (active) setCustomerLookup(null)
+      } finally {
+        if (active) setCustomerLookupLoading(false)
+      }
+    }, 300)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [customerPhone, session.token])
+
+  useEffect(() => {
     function onKeyDown(event) {
-      if (printModal || productModal) {
+      if (printModal || productModal || splitPaymentModalOpen || managerNoteModalOrder) {
         return
       }
-      if (event.target.matches('input, textarea, select') && event.key !== 'F2' && event.key !== 'F4' && event.key !== 'F5') {
+      if (
+        event.target.matches('input, textarea, select') &&
+        event.key !== 'F2' &&
+        event.key !== 'F4' &&
+        event.key !== 'F5' &&
+        event.key !== 'F6'
+      ) {
         return
       }
 
@@ -794,14 +1155,19 @@ export function PosPage() {
         submitOrder('Hold')
       }
 
-      if (event.key === 'F4' && cart.length > 0 && canSubmit) {
+      if (event.key === 'F4' && cart.length > 0 && canSubmit && orderKind === 'Standard') {
         event.preventDefault()
         submitOrder('PayCash')
       }
 
-      if (event.key === 'F5' && cart.length > 0 && canSubmit) {
+      if (event.key === 'F5' && cart.length > 0 && canSubmit && orderKind === 'Standard') {
         event.preventDefault()
         submitOrder('PayCard')
+      }
+
+      if (event.key === 'F6' && cart.length > 0 && canSubmit && orderKind === 'Standard') {
+        event.preventDefault()
+        submitOrder('PayCardToCard')
       }
     }
 
@@ -855,13 +1221,31 @@ export function PosPage() {
   ) ?? null
   const deliveryFee = serviceType === 'TakeAway' ? (selectedDeliveryMethod?.deliveryFee ?? 0) : 0
   const cartTotals = useMemo(() => computeCartTotals(cart, deliveryFee), [cart, deliveryFee])
+  const clubPreview = useMemo(
+    () =>
+      orderKind === 'Standard'
+        ? computeCustomerClubPreview({
+            itemsTotal: cartTotals.itemsTotal,
+            grandTotalBeforeDiscounts: cartTotals.grandTotal,
+            customerLookup,
+            personalCup,
+            siteSettings,
+            redeemPoints: redeemLoyaltyPoints
+              ? Math.floor(Number(customerLookup?.loyaltyPoints || 0))
+              : 0,
+            discountCode,
+          })
+        : { totalClubDiscount: 0, afterClubTotal: cartTotals.grandTotal, breakdown: [], cappedRedeemPoints: 0 },
+    [orderKind, cartTotals.itemsTotal, cartTotals.grandTotal, customerLookup, personalCup, siteSettings, redeemLoyaltyPoints, discountCode],
+  )
   const manualDiscountPreview = useMemo(
     () =>
       canApplyManualDiscount && orderKind === 'Standard'
-        ? computeManualDiscount(cartTotals.grandTotal, manualDiscountType, manualDiscountValue)
-        : { type: 'Amount', value: 0, amount: 0, finalTotal: cartTotals.grandTotal, exceedsLimit: false },
-    [canApplyManualDiscount, orderKind, cartTotals.grandTotal, manualDiscountType, manualDiscountValue],
+        ? computeManualDiscount(clubPreview.afterClubTotal, manualDiscountType, manualDiscountValue)
+        : { type: 'Amount', value: 0, amount: 0, finalTotal: clubPreview.afterClubTotal, exceedsLimit: false },
+    [canApplyManualDiscount, orderKind, clubPreview.afterClubTotal, manualDiscountType, manualDiscountValue],
   )
+  const totalCombinedDiscount = clubPreview.totalClubDiscount + manualDiscountPreview.amount
   const effectivePayableTotal = orderKind === 'Standard' ? manualDiscountPreview.finalTotal : 0
 
   const selectedTable = bootstrap?.tables?.find((table) => table.id === salonTableId) ?? null
@@ -872,7 +1256,13 @@ export function PosPage() {
     setCart([])
     setCustomerName('')
     setCustomerPhone('')
+    setCustomerLookup(null)
+    autoFilledCustomerNameRef.current = ''
+    setDiscountCode('')
+    setRedeemLoyaltyPoints(false)
     setOrderNote('')
+    setManagerNote('')
+    setManagerNoteOpen(false)
     setPersonalCup(false)
     setUseSubscription(false)
     setOrderKind('Standard')
@@ -885,6 +1275,7 @@ export function PosPage() {
     setSalonTableId(null)
     setDeliveryMethodId('')
     setSplitBill(EMPTY_SPLIT)
+    setSplitPaymentModalOpen(false)
     setExpandedLineNoteKey(null)
     setOrderExtrasOpen(false)
   }
@@ -962,7 +1353,15 @@ export function PosPage() {
       setTrackingCode(order.trackingCode)
       setCustomerName(order.customerName === 'مهمان' ? '' : order.customerName)
       setCustomerPhone(order.customerPhone === 'POS' ? '' : order.customerPhone)
+      autoFilledCustomerNameRef.current = order.customerName === 'مهمان' ? '' : order.customerName
       setOrderNote(order.note ?? '')
+      if (canManageManagerNote) {
+        setManagerNote(order.managerNote ?? '')
+        setManagerNoteOpen(Boolean(order.managerNote))
+      } else {
+        setManagerNote('')
+        setManagerNoteOpen(false)
+      }
       setServiceType(order.serviceType ?? 'TakeAway')
       setDeliveryMethodId(order.deliveryMethodId ?? '')
       setSalonTableId(order.salonTableId ?? null)
@@ -997,7 +1396,7 @@ export function PosPage() {
     }
   }
 
-  async function submitOrder(action) {
+  async function submitOrder(action, extraOptions = {}) {
     if (!cart.length) {
       setError('حداقل یک آیتم به سفارش اضافه کنید.')
       setMessage('')
@@ -1060,6 +1459,11 @@ export function PosPage() {
       manualDiscountType: canApplyManualDiscount ? manualDiscountType : null,
       manualDiscountValue: canApplyManualDiscount ? manualDiscountValue : null,
       manualDiscountReason: canApplyManualDiscount ? manualDiscountReason : '',
+      paymentAllocations: extraOptions.paymentAllocations ?? null,
+      paymentReference: extraOptions.paymentReference ?? '',
+      discountCode,
+      redeemPoints: clubPreview.cappedRedeemPoints,
+      managerNote: canManageManagerNote ? managerNote : undefined,
     })
 
     try {
@@ -1075,6 +1479,8 @@ export function PosPage() {
             token: session.token,
           })
 
+      setSplitPaymentModalOpen(false)
+
       if (action === 'Hold') {
         setMessage(`سفارش ${result.trackingCode} نگه‌داشته شد.`)
         resetCart()
@@ -1083,8 +1489,8 @@ export function PosPage() {
         const bundle = buildPosReceiptBundle({
           result,
           cart: cartSnapshot,
-          customerName,
-          customerPhone,
+          customerName: result.customerName && result.customerName !== 'مهمان' ? result.customerName : customerName,
+          customerPhone: result.customerPhone || customerPhone,
           orderNote,
           serviceType,
           tableName: selectedTable?.name ?? null,
@@ -1092,11 +1498,12 @@ export function PosPage() {
           deliveryFee: action === 'InternalUse' || action === 'Complimentary' ? 0 : deliveryFee,
           taxTotal: action === 'InternalUse' || action === 'Complimentary' ? 0 : cartTotals.taxTotal,
           subtotalAmount: cartTotals.itemsTotal,
-          discountTotal: result.discountTotal ?? manualDiscountPreview.amount,
+          discountTotal: result.discountTotal ?? totalCombinedDiscount,
           manualDiscountType: result.manualDiscountType ?? (manualDiscountPreview.amount > 0 ? manualDiscountType : null),
           manualDiscountValue: result.manualDiscountValue ?? (manualDiscountPreview.amount > 0 ? manualDiscountPreview.value : null),
           manualDiscountAmount: result.manualDiscountAmount ?? manualDiscountPreview.amount,
           manualDiscountReason: result.manualDiscountReason ?? (manualDiscountPreview.amount > 0 ? manualDiscountReason : ''),
+          paymentLegs: result.paymentLegs ?? extraOptions.paymentAllocations ?? [],
           siteSettings,
           orderKind: result.orderKind ?? orderKind,
           complimentaryReason: result.complimentaryReason ?? complimentaryReason,
@@ -1107,7 +1514,7 @@ export function PosPage() {
             ? `سفارش مصرف داخلی ${result.trackingCode} ثبت شد و موجودی کسر گردید.`
             : action === 'Complimentary'
               ? `سفارش مهمان / رایگان ${result.trackingCode} ثبت شد و موجودی کسر گردید.`
-              : `پرداخت سفارش ${result.trackingCode} ثبت شد. برای چاپ فیش مشتری و آشپزخانه، دکمهٔ «چاپ فیش» را بزنید.`,
+              : `پرداخت سفارش ${result.trackingCode} ثبت شد${result.customerId ? ' و امتیاز/سابقهٔ باشگاه مشتریان بروزرسانی گردید' : ''}.`,
         )
         resetCart()
       }
@@ -1133,6 +1540,7 @@ export function PosPage() {
           trackingCode: order.trackingCode,
           totalAmount: order.totalAmount,
           paymentMethod: order.paymentMethod,
+          paymentLegs: order.paymentLegs ?? [],
           orderKind: order.orderKind,
           complimentaryReason: order.complimentaryReason,
           discountTotal: order.discountTotal,
@@ -1488,7 +1896,7 @@ export function PosPage() {
           )}
 
           <p className="pos-shortcuts">
-            میانبرها: <strong>/</strong> جستجو · <strong>F2</strong> نگه‌داشت · <strong>F4</strong> پرداخت نقد · <strong>F5</strong> پرداخت کارت
+            میانبرها: <strong>/</strong> جستجو · <strong>F2</strong> نگه‌داشت · <strong>F4</strong> نقد · <strong>F5</strong> کارت‌خوان · <strong>F6</strong> کارت به کارت
           </p>
         </section>
 
@@ -1597,45 +2005,131 @@ export function PosPage() {
 
                   <div className="pos-compact-fields">
                     <input
+                      id="pos-customer-phone-input"
+                      type="tel"
+                      dir="ltr"
+                      className="pos-meta-input ltr-input"
+                      placeholder="شماره موبایل مشتری"
+                      value={customerPhone}
+                      onChange={(event) => setCustomerPhone(event.target.value)}
+                    />
+                    <input
+                      id="pos-customer-name-input"
                       type="text"
                       className="pos-meta-input"
                       placeholder="نام مشتری (اختیاری)"
                       value={customerName}
                       onChange={(event) => setCustomerName(event.target.value)}
                     />
-
-                    {serviceType === 'DineIn' ? (
-                      <button
-                        type="button"
-                        className={`pos-table-picker-btn ${selectedTable ? 'has-table' : ''}`}
-                        onClick={() => setSidePanel('tables')}
-                      >
-                        <span>{selectedTable ? `میز: ${selectedTable.name}` : 'انتخاب میز...'}</span>
-                        {selectedTable ? (
-                          <small
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              setSalonTableId(null)
-                            }}
-                            title="حذف میز"
-                          >
-                            ✕
-                          </small>
-                        ) : (
-                          <small>▾</small>
-                        )}
-                      </button>
-                    ) : (
-                      <input
-                        type="tel"
-                        dir="ltr"
-                        className="pos-meta-input"
-                        placeholder="شماره موبایل"
-                        value={customerPhone}
-                        onChange={(event) => setCustomerPhone(event.target.value)}
-                      />
-                    )}
                   </div>
+
+                  {customerLookupLoading ? (
+                    <div className="pos-customer-club-banner pos-customer-club-banner--loading">
+                      <span>در حال بررسی شماره در باشگاه مشتریان...</span>
+                    </div>
+                  ) : customerLookup?.normalizedPhone ? (
+                    customerLookup.exists ? (
+                      <div className="pos-customer-club-banner pos-customer-club-banner--member">
+                        <div className="pos-club-banner-top">
+                          <strong>
+                            👤 {customerLookup.persianName || customerLookup.normalizedPhone}
+                            <em className="pos-club-member-tag">عضو باشگاه</em>
+                          </strong>
+                          {customerLookup.paidOrdersCount > 0 ? (
+                            <small>{toPersianNumber(customerLookup.paidOrdersCount)} خرید قبلی</small>
+                          ) : null}
+                        </div>
+                        <div className="pos-club-chips">
+                          {customerLookup.membershipTierName ? (
+                            <span className="pos-club-chip">
+                              🏅 {customerLookup.membershipTierName}
+                              {customerLookup.membershipTierDiscountPercent > 0
+                                ? ` (${toPersianNumber(customerLookup.membershipTierDiscountPercent)}٪)`
+                                : ''}
+                            </span>
+                          ) : null}
+                          {customerLookup.activeGroupName ? (
+                            <span className="pos-club-chip">
+                              👥 {customerLookup.activeGroupName}
+                              {customerLookup.activeGroupDiscountPercent > 0
+                                ? ` (${toPersianNumber(customerLookup.activeGroupDiscountPercent)}٪)`
+                                : ''}
+                            </span>
+                          ) : null}
+                          {customerLookup.isBirthdayDiscountActive ? (
+                            <span className="pos-club-chip pos-club-chip--highlight">
+                              🎂 هدیه تولد ({toPersianNumber(customerLookup.birthdayDiscountPercent)}٪)
+                            </span>
+                          ) : null}
+                          {customerLookup.hasActiveStampReward ? (
+                            <span className="pos-club-chip pos-club-chip--highlight">
+                              🎫 پاداش کارت مهر ({toPersianNumber(customerLookup.stampRewardPercent)}٪)
+                            </span>
+                          ) : null}
+                          {customerLookup.loyaltyEnabled && customerLookup.loyaltyPoints > 0 ? (
+                            <button
+                              type="button"
+                              className={`pos-club-chip pos-club-chip--action ${redeemLoyaltyPoints ? 'is-active' : ''}`}
+                              onClick={() => setRedeemLoyaltyPoints((prev) => !prev)}
+                              title="کلیک برای مصرف امتیاز در این سفارش"
+                            >
+                              ⭐ امتیاز: {formatPrice(Math.floor(customerLookup.loyaltyPoints))}
+                              {customerLookup.loyaltyRedeemTomanPerPoint > 0
+                                ? redeemLoyaltyPoints
+                                  ? ' · در حال کسر ✓'
+                                  : ' · مصرف امتیاز'
+                                : ''}
+                            </button>
+                          ) : null}
+                          {customerLookup.subscriptionRemainingUnits > 0 ? (
+                            <button
+                              type="button"
+                              className={`pos-club-chip pos-club-chip--action ${useSubscription ? 'is-active' : ''}`}
+                              onClick={() => setUseSubscription((prev) => !prev)}
+                            >
+                              ☕ اشتراک: {toPersianNumber(customerLookup.subscriptionRemainingUnits)} واحد
+                              {useSubscription ? ' ✓' : ''}
+                            </button>
+                          ) : null}
+                          {customerLookup.walletEnabled && customerLookup.walletBalance > 0 ? (
+                            <span className="pos-club-chip">
+                              👛 کیف پول: {formatPrice(customerLookup.walletBalance)} ت
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="pos-customer-club-banner pos-customer-club-banner--new">
+                        <span>
+                          ✨ مخاطب جدید — با ثبت سفارش خودکار به <strong>مشتریان</strong> و{' '}
+                          <strong>مخاطبین پیامک</strong> اضافه می‌شود.
+                        </span>
+                      </div>
+                    )
+                  ) : null}
+
+                  {serviceType === 'DineIn' ? (
+                    <button
+                      type="button"
+                      className={`pos-table-picker-btn ${selectedTable ? 'has-table' : ''}`}
+                      onClick={() => setSidePanel('tables')}
+                    >
+                      <span>{selectedTable ? `میز انتخاب‌شده: ${selectedTable.name}` : '🪑 انتخاب میز سالن از نقشه...'}</span>
+                      {selectedTable ? (
+                        <small
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setSalonTableId(null)
+                          }}
+                          title="حذف میز"
+                        >
+                          ✕
+                        </small>
+                      ) : (
+                        <small>▾</small>
+                      )}
+                    </button>
+                  ) : null}
 
                   {serviceType === 'TakeAway' && (deliveryOptions ?? []).length > 0 ? (
                     <select
@@ -1665,6 +2159,7 @@ export function PosPage() {
                         <span>یادداشت و گزینه‌های ویژه</span>
                         <span className="pos-extras-summary-badges">
                           {orderNote.trim() ? <em className="pos-mini-badge">یادداشت</em> : null}
+                          {discountCode.trim() ? <em className="pos-mini-badge">کد تخفیف</em> : null}
                           {personalCup ? <em className="pos-mini-badge">لیوان شخصی</em> : null}
                           {useSubscription ? <em className="pos-mini-badge">اشتراک</em> : null}
                           {splitBill.isSplitBill ? (
@@ -1684,6 +2179,16 @@ export function PosPage() {
                           value={orderNote}
                           onChange={(event) => setOrderNote(event.target.value)}
                         />
+                        {orderKind === 'Standard' ? (
+                          <input
+                            type="text"
+                            dir="ltr"
+                            className="pos-meta-input ltr-input"
+                            placeholder="کد تخفیف باشگاه / کمپین (اختیاری)..."
+                            value={discountCode}
+                            onChange={(event) => setDiscountCode(event.target.value)}
+                          />
+                        ) : null}
 
                         <div className="pos-options-strip" role="group" aria-label="گزینه‌های ویژه سفارش">
                           <button
@@ -2060,6 +2565,55 @@ export function PosPage() {
                       ) : null}
                     </div>
                   ) : null}
+
+                  {canManageManagerNote ? (
+                    <div className={`pos-manager-note-box ${managerNote.trim() ? 'is-active' : ''}`}>
+                      <div className="pos-manager-note-head">
+                        <button
+                          type="button"
+                          className="pos-manager-note-toggle"
+                          aria-expanded={managerNoteOpen}
+                          onClick={() => setManagerNoteOpen((open) => !open)}
+                        >
+                          <span>🔒 یادداشت محرمانه مدیریت</span>
+                          {managerNote.trim() ? (
+                            <strong className="pos-manager-note-badge">ثبت‌شده</strong>
+                          ) : (
+                            <small>{managerNoteOpen ? 'بستن ▴' : 'افزودن ▾'}</small>
+                          )}
+                        </button>
+                        {managerNote.trim() ? (
+                          <button
+                            type="button"
+                            className="pos-manual-discount-clear"
+                            title="پاک کردن یادداشت مدیریت"
+                            onClick={() => {
+                              setManagerNote('')
+                              setManagerNoteOpen(false)
+                            }}
+                          >
+                            پاک
+                          </button>
+                        ) : null}
+                      </div>
+                      {managerNoteOpen ? (
+                        <div className="pos-manager-note-body">
+                          <small className="pos-manager-note-hint">
+                            فقط کاربران دارای دسترسی مدیریت این متن را می‌بینند؛ روی هیچ فیشی چاپ نمی‌شود.
+                          </small>
+                          <textarea
+                            id="pos-manager-note-input"
+                            rows={2}
+                            maxLength={1000}
+                            className="pos-meta-input"
+                            placeholder="یادداشت داخلی مدیریت برای این سفارش..."
+                            value={managerNote}
+                            onChange={(event) => setManagerNote(event.target.value)}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </>
             ) : null}
@@ -2113,10 +2667,27 @@ export function PosPage() {
                     <div key={order.id} className="pos-held-item">
                       <div>
                         <strong dir="ltr" data-latin-digits="true">#{order.trackingCode}</strong>
-                        <p>{order.customerName} · {toPersianNumber(order.lineCount)} قلم</p>
+                        <p>
+                          {order.customerName}
+                          {order.customerPhone ? ` (${toPersianNumber(order.customerPhone)})` : ''} ·{' '}
+                          {toPersianNumber(order.lineCount)} قلم
+                        </p>
                         <small>{formatPrice(order.totalAmount)} تومان</small>
+                        {canManageManagerNote && order.managerNote ? (
+                          <div className="pos-manager-note-snippet">🔒 {order.managerNote}</div>
+                        ) : null}
                       </div>
                       <div className="pos-held-actions">
+                        {canManageManagerNote ? (
+                          <button
+                            type="button"
+                            className="pos-secondary-button pos-btn-sm"
+                            title="یادداشت مدیریت"
+                            onClick={() => setManagerNoteModalOrder(order)}
+                          >
+                            🔒
+                          </button>
+                        ) : null}
                         <button type="button" className="pos-primary-button pos-btn-sm" onClick={() => loadOrder(order.id)}>
                           ادامه
                         </button>
@@ -2148,12 +2719,27 @@ export function PosPage() {
                             ? 'مصرف داخلی'
                             : order.orderKind === 'Complimentary'
                               ? 'مهمان / رایگان'
-                              : order.status}
+                              : formatPaymentBreakdown(order.paymentMethod, order.paymentLegs)}
                           {order.isExcludedFromAccounting ? ' · خارج از حسابداری' : ''}
                         </p>
-                        <small>{formatDateTime(order.createdAt)}</small>
+                        <small>
+                          {formatPrice(order.totalAmount)} تومان · {formatDateTime(order.createdAt)}
+                        </small>
+                        {canManageManagerNote && order.managerNote ? (
+                          <div className="pos-manager-note-snippet">🔒 {order.managerNote}</div>
+                        ) : null}
                       </div>
                       <div className="pos-held-actions">
+                        {canManageManagerNote ? (
+                          <button
+                            type="button"
+                            className="pos-secondary-button pos-btn-sm"
+                            title="مشاهده / ویرایش یادداشت مدیریت"
+                            onClick={() => setManagerNoteModalOrder(order)}
+                          >
+                            🔒
+                          </button>
+                        ) : null}
                         <button type="button" className="pos-primary-button pos-btn-sm" onClick={() => reprintOrder(order.id)}>
                           چاپ فیش
                         </button>
@@ -2197,9 +2783,9 @@ export function PosPage() {
 
             <div className="pos-totals-box">
               {orderKind === 'Standard' &&
-              (manualDiscountPreview.amount > 0 || cartTotals.taxTotal > 0 || deliveryFee > 0) ? (
+              (totalCombinedDiscount > 0 || cartTotals.taxTotal > 0 || deliveryFee > 0) ? (
                 <div className="pos-totals-breakdown">
-                  {manualDiscountPreview.amount > 0 ? (
+                  {totalCombinedDiscount > 0 ? (
                     <div className="pos-total-row">
                       <span>جمع قبل از تخفیف</span>
                       <span>{formatPrice(cartTotals.grandTotal)} ت</span>
@@ -2217,6 +2803,12 @@ export function PosPage() {
                       <span>{formatPrice(deliveryFee)} ت</span>
                     </div>
                   ) : null}
+                  {clubPreview.breakdown.map((row) => (
+                    <div key={row.key} className="pos-total-row pos-discount-row">
+                      <span>{row.label}</span>
+                      <strong>−{formatPrice(row.amount)} ت</strong>
+                    </div>
+                  ))}
                   {manualDiscountPreview.amount > 0 ? (
                     <div className="pos-total-row pos-discount-row">
                       <span>
@@ -2271,6 +2863,25 @@ export function PosPage() {
                   >
                     <span>💳 کارت‌خوان</span>
                     <kbd>F5</kbd>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="pos-primary-button pos-pay-btn pos-pay-c2c-btn"
+                    onClick={() => submitOrder('PayCardToCard')}
+                    disabled={submitting || !cart.length}
+                  >
+                    <span>📲 کارت به کارت</span>
+                    <kbd>F6</kbd>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="pos-secondary-button pos-pay-btn pos-pay-split-btn"
+                    onClick={() => setSplitPaymentModalOpen(true)}
+                    disabled={submitting || !cart.length || effectivePayableTotal <= 0}
+                  >
+                    <span>⚖️ پرداخت ترکیبی</span>
                   </button>
                 </>
               ) : (
@@ -2339,6 +2950,28 @@ export function PosPage() {
           modifiers={modifiers}
           onClose={() => setProductModal(null)}
           onConfirm={(line) => addToCart(line, productModal.initialLine?.cartKey ?? null)}
+        />
+      ) : null}
+
+      {splitPaymentModalOpen ? (
+        <PosSplitPaymentModal
+          payableTotal={effectivePayableTotal}
+          submitting={submitting}
+          onClose={() => setSplitPaymentModalOpen(false)}
+          onConfirm={(legs) => submitOrder('PaySplit', { paymentAllocations: legs })}
+        />
+      ) : null}
+
+      {managerNoteModalOrder && canManageManagerNote ? (
+        <PosManagerNoteModal
+          order={managerNoteModalOrder}
+          token={session.token}
+          onClose={() => setManagerNoteModalOrder(null)}
+          onSaved={async () => {
+            setManagerNoteModalOrder(null)
+            setMessage('یادداشت محرمانه مدیریت ذخیره شد.')
+            await loadBootstrap()
+          }}
         />
       ) : null}
 

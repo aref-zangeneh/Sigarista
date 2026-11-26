@@ -1,4 +1,5 @@
 using Sugarista.Domain.Entities;
+using Sugarista.Domain.Exceptions;
 
 namespace Sugarista.Domain.UnitTests;
 
@@ -100,5 +101,58 @@ public class BlogTests
 
         settings.IsBlogEnabled = true;
         Assert.True(settings.IsBlogEnabled);
+        Assert.Null(settings.BlogSettingsJson);
+    }
+
+    [Fact]
+    public void BlogHighlight_CreateAndUpdate_ValidatesAndNormalizesThemeAndOrder()
+    {
+        var highlight = new BlogHighlight(
+            title: "  راز کرمای طلایی  ",
+            subtitle: "  عصاره‌گیری دقیق در دمای ۹۳ درجه  ",
+            badgeText: " نکته باریستا ",
+            iconText: " ",
+            imageUrl: " /api/files/crema.webp ",
+            linkUrl: " /mag ",
+            linkLabel: " بیشتر ",
+            themeStyle: "MAGENTA",
+            displayOrder: -5,
+            isActive: true);
+
+        Assert.Equal("راز کرمای طلایی", highlight.Title);
+        Assert.Equal("عصاره‌گیری دقیق در دمای ۹۳ درجه", highlight.Subtitle);
+        Assert.Equal("نکته باریستا", highlight.BadgeText);
+        Assert.Equal("☕", highlight.IconText);
+        Assert.Equal("/api/files/crema.webp", highlight.ImageUrl);
+        Assert.Equal("/mag", highlight.LinkUrl);
+        Assert.Equal("بیشتر", highlight.LinkLabel);
+        Assert.Equal("magenta", highlight.ThemeStyle);
+        Assert.Equal(0, highlight.DisplayOrder);
+        Assert.True(highlight.IsActive);
+
+        highlight.Update(
+            title: "شیرینی پخت روز",
+            subtitle: "کروسان کره‌ای تازه",
+            badgeText: null,
+            iconText: "🥐",
+            imageUrl: null,
+            linkUrl: "/",
+            linkLabel: "منو",
+            themeStyle: "unknown-style",
+            displayOrder: 4,
+            isActive: false);
+
+        Assert.Equal("شیرینی پخت روز", highlight.Title);
+        Assert.Equal("teal", highlight.ThemeStyle);
+        Assert.Equal("🥐", highlight.IconText);
+        Assert.Equal(4, highlight.DisplayOrder);
+        Assert.False(highlight.IsActive);
+    }
+
+    [Fact]
+    public void BlogHighlight_ThrowsDomainException_WhenTitleOrSubtitleMissing()
+    {
+        Assert.Throws<DomainException>(() => new BlogHighlight("", "توضیح معتبر"));
+        Assert.Throws<DomainException>(() => new BlogHighlight("عنوان معتبر", "   "));
     }
 }

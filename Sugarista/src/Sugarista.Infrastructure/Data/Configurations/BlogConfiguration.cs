@@ -57,3 +57,23 @@ public class BlogPostConfiguration : IEntityTypeConfiguration<BlogPost>
         builder.ToTable("BlogPosts");
     }
 }
+
+public class BlogHighlightConfiguration : IEntityTypeConfiguration<BlogHighlight>
+{
+    public void Configure(EntityTypeBuilder<BlogHighlight> builder)
+    {
+        builder.Property(h => h.Title).HasMaxLength(160).IsRequired();
+        builder.Property(h => h.Subtitle).HasMaxLength(400).IsRequired();
+        builder.Property(h => h.BadgeText).HasMaxLength(60).IsRequired();
+        builder.Property(h => h.IconText).HasMaxLength(16).IsRequired();
+        builder.Property(h => h.ImageUrl).HasMaxLength(500);
+        builder.Property(h => h.LinkUrl).HasMaxLength(400);
+        builder.Property(h => h.LinkLabel).HasMaxLength(80);
+        builder.Property(h => h.ThemeStyle).HasMaxLength(20).IsRequired();
+
+        builder.HasIndex(h => h.DisplayOrder);
+        builder.HasIndex(h => h.IsActive);
+
+        builder.ToTable("BlogHighlights");
+    }
+}

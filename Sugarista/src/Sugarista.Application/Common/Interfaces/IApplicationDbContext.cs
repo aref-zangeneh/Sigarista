@@ -97,6 +97,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.MenuItemStock> MenuItemStocks { get; }
 
+    DbSet<Sugarista.Domain.Entities.MenuItemStockLot> MenuItemStockLots { get; }
+
     DbSet<Sugarista.Domain.Entities.ProductionBatch> ProductionBatches { get; }
 
     DbSet<Sugarista.Domain.Entities.ProductWikiGuide> ProductWikiGuides { get; }
@@ -106,6 +108,8 @@ public interface IApplicationDbContext
     DbSet<Sugarista.Domain.Entities.BlogCategory> BlogCategories { get; }
 
     DbSet<Sugarista.Domain.Entities.BlogPost> BlogPosts { get; }
+
+    DbSet<Sugarista.Domain.Entities.BlogHighlight> BlogHighlights { get; }
 
     DbSet<Sugarista.Domain.Entities.Order> Orders { get; }
 

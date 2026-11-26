@@ -106,6 +106,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MenuItemStock> MenuItemStocks => Set<MenuItemStock>();
 
+    public DbSet<MenuItemStockLot> MenuItemStockLots => Set<MenuItemStockLot>();
+
     public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
 
     public DbSet<ProductWikiGuide> ProductWikiGuides => Set<ProductWikiGuide>();
@@ -115,6 +117,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BlogCategory> BlogCategories => Set<BlogCategory>();
 
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
+
+    public DbSet<BlogHighlight> BlogHighlights => Set<BlogHighlight>();
 
     public DbSet<Order> Orders => Set<Order>();
 

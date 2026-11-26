@@ -1,0 +1,859 @@
+/* ============================================================
+   Quick Menu Stock, FEFO Expiration Lots & Pricing Desk
+   Minimal, ultra-fast, high-precision operational design
+   ============================================================ */
+
+.qs-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.qs-top-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.qs-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.qs-head-row h2 {
+  margin: 0 0 4px;
+  font-size: 1.12rem;
+  color: var(--heading);
+}
+
+.qs-head-row p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+  max-width: 72ch;
+}
+
+.qs-refresh-btn {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+}
+
+/* ── Clickable KPI Filter Strip ── */
+.qs-kpi-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.qs-kpi-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qs-kpi-pill strong {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--tint-strong);
+  color: var(--heading);
+  font-size: 0.8rem;
+}
+
+.qs-kpi-pill:hover {
+  border-color: var(--accent);
+}
+
+.qs-kpi-pill.is-active {
+  background: var(--accent-deep, #0c344f);
+  border-color: var(--accent-deep, #0c344f);
+  color: #ffffff;
+}
+
+.qs-kpi-pill.is-active strong {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.qs-kpi-pill.is-danger strong {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.qs-kpi-pill.is-danger.is-active {
+  background: var(--bad);
+  border-color: var(--bad);
+}
+
+.qs-kpi-pill.is-warn strong {
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+}
+
+.qs-kpi-pill.is-warn.is-active {
+  background: #b9770e;
+  border-color: #b9770e;
+}
+
+.qs-kpi-pill.is-ok strong {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+/* ── Search + Category Chips ── */
+.qs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.qs-search-wrap {
+  flex: 0 1 280px;
+  min-width: 200px;
+}
+
+.qs-search-wrap input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.qs-cat-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 2px;
+}
+
+.qs-cat-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.qs-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qs-cat-chip small {
+  opacity: 0.75;
+  font-size: 0.72rem;
+}
+
+.qs-cat-chip:hover {
+  border-color: var(--accent);
+  color: var(--heading);
+}
+
+.qs-cat-chip.is-active {
+  background: var(--accent, #aa3171);
+  border-color: var(--accent, #aa3171);
+  color: #ffffff;
+}
+
+/* ── Minimal Inline Table ── */
+.qs-list-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.qs-table-head,
+.qs-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.5fr) 195px 118px 112px 118px 116px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 16px;
+}
+
+.qs-table-head {
+  background: var(--tint);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.qs-rows {
+  display: grid;
+}
+
+.qs-item-block {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+}
+
+.qs-item-block:last-child {
+  border-bottom: 0;
+}
+
+.qs-item-block.is-inactive {
+  opacity: 0.65;
+}
+
+.qs-item-block.has-expired {
+  background: rgba(180, 35, 24, 0.03);
+}
+
+.qs-row:hover {
+  background: var(--tint);
+}
+
+.qs-cell-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.qs-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.qs-thumb--placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--tint-strong);
+  color: var(--heading);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.qs-item-meta {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.qs-item-title-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.qs-item-title-line strong {
+  font-size: 0.88rem;
+  color: var(--heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qs-active-dot {
+  border: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.qs-active-dot.is-on {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.qs-active-dot.is-off {
+  background: var(--neutral-soft);
+  color: var(--neutral-ink);
+}
+
+.qs-item-sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 0.72rem;
+}
+
+.qs-cat-tag {
+  color: var(--muted);
+}
+
+.qs-exp-badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.qs-exp-badge.is-expired {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.qs-exp-badge.is-expiring_soon {
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+}
+
+.qs-exp-badge.is-fresh {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+/* ── Stock Stepper & Lots Trigger ── */
+.qs-cell-stock {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.qs-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  overflow: hidden;
+  width: fit-content;
+}
+
+.qs-step-btn {
+  width: 28px;
+  height: 30px;
+  border: 0;
+  background: var(--tint);
+  color: var(--heading);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.qs-step-btn:hover:not(:disabled) {
+  background: var(--tint-strong);
+}
+
+.qs-step-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qs-qty-input {
+  width: 52px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--heading);
+  outline: none;
+}
+
+.qs-lots-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: fit-content;
+  padding: 3px 9px;
+  border-radius: 7px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qs-lots-trigger.has-lots {
+  border-style: solid;
+  border-color: rgba(12, 52, 79, 0.25);
+  background: var(--tint);
+  color: var(--heading);
+}
+
+.qs-lots-trigger.is-open,
+.qs-lots-trigger:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Inline Money Inputs ── */
+.qs-cell-money {
+  min-width: 0;
+}
+
+.qs-mobile-label {
+  display: none;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.qs-money-input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--heading);
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  text-align: left;
+  direction: ltr;
+}
+
+.qs-money-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.qs-money-input.is-special {
+  color: var(--accent);
+}
+
+.qs-cost-wrap {
+  display: grid;
+  gap: 2px;
+}
+
+.qs-margin-tag {
+  font-size: 0.68rem;
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.qs-margin-tag.is-low {
+  color: var(--warn-ink);
+}
+
+/* ── Row Actions ── */
+.qs-cell-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+}
+
+.qs-save-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qs-save-btn.is-dirty {
+  background: var(--accent, #aa3171);
+  border-color: var(--accent, #aa3171);
+  color: #ffffff;
+}
+
+.qs-save-btn.is-saved {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #ffffff;
+}
+
+.qs-save-btn:disabled:not(.is-saved) {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.qs-sub-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.qs-sub-btn:hover {
+  color: var(--accent);
+}
+
+/* ── Optional Inline Sizes Strip ── */
+.qs-sizes-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px 16px 14px;
+  background: var(--tint);
+  border-top: 1px dashed var(--border);
+}
+
+.qs-size-box {
+  display: grid;
+  grid-template-columns: 70px 1fr 1fr;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.qs-size-box input {
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--heading);
+  font-size: 0.8rem;
+  direction: ltr;
+  text-align: left;
+}
+
+/* ── Inline FEFO Lots Drawer ── */
+.qs-lots-drawer {
+  padding: 14px 18px 18px;
+  background: var(--tint);
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+}
+
+.qs-lots-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.qs-lots-header strong {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--heading);
+}
+
+.qs-lots-header small {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.qs-lots-total {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.qs-add-lot-bar {
+  display: grid;
+  grid-template-columns: 88px minmax(220px, 1.3fr) minmax(170px, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.qs-lot-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.qs-lot-field input {
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--heading);
+  font: inherit;
+  font-size: 0.83rem;
+}
+
+.qs-expiry-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.qs-preset-btn {
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.69rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qs-preset-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.qs-add-lot-btn {
+  margin-top: 20px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: 0;
+  background: var(--brand-grad, #aa3171);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.qs-add-lot-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.qs-lots-empty {
+  text-align: center;
+  padding: 14px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.qs-lots-list {
+  display: grid;
+  gap: 8px;
+}
+
+.qs-lot-row {
+  display: grid;
+  grid-template-columns: 145px 86px minmax(175px, 1fr) minmax(150px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--border);
+}
+
+.qs-lot-row.is-expired {
+  border-inline-start-color: var(--bad);
+}
+
+.qs-lot-row.is-expiring_soon {
+  border-inline-start-color: #d97706;
+}
+
+.qs-lot-row.is-fresh {
+  border-inline-start-color: var(--ok);
+}
+
+.qs-lot-rank {
+  display: grid;
+  gap: 3px;
+  align-self: center;
+}
+
+.qs-rank-num {
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--heading);
+}
+
+.qs-fefo-pill {
+  width: fit-content;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(12, 52, 79, 0.1);
+  color: var(--accent-deep, #0c344f);
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.qs-lot-rank small {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.qs-lot-edit-qty,
+.qs-lot-edit-date,
+.qs-lot-edit-label {
+  display: grid;
+  gap: 3px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.qs-lot-edit-qty input,
+.qs-lot-edit-label input {
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--heading);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.qs-exp-inline.is-expired {
+  color: var(--bad);
+}
+
+.qs-exp-inline.is-expiring_soon {
+  color: var(--warn-ink);
+}
+
+.qs-exp-inline.is-fresh {
+  color: var(--ok);
+}
+
+.qs-lot-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qs-lot-save-btn,
+.qs-lot-discard-btn,
+.qs-lot-del-btn {
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.qs-lot-save-btn:hover {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.qs-lot-discard-btn:hover {
+  border-color: #d97706;
+  color: #b45309;
+}
+
+.qs-lot-del-btn:hover {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.qs-empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ── Responsive Breakpoints ── */
+@media (max-width: 1080px) {
+  .qs-table-head {
+    display: none;
+  }
+
+  .qs-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .qs-cell-item {
+    grid-column: 1 / -1;
+  }
+
+  .qs-cell-stock {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .qs-mobile-label {
+    display: block;
+  }
+
+  .qs-cell-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .qs-add-lot-bar,
+  .qs-lot-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .qs-add-lot-btn {
+    margin-top: 0;
+    grid-column: 1 / -1;
+  }
+
+  .qs-lot-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 640px) {
+  .qs-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .qs-sizes-strip,
+  .qs-add-lot-bar,
+  .qs-lot-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

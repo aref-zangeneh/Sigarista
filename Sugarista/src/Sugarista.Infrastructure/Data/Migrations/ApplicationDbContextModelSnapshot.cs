@@ -629,6 +629,76 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("BlogCategories", (string)null);
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.BlogHighlight", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BadgeText")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IconText")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LinkLabel")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("LinkUrl")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("Subtitle")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("ThemeStyle")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DisplayOrder");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("BlogHighlights", (string)null);
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.BlogPost", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3240,6 +3310,68 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("MenuItemStocks");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemStockLot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BatchLabel")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DiscardReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("DiscardedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("InitialQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)");
+
+                    b.Property<bool>("IsDiscarded")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("MenuItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("RemainingQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("numeric(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("MenuItemId");
+
+                    b.HasIndex("MenuItemId", "IsDiscarded", "RemainingQuantity", "ExpiresAt");
+
+                    b.ToTable("MenuItemStockLots", (string)null);
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuModifier", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4642,6 +4774,10 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<string>("BirthdayGreetingMessage")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("BlogSettingsJson")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
 
                     b.Property<string>("BrandSubtitle")
                         .IsRequired()
@@ -6812,6 +6948,17 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
                         .WithOne()
                         .HasForeignKey("Sugarista.Domain.Entities.MenuItemStock", "MenuItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemStockLot", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

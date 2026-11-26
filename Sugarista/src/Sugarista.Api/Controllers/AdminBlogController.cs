@@ -18,13 +18,15 @@ public class AdminBlogController : ApiControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IApplicationDbContext _dbContext;
+    private readonly IMagCacheService _magCache;
 
-    public AdminBlogController(IApplicationDbContext dbContext)
+    public AdminBlogController(IApplicationDbContext dbContext, IMagCacheService magCache)
     {
         _dbContext = dbContext;
+        _magCache = magCache;
     }
 
-    // ── Summary ─────────────────────────────────────────────────────────────
+    // ── Summary & Master Visibility ─────────────────────────────────────────
 
     [HttpGet("summary")]
     [RequirePermission(AdminPermissions.Blog.View)]
@@ -36,6 +38,7 @@ public class AdminBlogController : ApiControllerBase
         var scheduledPosts = await _dbContext.BlogPosts.CountAsync(p => p.Status == BlogPostStatus.Scheduled, cancellationToken);
         var totalViews = await _dbContext.BlogPosts.SumAsync(p => (long?)p.ViewCount, cancellationToken) ?? 0L;
         var totalCategories = await _dbContext.BlogCategories.CountAsync(cancellationToken);
+        var totalHighlights = await _dbContext.BlogHighlights.CountAsync(cancellationToken);
         var isBlogEnabled = await _dbContext.SiteSettings
             .AsNoTracking()
             .Select(s => (bool?)s.IsBlogEnabled)
@@ -48,7 +51,8 @@ public class AdminBlogController : ApiControllerBase
             scheduledPosts,
             totalViews,
             totalCategories,
-            isBlogEnabled));
+            isBlogEnabled,
+            totalHighlights));
     }
 
     [HttpPatch("visibility")]
@@ -65,11 +69,184 @@ public class AdminBlogController : ApiControllerBase
 
         settings.IsBlogEnabled = request.IsBlogEnabled;
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
 
         return Ok(new BlogVisibilityDto(settings.IsBlogEnabled));
     }
 
-    // ── Categories ──────────────────────────────────────────────────────────
+    // ── Dynamic Appearance, Colors & Section Texts ──────────────────────────
+
+    [HttpGet("appearance")]
+    [RequirePermission(AdminPermissions.Blog.View)]
+    public async Task<ActionResult<BlogAppearanceSettings>> GetAppearance(CancellationToken cancellationToken)
+    {
+        var row = await _dbContext.SiteSettings
+            .AsNoTracking()
+            .Select(s => new { s.CafeName, s.BlogSettingsJson })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var resolved = BlogAppearanceResolver.Resolve(row?.BlogSettingsJson, row?.CafeName);
+        return Ok(resolved);
+    }
+
+    [HttpPut("appearance")]
+    [RequireAnyPermission(AdminPermissions.Blog.Update, AdminPermissions.SiteSettings.Update)]
+    public async Task<ActionResult<BlogAppearanceSettings>> UpdateAppearance(
+        [FromBody] BlogAppearanceSettings request,
+        CancellationToken cancellationToken)
+    {
+        var settings = await _dbContext.SiteSettings.FirstOrDefaultAsync(cancellationToken);
+        if (settings is null)
+        {
+            return NotFound(new { detail = "تنظیمات سایت یافت نشد." });
+        }
+
+        var sanitized = BlogAppearanceResolver.Sanitize(request);
+        settings.BlogSettingsJson = BlogAppearanceResolver.Serialize(sanitized);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
+
+        return Ok(sanitized);
+    }
+
+    [HttpPost("appearance/reset")]
+    [RequireAnyPermission(AdminPermissions.Blog.Update, AdminPermissions.SiteSettings.Update)]
+    public async Task<ActionResult<BlogAppearanceSettings>> ResetAppearance(CancellationToken cancellationToken)
+    {
+        var settings = await _dbContext.SiteSettings.FirstOrDefaultAsync(cancellationToken);
+        if (settings is null)
+        {
+            return NotFound(new { detail = "تنظیمات سایت یافت نشد." });
+        }
+
+        settings.BlogSettingsJson = null;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
+
+        return Ok(BlogAppearanceResolver.CreateDefaults(settings.CafeName));
+    }
+
+    // ── Highlight Cards (کارت‌های ویژه و نکات کوتاه مجله) — Full CRUD ────────
+
+    [HttpGet("highlights")]
+    [RequirePermission(AdminPermissions.Blog.View)]
+    public async Task<ActionResult<IReadOnlyList<AdminBlogHighlightDto>>> GetHighlights(CancellationToken cancellationToken)
+    {
+        var items = await _dbContext.BlogHighlights
+            .AsNoTracking()
+            .OrderBy(h => h.DisplayOrder)
+            .ThenBy(h => h.CreatedAt)
+            .Select(h => ToHighlightDto(h))
+            .ToListAsync(cancellationToken);
+
+        return Ok(items);
+    }
+
+    [HttpGet("highlights/{id:guid}")]
+    [RequirePermission(AdminPermissions.Blog.View)]
+    public async Task<ActionResult<AdminBlogHighlightDto>> GetHighlightById(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await _dbContext.BlogHighlights
+            .AsNoTracking()
+            .FirstOrDefaultAsync(h => h.Id == id, cancellationToken);
+
+        return item is null ? NotFound() : Ok(ToHighlightDto(item));
+    }
+
+    [HttpPost("highlights")]
+    [RequirePermission(AdminPermissions.Blog.Create)]
+    public async Task<ActionResult<AdminBlogHighlightDto>> CreateHighlight(
+        [FromBody] UpsertBlogHighlightRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest(new { detail = "عنوان کارت ویژه الزامی است." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Subtitle))
+        {
+            return BadRequest(new { detail = "توضیح کوتاه کارت ویژه الزامی است." });
+        }
+
+        var highlight = new BlogHighlight(
+            request.Title,
+            request.Subtitle,
+            request.BadgeText,
+            request.IconText,
+            BlogMarkdownRenderer.SanitizeUrl(request.ImageUrl),
+            BlogAppearanceResolver.SanitizeNavUrl(request.LinkUrl),
+            request.LinkLabel,
+            request.ThemeStyle,
+            request.DisplayOrder,
+            request.IsActive);
+
+        _dbContext.BlogHighlights.Add(highlight);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
+
+        return Ok(ToHighlightDto(highlight));
+    }
+
+    [HttpPut("highlights/{id:guid}")]
+    [RequirePermission(AdminPermissions.Blog.Update)]
+    public async Task<ActionResult<AdminBlogHighlightDto>> UpdateHighlight(
+        Guid id,
+        [FromBody] UpsertBlogHighlightRequest request,
+        CancellationToken cancellationToken)
+    {
+        var highlight = await _dbContext.BlogHighlights.FirstOrDefaultAsync(h => h.Id == id, cancellationToken);
+        if (highlight is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest(new { detail = "عنوان کارت ویژه الزامی است." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Subtitle))
+        {
+            return BadRequest(new { detail = "توضیح کوتاه کارت ویژه الزامی است." });
+        }
+
+        highlight.Update(
+            request.Title,
+            request.Subtitle,
+            request.BadgeText,
+            request.IconText,
+            BlogMarkdownRenderer.SanitizeUrl(request.ImageUrl),
+            BlogAppearanceResolver.SanitizeNavUrl(request.LinkUrl),
+            request.LinkLabel,
+            request.ThemeStyle,
+            request.DisplayOrder,
+            request.IsActive);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
+
+        return Ok(ToHighlightDto(highlight));
+    }
+
+    [HttpDelete("highlights/{id:guid}")]
+    [RequirePermission(AdminPermissions.Blog.Delete)]
+    public async Task<IActionResult> DeleteHighlight(Guid id, CancellationToken cancellationToken)
+    {
+        var highlight = await _dbContext.BlogHighlights.FirstOrDefaultAsync(h => h.Id == id, cancellationToken);
+        if (highlight is null)
+        {
+            return NotFound();
+        }
+
+        _dbContext.BlogHighlights.Remove(highlight);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
+
+        return NoContent();
+    }
+
+    // ── Categories — Full CRUD ──────────────────────────────────────────────
 
     [HttpGet("categories")]
     [RequirePermission(AdminPermissions.Blog.View)]
@@ -101,7 +278,17 @@ public class AdminBlogController : ApiControllerBase
         [FromBody] UpsertBlogCategoryRequest request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest(new { detail = "نام دسته‌بندی مجله الزامی است." });
+        }
+
         var slug = BlogCategory.NormalizeSlug(string.IsNullOrWhiteSpace(request.Slug) ? request.Name : request.Slug);
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return BadRequest(new { detail = "اسلاگ معتبر برای دسته‌بندی وارد کنید." });
+        }
+
         if (await _dbContext.BlogCategories.AnyAsync(c => c.Slug == slug, cancellationToken))
         {
             return Conflict(new { detail = "دسته‌بندی دیگری با این اسلاگ وجود دارد." });
@@ -119,6 +306,7 @@ public class AdminBlogController : ApiControllerBase
 
         _dbContext.BlogCategories.Add(category);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
 
         return Ok(new AdminBlogCategoryDto(
             category.Id,
@@ -148,7 +336,17 @@ public class AdminBlogController : ApiControllerBase
             return NotFound();
         }
 
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest(new { detail = "نام دسته‌بندی مجله الزامی است." });
+        }
+
         var slug = BlogCategory.NormalizeSlug(string.IsNullOrWhiteSpace(request.Slug) ? request.Name : request.Slug);
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return BadRequest(new { detail = "اسلاگ معتبر برای دسته‌بندی وارد کنید." });
+        }
+
         if (await _dbContext.BlogCategories.AnyAsync(c => c.Id != id && c.Slug == slug, cancellationToken))
         {
             return Conflict(new { detail = "دسته‌بندی دیگری با این اسلاگ وجود دارد." });
@@ -165,6 +363,7 @@ public class AdminBlogController : ApiControllerBase
             request.IsActive);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
 
         return Ok(new AdminBlogCategoryDto(
             category.Id,
@@ -191,10 +390,12 @@ public class AdminBlogController : ApiControllerBase
 
         _dbContext.BlogCategories.Remove(category);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
+
         return NoContent();
     }
 
-    // ── Posts ───────────────────────────────────────────────────────────────
+    // ── Posts — Full CRUD ───────────────────────────────────────────────────
 
     [HttpGet("posts")]
     [RequirePermission(AdminPermissions.Blog.View)]
@@ -273,6 +474,16 @@ public class AdminBlogController : ApiControllerBase
         [FromBody] UpsertBlogPostRequest request,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest(new { detail = "عنوان مقاله الزامی است." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ContentMarkdown))
+        {
+            return BadRequest(new { detail = "متن مقاله الزامی است." });
+        }
+
         var slug = BlogCategory.NormalizeSlug(string.IsNullOrWhiteSpace(request.Slug) ? request.Title : request.Slug);
         if (string.IsNullOrWhiteSpace(slug))
         {
@@ -324,6 +535,7 @@ public class AdminBlogController : ApiControllerBase
 
         _dbContext.BlogPosts.Add(post);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
 
         return Ok(ToDetail(post));
     }
@@ -339,6 +551,16 @@ public class AdminBlogController : ApiControllerBase
         if (post is null)
         {
             return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest(new { detail = "عنوان مقاله الزامی است." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ContentMarkdown))
+        {
+            return BadRequest(new { detail = "متن مقاله الزامی است." });
         }
 
         var slug = BlogCategory.NormalizeSlug(string.IsNullOrWhiteSpace(request.Slug) ? request.Title : request.Slug);
@@ -391,6 +613,7 @@ public class AdminBlogController : ApiControllerBase
             request.RelatedMenuItemIds);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
 
         return Ok(ToDetail(post));
     }
@@ -407,8 +630,28 @@ public class AdminBlogController : ApiControllerBase
 
         _dbContext.BlogPosts.Remove(post);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        _magCache.InvalidateAll();
+
         return NoContent();
     }
+
+    // ── Mappers ─────────────────────────────────────────────────────────────
+
+    private static AdminBlogHighlightDto ToHighlightDto(BlogHighlight h) =>
+        new(
+            h.Id,
+            h.Title,
+            h.Subtitle,
+            h.BadgeText,
+            h.IconText,
+            h.ImageUrl,
+            h.LinkUrl,
+            h.LinkLabel,
+            h.ThemeStyle,
+            h.DisplayOrder,
+            h.IsActive,
+            h.CreatedAt,
+            h.LastModifiedAt);
 
     private static string? SerializeFaq(IReadOnlyCollection<BlogFaqItem>? items)
     {
@@ -463,11 +706,39 @@ public record AdminBlogSummaryDto(
     int ScheduledPosts,
     long TotalViews,
     int TotalCategories,
-    bool IsBlogEnabled = true);
+    bool IsBlogEnabled = true,
+    int TotalHighlights = 0);
 
 public record UpdateBlogVisibilityRequest(bool IsBlogEnabled);
 
 public record BlogVisibilityDto(bool IsBlogEnabled);
+
+public record UpsertBlogHighlightRequest(
+    string Title,
+    string Subtitle,
+    string? BadgeText = null,
+    string? IconText = "☕",
+    string? ImageUrl = null,
+    string? LinkUrl = null,
+    string? LinkLabel = null,
+    string? ThemeStyle = "teal",
+    int DisplayOrder = 0,
+    bool IsActive = true);
+
+public record AdminBlogHighlightDto(
+    Guid Id,
+    string Title,
+    string Subtitle,
+    string BadgeText,
+    string IconText,
+    string? ImageUrl,
+    string? LinkUrl,
+    string? LinkLabel,
+    string ThemeStyle,
+    int DisplayOrder,
+    bool IsActive,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastModifiedAt);
 
 public record UpsertBlogCategoryRequest(
     string Name,

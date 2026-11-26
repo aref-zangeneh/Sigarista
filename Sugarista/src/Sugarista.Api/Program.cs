@@ -27,6 +27,8 @@ var configuration = builder.Configuration;
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(configuration);
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<Sugarista.Application.Blog.IMagCacheService, Sugarista.Api.Mag.MagCacheService>();
 
 builder.Services.AddScoped<Sugarista.Api.Filters.ActivityLogFilter>();
 

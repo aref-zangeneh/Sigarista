@@ -79,6 +79,12 @@ export const PERMISSIONS = {
     update: 'admin.menu-items.update',
     delete: 'admin.menu-items.delete',
   },
+  'quick-stock': {
+    view: 'admin.menu-items.view',
+    create: 'admin.menu-items.update',
+    update: 'admin.menu-items.update',
+    delete: 'admin.menu-items.update',
+  },
   'option-templates': {
     view: 'admin.menu-items.view',
     create: 'admin.menu-items.create',

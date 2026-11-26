@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Sugarista.Api.Mag;
 using Sugarista.Application.Blog;
 using Sugarista.Application.Common.Interfaces;
@@ -11,14 +12,21 @@ namespace Sugarista.Api.Controllers;
 [AllowAnonymous]
 public class MagController : ControllerBase
 {
-    private const int DefaultPageSize = 9;
     private readonly IApplicationDbContext _dbContext;
     private readonly IConfiguration _configuration;
+    private readonly IMemoryCache _memoryCache;
+    private readonly IMagCacheService _magCache;
 
-    public MagController(IApplicationDbContext dbContext, IConfiguration configuration)
+    public MagController(
+        IApplicationDbContext dbContext,
+        IConfiguration configuration,
+        IMemoryCache memoryCache,
+        IMagCacheService magCache)
     {
         _dbContext = dbContext;
         _configuration = configuration;
+        _memoryCache = memoryCache;
+        _magCache = magCache;
     }
 
     [HttpGet("/mag")]
@@ -71,7 +79,7 @@ public class MagController : ControllerBase
             return NotFound("مقاله مورد نظر یافت نشد.");
         }
 
-        // Non-blocking atomic view count increment (GET only)
+        long incrementedViewCount = post.ViewCount;
         if (!HttpMethods.IsHead(Request.Method))
         {
             try
@@ -81,6 +89,7 @@ public class MagController : ControllerBase
                     .ExecuteUpdateAsync(
                         setters => setters.SetProperty(p => p.ViewCount, p => p.ViewCount + 1),
                         cancellationToken);
+                incrementedViewCount = post.ViewCount + 1;
             }
             catch
             {
@@ -121,7 +130,7 @@ public class MagController : ControllerBase
                 .ToListAsync(cancellationToken);
         }
 
-        var postCard = ToCard(post) with { ViewCount = post.ViewCount + 1 };
+        var postCard = ToCard(post) with { ViewCount = incrementedViewCount };
         var html = MagHtmlRenderer.RenderArticlePage(
             site,
             new MagArticleViewModel(
@@ -136,7 +145,7 @@ public class MagController : ControllerBase
                 post.CanonicalUrl,
                 post.NoIndex));
 
-        return CachedContent(html, "text/html; charset=utf-8", maxAgeSeconds: 60);
+        return ETagContent(html, "text/html; charset=utf-8");
     }
 
     [HttpGet("/mag/feed.xml")]
@@ -148,66 +157,80 @@ public class MagController : ControllerBase
             return BlogDisabledNotFound();
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var site = await LoadSiteContextAsync(now, cancellationToken);
-        var posts = await _dbContext.BlogPosts
-            .AsNoTracking()
-            .Include(p => p.Category)
-            .Where(p => !p.NoIndex &&
-                        (p.Status == BlogPostStatus.Published ||
-                         (p.Status == BlogPostStatus.Scheduled && p.PublishedAt <= now)))
-            .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
-            .Take(25)
-            .Select(p => ToCard(p))
-            .ToListAsync(cancellationToken);
+        var cacheKey = $"mag:v{_magCache.Version}:rss:{ResolvePublicBaseUrl()}";
+        if (!_memoryCache.TryGetValue(cacheKey, out string? xml) || xml is null)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var site = await LoadSiteContextAsync(now, cancellationToken);
+            var posts = await _dbContext.BlogPosts
+                .AsNoTracking()
+                .Include(p => p.Category)
+                .Where(p => !p.NoIndex &&
+                            (p.Status == BlogPostStatus.Published ||
+                             (p.Status == BlogPostStatus.Scheduled && p.PublishedAt <= now)))
+                .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
+                .Take(25)
+                .Select(p => ToCard(p))
+                .ToListAsync(cancellationToken);
 
-        var xml = MagHtmlRenderer.RenderRssFeedXml(site, posts);
-        return CachedContent(xml, "application/rss+xml; charset=utf-8", maxAgeSeconds: 300);
+            xml = MagHtmlRenderer.RenderRssFeedXml(site, posts);
+            _memoryCache.Set(cacheKey, xml, TimeSpan.FromMinutes(5));
+        }
+
+        return ETagContent(xml, "application/rss+xml; charset=utf-8");
     }
 
     [HttpGet("/sitemap.xml")]
     [HttpHead("/sitemap.xml")]
     public async Task<IActionResult> Sitemap(CancellationToken cancellationToken = default)
     {
-        var now = DateTimeOffset.UtcNow;
         var baseUrl = ResolvePublicBaseUrl();
-        var blogEnabled = await IsBlogEnabledAsync(cancellationToken);
+        var cacheKey = $"mag:v{_magCache.Version}:sitemap:{baseUrl}";
 
-        if (!blogEnabled)
+        if (!_memoryCache.TryGetValue(cacheKey, out string? xml) || xml is null)
         {
-            var minimalXml = MagHtmlRenderer.RenderSitemapXml(baseUrl, [], [], includeBlog: false);
-            return CachedContent(minimalXml, "application/xml; charset=utf-8", maxAgeSeconds: 60);
+            var now = DateTimeOffset.UtcNow;
+            var blogEnabled = await IsBlogEnabledAsync(cancellationToken);
+
+            if (!blogEnabled)
+            {
+                xml = MagHtmlRenderer.RenderSitemapXml(baseUrl, [], [], includeBlog: false);
+            }
+            else
+            {
+                var categories = await _dbContext.BlogCategories
+                    .AsNoTracking()
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.DisplayOrder)
+                    .Select(c => new { c.Slug, LastMod = c.LastModifiedAt ?? c.CreatedAt })
+                    .ToListAsync(cancellationToken);
+
+                var posts = await _dbContext.BlogPosts
+                    .AsNoTracking()
+                    .Where(p => !p.NoIndex &&
+                                (p.Status == BlogPostStatus.Published ||
+                                 (p.Status == BlogPostStatus.Scheduled && p.PublishedAt <= now)))
+                    .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
+                    .Select(p => new
+                    {
+                        p.Slug,
+                        LastMod = p.LastModifiedAt ?? p.PublishedAt ?? p.CreatedAt,
+                        p.CoverImageUrl,
+                        p.Title
+                    })
+                    .ToListAsync(cancellationToken);
+
+                xml = MagHtmlRenderer.RenderSitemapXml(
+                    baseUrl,
+                    categories.Select(c => (c.Slug, c.LastMod)).ToList(),
+                    posts.Select(p => (p.Slug, p.LastMod, p.CoverImageUrl, p.Title)).ToList(),
+                    includeBlog: true);
+            }
+
+            _memoryCache.Set(cacheKey, xml, TimeSpan.FromMinutes(5));
         }
 
-        var categories = await _dbContext.BlogCategories
-            .AsNoTracking()
-            .Where(c => c.IsActive)
-            .OrderBy(c => c.DisplayOrder)
-            .Select(c => new { c.Slug, LastMod = c.LastModifiedAt ?? c.CreatedAt })
-            .ToListAsync(cancellationToken);
-
-        var posts = await _dbContext.BlogPosts
-            .AsNoTracking()
-            .Where(p => !p.NoIndex &&
-                        (p.Status == BlogPostStatus.Published ||
-                         (p.Status == BlogPostStatus.Scheduled && p.PublishedAt <= now)))
-            .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
-            .Select(p => new
-            {
-                p.Slug,
-                LastMod = p.LastModifiedAt ?? p.PublishedAt ?? p.CreatedAt,
-                p.CoverImageUrl,
-                p.Title
-            })
-            .ToListAsync(cancellationToken);
-
-        var xml = MagHtmlRenderer.RenderSitemapXml(
-            baseUrl,
-            categories.Select(c => (c.Slug, c.LastMod)).ToList(),
-            posts.Select(p => (p.Slug, p.LastMod, p.CoverImageUrl, p.Title)).ToList(),
-            includeBlog: true);
-
-        return CachedContent(xml, "application/xml; charset=utf-8", maxAgeSeconds: 300);
+        return ETagContent(xml, "application/xml; charset=utf-8");
     }
 
     [HttpGet("/robots.txt")]
@@ -216,17 +239,26 @@ public class MagController : ControllerBase
     {
         var blogEnabled = await IsBlogEnabledAsync(cancellationToken);
         var txt = MagHtmlRenderer.RenderRobotsTxt(ResolvePublicBaseUrl(), includeBlog: blogEnabled);
-        return CachedContent(txt, "text/plain; charset=utf-8", maxAgeSeconds: 60);
+        return ETagContent(txt, "text/plain; charset=utf-8");
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private async Task<bool> IsBlogEnabledAsync(CancellationToken cancellationToken)
     {
-        return await _dbContext.SiteSettings
+        var cacheKey = $"mag:v{_magCache.Version}:enabled";
+        if (_memoryCache.TryGetValue(cacheKey, out bool cached))
+        {
+            return cached;
+        }
+
+        var enabled = await _dbContext.SiteSettings
             .AsNoTracking()
             .Select(s => (bool?)s.IsBlogEnabled)
             .FirstOrDefaultAsync(cancellationToken) ?? true;
+
+        _memoryCache.Set(cacheKey, enabled, TimeSpan.FromMinutes(5));
+        return enabled;
     }
 
     private IActionResult BlogDisabledNotFound()
@@ -248,8 +280,22 @@ public class MagController : ControllerBase
         }
 
         var safePage = Math.Max(1, page);
+        var cleanTag = string.IsNullOrWhiteSpace(tag) ? null : Uri.UnescapeDataString(tag).Trim();
+        var cleanSearch = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery.Trim();
+        var baseUrl = ResolvePublicBaseUrl();
+
+        var cacheKey = cleanSearch is null
+            ? $"mag:v{_magCache.Version}:archive:{baseUrl}:cat={categorySlug ?? "-"}:tag={cleanTag ?? "-"}:p={safePage}"
+            : null;
+
+        if (cacheKey is not null && _memoryCache.TryGetValue(cacheKey, out string? cachedHtml) && cachedHtml is not null)
+        {
+            return ETagContent(cachedHtml, "text/html; charset=utf-8");
+        }
+
         var now = DateTimeOffset.UtcNow;
         var site = await LoadSiteContextAsync(now, cancellationToken);
+        var pageSize = Math.Clamp(site.Appearance.PostsPerPage, 3, 24);
 
         MagCategorySummary? activeCategory = null;
         if (!string.IsNullOrWhiteSpace(categorySlug))
@@ -262,9 +308,6 @@ public class MagController : ControllerBase
                 return NotFound("دسته‌بندی مورد نظر یافت نشد.");
             }
         }
-
-        var cleanTag = string.IsNullOrWhiteSpace(tag) ? null : Uri.UnescapeDataString(tag).Trim();
-        var cleanSearch = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery.Trim();
 
         var query = _dbContext.BlogPosts
             .AsNoTracking()
@@ -293,15 +336,15 @@ public class MagController : ControllerBase
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
-        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)DefaultPageSize));
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
         if (safePage > totalPages) safePage = totalPages;
 
         var pagePosts = await query
             .OrderByDescending(p => p.IsFeatured)
             .ThenBy(p => p.DisplayOrder)
             .ThenByDescending(p => p.PublishedAt ?? p.CreatedAt)
-            .Skip((safePage - 1) * DefaultPageSize)
-            .Take(DefaultPageSize)
+            .Skip((safePage - 1) * pageSize)
+            .Take(pageSize)
             .Select(p => ToCard(p))
             .ToListAsync(cancellationToken);
 
@@ -320,11 +363,28 @@ public class MagController : ControllerBase
             totalPages,
             totalCount);
 
-        return CachedContent(html, "text/html; charset=utf-8", maxAgeSeconds: cleanSearch is null ? 60 : 0);
+        if (cacheKey is not null)
+        {
+            _memoryCache.Set(cacheKey, html, new MemoryCacheEntryOptions
+            {
+                SlidingExpiration = TimeSpan.FromMinutes(3),
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+            });
+        }
+
+        return ETagContent(html, "text/html; charset=utf-8", noStore: cleanSearch is not null);
     }
 
     private async Task<MagSiteContext> LoadSiteContextAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
+        var baseUrl = ResolvePublicBaseUrl();
+        var cacheKey = $"mag:v{_magCache.Version}:site:{baseUrl}";
+
+        if (_memoryCache.TryGetValue(cacheKey, out MagSiteContext? cachedSite) && cachedSite is not null)
+        {
+            return cachedSite;
+        }
+
         var settings = await _dbContext.SiteSettings
             .AsNoTracking()
             .Select(s => new
@@ -333,7 +393,8 @@ public class MagController : ControllerBase
                 s.MetaDescription,
                 s.ContactPhone,
                 s.Address,
-                s.InstagramUrl
+                s.InstagramUrl,
+                s.BlogSettingsJson
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -355,14 +416,53 @@ public class MagController : ControllerBase
                     (p.Status == BlogPostStatus.Scheduled && p.PublishedAt <= now))))
             .ToListAsync(cancellationToken);
 
-        return new MagSiteContext(
-            ResolvePublicBaseUrl(),
-            settings?.CafeName ?? "شوگریستا",
+        var highlights = await _dbContext.BlogHighlights
+            .AsNoTracking()
+            .Where(h => h.IsActive)
+            .OrderBy(h => h.DisplayOrder)
+            .ThenBy(h => h.CreatedAt)
+            .Take(12)
+            .Select(h => new MagHighlightCard(
+                h.Id,
+                h.Title,
+                h.Subtitle,
+                h.BadgeText,
+                h.IconText,
+                h.ImageUrl,
+                h.LinkUrl,
+                h.LinkLabel,
+                h.ThemeStyle))
+            .ToListAsync(cancellationToken);
+
+        var totalPublished = await _dbContext.BlogPosts
+            .AsNoTracking()
+            .CountAsync(
+                p => p.Status == BlogPostStatus.Published ||
+                     (p.Status == BlogPostStatus.Scheduled && p.PublishedAt <= now),
+                cancellationToken);
+
+        var cafeName = settings?.CafeName ?? "شوگاریستا";
+        var appearance = BlogAppearanceResolver.Resolve(settings?.BlogSettingsJson, cafeName);
+
+        var context = new MagSiteContext(
+            baseUrl,
+            cafeName,
             settings?.MetaDescription ?? string.Empty,
             settings?.ContactPhone,
             settings?.Address,
             settings?.InstagramUrl,
-            categories);
+            categories,
+            appearance,
+            highlights,
+            totalPublished);
+
+        _memoryCache.Set(cacheKey, context, new MemoryCacheEntryOptions
+        {
+            SlidingExpiration = TimeSpan.FromMinutes(5),
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15)
+        });
+
+        return context;
     }
 
     private string ResolvePublicBaseUrl()
@@ -382,13 +482,17 @@ public class MagController : ControllerBase
         return $"{scheme}://{host}".TrimEnd('/');
     }
 
-    private IActionResult CachedContent(string content, string contentType, int maxAgeSeconds)
+    private IActionResult ETagContent(string content, string contentType, bool noStore = false)
     {
+        if (noStore)
+        {
+            Response.Headers.CacheControl = "no-store";
+            return Content(content, contentType, System.Text.Encoding.UTF8);
+        }
+
         var etag = MagHtmlRenderer.ComputeETag(content);
         Response.Headers.ETag = etag;
-        Response.Headers.CacheControl = maxAgeSeconds > 0
-            ? $"public, max-age={maxAgeSeconds}, stale-while-revalidate={maxAgeSeconds * 5}"
-            : "no-store";
+        Response.Headers.CacheControl = "public, no-cache, must-revalidate";
 
         if (Request.Headers.IfNoneMatch.Contains(etag))
         {

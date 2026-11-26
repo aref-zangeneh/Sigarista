@@ -68,5 +68,6 @@ public class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSettings>
         builder.Property(settings => settings.OrderAlertSoundEnabled).HasDefaultValue(true).IsRequired();
         builder.Property(settings => settings.OrderAlertSoundIntervalSeconds).HasDefaultValue(10).IsRequired();
         builder.Property(settings => settings.IsBlogEnabled).HasDefaultValue(true).IsRequired();
+        builder.Property(settings => settings.BlogSettingsJson).HasMaxLength(16000);
     }
 }

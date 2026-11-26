@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sugarista.Infrastructure\Sugarista.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Sugarista.Api\Sugarista.Api.csproj" />
   </ItemGroup>
 
 </Project>

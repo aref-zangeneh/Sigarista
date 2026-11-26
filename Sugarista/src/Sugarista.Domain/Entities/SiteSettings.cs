@@ -395,4 +395,11 @@ public class SiteSettings : BaseAuditableEntity
 
     /// <summary>Master switch for the public coffee magazine (/mag). When false, /mag returns 404 and all links/sitemap entries are hidden.</summary>
     public bool IsBlogEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Serialized JSON document containing dynamic visual theme colors, section labels,
+    /// visibility toggles, and custom navigation/footer links for the public magazine (/mag).
+    /// Null uses the built-in Sugarista brand defaults (#0C344F, #E5AA2F, #AA3171).
+    /// </summary>
+    public string? BlogSettingsJson { get; set; }
 }

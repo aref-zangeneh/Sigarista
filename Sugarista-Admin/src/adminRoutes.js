@@ -6,6 +6,7 @@ export const adminRoutes = [
   { id: 'salon', path: 'salon-state', label: 'وضعیت سالن' },
   { id: 'categories', path: 'category', label: 'دسته‌بندی‌ها' },
   { id: 'menu-items', path: 'menu-items', label: 'آیتم‌های منو' },
+  { id: 'quick-stock', path: 'quick-stock', label: 'موجودی و انقضا سریع' },
   { id: 'option-templates', path: 'option-templates', label: 'قالب‌های آپشن' },
   { id: 'addons', path: 'addons', label: 'افزودنی‌ها (اضافات)' },
   { id: 'discounts', path: 'discounts', label: 'تخفیف‌ها' },

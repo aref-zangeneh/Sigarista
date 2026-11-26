@@ -10,6 +10,7 @@ import { CostDashboardPage } from './pages/CostDashboardPage'
 import { SalonStatePage } from './pages/SalonStatePage'
 import { CategoryPage } from './pages/CategoryPage'
 import { MenuItemsPage } from './pages/MenuItemsPage'
+import { MenuQuickStockPage } from './pages/MenuQuickStockPage.jsx'
 import { OptionTemplatesPage } from './pages/OptionTemplatesPage.jsx'
 import { AddonsPage } from './pages/AddonsPage'
 import { DiscountsPage } from './pages/DiscountsPage'
@@ -63,6 +64,7 @@ const pageComponents = {
   salon: SalonStatePage,
   categories: CategoryPage,
   'menu-items': MenuItemsPage,
+  'quick-stock': MenuQuickStockPage,
   'option-templates': OptionTemplatesPage,
   addons: AddonsPage,
   discounts: DiscountsPage,

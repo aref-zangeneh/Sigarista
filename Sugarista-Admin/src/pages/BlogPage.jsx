@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { BlogAppearancePanel } from '../components/BlogAppearancePanel.jsx'
+import { BlogHighlightsPanel } from '../components/BlogHighlightsPanel.jsx'
 import { DataTable } from '../components/DataTable'
 import { ImageUploader } from '../components/ImageUploader'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
@@ -6,6 +8,7 @@ import { useAdmin } from '../context/AdminContext'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { toPersianNumber } from '../utils/adminFormatters'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
+import { SUGARISTA_BRAND_PALETTE } from '../utils/blogAppearance.js'
 import {
   analyzeBlogSeo,
   normalizeBlogSlug,
@@ -54,7 +57,7 @@ function emptyCategoryForm() {
     description: '',
     metaTitle: '',
     metaDescription: '',
-    accentColor: '#7c4a2d',
+    accentColor: '#0C344F',
     displayOrder: 0,
     isActive: true,
   }
@@ -76,6 +79,8 @@ export function BlogPage() {
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const [categories, setCategories] = useState([])
   const [categoriesLoading, setCategoriesLoading] = useState(false)
+  const [highlights, setHighlights] = useState([])
+  const [highlightsLoading, setHighlightsLoading] = useState(false)
   const [postsReloadToken, setPostsReloadToken] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -135,12 +140,15 @@ export function BlogPage() {
   const loadMetadata = useCallback(async () => {
     if (!session?.token) return
     setCategoriesLoading(true)
+    setHighlightsLoading(true)
     try {
-      const [cats, stats] = await Promise.all([
+      const [cats, stats, hlList] = await Promise.all([
         apiRequest('/admin/blog/categories', { token: session.token }),
         apiRequest('/admin/blog/summary', { token: session.token }).catch(() => null),
+        apiRequest('/admin/blog/highlights', { token: session.token }).catch(() => []),
       ])
       setCategories(Array.isArray(cats) ? cats : [])
+      setHighlights(Array.isArray(hlList) ? hlList : [])
       if (stats) {
         setSummary(stats)
         if (typeof stats.isBlogEnabled === 'boolean') {
@@ -151,6 +159,7 @@ export function BlogPage() {
       setError(getReadableError(err))
     } finally {
       setCategoriesLoading(false)
+      setHighlightsLoading(false)
     }
   }, [session?.token, setError])
 
@@ -764,6 +773,24 @@ export function BlogPage() {
             onClick={() => setActiveTab('categories')}
           >
             دسته‌بندی‌ها ({toPersianNumber(categories.length)})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'highlights'}
+            className={`blog-tab-btn ${activeTab === 'highlights' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('highlights')}
+          >
+            کارت‌های ویژه ({toPersianNumber(highlights.length)})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'appearance'}
+            className={`blog-tab-btn ${activeTab === 'appearance' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('appearance')}
+          >
+            تنظیمات ظاهر، رنگ‌ها و متن‌های مجله
           </button>
         </div>
 
@@ -1380,7 +1407,7 @@ export function BlogPage() {
             />
           </section>
         </>
-      ) : (
+      ) : activeTab === 'categories' ? (
         <section className="two-column-layout">
           {canCreate || (canUpdate && categoryForm.id) ? (
             <form className="panel form-panel" onSubmit={handleSaveCategory}>
@@ -1489,11 +1516,11 @@ export function BlogPage() {
                 </label>
 
                 <label>
-                  <span>رنگ برچسب</span>
+                  <span>رنگ برچسب دسته‌بندی</span>
                   <div className="blog-color-picker-row">
                     <input
                       type="color"
-                      value={categoryForm.accentColor || '#7c4a2d'}
+                      value={categoryForm.accentColor || '#0C344F'}
                       onChange={(e) =>
                         setCategoryForm((prev) => ({ ...prev, accentColor: e.target.value }))
                       }
@@ -1502,11 +1529,25 @@ export function BlogPage() {
                       className="ltr-input"
                       type="text"
                       maxLength={30}
-                      value={categoryForm.accentColor || '#7c4a2d'}
+                      value={categoryForm.accentColor || '#0C344F'}
                       onChange={(e) =>
                         setCategoryForm((prev) => ({ ...prev, accentColor: e.target.value }))
                       }
                     />
+                  </div>
+                  <div className="blog-quick-colors">
+                    {SUGARISTA_BRAND_PALETTE.slice(0, 5).map((sw) => (
+                      <button
+                        key={sw.hex}
+                        type="button"
+                        className="blog-color-dot-btn"
+                        style={{ background: sw.hex }}
+                        title={sw.name}
+                        onClick={() =>
+                          setCategoryForm((prev) => ({ ...prev, accentColor: sw.hex }))
+                        }
+                      />
+                    ))}
                   </div>
                 </label>
               </div>
@@ -1547,6 +1588,25 @@ export function BlogPage() {
             />
           </section>
         </section>
+      ) : activeTab === 'highlights' ? (
+        <BlogHighlightsPanel
+          highlights={highlights}
+          loading={highlightsLoading}
+          token={session?.token}
+          canCreate={canCreate}
+          canUpdate={canUpdate}
+          canDelete={canDelete}
+          onReload={loadMetadata}
+          setError={setError}
+          setMessage={setMessage}
+        />
+      ) : (
+        <BlogAppearancePanel
+          token={session?.token}
+          canEdit={canToggleVisibility}
+          setError={setError}
+          setMessage={setMessage}
+        />
       )}
     </div>
   )

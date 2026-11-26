@@ -195,6 +195,61 @@ public class MenuItem : BaseAuditableEntity
         PurchasePrice = purchasePrice;
     }
 
+    public void ApplyQuickPricingAndAvailability(
+        decimal? price,
+        decimal? specialOfferPrice,
+        decimal? purchasePrice,
+        decimal? smallPrice,
+        decimal? smallSpecialOfferPrice,
+        decimal? mediumPrice,
+        decimal? mediumSpecialOfferPrice,
+        decimal? largePrice,
+        decimal? largeSpecialOfferPrice,
+        bool? isActive,
+        bool? isOrderable)
+    {
+        ValidateOptionalMoney(price, "Price");
+        ValidateOptionalMoney(specialOfferPrice, "Special offer price");
+        ValidateOptionalMoney(smallPrice, "Small price");
+        ValidateOptionalMoney(smallSpecialOfferPrice, "Small special offer price");
+        ValidateOptionalMoney(mediumPrice, "Medium price");
+        ValidateOptionalMoney(mediumSpecialOfferPrice, "Medium special offer price");
+        ValidateOptionalMoney(largePrice, "Large price");
+        ValidateOptionalMoney(largeSpecialOfferPrice, "Large special offer price");
+
+        if (purchasePrice is { } pCost && pCost < 0)
+        {
+            throw new DomainException("قیمت خرید آیتم نمی‌تواند منفی باشد.");
+        }
+
+        SmallPrice = smallPrice;
+        SmallSpecialOfferPrice = smallSpecialOfferPrice;
+        MediumPrice = mediumPrice;
+        MediumSpecialOfferPrice = mediumSpecialOfferPrice;
+        LargePrice = largePrice;
+        LargeSpecialOfferPrice = largeSpecialOfferPrice;
+
+        var hasSizePrice = smallPrice.HasValue || mediumPrice.HasValue || largePrice.HasValue;
+        Price = price is > 0 ? price.Value : (mediumPrice ?? smallPrice ?? largePrice ?? 0m);
+        SpecialOfferPrice = specialOfferPrice ?? mediumSpecialOfferPrice ?? smallSpecialOfferPrice ?? largeSpecialOfferPrice;
+        PurchasePrice = purchasePrice;
+
+        if (isActive.HasValue)
+        {
+            IsActive = isActive.Value;
+        }
+
+        var hasAnyPrice = hasSizePrice || Price > 0;
+        if (isOrderable.HasValue)
+        {
+            IsOrderable = isOrderable.Value && hasAnyPrice;
+        }
+        else if (!hasAnyPrice)
+        {
+            IsOrderable = false;
+        }
+    }
+
     public void SetMarkupPercent(decimal? markupPercent)
     {
         if (markupPercent is { } value && value < 0)

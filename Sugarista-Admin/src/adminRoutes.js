@@ -31,6 +31,7 @@ export const adminRoutes = [
   { id: 'exports', path: 'exports', label: 'خروجی اکسل' },
   { id: 'orders', path: 'orders', label: 'سفارش‌ها' },
   { id: 'customers', path: 'customers', label: 'باشگاه مشتریان' },
+  { id: 'wallets', path: 'wallets', label: 'کیف پول مشتریان' },
   { id: 'customer-groups', path: 'customer-groups', label: 'گروه‌های مشتری' },
   { id: 'subscription-packages', path: 'subscription-packages', label: 'اشتراک ماهانه' },
   { id: 'badges', path: 'badges', label: 'بج‌های باشگاه' },

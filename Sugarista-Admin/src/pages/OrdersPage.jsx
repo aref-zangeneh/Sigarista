@@ -281,7 +281,7 @@ export function OrdersPage() {
                         </button>
                       </>
                     ) : null}
-                    {order.fulfillmentStatus === 'Registered' ? (
+                    {order.status === 'Paid' && order.fulfillmentStatus === 'Registered' ? (
                       <button
                         type="button"
                         className="ghost-button"
@@ -291,7 +291,7 @@ export function OrdersPage() {
                         شروع آماده‌سازی
                       </button>
                     ) : null}
-                    {order.fulfillmentStatus === 'Preparing' ? (
+                    {order.status === 'Paid' && order.fulfillmentStatus === 'Preparing' ? (
                       <button
                         type="button"
                         className="ghost-button"
@@ -301,7 +301,7 @@ export function OrdersPage() {
                         آماده شد
                       </button>
                     ) : null}
-                    {order.fulfillmentStatus === 'Ready' ? (
+                    {order.status === 'Paid' && order.fulfillmentStatus === 'Ready' ? (
                       <button
                         type="button"
                         className="ghost-button"

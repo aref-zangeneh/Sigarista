@@ -226,11 +226,18 @@ const ROUTE_ICONS = {
       <path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3.2 3.2 0 0 1 0 5M17 13.6a5.5 5.5 0 0 1 3.5 5.4" />
     </>,
   ),
+  wallets: icon(
+    <>
+      <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2H5a2 2 0 0 0-2 2V7z" />
+      <rect x="3" y="9" width="18" height="11" rx="2" />
+      <circle cx="16.5" cy="14.5" r="1.2" />
+    </>,
+  ),
 }
 
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
 const NAV_GROUPS = [
-  { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'salon'] },
+  { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'wallets', 'salon'] },
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'quick-stock', 'option-templates', 'addons', 'drink-builder', 'discounts', 'modifiers', 'blog'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['warehouses', 'warehouse-vouchers', 'inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },

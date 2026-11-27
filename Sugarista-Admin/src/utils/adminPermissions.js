@@ -14,6 +14,10 @@ export const PERMISSIONS = {
     update: 'admin.customers.update',
     delete: 'admin.customers.delete',
   },
+  wallets: {
+    view: 'admin.wallets.view',
+    update: 'admin.wallets.update',
+  },
   'customer-groups': {
     view: 'admin.customers.view',
     create: 'admin.customers.create',

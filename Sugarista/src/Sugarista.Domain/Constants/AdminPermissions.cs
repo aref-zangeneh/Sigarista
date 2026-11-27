@@ -238,6 +238,12 @@ public static class AdminPermissions
         public const string Delete = "admin.maintenance.delete";
     }
 
+    public static class Wallets
+    {
+        public const string View = "admin.wallets.view";
+        public const string Update = "admin.wallets.update";
+    }
+
     public static class Accounting
     {
         public const string View = "admin.accounting.view";
@@ -331,6 +337,8 @@ public static class AdminPermissions
         new(Customers.Create, "customers", "create", "باشگاه مشتریان (گروه‌ها، اشتراک و بج‌ها)", "ایجاد", "main", "اصلی"),
         new(Customers.Update, "customers", "update", "باشگاه مشتریان (گروه‌ها، اشتراک و بج‌ها)", "ویرایش / مدیریت امتیاز", "main", "اصلی"),
         new(Customers.Delete, "customers", "delete", "باشگاه مشتریان (گروه‌ها، اشتراک و بج‌ها)", "حذف", "main", "اصلی"),
+        new(Wallets.View, "wallets", "view", "کیف پول مشتریان", "مشاهده موجودی‌ها و تراکنش‌ها", "main", "اصلی"),
+        new(Wallets.Update, "wallets", "update", "کیف پول مشتریان", "شارژ، کسر/تعدیل، بسته‌ها و تنظیمات", "main", "اصلی"),
         new(Salon.View, "salon", "view", "وضعیت سالن", "مشاهده", "main", "اصلی"),
         new(Salon.Create, "salon", "create", "وضعیت سالن", "ایجاد میز", "main", "اصلی"),
         new(Salon.Update, "salon", "update", "وضعیت سالن", "ویرایش / اشغال / آزادسازی", "main", "اصلی"),

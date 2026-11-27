@@ -29,6 +29,15 @@ public class UnhandledExceptionBehaviour<TRequest, TResponse> : IPipelineBehavio
         {
             throw;
         }
+        catch (Sugarista.Domain.Exceptions.DomainException ex)
+        {
+            // Expected business-rule rejection (HTTP 400) — log as concise warning, not an unhandled crash.
+            _logger.LogWarning(
+                "Domain rule rejected request {RequestName}: {Reason}",
+                typeof(TRequest).Name,
+                ex.Message);
+            throw;
+        }
         catch (Exception ex)
         {
             var requestName = typeof(TRequest).Name;

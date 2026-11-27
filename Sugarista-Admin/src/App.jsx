@@ -34,6 +34,7 @@ import { PosPage } from './pages/PosPage'
 import { AccountingPage } from './pages/AccountingPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { CustomersPage } from './pages/CustomersPage'
+import { WalletsPage } from './pages/WalletsPage.jsx'
 import { CustomerGroupsPage } from './pages/CustomerGroupsPage'
 import { SubscriptionPackagesPage } from './pages/SubscriptionPackagesPage'
 import { BadgesPage } from './pages/BadgesPage'
@@ -89,6 +90,7 @@ const pageComponents = {
   accounting: AccountingPage,
   orders: OrdersPage,
   customers: CustomersPage,
+  wallets: WalletsPage,
   'customer-groups': CustomerGroupsPage,
   'subscription-packages': SubscriptionPackagesPage,
   badges: BadgesPage,

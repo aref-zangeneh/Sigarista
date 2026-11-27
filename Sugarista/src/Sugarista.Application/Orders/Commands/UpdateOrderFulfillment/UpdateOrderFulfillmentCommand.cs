@@ -48,7 +48,17 @@ public class UpdateOrderFulfillmentCommandHandler : IRequestHandler<UpdateOrderF
             .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken)
             ?? throw new KeyNotFoundException("Order was not found.");
 
-        order.UpdateFulfillment(request.FulfillmentStatus);
+        if (order.Status != OrderStatus.Paid)
+        {
+            throw new Sugarista.Domain.Exceptions.DomainException(
+                "فقط سفارش‌های پرداخت‌شده را می‌توان در صف آماده‌سازی تغییر وضعیت داد.");
+        }
+
+        // Idempotent: if already in the requested state, do not fail on duplicate clicks
+        if (order.FulfillmentStatus != request.FulfillmentStatus)
+        {
+            order.UpdateFulfillment(request.FulfillmentStatus);
+        }
 
         if (request.FulfillmentStatus == FulfillmentStatus.Ready && order.ReadySmsSentAt is null)
         {

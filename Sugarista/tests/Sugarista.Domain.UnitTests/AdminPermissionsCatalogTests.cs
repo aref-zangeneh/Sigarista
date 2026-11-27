@@ -33,6 +33,7 @@ public class AdminPermissionsCatalogTests
             AdminPermissions.Pos.View,
             AdminPermissions.DeliveryMethods.View,
             AdminPermissions.Customers.View,
+            AdminPermissions.Wallets.View,
             AdminPermissions.Salon.View,
             AdminPermissions.Categories.View,
             AdminPermissions.MenuItems.View,

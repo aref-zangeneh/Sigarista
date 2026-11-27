@@ -186,9 +186,16 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
 
             if (order.AmountPaid >= order.TotalAmount && order.TotalAmount > 0)
             {
-                order.MarkPaid();
+                if (order.Status is OrderStatus.PendingPayment or OrderStatus.PartiallyPaid)
+                {
+                    order.MarkPaid();
+                }
+                else if (order.Status == OrderStatus.Paid)
+                {
+                    order.RegisterForFulfillment();
+                }
             }
-            else
+            else if (order.Status != OrderStatus.Held)
             {
                 order.ReconcilePaymentStatus();
             }

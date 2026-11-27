@@ -296,12 +296,59 @@ export function AdminLayout() {
   } = useAdmin()
 
   const [moqAlertCount, setMoqAlertCount] = useState(0)
+  const [navSearch, setNavSearch] = useState('')
   const visibleRoutes = getAccessibleRoutes(session, adminRoutes)
   const canViewOrders = hasPermission(session, PERMISSIONS.orders.view)
   const canViewInventory = hasPermission(session, PERMISSIONS.inventory.view)
   const canViewMoqAlerts = hasPermission(session, PERMISSIONS['moq-alerts']?.view)
   const currentRoute = routeForPath(location.pathname)
   const isPosRoute = location.pathname.includes('/pos')
+
+  const [openGroups, setOpenGroups] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('sugarista.admin.sidebar.openGroups') || 'null')
+      if (Array.isArray(saved) && saved.length > 0) {
+        return new Set(saved)
+      }
+    } catch {
+      // ignore storage errors
+    }
+    const activeGroup = NAV_GROUPS.find((g) => g.routes.includes(currentRoute?.id))
+    return new Set([activeGroup?.title || 'اصلی'])
+  })
+
+  useEffect(() => {
+    const activeGroup = NAV_GROUPS.find((g) => g.routes.includes(currentRoute?.id))
+    if (!activeGroup) return
+    setOpenGroups((prev) => {
+      if (prev.has(activeGroup.title)) return prev
+      const next = new Set(prev)
+      next.add(activeGroup.title)
+      try {
+        localStorage.setItem('sugarista.admin.sidebar.openGroups', JSON.stringify([...next]))
+      } catch {
+        // ignore
+      }
+      return next
+    })
+  }, [currentRoute?.id])
+
+  const toggleGroup = (title) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(title)) {
+        next.delete(title)
+      } else {
+        next.add(title)
+      }
+      try {
+        localStorage.setItem('sugarista.admin.sidebar.openGroups', JSON.stringify([...next]))
+      } catch {
+        // ignore
+      }
+      return next
+    })
+  }
 
   const groupedIds = new Set(NAV_GROUPS.flatMap((group) => group.routes))
   const extraRoutes = visibleRoutes.filter((route) => !groupedIds.has(route.id))
@@ -388,20 +435,76 @@ export function AdminLayout() {
           </button>
         </div>
 
+        <div className="sidebar-search-wrap">
+          <input
+            type="search"
+            className="sidebar-search"
+            placeholder="جستجوی سریع منو..."
+            value={navSearch}
+            onChange={(e) => setNavSearch(e.target.value)}
+            aria-label="جستجوی منو"
+          />
+        </div>
+
         <nav className="sidebar-nav">
           {NAV_GROUPS.map((group) => {
-            const items = visibleRoutes.filter((route) => group.routes.includes(route.id))
+            const term = navSearch.trim().toLowerCase()
+            const items = visibleRoutes.filter(
+              (route) =>
+                group.routes.includes(route.id) &&
+                (!term || route.label.toLowerCase().includes(term) || route.path.toLowerCase().includes(term)),
+            )
             if (items.length === 0) return null
+
+            const isOpen = Boolean(term) || openGroups.has(group.title)
+            const hasActiveChild = items.some((route) => route.id === currentRoute?.id)
+            const groupBadgeCount =
+              (group.routes.includes('orders') ? orderAlerts?.pendingKitchenCount || 0 : 0) +
+              (group.routes.includes('moq-alerts') ? moqAlertCount || 0 : 0)
+
             return (
-              <div key={group.title} className="nav-group">
-                <p className="nav-group-title">{group.title}</p>
-                {items.map(renderNavLink)}
+              <div
+                key={group.title}
+                className={`nav-group ${isOpen ? 'nav-group--open' : ''} ${hasActiveChild ? 'nav-group--has-active' : ''}`}
+              >
+                <button
+                  type="button"
+                  className="nav-group-toggle"
+                  aria-expanded={isOpen}
+                  onClick={() => toggleGroup(group.title)}
+                >
+                  <span className="nav-group-title-text">{group.title}</span>
+                  <span className="nav-group-meta">
+                    {!isOpen && groupBadgeCount > 0 ? (
+                      <span className="nav-badge nav-badge--mini">{toPersianNumber(groupBadgeCount)}</span>
+                    ) : null}
+                    <svg
+                      className="nav-group-chevron"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </span>
+                </button>
+                <div className="nav-group-collapse">
+                  <div className="nav-group-items">
+                    {items.map(renderNavLink)}
+                  </div>
+                </div>
               </div>
             )
           })}
           {extraRoutes.length > 0 ? (
-            <div className="nav-group">
-              {extraRoutes.map(renderNavLink)}
+            <div className="nav-group nav-group--open">
+              <div className="nav-group-items">
+                {extraRoutes.map(renderNavLink)}
+              </div>
             </div>
           ) : null}
         </nav>

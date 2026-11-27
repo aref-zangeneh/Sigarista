@@ -18,6 +18,55 @@ import {
 import './MenuSectionMinimal.css'
 import './MenuItemsPage.css'
 
+const DEFAULT_OPEN_SECTIONS = {
+  identity: true,
+  pricing: true,
+  media: false,
+  details: false,
+  display: false,
+  recipe: false,
+}
+
+const SECTION_KEYS = Object.keys(DEFAULT_OPEN_SECTIONS)
+
+function CollapsibleFormSection({ title, subtitle, badge, badgeActive = false, isOpen, onToggle, children }) {
+  return (
+    <div className={`mi-accordion-card ${isOpen ? 'is-open' : ''}`}>
+      <button
+        type="button"
+        className="mi-accordion-toggle"
+        aria-expanded={isOpen}
+        onClick={onToggle}
+      >
+        <span className="mi-accordion-title-group">
+          <span className="mi-accordion-title">{title}</span>
+          {subtitle ? <span className="mi-accordion-subtitle">{subtitle}</span> : null}
+        </span>
+        <span className="mi-accordion-meta">
+          {badge ? (
+            <span className={`mi-accordion-badge ${badgeActive ? 'is-active' : ''}`}>
+              {badge}
+            </span>
+          ) : null}
+          <span className="mi-accordion-chevron" aria-hidden="true">
+            <svg viewBox="0 0 16 16" width="14" height="14">
+              <path
+                d="M4 6l4 4 4-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </span>
+      </button>
+      {isOpen ? <div className="mi-accordion-body">{children}</div> : null}
+    </div>
+  )
+}
+
 export function MenuItemsPage() {
   const {
     session,
@@ -52,8 +101,50 @@ export function MenuItemsPage() {
   const [manualByItem, setManualByItem] = useState({})
   const [bulkMarkup, setBulkMarkup] = useState('30')
   const [volumeUnitOverrides, setVolumeUnitOverrides] = useState({})
+  const [openSections, setOpenSections] = useState(DEFAULT_OPEN_SECTIONS)
   const editorFormRef = useRef(null)
   const prevEditingIdRef = useRef(menuItemForm.id ?? '')
+
+  const toggleSection = useCallback((sectionKey) => {
+    setOpenSections((current) => ({
+      ...current,
+      [sectionKey]: !current[sectionKey],
+    }))
+  }, [])
+
+  const allSectionsOpen = useMemo(
+    () => SECTION_KEYS.every((key) => openSections[key]),
+    [openSections],
+  )
+
+  const handleToggleAllSections = useCallback(() => {
+    const nextValue = !allSectionsOpen
+    setOpenSections(
+      SECTION_KEYS.reduce((acc, key) => {
+        acc[key] = nextValue
+        return acc
+      }, {}),
+    )
+  }, [allSectionsOpen])
+
+  const galleryCount = useMemo(
+    () =>
+      (menuItemForm.galleryImageUrls ?? '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean).length,
+    [menuItemForm.galleryImageUrls],
+  )
+
+  const configuredSizesCount = useMemo(
+    () =>
+      ['small', 'medium', 'large'].filter(
+        (key) => menuItemForm[`${key}Price`] !== '' && menuItemForm[`${key}Price`] != null && Number(menuItemForm[`${key}Price`]) > 0,
+      ).length,
+    [menuItemForm.smallPrice, menuItemForm.mediumPrice, menuItemForm.largePrice],
+  )
+
+  const recipeLinesCount = (menuItemForm.recipeLines ?? []).length
 
   const scrollToEditor = useCallback(() => {
     editorFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -277,18 +368,29 @@ export function MenuItemsPage() {
               <p>آیتم‌های منو هم در بخش پرفروش‌ها و هم در منوی عمومی نمایش داده می‌شوند.</p>
             </div>
             <div className="mi-head-actions">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleToggleAllSections}
+              >
+                {allSectionsOpen ? 'بستن همه بخش‌ها' : 'باز کردن همه بخش‌ها'}
+              </button>
               <button type="button" className="ghost-button" onClick={resetMenuItemForm}>
                 پاک کردن فرم
               </button>
             </div>
           </div>
 
-          <div className="form-section">
-            <div className="mi-section-header">
-              <h4>هویت و دسته‌بندی</h4>
-              <span>اطلاعات اصلی نمایش در منوی دیجیتال</span>
-            </div>
-            <div className="mi-grid-3">
+          <div className="mi-accordion-list">
+            <CollapsibleFormSection
+              title="هویت و دسته‌بندی"
+              subtitle="نام، دسته‌بندی و توضیحات نمایشی"
+              badge={menuItemForm.persianName?.trim() ? menuItemForm.persianName.trim() : 'الزامی'}
+              badgeActive={Boolean(menuItemForm.persianName?.trim())}
+              isOpen={openSections.identity}
+              onToggle={() => toggleSection('identity')}
+            >
+              <div className="mi-grid-3">
               <label>
                 <span>دسته‌بندی</span>
                 <select
@@ -334,65 +436,36 @@ export function MenuItemsPage() {
                 />
               </label>
             </div>
-            <label>
-              <span>توضیحات</span>
-              <textarea
-                rows="3"
-                value={menuItemForm.description}
-                onChange={(event) =>
-                  setMenuItemForm((currentForm) => ({
-                    ...currentForm,
-                    description: event.target.value,
-                  }))
-                }
-              />
-            </label>
-          </div>
+              <label>
+                <span>توضیحات</span>
+                <textarea
+                  rows="3"
+                  value={menuItemForm.description}
+                  onChange={(event) =>
+                    setMenuItemForm((currentForm) => ({
+                      ...currentForm,
+                      description: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </CollapsibleFormSection>
 
-          <div className="form-section">
-            <div className="mi-section-header">
-              <h4>تصاویر محصول</h4>
-              <span>تصویر کاور مربعی و گالری تصاویر تکمیلی</span>
-            </div>
-            <div className="mi-grid-2">
-              <ImageUploader
-                label="تصویر اصلی"
-                hint="برای نمایش در منوی مشتری — طبق طراحی، تصویر مربعی بهترین نتیجه را می‌دهد"
-                value={menuItemForm.imageUrl ?? ''}
-                token={session?.token}
-                onChange={(url) =>
-                  setMenuItemForm((currentForm) => ({
-                    ...currentForm,
-                    imageUrl: url ?? '',
-                  }))
-                }
-              />
-              <ImageUploader
-                label="گالری تصاویر"
-                hint="با کشیدن فایل، هر تعداد عکس اضافه کنید؛ ترتیب با فلش‌ها قابل جابه‌جایی است"
-                multiple
-                allowUrl={false}
-                value={(menuItemForm.galleryImageUrls ?? '')
-                  .split('\n')
-                  .map((line) => line.trim())
-                  .filter(Boolean)}
-                token={session?.token}
-                onChange={(urls) =>
-                  setMenuItemForm((currentForm) => ({
-                    ...currentForm,
-                    galleryImageUrls: (urls ?? []).join('\n'),
-                  }))
-                }
-              />
-            </div>
-          </div>
-
-          <div className="form-section">
-            <div className="mi-section-header">
-              <h4>قیمت‌گذاری، موجودی و سایزها</h4>
-              <span>قیمت پایه یا قیمت تفکیکی بر اساس سایز</span>
-            </div>
-            <div className="mi-base-price-grid">
+            <CollapsibleFormSection
+              title="قیمت‌گذاری، موجودی و سایزها"
+              subtitle="قیمت پایه، خرید، موجودی و سایزهای محصول"
+              badge={
+                configuredSizesCount > 0
+                  ? `${toPersianNumber(configuredSizesCount)} سایز`
+                  : menuItemForm.price
+                    ? formatMoney(Number(menuItemForm.price))
+                    : 'تنظیم نشده'
+              }
+              badgeActive={configuredSizesCount > 0 || Boolean(menuItemForm.price)}
+              isOpen={openSections.pricing}
+              onToggle={() => toggleSection('pricing')}
+            >
+              <div className="mi-base-price-grid">
               <label>
                 <span>قیمت فروش پایه (آیتم بدون سایز)</span>
                 <input
@@ -655,48 +728,109 @@ export function MenuItemsPage() {
               ))}
             </div>
 
-            <div className="mi-grid-2">
-              <label>
-                <span>قیمت پیشنهادی عمومی</span>
-                <input
-                  className="ltr-input"
-                  type="number"
-                  min="0"
-                  value={menuItemForm.specialOfferPrice}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      specialOfferPrice: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span>درصد مالیات</span>
-                <input
-                  className="ltr-input"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={menuItemForm.taxPercent}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      taxPercent: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="mi-split-sections">
-            <div className="form-section">
-              <div className="mi-section-header">
-                <h4>جزئیات محصول</h4>
-                <span>مشخصات تغذیه‌ای و آماده‌سازی</span>
-              </div>
               <div className="mi-grid-2">
+                <label>
+                  <span>قیمت پیشنهادی عمومی</span>
+                  <input
+                    className="ltr-input"
+                    type="number"
+                    min="0"
+                    value={menuItemForm.specialOfferPrice}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        specialOfferPrice: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>درصد مالیات</span>
+                  <input
+                    className="ltr-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={menuItemForm.taxPercent}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        taxPercent: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+            </CollapsibleFormSection>
+
+            <CollapsibleFormSection
+              title="تصاویر محصول"
+              subtitle="تصویر کاور مربعی و گالری تصاویر تکمیلی"
+              badge={
+                menuItemForm.imageUrl || galleryCount > 0
+                  ? `${menuItemForm.imageUrl ? 'تصویر اصلی' : ''}${menuItemForm.imageUrl && galleryCount > 0 ? ' + ' : ''}${galleryCount > 0 ? `${toPersianNumber(galleryCount)} گالری` : ''}`
+                  : 'بدون تصویر'
+              }
+              badgeActive={Boolean(menuItemForm.imageUrl || galleryCount > 0)}
+              isOpen={openSections.media}
+              onToggle={() => toggleSection('media')}
+            >
+              <div className="mi-grid-2">
+                <ImageUploader
+                  label="تصویر اصلی"
+                  hint="برای نمایش در منوی مشتری — طبق طراحی، تصویر مربعی بهترین نتیجه را می‌دهد"
+                  value={menuItemForm.imageUrl ?? ''}
+                  token={session?.token}
+                  onChange={(url) =>
+                    setMenuItemForm((currentForm) => ({
+                      ...currentForm,
+                      imageUrl: url ?? '',
+                    }))
+                  }
+                />
+                <ImageUploader
+                  label="گالری تصاویر"
+                  hint="با کشیدن فایل، هر تعداد عکس اضافه کنید؛ ترتیب با فلش‌ها قابل جابه‌جایی است"
+                  multiple
+                  allowUrl={false}
+                  value={(menuItemForm.galleryImageUrls ?? '')
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean)}
+                  token={session?.token}
+                  onChange={(urls) =>
+                    setMenuItemForm((currentForm) => ({
+                      ...currentForm,
+                      galleryImageUrls: (urls ?? []).join('\n'),
+                    }))
+                  }
+                />
+              </div>
+            </CollapsibleFormSection>
+
+            <CollapsibleFormSection
+              title="جزئیات محصول"
+              subtitle="زمان آماده‌سازی، کالری، حجم و آلرژن‌ها"
+              badge={
+                menuItemForm.preparingDurationMinutes || menuItemForm.calories || menuItemForm.volume
+                  ? [
+                      menuItemForm.preparingDurationMinutes ? `${toPersianNumber(menuItemForm.preparingDurationMinutes)} دقیقه` : '',
+                      menuItemForm.calories ? `${toPersianNumber(menuItemForm.calories)} کالری` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' • ') || 'تکمیل شده'
+                  : 'اختیاری'
+              }
+              badgeActive={Boolean(
+                menuItemForm.preparingDurationMinutes ||
+                  menuItemForm.calories ||
+                  menuItemForm.volume ||
+                  menuItemForm.allergens?.trim(),
+              )}
+              isOpen={openSections.details}
+              onToggle={() => toggleSection('details')}
+            >
+              <div className="mi-grid-3">
                 <label>
                   <span>زمان آماده‌سازی (دقیقه)</span>
                   <input
@@ -727,36 +861,36 @@ export function MenuItemsPage() {
                     }
                   />
                 </label>
+                <label>
+                  <span>حجم / وزن عمومی</span>
+                  <div className="volume-input-group">
+                    <input
+                      className="ltr-input"
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="مثلاً ۳۶۰"
+                      value={getVolumeParts('volume').amount}
+                      onChange={(event) => updateVolumeAmount('volume', event.target.value)}
+                    />
+                    <select
+                      aria-label="واحد حجم یا وزن عمومی"
+                      value={getVolumeParts('volume').unit}
+                      onChange={(event) => updateVolumeUnit('volume', event.target.value)}
+                    >
+                      {VOLUME_UNITS.map((unitOption) => (
+                        <option key={unitOption} value={unitOption}>
+                          {unitOption}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </label>
               </div>
-              <label>
-                <span>حجم / وزن عمومی</span>
-                <div className="volume-input-group">
-                  <input
-                    className="ltr-input"
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder="مثلاً ۳۶۰"
-                    value={getVolumeParts('volume').amount}
-                    onChange={(event) => updateVolumeAmount('volume', event.target.value)}
-                  />
-                  <select
-                    aria-label="واحد حجم یا وزن عمومی"
-                    value={getVolumeParts('volume').unit}
-                    onChange={(event) => updateVolumeUnit('volume', event.target.value)}
-                  >
-                    {VOLUME_UNITS.map((unitOption) => (
-                      <option key={unitOption} value={unitOption}>
-                        {unitOption}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </label>
               <label>
                 <span>آلرژن‌ها (با کاما یا خط جدید جدا کنید)</span>
                 <textarea
-                  rows="3"
+                  rows="2"
                   value={menuItemForm.allergens}
                   onChange={(event) =>
                     setMenuItemForm((currentForm) => ({
@@ -766,13 +900,22 @@ export function MenuItemsPage() {
                   }
                 />
               </label>
-            </div>
+            </CollapsibleFormSection>
 
-            <div className="form-section">
-              <div className="mi-section-header">
-                <h4>نمایش و وضعیت</h4>
-                <span>تنظیمات انتشار در منو و کارت محصول</span>
-              </div>
+            <CollapsibleFormSection
+              title="نمایش و وضعیت"
+              subtitle="برچسب‌ها، نشان ویژه، ترتیب نمایش و وضعیت انتشار"
+              badge={
+                menuItemForm.isActive
+                  ? menuItemForm.isOrderable
+                    ? 'فعال • قابل سفارش'
+                    : 'فعال • ناموجود'
+                  : 'غیرفعال'
+              }
+              badgeActive={Boolean(menuItemForm.isActive)}
+              isOpen={openSections.display}
+              onToggle={() => toggleSection('display')}
+            >
               <label>
                 <span>برچسب‌ها (با کاما جدا کنید)</span>
                 <input
@@ -871,93 +1014,96 @@ export function MenuItemsPage() {
                   <span>قابل سفارش باشد</span>
                 </label>
               </div>
-            </div>
-          </div>
+            </CollapsibleFormSection>
 
-          <div className="form-section">
-            <div className="mi-section-header">
-              <h4>محتویات (مواد اولیه)</h4>
-              <span>مبنای کسر از انبار، نمایش به مشتری و محاسبه بهای تمام‌شده</span>
-            </div>
-            <p className="form-hint">
-              مواد تشکیل‌دهندهٔ آیتم را از میان مواد اولیه انتخاب کنید. مواردی که «نمایش به مشتری» دارند
-              در منوی دیجیتال به مشتری نشان داده می‌شوند؛ مقدار مصرف هم مبنای کسر از انبار و قیمت‌گذاری خودکار است.
-            </p>
-            {(menuItemForm.recipeLines ?? []).length === 0 ? (
-              <p className="form-hint">هنوز ماده‌ای انتخاب نشده است.</p>
-            ) : (
-              <div className="mi-recipe-list">
-                {(menuItemForm.recipeLines ?? []).map((line, index) => {
-                  const selectedOption = (ingredientOptions ?? []).find(
-                    (option) => option.id === line.ingredientId,
-                  )
-                  const pickableOptions = (ingredientOptions ?? []).filter(
-                    (option) =>
-                      option.kind === 'ingredient' &&
-                      (option.isActive || option.id === line.ingredientId),
-                  )
+            <CollapsibleFormSection
+              title="محتویات (مواد اولیه)"
+              subtitle="مبنای کسر از انبار، نمایش به مشتری و محاسبه بهای تمام‌شده"
+              badge={recipeLinesCount > 0 ? `${toPersianNumber(recipeLinesCount)} ماده` : 'بدون ماده'}
+              badgeActive={recipeLinesCount > 0}
+              isOpen={openSections.recipe}
+              onToggle={() => toggleSection('recipe')}
+            >
+              <p className="form-hint">
+                مواد تشکیل‌دهندهٔ آیتم را از میان مواد اولیه انتخاب کنید. مواردی که «نمایش به مشتری» دارند
+                در منوی دیجیتال به مشتری نشان داده می‌شوند؛ مقدار مصرف هم مبنای کسر از انبار و قیمت‌گذاری خودکار است.
+              </p>
+              {(menuItemForm.recipeLines ?? []).length === 0 ? (
+                <p className="form-hint">هنوز ماده‌ای انتخاب نشده است.</p>
+              ) : (
+                <div className="mi-recipe-list">
+                  {(menuItemForm.recipeLines ?? []).map((line, index) => {
+                    const selectedOption = (ingredientOptions ?? []).find(
+                      (option) => option.id === line.ingredientId,
+                    )
+                    const pickableOptions = (ingredientOptions ?? []).filter(
+                      (option) =>
+                        option.kind === 'ingredient' &&
+                        (option.isActive || option.id === line.ingredientId),
+                    )
 
-                  return (
-                    <div key={index} className="recipe-line-row">
-                      {selectedOption || !line.ingredientId ? (
-                        <select
-                          value={line.ingredientId}
-                          onChange={(event) =>
-                            updateRecipeLine(index, { ingredientId: event.target.value })
-                          }
-                        >
-                          <option value="">-- انتخاب ماده --</option>
-                          {pickableOptions.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.persianName} ({option.unit})
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="recipe-line-static" title="این قلم در صفحه دستور پخت ثبت شده است">
-                          {line.ingredientPersianName || 'قلم ثبت‌شدهٔ قبلی'}
-                        </span>
-                      )}
-                      <input
-                        className="ltr-input recipe-line-qty"
-                        type="number"
-                        min="0.001"
-                        step="0.001"
-                        placeholder="مقدار"
-                        title="مقدار مصرف در هر عدد آیتم"
-                        value={line.quantity ?? ''}
-                        onChange={(event) =>
-                          updateRecipeLine(index, { quantity: event.target.value })
-                        }
-                      />
-                      <label className="recipe-line-show">
+                    return (
+                      <div key={index} className="recipe-line-row">
+                        {selectedOption || !line.ingredientId ? (
+                          <select
+                            value={line.ingredientId}
+                            onChange={(event) =>
+                              updateRecipeLine(index, { ingredientId: event.target.value })
+                            }
+                          >
+                            <option value="">-- انتخاب ماده --</option>
+                            {pickableOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.persianName} ({option.unit})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="recipe-line-static" title="این قلم در صفحه دستور پخت ثبت شده است">
+                            {line.ingredientPersianName || 'قلم ثبت‌شدهٔ قبلی'}
+                          </span>
+                        )}
                         <input
-                          type="checkbox"
-                          checked={line.showToCustomer !== false}
+                          className="ltr-input recipe-line-qty"
+                          type="number"
+                          min="0.001"
+                          step="0.001"
+                          placeholder="مقدار"
+                          title="مقدار مصرف در هر عدد آیتم"
+                          value={line.quantity ?? ''}
                           onChange={(event) =>
-                            updateRecipeLine(index, { showToCustomer: event.target.checked })
+                            updateRecipeLine(index, { quantity: event.target.value })
                           }
                         />
-                        <span>نمایش به مشتری</span>
-                      </label>
-                      <button
-                        type="button"
-                        className="recipe-line-remove"
-                        title="حذف این ماده"
-                        onClick={() => removeRecipeLine(index)}
-                      >
-                        −
-                      </button>
-                    </div>
-                  )
-                })}
+                        <label className="recipe-line-show">
+                          <input
+                            type="checkbox"
+                            checked={line.showToCustomer !== false}
+                            onChange={(event) =>
+                              updateRecipeLine(index, { showToCustomer: event.target.checked })
+                            }
+                          />
+                          <span>نمایش به مشتری</span>
+                        </label>
+                        <button
+                          type="button"
+                          className="recipe-line-remove"
+                          title="حذف این ماده"
+                          onClick={() => removeRecipeLine(index)}
+                        >
+                          −
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <div className="mi-recipe-footer">
+                <button type="button" className="ghost-button recipe-line-add" onClick={addRecipeLine}>
+                  + افزودن ماده
+                </button>
               </div>
-            )}
-            <div className="mi-recipe-footer">
-              <button type="button" className="ghost-button recipe-line-add" onClick={addRecipeLine}>
-                + افزودن ماده
-              </button>
-            </div>
+            </CollapsibleFormSection>
           </div>
 
           <div className="mi-form-footer">

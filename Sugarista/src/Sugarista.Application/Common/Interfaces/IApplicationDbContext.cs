@@ -95,6 +95,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.RecipeItem> RecipeItems { get; }
 
+    DbSet<Sugarista.Domain.Entities.MenuItemRecipeCard> MenuItemRecipeCards { get; }
+
     DbSet<Sugarista.Domain.Entities.InventoryStock> InventoryStocks { get; }
 
     DbSet<Sugarista.Domain.Entities.StockMovement> StockMovements { get; }

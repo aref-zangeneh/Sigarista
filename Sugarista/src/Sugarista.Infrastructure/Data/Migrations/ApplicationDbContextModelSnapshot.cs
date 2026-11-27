@@ -3272,6 +3272,61 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("MenuItemPriceHistories");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemRecipeCard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BaristaTip")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("BulletPointsJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasDefaultValue("[]");
+
+                    b.Property<string>("CardImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GlasswareOrPlate")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("MenuItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("PrepSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ServingTemp")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MenuItemId")
+                        .IsUnique();
+
+                    b.ToTable("MenuItemRecipeCards", (string)null);
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemStock", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7095,6 +7150,17 @@ namespace Sugarista.Infrastructure.Data.Migrations
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemPriceHistory", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuItem");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.MenuItemRecipeCard", b =>
                 {
                     b.HasOne("Sugarista.Domain.Entities.MenuItem", "MenuItem")
                         .WithMany()

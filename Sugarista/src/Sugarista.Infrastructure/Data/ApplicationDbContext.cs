@@ -104,6 +104,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<RecipeItem> RecipeItems => Set<RecipeItem>();
 
+    public DbSet<MenuItemRecipeCard> MenuItemRecipeCards => Set<MenuItemRecipeCard>();
+
     public DbSet<InventoryStock> InventoryStocks => Set<InventoryStock>();
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();

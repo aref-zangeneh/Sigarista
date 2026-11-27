@@ -330,32 +330,6 @@ export function MenuItemsPage() {
 
   return (
       <section className="mi-page menu-minimal-scope">
-        <section className="panel mi-list-panel">
-          <div className="panel-head">
-            <div>
-              <h3>آیتم‌های موجود منو</h3>
-              <p>لیست کامل محصولات منو با جستجو، فیلتر و صفحه‌بندی مستقیم از سرور</p>
-            </div>
-            <div className="mi-head-actions">
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handleStartNewItem}
-              >
-                + افزودن آیتم جدید
-              </button>
-            </div>
-          </div>
-          <PaginatedAdminTable
-            apiPath="/admin/menu-items"
-            token={session.token}
-            columns={menuItemColumns}
-            enabled
-            reloadToken={tableReloadToken}
-            searchPlaceholder="جستجو در آیتم‌های منو..."
-          />
-        </section>
-
         <form ref={editorFormRef} className="panel mi-editor-panel" onSubmit={handleMenuItemSubmit}>
           <div className="panel-head">
             <div>
@@ -1122,6 +1096,32 @@ export function MenuItemsPage() {
             </div>
           </div>
         </form>
+
+        <section className="panel mi-list-panel">
+          <div className="panel-head">
+            <div>
+              <h3>آیتم‌های موجود منو</h3>
+              <p>لیست کامل محصولات منو با جستجو، فیلتر و صفحه‌بندی مستقیم از سرور</p>
+            </div>
+            <div className="mi-head-actions">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleStartNewItem}
+              >
+                + افزودن آیتم جدید
+              </button>
+            </div>
+          </div>
+          <PaginatedAdminTable
+            apiPath="/admin/menu-items"
+            token={session.token}
+            columns={menuItemColumns}
+            enabled
+            reloadToken={tableReloadToken}
+            searchPlaceholder="جستجو در آیتم‌های منو..."
+          />
+        </section>
 
         <section className="panel pricing-panel">
           <div className="panel-head">

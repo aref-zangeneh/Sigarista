@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>همکاری در فروش | کافه شوگاریستا</title>
+  <link rel="stylesheet" href="/affiliate/affiliate.css">
+</head>
+<body x-data="affiliatePortalApp()" x-init="init()">
+  <div class="aff-container">
+    <!-- Top Nav -->
+    <header class="aff-nav">
+      <a class="aff-brand" href="/">
+        <span class="aff-brand-mark">S</span>
+        <span class="aff-brand-text">
+          <strong>همکاری در فروش شوگاریستا</strong>
+          <small>پنل اختصاصی سفیران و همکاران کافه</small>
+        </span>
+      </a>
+      <div class="aff-nav-right">
+        <template x-if="dashboard?.isAuthenticated && dashboard?.hasAffiliateAccount">
+          <span class="aff-badge aff-badge--accent" x-text="'سطح ' + (dashboard.tierName || 'پایه') + ' • ' + formatNum(dashboard.effectiveCommissionPercentage) + '٪ پورسانت'"></span>
+        </template>
+        <a href="/" class="aff-btn aff-btn--ghost aff-btn--sm">منوی کافه</a>
+      </div>
+    </header>
+
+    <!-- Loading -->
+    <div x-show="loading" class="aff-card" style="text-align:center; padding:3rem 1rem; color:var(--aff-muted);">
+      در حال بارگذاری پنل همکاری در فروش...
+    </div>
+
+    <!-- VIEW 1: Landing + OTP Auth + Registration Form (Task 4.1) -->
+    <main x-cloak x-show="!loading && (!dashboard?.isAuthenticated || !dashboard?.hasAffiliateAccount)">
+      <section class="aff-hero">
+        <div>
+          <span class="aff-eyebrow">برنامه سفیران کافه شوگاریستا</span>
+          <h1>کافه محبوبت رو معرفی کن، درآمد نقدی یا اعتبار خرید هدیه‌دار بگیر</h1>
+          <p class="aff-hero-copy">
+            با لینک اختصاصی و کد تخفیف شخصی خودت، هم از سفارش‌های آنلاین سایت و هم از سفارش‌های حضوری داخل کافه پورسانت شفاف بگیر؛ هر زمان خواستی نقدی تسویه کن یا با بونوس اضافه به اعتبار خرید کافه تبدیل کن.
+          </p>
+          <div class="aff-perks">
+            <div class="aff-perk">
+              <strong>پورسانت پلکانی</strong>
+              <span>با افزایش فروش ماهانه، سطح تو به‌صورت خودکار به نقره‌ای و طلایی ارتقا می‌یابد.</span>
+            </div>
+            <div class="aff-perk">
+              <strong>+۲۰٪ بونوس اعتبار کافه</strong>
+              <span>موجودی نقدی رو با بونوس خودکار به کیف پول خرید کافه تبدیل کن.</span>
+            </div>
+            <div class="aff-perk">
+              <strong>آنلاین و حضوری (POS)</strong>
+              <span>کد معرف تو هم در سایت و هم در صندوق کافه تخفیف و پورسانت ثبت می‌کند.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Auth / Apply Card -->
+        <div class="aff-card">
+          <!-- Step A: OTP Verification -->
+          <template x-if="!dashboard?.isAuthenticated">
+            <div>
+              <div class="aff-card-head">
+                <h2>ورود و ثبت درخواست همکاری</h2>
+                <span class="aff-badge aff-badge--accent">تایید با پیامک OTP</span>
+              </div>
+
+              <div x-show="otpStep === 'phone'">
+                <div class="aff-field">
+                  <label>شماره موبایل</label>
+                  <input type="tel" dir="ltr" placeholder="09123456789" x-model="otpPhone" @keydown.enter="requestOtp()">
+                  <small>کد تایید ۶ رقمی به این شماره ارسال می‌شود.</small>
+                </div>
+                <div class="aff-field">
+                  <label>نام و نام خانوادگی (برای کاربران جدید)</label>
+                  <input type="text" placeholder="مثلاً علی محمدی" x-model="otpName">
+                </div>
+                <button type="button" class="aff-btn" style="width:100%" :disabled="otpBusy" @click="requestOtp()">
+                  <span x-text="otpBusy ? 'در حال ارسال...' : 'ارسال کد تایید پیامکی'"></span>
+                </button>
+              </div>
+
+              <div x-show="otpStep === 'code'">
+                <div class="aff-field">
+                  <label>کد تایید پیامکی ارسال‌شده به <span dir="ltr" x-text="otpPhone"></span></label>
+                  <input type="text" dir="ltr" inputmode="numeric" placeholder="123456" x-model="otpCode" @keydown.enter="verifyOtp()">
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                  <button type="button" class="aff-btn" style="flex:1" :disabled="otpBusy" @click="verifyOtp()">
+                    <span x-text="otpBusy ? 'در حال بررسی...' : 'تایید و ادامه'"></span>
+                  </button>
+                  <button type="button" class="aff-btn aff-btn--ghost" @click="otpStep = 'phone'">تغییر شماره</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- Step B: Application Form (Authenticated customer without affiliate account yet) -->
+          <template x-if="dashboard?.isAuthenticated && !dashboard?.hasAffiliateAccount">
+            <form @submit.prevent="submitApplication()">
+              <div class="aff-card-head">
+                <h2>تکمیل فرم همکاری در فروش</h2>
+                <span class="aff-badge aff-badge--success" x-text="dashboard.customerName"></span>
+              </div>
+              <div class="aff-field">
+                <label>شماره شبا به نام خودتان (الزامی)</label>
+                <input type="text" dir="ltr" required placeholder="IR000000000000000000000000" x-model="applySheba">
+                <small>برای تسویه نقدی، شبا باید دقیقاً به نام صاحب شماره موبایل باشد.</small>
+              </div>
+              <div class="aff-field">
+                <label>شماره کارت (اختیاری)</label>
+                <input type="text" dir="ltr" placeholder="6037-...." x-model="applyCard">
+              </div>
+              <div class="aff-field">
+                <label>نامک دلخواه لینک اختصاصی (انگلیسی)</label>
+                <input type="text" dir="ltr" placeholder="مثلاً ali-coffee" x-model="applySlug">
+                <small>لینک شما به شکل sugarista.ir/r/your-name ساخته می‌شود.</small>
+              </div>
+              <button type="submit" class="aff-btn" style="width:100%" :disabled="applyBusy">
+                <span x-text="applyBusy ? 'در حال ثبت...' : 'ثبت درخواست همکاری در فروش'"></span>
+              </button>
+            </form>
+          </template>
+        </div>
+      </section>
+    </main>
+
+    <!-- VIEW 2: Pending / Suspended Status -->
+    <main x-cloak x-show="!loading && dashboard?.hasAffiliateAccount && dashboard?.status !== 'Active'">
+      <div class="aff-card" style="max-width:560px; margin:2rem auto; text-align:center;">
+        <span class="aff-badge" :class="dashboard?.status === 'Pending' ? 'aff-badge--warn' : 'aff-badge--danger'"
+              x-text="dashboard?.status === 'Pending' ? 'در انتظار تایید مدیریت' : 'حساب معلق شده'"></span>
+        <h2 style="margin:0.8rem 0 0.4rem;" x-text="dashboard?.status === 'Pending' ? 'درخواست همکاری شما ثبت شد' : 'حساب همکاری شما غیرفعال است'"></h2>
+        <p style="color:var(--aff-muted); font-size:0.88rem; margin:0 0 1.2rem;">
+          تیم شوگاریستا پس از بررسی اطلاعات شبا و حساب شما، پنل و کد تخفیف اختصاصی‌تان را فعال می‌کند.
+        </p>
+        <button type="button" class="aff-btn aff-btn--ghost" @click="loadDashboard()">بررسی مجدد وضعیت</button>
+      </div>
+    </main>
+
+    <!-- VIEW 3: Active Affiliate Dashboard (Tasks 4.2, 4.3, 4.4) -->
+    <main x-cloak x-show="!loading && dashboard?.hasAffiliateAccount && dashboard?.status === 'Active'">
+      <!-- Tabs -->
+      <nav class="aff-tabs">
+        <button type="button" class="aff-tab" :class="{ 'aff-tab--active': activeTab === 'overview' }" @click="activeTab = 'overview'">آمار و لینک‌ها</button>
+        <button type="button" class="aff-tab" :class="{ 'aff-tab--active': activeTab === 'media' }" @click="activeTab = 'media'">بانک محتوا (Media Kit)</button>
+        <button type="button" class="aff-tab" :class="{ 'aff-tab--active': activeTab === 'finance' }" @click="activeTab = 'finance'">کیف پول و تسویه</button>
+      </nav>
+
+      <!-- TAB 1: Overview, KPIs, Chart, Link Builder & Coupons (Task 4.2) -->
+      <div x-show="activeTab === 'overview'">
+        <section class="aff-kpi-grid">
+          <article class="aff-kpi">
+            <span>تعداد کلیک‌ها</span>
+            <strong x-text="formatNum(dashboard.totalClicks)"></strong>
+          </article>
+          <article class="aff-kpi">
+            <span>سفارش‌های موفق</span>
+            <strong x-text="formatNum(dashboard.successfulOrdersCount)"></strong>
+          </article>
+          <article class="aff-kpi">
+            <span>نرخ تبدیل (Conversion)</span>
+            <strong x-text="formatNum(dashboard.conversionRate) + '٪'"></strong>
+          </article>
+          <article class="aff-kpi">
+            <span>درآمد در انتظار تایید</span>
+            <strong x-text="formatNum(dashboard.pendingCommissionAmount) + ' ت'"></strong>
+          </article>
+          <article class="aff-kpi">
+            <span>موجودی قابل برداشت نقدی</span>
+            <strong style="color:var(--aff-success)" x-text="formatNum(dashboard.cashBalance) + ' ت'"></strong>
+          </article>
+          <article class="aff-kpi">
+            <span>موجودی اعتبار کافه</span>
+            <strong style="color:var(--aff-accent)" x-text="formatNum(dashboard.walletCreditBalance) + ' ت'"></strong>
+          </article>
+        </section>
+
+        <!-- Sales & Commission Chart (7d / 30d) -->
+        <section class="aff-card" style="margin-bottom:1.2rem;">
+          <div class="aff-card-head">
+            <h2>نمودار فروش و درآمد</h2>
+            <div style="display:flex; gap:0.35rem;">
+              <button type="button" class="aff-btn aff-btn--sm" :class="chartRange === 7 ? '' : 'aff-btn--ghost'" @click="chartRange = 7">۷ روز گذشته</button>
+              <button type="button" class="aff-btn aff-btn--sm" :class="chartRange === 30 ? '' : 'aff-btn--ghost'" @click="chartRange = 30">۳۰ روز گذشته</button>
+            </div>
+          </div>
+          <div class="aff-chart-bars">
+            <template x-for="point in visibleChartStats" :key="point.date">
+              <div class="aff-chart-col" :title="point.date + ' — فروش: ' + formatNum(point.salesAmount) + ' ت | پورسانت: ' + formatNum(point.commissionAmount) + ' ت'">
+                <div class="aff-chart-bar" :style="'height:' + Math.max(4, Math.round((point.salesAmount / maxChartSales) * 100)) + '%'"></div>
+              </div>
+            </template>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--aff-muted); margin-top:0.5rem;">
+            <span x-text="visibleChartStats[0]?.date || ''"></span>
+            <span>مجموع پورسانت بازه: <strong x-text="formatNum(visibleChartStats.reduce((s, x) => s + (Number(x.commissionAmount) || 0), 0)) + ' تومان'"></strong></span>
+            <span x-text="visibleChartStats[visibleChartStats.length - 1]?.date || ''"></span>
+          </div>
+        </section>
+
+        <div class="aff-grid-2">
+          <!-- Campaign Link Builder + QR Code -->
+          <section class="aff-card">
+            <div class="aff-card-head">
+              <h2>ساخت لینک کمپین و QR Code</h2>
+            </div>
+            <div class="aff-chips">
+              <button type="button" class="aff-chip" @click="newSubId = 'story'">+ استوری اینستاگرام</button>
+              <button type="button" class="aff-chip" @click="newSubId = 'bio'">+ بیو اینستاگرام</button>
+              <button type="button" class="aff-chip" @click="newSubId = 'telegram'">+ تلگرام</button>
+              <button type="button" class="aff-chip" @click="newSubId = 'whatsapp'">+ واتساپ</button>
+            </div>
+            <form @submit.prevent="createCampaignLink()" style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+              <input type="text" dir="ltr" placeholder="Sub-ID (مثلاً story1)" x-model="newSubId" style="flex:1; min-height:38px; padding:0.4rem 0.7rem; border-radius:10px; border:1px solid var(--aff-border);">
+              <button type="submit" class="aff-btn aff-btn--sm" :disabled="linkBusy">ساخت لینک</button>
+            </form>
+
+            <template x-for="link in dashboard.links" :key="link.id">
+              <div class="aff-link-item">
+                <div style="min-width:0; flex:1;">
+                  <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.2rem;">
+                    <strong style="font-size:0.84rem;" x-text="link.subId ? ('کمپین: ' + link.subId) : 'لینک اصلی'"></strong>
+                    <span class="aff-badge aff-badge--accent" x-text="formatNum(link.clickCount) + ' کلیک'"></span>
+                  </div>
+                  <div class="aff-link-url" dir="ltr" x-text="link.fullUrl"></div>
+                </div>
+                <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+                  <button type="button" class="aff-btn aff-btn--ghost aff-btn--sm" @click="copyText(link.fullUrl, 'لینک کپی شد!')">کپی</button>
+                  <a :href="link.qrPngUrl" download class="aff-btn aff-btn--ghost aff-btn--sm">QR (PNG)</a>
+                  <a :href="link.qrSvgUrl" download class="aff-btn aff-btn--ghost aff-btn--sm">SVG</a>
+                </div>
+              </div>
+            </template>
+          </section>
+
+          <!-- Dedicated Coupons -->
+          <section class="aff-card">
+            <div class="aff-card-head">
+              <h2>کدهای تخفیف اختصاصی شما</h2>
+              <span class="aff-badge aff-badge--success" x-text="'پورسانت شما: ' + formatNum(dashboard.effectiveCommissionPercentage) + '٪'"></span>
+            </div>
+            <template x-if="(dashboard.coupons || []).length === 0">
+              <p style="color:var(--aff-muted); font-size:0.85rem;">هنوز کد تخفیف اختصاصی برای شما تعریف نشده است.</p>
+            </template>
+            <template x-for="coupon in dashboard.coupons" :key="coupon.id">
+              <div class="aff-link-item">
+                <div>
+                  <strong style="font-size:1.05rem; letter-spacing:0.06em;" dir="ltr" x-text="coupon.code"></strong>
+                  <div style="font-size:0.78rem; color:var(--aff-muted); margin-top:0.2rem;">
+                    تخفیف مشتری:
+                    <strong x-text="coupon.discountType === 'Percentage' ? (formatNum(coupon.discountValue) + '٪') : (formatNum(coupon.discountValue) + ' تومان')"></strong>
+                    <template x-if="coupon.isFirstOrderOnly">
+                      <span> • ویژه سفارش اول</span>
+                    </template>
+                  </div>
+                </div>
+                <button type="button" class="aff-btn aff-btn--sm" @click="copyText(coupon.code, 'کد تخفیف کپی شد!')">کپی کد</button>
+              </div>
+            </template>
+          </section>
+        </div>
+      </div>
+
+      <!-- TAB 2: Media Kit (Task 4.3) -->
+      <div x-show="activeTab === 'media'">
+        <div class="aff-card">
+          <div class="aff-card-head">
+            <h2>بانک محتوای تبلیغاتی (Media Kit)</h2>
+            <div class="aff-chips" style="margin:0;">
+              <button type="button" class="aff-chip" @click="mediaFilter = 'all'">همه</button>
+              <button type="button" class="aff-chip" @click="mediaFilter = 'Image'">تصاویر</button>
+              <button type="button" class="aff-chip" @click="mediaFilter = 'Video'">ویدیو ریلز</button>
+              <button type="button" class="aff-chip" @click="mediaFilter = 'Logo'">لوگو</button>
+              <button type="button" class="aff-chip" @click="mediaFilter = 'CopyText'">متن تبلیغاتی</button>
+            </div>
+          </div>
+
+          <template x-if="filteredMediaKit.length === 0">
+            <p style="text-align:center; color:var(--aff-muted); padding:2rem 0;">هنوز فایل یا متن تبلیغاتی در این دسته آپلود نشده است.</p>
+          </template>
+
+          <div class="aff-media-grid">
+            <template x-for="asset in filteredMediaKit" :key="asset.id">
+              <article class="aff-media-card">
+                <template x-if="asset.thumbnailUrl || (asset.assetType === 'Image' || asset.assetType === 'Logo') && asset.fileUrl">
+                  <img class="aff-media-thumb" :src="asset.thumbnailUrl || asset.fileUrl" :alt="asset.title">
+                </template>
+                <div class="aff-media-body">
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem;">
+                    <strong style="font-size:0.88rem;" x-text="asset.title"></strong>
+                    <span class="aff-badge aff-badge--accent" x-text="mediaTypeLabel(asset.assetType)"></span>
+                  </div>
+                  <template x-if="asset.captionText">
+                    <div class="aff-media-caption" x-text="asset.captionText"></div>
+                  </template>
+                  <div style="display:flex; gap:0.4rem; margin-top:auto;">
+                    <template x-if="asset.fileUrl">
+                      <a :href="asset.fileUrl" download target="_blank" class="aff-btn aff-btn--sm" style="flex:1">دانلود فایل</a>
+                    </template>
+                    <template x-if="asset.captionText">
+                      <button type="button" class="aff-btn aff-btn--ghost aff-btn--sm" style="flex:1" @click="copyText(asset.captionText, 'متن تبلیغاتی کپی شد!')">کپی متن</button>
+                    </template>
+                  </div>
+                </div>
+              </article>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Finance, Credit Conversion & Cash Payout (Task 4.4) -->
+      <div x-show="activeTab === 'finance'">
+        <div class="aff-grid-2">
+          <!-- Convert Cash to Cafe Credit with Bonus -->
+          <section class="aff-card">
+            <div class="aff-card-head">
+              <h2>تبدیل موجودی نقدی به اعتبار کافه</h2>
+              <span class="aff-badge aff-badge--success" x-text="'+' + formatNum(dashboard.creditBonusPercentage) + '٪ بونوس'"></span>
+            </div>
+            <p style="font-size:0.83rem; color:var(--aff-muted); margin-top:0;">
+              موجودی نقدی خود را آنی به کیف پول خرید کافه تبدیل کنید و بونوس ویژه دریافت کنید.
+            </p>
+            <div class="aff-field">
+              <label>مبلغ نقدی برای تبدیل (تومان)</label>
+              <input type="number" min="1000" :max="dashboard.cashBalance" placeholder="مثلاً 100000" x-model="convertAmount">
+              <small>موجودی نقدی فعلی: <strong x-text="formatNum(dashboard.cashBalance) + ' تومان'"></strong></small>
+            </div>
+            <div class="aff-preview-pill" x-show="convertPreview.amount > 0">
+              <span x-text="'بونوس (' + formatNum(convertPreview.bonusPct) + '٪): +' + formatNum(convertPreview.bonus) + ' ت'"></span>
+              <span x-text="'اعتبار نهایی: ' + formatNum(convertPreview.totalCredit) + ' تومان'"></span>
+            </div>
+            <button type="button" class="aff-btn aff-btn--accent" style="width:100%"
+                    :disabled="convertBusy || convertPreview.amount <= 0 || convertPreview.amount > dashboard.cashBalance"
+                    @click="submitConvertToCredit()">
+              <span x-text="convertBusy ? 'در حال تبدیل...' : 'تبدیل موجودی نقدی به اعتبار خرید از کافه'"></span>
+            </button>
+          </section>
+
+          <!-- Cash Bank Payout Request -->
+          <section class="aff-card">
+            <div class="aff-card-head">
+              <h2>درخواست واریز وجه (شبا)</h2>
+              <span class="aff-badge" :class="canRequestCashPayout ? 'aff-badge--success' : 'aff-badge--warn'"
+                    x-text="'حداقل برداشت: ' + formatNum(dashboard.minPayoutAmount) + ' ت'"></span>
+            </div>
+            <div class="aff-field">
+              <label>شماره شبا ثبت‌شده</label>
+              <input type="text" dir="ltr" readonly :value="dashboard.shebaNumber || 'ثبت نشده'">
+            </div>
+            <div class="aff-field">
+              <label>مبلغ برداشت نقدی (تومان)</label>
+              <input type="number" :min="dashboard.minPayoutAmount" :max="dashboard.cashBalance"
+                     :placeholder="String(dashboard.cashBalance || dashboard.minPayoutAmount)"
+                     :disabled="!canRequestCashPayout"
+                     x-model="payoutAmount">
+              <small x-show="!canRequestCashPayout" style="color:var(--aff-warn);">
+                برای فعال شدن برداشت نقدی، به <strong x-text="formatNum(Math.max(0, dashboard.minPayoutAmount - dashboard.cashBalance)) + ' تومان'"></strong> موجودی بیشتر نیاز دارید.
+              </small>
+            </div>
+            <button type="button" class="aff-btn" style="width:100%"
+                    :disabled="payoutBusy || !canRequestCashPayout"
+                    @click="submitPayoutRequest()">
+              <span x-text="payoutBusy ? 'در حال ثبت...' : 'درخواست واریز وجه'"></span>
+            </button>
+          </section>
+        </div>
+
+        <!-- Payout History -->
+        <section class="aff-card">
+          <div class="aff-card-head">
+            <h2>تاریخچه تسویه‌ها و تبدیل اعتبار</h2>
+          </div>
+          <template x-if="(dashboard.payouts || []).length === 0">
+            <p style="color:var(--aff-muted); font-size:0.85rem;">هنوز درخواست تسویه یا تبدیل اعتباری ثبت نشده است.</p>
+          </template>
+          <table class="aff-table" x-show="(dashboard.payouts || []).length > 0">
+            <thead>
+              <tr>
+                <th>نوع</th>
+                <th>مبلغ</th>
+                <th>وضعیت</th>
+                <th>کد رهگیری</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="p in dashboard.payouts" :key="p.id">
+                <tr>
+                  <td x-text="p.payoutType === 'WalletCredit' ? 'تبدیل به اعتبار کافه' : 'واریز نقدی (شبا)'"></td>
+                  <td x-text="formatNum(p.amount) + ' تومان'"></td>
+                  <td><span class="aff-badge aff-badge--accent" x-text="payoutStatusLabel(p.status)"></span></td>
+                  <td dir="ltr" x-text="p.trackingCode || '—'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div x-cloak x-show="toastMessage" class="aff-toast" :class="{ 'aff-toast--error': toastIsError }" x-text="toastMessage"></div>
+
+  <script defer src="/assets/vendor/alpine/alpine.min.js"></script>
+  <script src="/assets/js/config.js"></script>
+  <script src="/affiliate/affiliate.js"></script>
+</body>
+</html>

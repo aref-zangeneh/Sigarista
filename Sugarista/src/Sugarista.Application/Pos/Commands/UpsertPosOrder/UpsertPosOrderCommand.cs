@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Accounting.Services;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
@@ -146,6 +147,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
     private readonly ICurrentUserService _currentUserService;
     private readonly ILoyaltyService _loyaltyService;
     private readonly IDiscountEngine _discountEngine;
+    private readonly IAffiliateTrackingService? _affiliateTrackingService;
 
     public UpsertPosOrderCommandHandler(
         IApplicationDbContext dbContext,
@@ -153,7 +155,8 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         IPrintJobService printJobService,
         ICurrentUserService currentUserService,
         ILoyaltyService loyaltyService,
-        IDiscountEngine discountEngine)
+        IDiscountEngine discountEngine,
+        IAffiliateTrackingService? affiliateTrackingService = null)
     {
         _dbContext = dbContext;
         _accountingService = accountingService;
@@ -161,6 +164,7 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         _currentUserService = currentUserService;
         _loyaltyService = loyaltyService;
         _discountEngine = discountEngine;
+        _affiliateTrackingService = affiliateTrackingService;
     }
 
     public async Task<UpsertPosOrderResultDto> Handle(UpsertPosOrderCommand request, CancellationToken cancellationToken)
@@ -324,6 +328,10 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         };
 
         var adjustedCodeApplications = new List<DiscountApplication>();
+        AffiliateCouponResolution? posAffiliateCoupon = null;
+        var posCategoryByMenuItem = resolvedLines
+            .GroupBy(line => line.resolved.MenuItemId)
+            .ToDictionary(group => group.Key, group => group.First().resolved.CategoryId);
 
         if (!isNonRevenueAction)
         {
@@ -385,7 +393,20 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                     TimeZoneId: siteSettings?.TimeZoneId ?? "Asia/Tehran"),
                 cancellationToken);
 
+            var posItemsGrossSubtotal = discountLines.Sum(line => line.UnitPrice * line.Quantity);
+            if (requestedDiscountCode is not null && _affiliateTrackingService is not null)
+            {
+                posAffiliateCoupon = await _affiliateTrackingService.TryResolveCouponAsync(
+                    requestedDiscountCode,
+                    posItemsGrossSubtotal,
+                    customer?.Id,
+                    throwOnInvalidCoupon: true,
+                    cancellationToken,
+                    customerPhone: request.CustomerPhone);
+            }
+
             if (requestedDiscountCode is not null &&
+                posAffiliateCoupon is null &&
                 discountEvaluation.Applications.Count == 0 &&
                 discountEvaluation.Rejections.Count > 0)
             {
@@ -414,7 +435,19 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
                 }
             }
 
+            if (posAffiliateCoupon is not null && posAffiliateCoupon.DiscountAmount > 0m)
+            {
+                discountTracker.Apply(
+                    OrderDiscountKind.Code,
+                    $"کد معرف {posAffiliateCoupon.Code}",
+                    posAffiliateCoupon.DiscountAmount,
+                    discountId: null,
+                    code: posAffiliateCoupon.Code,
+                    scopes: null);
+            }
+
             if (requestedDiscountCode is not null &&
+                posAffiliateCoupon is null &&
                 discountEvaluation.Applications.Count > 0 &&
                 adjustedCodeApplications.Count == 0)
             {
@@ -729,6 +762,19 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
         {
             // Award loyalty points, stamp cards, badges, membership tiers, and wallet cashback.
             await _loyaltyService.AwardForPaidOrderAsync(order, cancellationToken);
+
+            // In-store POS affiliate commission is immediately Approved since payment is settled.
+            if (posAffiliateCoupon is not null && _affiliateTrackingService is not null)
+            {
+                await _affiliateTrackingService.RecordOrderCommissionAsync(
+                    order,
+                    AffiliateOrderSource.Pos,
+                    posAffiliateCoupon.AffiliateId,
+                    cookieTrackingToken: null,
+                    posCategoryByMenuItem,
+                    autoApprove: true,
+                    cancellationToken);
+            }
         }
 
         return new UpsertPosOrderResultDto(

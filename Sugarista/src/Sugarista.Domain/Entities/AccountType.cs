@@ -17,7 +17,9 @@ public enum JournalSourceType
     PartnerCapital,
     PartnerWithdrawal,
     ProfitDistribution,
-    OperatingExpense
+    OperatingExpense,
+    AffiliateCommission,
+    AffiliatePayout
 }
 
 public enum PartnerCapitalTransactionType

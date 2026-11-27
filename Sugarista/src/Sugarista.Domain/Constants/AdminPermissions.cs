@@ -250,6 +250,12 @@ public static class AdminPermissions
         public const string Update = "admin.moq-alerts.update";
     }
 
+    public static class Affiliates
+    {
+        public const string View = "admin.affiliates.view";
+        public const string Update = "admin.affiliates.update";
+    }
+
     public static class Accounting
     {
         public const string View = "admin.accounting.view";
@@ -436,6 +442,8 @@ public static class AdminPermissions
         new(Accounting.Update, "accounting", "update", "حسابداری", "ویرایش شرکا / تقسیم سود", "sales", "فروش و مالی"),
         new(Accounting.Delete, "accounting", "delete", "حسابداری", "حذف / لغو", "sales", "فروش و مالی"),
         new(Exports.View, "exports", "view", "خروجی اکسل", "مشاهده و دانلود گزارش اکسل", "sales", "فروش و مالی"),
+        new(Affiliates.View, "affiliates", "view", "همکاری در فروش (Affiliate)", "مشاهده بازاریاب‌ها، تسویه‌ها و آمار", "sales", "فروش و مالی"),
+        new(Affiliates.Update, "affiliates", "update", "همکاری در فروش (Affiliate)", "تایید، سطوح، تسویه، کدها و بانک محتوا", "sales", "فروش و مالی"),
 
         // ── ۶. منابع انسانی و پرسنل ─────────────────────────────────────────
         new(Hr.View, "hr", "view", "منابع انسانی", "مشاهده پرسنل و حقوق", "hr", "منابع انسانی و پرسنل"),

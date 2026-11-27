@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DrinkBuilder;
@@ -122,13 +123,16 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
 {
     private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAffiliateCommissionLifecycleService? _affiliateLifecycleService;
 
     public UpdateAdminOrderCommandHandler(
         IApplicationDbContext dbContext,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IAffiliateCommissionLifecycleService? affiliateLifecycleService = null)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
+        _affiliateLifecycleService = affiliateLifecycleService;
     }
 
     public async Task<AdminOrderDetailDto> Handle(UpdateAdminOrderCommand request, CancellationToken cancellationToken)
@@ -202,6 +206,12 @@ public class UpdateAdminOrderCommandHandler : IRequestHandler<UpdateAdminOrderCo
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (_affiliateLifecycleService is not null)
+        {
+            await _affiliateLifecycleService.SyncForOrderAsync(order, cancellationToken: cancellationToken);
+        }
+
         return AdminOrderMapper.ToDetail(order, canManageManagerNote);
     }
 

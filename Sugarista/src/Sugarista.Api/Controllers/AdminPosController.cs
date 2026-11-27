@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sugarista.Api.Authorization;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Pos;
 using Sugarista.Application.Pos.Commands.CancelPosOrder;
 using Sugarista.Application.Pos.Commands.CopyPosOrder;
@@ -11,6 +12,7 @@ using Sugarista.Application.Pos.Queries.GetPosBootstrap;
 using Sugarista.Application.Pos.Queries.GetPosCustomerByPhone;
 using Sugarista.Application.Pos.Queries.GetPosOrder;
 using Sugarista.Domain.Constants;
+using Sugarista.Domain.Exceptions;
 
 namespace Sugarista.Api.Controllers;
 
@@ -20,6 +22,49 @@ public sealed record UpdateManagerNoteBody(string? ManagerNote);
 [Route("api/admin/pos")]
 public class AdminPosController : ApiControllerBase
 {
+    private readonly IAffiliateTrackingService _affiliateTrackingService;
+
+    public AdminPosController(IAffiliateTrackingService affiliateTrackingService)
+    {
+        _affiliateTrackingService = affiliateTrackingService;
+    }
+
+    [HttpGet("affiliate-coupon")]
+    [RequirePermission(AdminPermissions.Pos.View)]
+    public async Task<ActionResult<AffiliateCouponResolution>> PreviewAffiliateCoupon(
+        [FromQuery] string? code,
+        [FromQuery] decimal subtotal = 0m,
+        [FromQuery] Guid? customerId = null,
+        [FromQuery] string? customerPhone = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return BadRequest("کد معرف وارد نشده است.");
+        }
+
+        try
+        {
+            var resolution = await _affiliateTrackingService.TryResolveCouponAsync(
+                code,
+                Math.Max(0m, subtotal),
+                customerId,
+                throwOnInvalidCoupon: true,
+                cancellationToken,
+                customerPhone: customerPhone);
+
+            if (resolution is null)
+            {
+                return NotFound("کد معرف با این مشخصات یافت نشد.");
+            }
+
+            return Ok(resolution);
+        }
+        catch (DomainException exception)
+        {
+            return Problem(exception.Message);
+        }
+    }
     [HttpGet("bootstrap")]
     [RequirePermission(AdminPermissions.Pos.View)]
     public async Task<ActionResult<PosBootstrapDto>> GetBootstrap(CancellationToken cancellationToken)

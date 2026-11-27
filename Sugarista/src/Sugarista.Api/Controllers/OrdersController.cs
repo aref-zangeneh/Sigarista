@@ -23,9 +23,17 @@ public class OrdersController : ApiControllerBase
         [FromBody] CreateOrderCheckoutCommand command,
         CancellationToken cancellationToken)
     {
+        Guid? affiliateTrackingToken = null;
+        if (Request.Cookies.TryGetValue(AffiliateRedirectController.AffiliateCookieName, out var rawToken) &&
+            Guid.TryParse(rawToken, out var parsedToken))
+        {
+            affiliateTrackingToken = parsedToken;
+        }
+
         var enriched = command with
         {
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString()
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            AffiliateTrackingToken = command.AffiliateTrackingToken ?? affiliateTrackingToken,
         };
 
         return Ok(await Mediator.Send(enriched, cancellationToken));

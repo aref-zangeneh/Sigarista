@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sugarista.Application.Accounting.Services;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Orders.Commands.UpdateAdminOrder;
@@ -23,15 +24,18 @@ public class CancelAdminOrderCommandHandler : IRequestHandler<CancelAdminOrderCo
     private readonly IApplicationDbContext _dbContext;
     private readonly ILoyaltyService _loyaltyService;
     private readonly IAccountingService? _accountingService;
+    private readonly IAffiliateCommissionLifecycleService? _affiliateLifecycleService;
 
     public CancelAdminOrderCommandHandler(
         IApplicationDbContext dbContext,
         ILoyaltyService loyaltyService,
-        IAccountingService? accountingService = null)
+        IAccountingService? accountingService = null,
+        IAffiliateCommissionLifecycleService? affiliateLifecycleService = null)
     {
         _dbContext = dbContext;
         _loyaltyService = loyaltyService;
         _accountingService = accountingService;
+        _affiliateLifecycleService = affiliateLifecycleService;
     }
 
     public async Task<AdminOrderDetailDto> Handle(CancelAdminOrderCommand request, CancellationToken cancellationToken)
@@ -68,6 +72,11 @@ public class CancelAdminOrderCommandHandler : IRequestHandler<CancelAdminOrderCo
         await _loyaltyService.RefundForCancelledOrderAsync(order, cancellationToken);
         await WalletService.RefundCancelledOrderAsync(_dbContext, order, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (_affiliateLifecycleService is not null)
+        {
+            await _affiliateLifecycleService.SyncForOrderAsync(order, "سفارش توسط ادمین لغو شد.", cancellationToken);
+        }
 
         return AdminOrderMapper.ToDetail(order);
     }

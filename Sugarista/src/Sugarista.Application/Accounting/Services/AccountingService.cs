@@ -32,6 +32,21 @@ public interface IAccountingService
         CancellationToken cancellationToken = default);
 
     Task<decimal> CalculateOrderCogsAsync(Order order, CancellationToken cancellationToken = default);
+
+    Task PostAffiliateCommissionApprovedAsync(
+        AffiliateCommission commission,
+        string orderTrackingCode,
+        string affiliateName,
+        CancellationToken cancellationToken = default);
+
+    Task ReverseAffiliateCommissionAsync(
+        Guid commissionId,
+        CancellationToken cancellationToken = default);
+
+    Task PostAffiliatePayoutCompletedAsync(
+        AffiliatePayout payout,
+        string affiliateName,
+        CancellationToken cancellationToken = default);
 }
 
 internal sealed class AccountingService : IAccountingService
@@ -494,6 +509,111 @@ internal sealed class AccountingService : IAccountingService
 
             return nextReference;
         }
+    }
+
+    public async Task PostAffiliateCommissionApprovedAsync(
+        AffiliateCommission commission,
+        string orderTrackingCode,
+        string affiliateName,
+        CancellationToken cancellationToken = default)
+    {
+        if (commission.CommissionAmount <= 0m)
+        {
+            return;
+        }
+
+        if (await AlreadyPostedAsync(JournalSourceType.AffiliateCommission, commission.Id, cancellationToken))
+        {
+            return;
+        }
+
+        await EnsureAccountsSeededAsync(cancellationToken);
+        var accounts = await _dbContext.Accounts
+            .Where(a => a.Code == AccountingAccountCodes.AffiliateCommissionExpense ||
+                        a.Code == AccountingAccountCodes.AffiliatePayable)
+            .ToDictionaryAsync(a => a.Code, cancellationToken);
+
+        if (!accounts.TryGetValue(AccountingAccountCodes.AffiliateCommissionExpense, out var expenseAcc) ||
+            !accounts.TryGetValue(AccountingAccountCodes.AffiliatePayable, out var payableAcc))
+        {
+            return;
+        }
+
+        var entryDate = DateOnly.FromDateTime(_dateTime.UtcNow.DateTime);
+        var reference = await NextReferenceAsync(entryDate, cancellationToken);
+        var entry = new JournalEntry(
+            reference,
+            entryDate,
+            JournalSourceType.AffiliateCommission,
+            $"پورسانت همکاری در فروش سفارش {orderTrackingCode} — {affiliateName}",
+            commission.Id);
+
+        entry.AddLine(new JournalLine(entry.Id, expenseAcc.Id, commission.CommissionAmount, 0m, $"هزینه پورسانت سفارش {orderTrackingCode}"));
+        entry.AddLine(new JournalLine(entry.Id, payableAcc.Id, 0m, commission.CommissionAmount, $"بدهی پورسانت به {affiliateName}"));
+        entry.ValidateBalanced();
+
+        await AddAndSaveJournalEntryAsync(entry, entryDate, cancellationToken);
+    }
+
+    public async Task ReverseAffiliateCommissionAsync(
+        Guid commissionId,
+        CancellationToken cancellationToken = default)
+    {
+        var entries = await _dbContext.JournalEntries
+            .Where(e => e.SourceType == JournalSourceType.AffiliateCommission && e.SourceId == commissionId)
+            .ToListAsync(cancellationToken);
+
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        _dbContext.JournalEntries.RemoveRange(entries);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task PostAffiliatePayoutCompletedAsync(
+        AffiliatePayout payout,
+        string affiliateName,
+        CancellationToken cancellationToken = default)
+    {
+        if (payout.Amount <= 0m || payout.PayoutType != AffiliatePayoutType.Cash)
+        {
+            return;
+        }
+
+        if (await AlreadyPostedAsync(JournalSourceType.AffiliatePayout, payout.Id, cancellationToken))
+        {
+            return;
+        }
+
+        await EnsureAccountsSeededAsync(cancellationToken);
+        var accounts = await _dbContext.Accounts
+            .Where(a => a.Code == AccountingAccountCodes.AffiliatePayable ||
+                        a.Code == AccountingAccountCodes.CardReceivable)
+            .ToDictionaryAsync(a => a.Code, cancellationToken);
+
+        if (!accounts.TryGetValue(AccountingAccountCodes.AffiliatePayable, out var payableAcc) ||
+            !accounts.TryGetValue(AccountingAccountCodes.CardReceivable, out var bankAcc))
+        {
+            return;
+        }
+
+        var entryDate = DateOnly.FromDateTime((payout.ProcessedAt ?? _dateTime.UtcNow).DateTime);
+        var reference = await NextReferenceAsync(entryDate, cancellationToken);
+        var refSuffix = string.IsNullOrWhiteSpace(payout.TrackingCode) ? string.Empty : $" (کد رهگیری: {payout.TrackingCode})";
+        var entry = new JournalEntry(
+            reference,
+            entryDate,
+            JournalSourceType.AffiliatePayout,
+            $"تسویه بانکی همکار فروش {affiliateName}{refSuffix}",
+            payout.Id);
+
+        entry.AddLine(new JournalLine(entry.Id, payableAcc.Id, payout.Amount, 0m, $"تسویه بدهی پورسانت {affiliateName}"));
+        entry.AddLine(new JournalLine(entry.Id, bankAcc.Id, 0m, payout.Amount, $"واریز بانکی به شبا {affiliateName}"));
+        entry.ValidateBalanced();
+
+        await AddAndSaveJournalEntryAsync(entry, entryDate, cancellationToken);
     }
 
     internal static string ComputeNextReferenceNumber(

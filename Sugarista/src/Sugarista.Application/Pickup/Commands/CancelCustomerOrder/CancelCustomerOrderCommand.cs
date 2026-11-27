@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.DeliveryMethods.Services;
@@ -31,15 +32,18 @@ public class CancelCustomerOrderCommandHandler
     private readonly IApplicationDbContext _dbContext;
     private readonly IDateTime _clock;
     private readonly ILoyaltyService _loyaltyService;
+    private readonly IAffiliateCommissionLifecycleService? _affiliateLifecycleService;
 
     public CancelCustomerOrderCommandHandler(
         IApplicationDbContext dbContext,
         IDateTime clock,
-        ILoyaltyService loyaltyService)
+        ILoyaltyService loyaltyService,
+        IAffiliateCommissionLifecycleService? affiliateLifecycleService = null)
     {
         _dbContext = dbContext;
         _clock = clock;
         _loyaltyService = loyaltyService;
+        _affiliateLifecycleService = affiliateLifecycleService;
     }
 
     public async Task<CustomerOrderActionResultDto> Handle(
@@ -107,6 +111,11 @@ public class CancelCustomerOrderCommandHandler
         order.AdminCancel();
         await _loyaltyService.RefundForCancelledOrderAsync(order, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (_affiliateLifecycleService is not null)
+        {
+            await _affiliateLifecycleService.SyncForOrderAsync(order, "سفارش توسط مشتری لغو شد.", cancellationToken);
+        }
 
         var message = (refundedToWallet > 0, refundHandledByCafe) switch
         {

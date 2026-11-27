@@ -229,5 +229,23 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.WarehouseVoucherLine> WarehouseVoucherLines { get; }
 
+    DbSet<Sugarista.Domain.Entities.Affiliate> Affiliates { get; }
+
+    DbSet<Sugarista.Domain.Entities.AffiliateTier> AffiliateTiers { get; }
+
+    DbSet<Sugarista.Domain.Entities.AffiliateLink> AffiliateLinks { get; }
+
+    DbSet<Sugarista.Domain.Entities.AffiliateCoupon> AffiliateCoupons { get; }
+
+    DbSet<Sugarista.Domain.Entities.ReferralClick> ReferralClicks { get; }
+
+    DbSet<Sugarista.Domain.Entities.AffiliateCommission> AffiliateCommissions { get; }
+
+    DbSet<Sugarista.Domain.Entities.AffiliatePayout> AffiliatePayouts { get; }
+
+    DbSet<Sugarista.Domain.Entities.CategoryCommission> CategoryCommissions { get; }
+
+    DbSet<Sugarista.Domain.Entities.AffiliateMediaAsset> AffiliateMediaAssets { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

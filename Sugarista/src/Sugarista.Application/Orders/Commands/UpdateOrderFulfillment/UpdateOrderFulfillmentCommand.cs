@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Orders.Commands.UpdateAdminOrder;
 using Sugarista.Domain.Entities;
@@ -27,15 +28,18 @@ public class UpdateOrderFulfillmentCommandHandler : IRequestHandler<UpdateOrderF
     private readonly IApplicationDbContext _dbContext;
     private readonly ISmsService _smsService;
     private readonly ILogger<UpdateOrderFulfillmentCommandHandler> _logger;
+    private readonly IAffiliateCommissionLifecycleService? _affiliateLifecycleService;
 
     public UpdateOrderFulfillmentCommandHandler(
         IApplicationDbContext dbContext,
         ISmsService smsService,
-        ILogger<UpdateOrderFulfillmentCommandHandler> logger)
+        ILogger<UpdateOrderFulfillmentCommandHandler> logger,
+        IAffiliateCommissionLifecycleService? affiliateLifecycleService = null)
     {
         _dbContext = dbContext;
         _smsService = smsService;
         _logger = logger;
+        _affiliateLifecycleService = affiliateLifecycleService;
     }
 
     public async Task<AdminOrderDetailDto> Handle(
@@ -78,6 +82,12 @@ public class UpdateOrderFulfillmentCommandHandler : IRequestHandler<UpdateOrderF
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (_affiliateLifecycleService is not null)
+        {
+            await _affiliateLifecycleService.SyncForOrderAsync(order, cancellationToken: cancellationToken);
+        }
+
         return AdminOrderMapper.ToDetail(order);
     }
 }

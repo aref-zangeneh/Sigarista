@@ -59,6 +59,7 @@ public class AdminPermissionsCatalogTests
             AdminPermissions.RecordSale.View,
             AdminPermissions.Accounting.View,
             AdminPermissions.Exports.View,
+            AdminPermissions.Affiliates.View,
             AdminPermissions.Hr.View,
             AdminPermissions.StaffTasks.View,
             AdminPermissions.SiteSettings.View,

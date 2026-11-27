@@ -7,6 +7,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Affiliates.Portal;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Carts.Services;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Exports;
@@ -56,6 +58,12 @@ public static class DependencyInjection
         services.AddScoped<MaintenanceReminderDispatcher>();
         services.AddScoped<CustomerWinBackDispatcher>();
         services.AddScoped<AbandonedCartReminderDispatcher>();
+        services.AddScoped<IAffiliateTierEngine, AffiliateTierEngine>();
+        services.AddScoped<IAffiliateTrackingService, AffiliateTrackingService>();
+        services.AddScoped<IAffiliateCommissionLifecycleService, AffiliateCommissionLifecycleService>();
+        services.AddScoped<IAffiliateNotificationService, AffiliateNotificationService>();
+        services.AddScoped<IAffiliatePortalService, AffiliatePortalService>();
+        services.AddSingleton<IAffiliateQrCodeService, AffiliateQrCodeService>();
         services.AddScoped<IPaymentGateway, MockPaymentGateway>();
         services.AddScoped<IPrintJobService, ReceiptPrintJobService>();
         services.AddScoped<IPickupSlotReservationService, PickupSlotReservationService>();
@@ -93,6 +101,7 @@ public static class DependencyInjection
         });
         services.AddHostedService<MaintenanceReminderTickerService>();
         services.AddHostedService<CustomerWinBackTickerService>();
+        services.AddHostedService<AffiliateTierEvaluationTickerService>();
         services.AddHostedService<AbandonedCartTickerService>();
         services.AddHostedService<ReportScheduleRunnerService>();
         // Daily-ish pruning of old system log files (LoggingInfrastructure:FileRetentionDays).

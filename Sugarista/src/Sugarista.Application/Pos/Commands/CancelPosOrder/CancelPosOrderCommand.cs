@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.DeliveryMethods.Services;
 using Sugarista.Application.Orders.Services;
@@ -11,10 +12,14 @@ public record CancelPosOrderCommand(Guid OrderId) : IRequest;
 public class CancelPosOrderCommandHandler : IRequestHandler<CancelPosOrderCommand>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly IAffiliateCommissionLifecycleService? _affiliateLifecycleService;
 
-    public CancelPosOrderCommandHandler(IApplicationDbContext dbContext)
+    public CancelPosOrderCommandHandler(
+        IApplicationDbContext dbContext,
+        IAffiliateCommissionLifecycleService? affiliateLifecycleService = null)
     {
         _dbContext = dbContext;
+        _affiliateLifecycleService = affiliateLifecycleService;
     }
 
     public async Task Handle(CancelPosOrderCommand request, CancellationToken cancellationToken)
@@ -47,5 +52,10 @@ public class CancelPosOrderCommandHandler : IRequestHandler<CancelPosOrderComman
 
         order.AdminCancel();
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (_affiliateLifecycleService is not null)
+        {
+            await _affiliateLifecycleService.SyncForOrderAsync(order, "سفارش صندوق لغو شد.", cancellationToken);
+        }
     }
 }

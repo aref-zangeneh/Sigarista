@@ -30,6 +30,7 @@ export const adminRoutes = [
   { id: 'delivery-methods', path: 'delivery-methods', label: 'روش‌های تحویل' },
   { id: 'accounting', path: 'accounting', label: 'حسابداری' },
   { id: 'exports', path: 'exports', label: 'خروجی اکسل' },
+  { id: 'affiliates', path: 'affiliates', label: 'همکاری در فروش' },
   { id: 'orders', path: 'orders', label: 'سفارش‌ها' },
   { id: 'customers', path: 'customers', label: 'باشگاه مشتریان' },
   { id: 'wallets', path: 'wallets', label: 'کیف پول مشتریان' },

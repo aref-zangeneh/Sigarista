@@ -40,6 +40,7 @@ import { CustomerGroupsPage } from './pages/CustomerGroupsPage'
 import { SubscriptionPackagesPage } from './pages/SubscriptionPackagesPage'
 import { BadgesPage } from './pages/BadgesPage'
 import { ExportsPage } from './pages/ExportsPage'
+import { AffiliatesPage } from './pages/AffiliatesPage.jsx'
 import { HrPage } from './pages/HrPage'
 import { StaffTasksPage } from './pages/StaffTasksPage.jsx'
 import { AssetsPage } from './pages/AssetsPage'
@@ -97,6 +98,7 @@ const pageComponents = {
   'subscription-packages': SubscriptionPackagesPage,
   badges: BadgesPage,
   exports: ExportsPage,
+  affiliates: AffiliatesPage,
   assets: AssetsPage,
   maintenance: EquipmentMaintenancePage,
   hr: HrPage,

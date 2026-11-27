@@ -223,6 +223,12 @@ public class SiteSettings : BaseAuditableEntity
     /// </summary>
     public int WalletPaymentMaxPercent { get; set; } = 100;
 
+    /// <summary>Minimum cash balance (toman) an affiliate must reach before requesting a bank payout.</summary>
+    public decimal AffiliateMinPayoutAmount { get; set; } = 500_000m;
+
+    /// <summary>Default bonus percentage granted when an affiliate converts cash balance into cafe wallet credit.</summary>
+    public decimal AffiliateDefaultCreditBonusPercent { get; set; } = 20m;
+
     /// <summary>Master switch for the birthday discount program.</summary>
     public bool BirthdayDiscountEnabled { get; set; }
 

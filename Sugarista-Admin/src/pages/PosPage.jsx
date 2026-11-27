@@ -1058,6 +1058,9 @@ export function PosPage() {
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false)
   const autoFilledCustomerNameRef = useRef('')
   const [discountCode, setDiscountCode] = useState('')
+  const [affiliatePreview, setAffiliatePreview] = useState(null)
+  const [affiliatePreviewError, setAffiliatePreviewError] = useState('')
+  const [affiliatePreviewBusy, setAffiliatePreviewBusy] = useState(false)
   const [redeemLoyaltyPoints, setRedeemLoyaltyPoints] = useState(false)
   const [orderNote, setOrderNote] = useState('')
   const [managerNote, setManagerNote] = useState('')
@@ -1282,6 +1285,8 @@ export function PosPage() {
     setCustomerLookup(null)
     autoFilledCustomerNameRef.current = ''
     setDiscountCode('')
+    setAffiliatePreview(null)
+    setAffiliatePreviewError('')
     setRedeemLoyaltyPoints(false)
     setOrderNote('')
     setManagerNote('')
@@ -2203,14 +2208,63 @@ export function PosPage() {
                           onChange={(event) => setOrderNote(event.target.value)}
                         />
                         {orderKind === 'Standard' ? (
-                          <input
-                            type="text"
-                            dir="ltr"
-                            className="pos-meta-input ltr-input"
-                            placeholder="کد تخفیف باشگاه / کمپین (اختیاری)..."
-                            value={discountCode}
-                            onChange={(event) => setDiscountCode(event.target.value)}
-                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                dir="ltr"
+                                className="pos-meta-input ltr-input"
+                                style={{ flex: 1 }}
+                                placeholder="کد معرف / تخفیف (مثلاً ALI15)..."
+                                value={discountCode}
+                                onChange={(event) => {
+                                  setDiscountCode(event.target.value)
+                                  setAffiliatePreview(null)
+                                  setAffiliatePreviewError('')
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="ghost-button"
+                                style={{ whiteSpace: 'nowrap', padding: '0.4rem 0.65rem', fontSize: '0.78rem' }}
+                                disabled={!discountCode.trim() || affiliatePreviewBusy}
+                                onClick={async () => {
+                                  if (!discountCode.trim() || !session?.token) return
+                                  setAffiliatePreviewBusy(true)
+                                  setAffiliatePreviewError('')
+                                  try {
+                                    const params = new URLSearchParams({
+                                      code: discountCode.trim(),
+                                      subtotal: String(cartTotals.itemsTotal || 0),
+                                    })
+                                    if (customerLookup?.customerId) {
+                                      params.set('customerId', customerLookup.customerId)
+                                    }
+                                    const res = await apiRequest(`/admin/pos/affiliate-coupon?${params.toString()}`, {
+                                      token: session.token,
+                                    })
+                                    setAffiliatePreview(res)
+                                  } catch (err) {
+                                    setAffiliatePreview(null)
+                                    setAffiliatePreviewError(err.message || 'کد معرف یافت نشد (اگر کد تخفیف معمولی است هنگام ثبت اعمال می‌شود).')
+                                  } finally {
+                                    setAffiliatePreviewBusy(false)
+                                  }
+                                }}
+                              >
+                                {affiliatePreviewBusy ? '...' : 'بررسی معرف'}
+                              </button>
+                            </div>
+                            {affiliatePreview ? (
+                              <small style={{ color: '#059669', fontWeight: 600 }}>
+                                ✓ کد معرف {affiliatePreview.code} ({affiliatePreview.affiliateName}) — تخفیف:{' '}
+                                {toPersianNumber(affiliatePreview.discountAmount)} تومان
+                              </small>
+                            ) : null}
+                            {affiliatePreviewError ? (
+                              <small style={{ color: '#b45309' }}>{affiliatePreviewError}</small>
+                            ) : null}
+                          </div>
                         ) : null}
 
                         <div className="pos-options-strip" role="group" aria-label="گزینه‌های ویژه سفارش">

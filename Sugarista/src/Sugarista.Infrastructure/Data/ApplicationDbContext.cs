@@ -238,6 +238,24 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<WarehouseVoucherLine> WarehouseVoucherLines => Set<WarehouseVoucherLine>();
 
+    public DbSet<Affiliate> Affiliates => Set<Affiliate>();
+
+    public DbSet<AffiliateTier> AffiliateTiers => Set<AffiliateTier>();
+
+    public DbSet<AffiliateLink> AffiliateLinks => Set<AffiliateLink>();
+
+    public DbSet<AffiliateCoupon> AffiliateCoupons => Set<AffiliateCoupon>();
+
+    public DbSet<ReferralClick> ReferralClicks => Set<ReferralClick>();
+
+    public DbSet<AffiliateCommission> AffiliateCommissions => Set<AffiliateCommission>();
+
+    public DbSet<AffiliatePayout> AffiliatePayouts => Set<AffiliatePayout>();
+
+    public DbSet<CategoryCommission> CategoryCommissions => Set<CategoryCommission>();
+
+    public DbSet<AffiliateMediaAsset> AffiliateMediaAssets => Set<AffiliateMediaAsset>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

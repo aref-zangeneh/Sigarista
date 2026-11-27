@@ -240,6 +240,14 @@ const ROUTE_ICONS = {
       <path d="M12 9v4M12 17h.01" />
     </>,
   ),
+  affiliates: icon(
+    <>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+    </>,
+  ),
 }
 
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
@@ -248,7 +256,7 @@ const NAV_GROUPS = [
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'quick-stock', 'option-templates', 'addons', 'drink-builder', 'discounts', 'modifiers', 'blog'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['warehouses', 'warehouse-vouchers', 'inventory', 'moq-alerts', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
-  { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
+  { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports', 'affiliates'] },
   { title: 'منابع انسانی', routes: ['hr', 'staff-tasks'] },
   { title: 'مدیریت پیامک', routes: ['sms-dashboard', 'sms-send', 'sms-bulk', 'sms-contacts', 'sms-groups', 'sms-templates', 'sms-history', 'sms-providers', 'sms-settings'] },
   { title: 'سیستم', routes: ['site-settings', 'special-routes', 'admin-users', 'activity-log'] },

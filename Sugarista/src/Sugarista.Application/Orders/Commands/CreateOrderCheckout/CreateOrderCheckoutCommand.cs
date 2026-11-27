@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Sugarista.Application.Common.Interfaces;
+using Sugarista.Application.Affiliates.Services;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Common.Options;
 using Sugarista.Application.Discounts.Engine;
@@ -59,7 +60,8 @@ public record CreateOrderCheckoutCommand(
     decimal? ExpectedTotalAmount = null,
     IReadOnlyCollection<CheckoutPriceSnapshot>? ExpectedLinePrices = null,
     bool AcceptPriceChanges = false,
-    string? IdempotencyKey = null) : IRequest<CreateOrderCheckoutResultDto>;
+    string? IdempotencyKey = null,
+    Guid? AffiliateTrackingToken = null) : IRequest<CreateOrderCheckoutResultDto>;
 
 public record CreateOrderCheckoutResultDto(
     Guid OrderId,
@@ -152,6 +154,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
     private readonly IOrderPaymentFinalizer _orderPaymentFinalizer;
     private readonly PickupSlotService _pickupSlotService;
     private readonly IPickupSlotReservationService _pickupSlotReservationService;
+    private readonly IAffiliateTrackingService? _affiliateTrackingService;
 
     public CreateOrderCheckoutCommandHandler(
         IApplicationDbContext dbContext,
@@ -160,7 +163,8 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         IDiscountEngine discountEngine,
         IOrderPaymentFinalizer orderPaymentFinalizer,
         PickupSlotService pickupSlotService,
-        IPickupSlotReservationService pickupSlotReservationService)
+        IPickupSlotReservationService pickupSlotReservationService,
+        IAffiliateTrackingService? affiliateTrackingService = null)
     {
         _dbContext = dbContext;
         _paymentGateway = paymentGateway;
@@ -169,6 +173,7 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
         _orderPaymentFinalizer = orderPaymentFinalizer;
         _pickupSlotService = pickupSlotService;
         _pickupSlotReservationService = pickupSlotReservationService;
+        _affiliateTrackingService = affiliateTrackingService;
     }
 
     public async Task<CreateOrderCheckoutResultDto> Handle(CreateOrderCheckoutCommand request, CancellationToken cancellationToken)
@@ -485,12 +490,26 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
 
         var discountTotal = discountEvaluation.Applications.Sum(application => application.Amount);
 
+        var itemsGrossSubtotal = discountLines.Sum(line => line.UnitPrice * line.Quantity);
+        AffiliateCouponResolution? affiliateCoupon = null;
+        if (requestedDiscountCode is not null && _affiliateTrackingService is not null)
+        {
+            affiliateCoupon = await _affiliateTrackingService.TryResolveCouponAsync(
+                requestedDiscountCode,
+                itemsGrossSubtotal,
+                customer?.Id,
+                throwOnInvalidCoupon: true,
+                cancellationToken,
+                customerPhone: request.CustomerPhone);
+        }
+
         // A typed code that produced no application means the engine rejected it
         // (unknown / inactive / expired / out of schedule / below minimum cart /
         // wrong customer group / no eligible items / not stackable). Surface the
         // domain message to the customer instead of silently creating an order
         // without any discount.
         if (requestedDiscountCode is not null &&
+            affiliateCoupon is null &&
             discountEvaluation.Applications.Count == 0 &&
             discountEvaluation.Rejections.Count > 0)
         {
@@ -588,9 +607,21 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
             }
         }
 
+        if (affiliateCoupon is not null && affiliateCoupon.DiscountAmount > 0m)
+        {
+            discountTracker.Apply(
+                OrderDiscountKind.Code,
+                $"کد معرف {affiliateCoupon.Code}",
+                affiliateCoupon.DiscountAmount,
+                discountId: null,
+                code: affiliateCoupon.Code,
+                scopes: null);
+        }
+
         // The code was valid but the customer already used their daily discount
         // allowance: fail clearly instead of creating a full-price order.
         if (requestedDiscountCode is not null &&
+            affiliateCoupon is null &&
             discountEvaluation.Applications.Count > 0 &&
             adjustedApplications.Count == 0)
         {
@@ -899,6 +930,22 @@ public class CreateOrderCheckoutCommandHandler : IRequestHandler<CreateOrderChec
                 order.Id,
                 customer?.Id,
                 adjustedApplications,
+                cancellationToken);
+        }
+
+        if (_affiliateTrackingService is not null)
+        {
+            var nonNullCategories = categoryByMenuItem
+                .Where(kv => kv.Value.HasValue)
+                .ToDictionary(kv => kv.Key, kv => kv.Value!.Value);
+
+            await _affiliateTrackingService.RecordOrderCommissionAsync(
+                order,
+                AffiliateOrderSource.Online,
+                affiliateCoupon?.AffiliateId,
+                request.AffiliateTrackingToken,
+                nonNullCategories,
+                autoApprove: false,
                 cancellationToken);
         }
 

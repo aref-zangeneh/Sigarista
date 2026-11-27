@@ -22,6 +22,10 @@ export const PERMISSIONS = {
     view: 'admin.moq-alerts.view',
     update: 'admin.moq-alerts.update',
   },
+  affiliates: {
+    view: 'admin.affiliates.view',
+    update: 'admin.affiliates.update',
+  },
   'customer-groups': {
     view: 'admin.customers.view',
     create: 'admin.customers.create',

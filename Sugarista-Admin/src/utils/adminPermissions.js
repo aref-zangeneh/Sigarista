@@ -108,6 +108,12 @@ export const PERMISSIONS = {
     update: 'admin.quick-stock.update',
     delete: 'admin.quick-stock.update',
   },
+  'order-list': {
+    view: 'admin.order-list.view',
+    create: 'admin.order-list.create',
+    update: 'admin.order-list.update',
+    delete: 'admin.order-list.delete',
+  },
   'option-templates': {
     view: 'admin.option-templates.view',
     create: 'admin.option-templates.create',

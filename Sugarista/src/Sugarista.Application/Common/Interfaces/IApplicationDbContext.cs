@@ -107,6 +107,8 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.MenuItemStockLot> MenuItemStockLots { get; }
 
+    DbSet<Sugarista.Domain.Entities.SupplierOrderListItem> SupplierOrderListItems { get; }
+
     DbSet<Sugarista.Domain.Entities.ProductionBatch> ProductionBatches { get; }
 
     DbSet<Sugarista.Domain.Entities.ProductWikiGuide> ProductWikiGuides { get; }

@@ -96,8 +96,44 @@ export function MenuQuickStockPage() {
   const [newLotForms, setNewLotForms] = useState({})
   const [lotEditDrafts, setLotEditDrafts] = useState({})
   const [lotBusyKey, setLotBusyKey] = useState('')
+  const [orderListBusyId, setOrderListBusyId] = useState('')
+  const [orderListFlashed, setOrderListFlashed] = useState({})
 
   const canUpdate = hasPermission(session, PERMISSIONS['menu-items'].update)
+  const canAddToOrderList = hasPermission(session, PERMISSIONS['order-list']?.create)
+
+  const handleSendToOrderList = async (item) => {
+    if (!session?.token || !canAddToOrderList) return
+    setOrderListBusyId(item.id)
+    setError('')
+    try {
+      const suggestedQty = Math.max(
+        1,
+        Math.ceil(Math.max((item.minAlertQuantity || 2) * 2, 4) - (item.currentQuantity || 0)),
+      )
+      await apiRequest('/admin/supplier-order-list', {
+        method: 'POST',
+        token: session.token,
+        body: {
+          menuItemId: item.id,
+          itemName: item.persianName,
+          categoryName: item.categoryName,
+          quantity: suggestedQty,
+          unit: 'عدد',
+          mergeIfPending: true,
+        },
+      })
+      setOrderListFlashed((prev) => ({ ...prev, [item.id]: true }))
+      setMessage(`«${item.persianName}» به لیست سفارش تأمین‌کننده ارسال شد.`)
+      setTimeout(() => {
+        setOrderListFlashed((prev) => ({ ...prev, [item.id]: false }))
+      }, 2500)
+    } catch (err) {
+      setError(getReadableError(err))
+    } finally {
+      setOrderListBusyId('')
+    }
+  }
 
   const syncItemIntoBoard = useCallback((updatedItem) => {
     setBoard((prev) => {
@@ -712,6 +748,21 @@ export function MenuQuickStockPage() {
                           onClick={() => setExpandedSizesId((cur) => (cur === item.id ? null : item.id))}
                         >
                           سایزها {isSizesOpen ? '▴' : '▾'}
+                        </button>
+                      ) : null}
+                      {canAddToOrderList ? (
+                        <button
+                          type="button"
+                          className="qs-sub-btn"
+                          disabled={orderListBusyId === item.id}
+                          onClick={() => handleSendToOrderList(item)}
+                          title="ارسال این محصول به لیست سفارش تأمین‌کننده (OrderList)"
+                        >
+                          {orderListBusyId === item.id
+                            ? '...'
+                            : orderListFlashed[item.id]
+                              ? '✓ در لیست سفارش'
+                              : '+ لیست سفارش'}
                         </button>
                       ) : null}
                     </div>

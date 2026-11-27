@@ -47,6 +47,14 @@ public static class AdminPermissions
         public const string Update = "admin.quick-stock.update";
     }
 
+    public static class OrderList
+    {
+        public const string View = "admin.order-list.view";
+        public const string Create = "admin.order-list.create";
+        public const string Update = "admin.order-list.update";
+        public const string Delete = "admin.order-list.delete";
+    }
+
     public static class OptionTemplates
     {
         public const string View = "admin.option-templates.view";
@@ -367,6 +375,10 @@ public static class AdminPermissions
         new(MenuItems.Delete, "menu-items", "delete", "آیتم‌های منو", "حذف", "menu", "منو و محصولات"),
         new(QuickStock.View, "quick-stock", "view", "موجودی و انقضا سریع", "مشاهده", "menu", "منو و محصولات"),
         new(QuickStock.Update, "quick-stock", "update", "موجودی و انقضا سریع", "ویرایش قیمت، موجودی و پارت انقضا", "menu", "منو و محصولات"),
+        new(OrderList.View, "order-list", "view", "لیست سفارش تأمین‌کننده", "مشاهده لیست سفارش و خروجی واتساپ/PDF", "menu", "منو و محصولات"),
+        new(OrderList.Create, "order-list", "create", "لیست سفارش تأمین‌کننده", "افزودن قلم به لیست سفارش", "menu", "منو و محصولات"),
+        new(OrderList.Update, "order-list", "update", "لیست سفارش تأمین‌کننده", "ویرایش، ثبت سفارش و تحویل", "menu", "منو و محصولات"),
+        new(OrderList.Delete, "order-list", "delete", "لیست سفارش تأمین‌کننده", "حذف از لیست سفارش", "menu", "منو و محصولات"),
         new(OptionTemplates.View, "option-templates", "view", "قالب‌های آپشن", "مشاهده", "menu", "منو و محصولات"),
         new(OptionTemplates.Create, "option-templates", "create", "قالب‌های آپشن", "ایجاد", "menu", "منو و محصولات"),
         new(OptionTemplates.Update, "option-templates", "update", "قالب‌های آپشن", "ویرایش", "menu", "منو و محصولات"),

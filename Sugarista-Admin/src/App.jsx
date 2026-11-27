@@ -60,6 +60,7 @@ import { SmsTemplatesPage } from './pages/SmsTemplatesPage'
 import { SmsHistoryPage } from './pages/SmsHistoryPage'
 import { SmsProvidersPage } from './pages/SmsProvidersPage'
 import { SmsSettingsPage } from './pages/SmsSettingsPage'
+import { OrderListPage } from './pages/OrderListPage.jsx'
 import './App.css'
 
 const pageComponents = {
@@ -69,6 +70,7 @@ const pageComponents = {
   categories: CategoryPage,
   'menu-items': MenuItemsPage,
   'quick-stock': MenuQuickStockPage,
+  'order-list': OrderListPage,
   'option-templates': OptionTemplatesPage,
   addons: AddonsPage,
   discounts: DiscountsPage,

@@ -116,6 +116,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<MenuItemStockLot> MenuItemStockLots => Set<MenuItemStockLot>();
 
+    public DbSet<SupplierOrderListItem> SupplierOrderListItems => Set<SupplierOrderListItem>();
+
     public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
 
     public DbSet<ProductWikiGuide> ProductWikiGuides => Set<ProductWikiGuide>();

@@ -7,6 +7,7 @@ export const adminRoutes = [
   { id: 'categories', path: 'category', label: 'دسته‌بندی‌ها' },
   { id: 'menu-items', path: 'menu-items', label: 'آیتم‌های منو' },
   { id: 'quick-stock', path: 'quick-stock', label: 'موجودی و انقضا سریع' },
+  { id: 'order-list', path: 'order-list', label: 'لیست سفارش تأمین‌کننده' },
   { id: 'option-templates', path: 'option-templates', label: 'قالب‌های آپشن' },
   { id: 'addons', path: 'addons', label: 'افزودنی‌ها (اضافات)' },
   { id: 'discounts', path: 'discounts', label: 'تخفیف‌ها' },

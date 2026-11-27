@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { DataTable } from '../components/DataTable'
 import { ImageUploader } from '../components/ImageUploader.jsx'
+import { GeminiDraftButton } from '../components/GeminiDraftButton.jsx'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions.js'
 import { normalizeImageUrl } from '../utils/imageUrl.js'
 import { toPersianDigits } from '../utils/persianDigits.js'
@@ -781,14 +782,45 @@ export function RecipesPage() {
                 <h3>ویرایش رسپی کارت: {editingCard.persianName}</h3>
                 <p>مقادیر مواد اولیه در بخش فرمولاسیون محفوظ می‌مانند و دستکاری نمی‌شوند.</p>
               </div>
-              <button
-                type="button"
-                className="rc-editor-close"
-                onClick={() => setEditingCard(null)}
-                aria-label="بستن"
-              >
-                ×
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <GeminiDraftButton
+                  section="recipe"
+                  label="تولید دستور پخت با Gemini"
+                  getPayload={() => ({
+                    title: editingCard.persianName || editingCard.englishName || '',
+                    context: [
+                      editingCard.categoryName ? `دسته‌بندی: ${editingCard.categoryName}` : '',
+                      Array.isArray(editingCard.ingredients) && editingCard.ingredients.length
+                        ? `مواد اولیه: ${editingCard.ingredients.map((i) => i.ingredientPersianName || i.name).filter(Boolean).join('، ')}`
+                        : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' | '),
+                  })}
+                  onDraft={(draft) =>
+                    setCardForm((cur) => ({
+                      ...cur,
+                      recipeDescription: draft.recipeDescription ?? cur.recipeDescription,
+                      bulletPoints:
+                        Array.isArray(draft.bulletPoints) && draft.bulletPoints.length > 0
+                          ? draft.bulletPoints.map((b) => String(b))
+                          : cur.bulletPoints,
+                      servingTemp: draft.servingTemp ?? cur.servingTemp,
+                      glasswareOrPlate: draft.glasswareOrPlate ?? cur.glasswareOrPlate,
+                      prepSeconds: draft.prepSeconds != null ? String(draft.prepSeconds) : cur.prepSeconds,
+                      baristaTip: draft.baristaTip ?? cur.baristaTip,
+                    }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="rc-editor-close"
+                  onClick={() => setEditingCard(null)}
+                  aria-label="بستن"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             <div className="rc-editor-body">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { GeminiDraftButton } from './GeminiDraftButton.jsx'
 import './ProductWikiPanel.css'
 
 const emptyGuideForm = {
@@ -292,14 +293,44 @@ export function ProductWikiPanel({
                   <h3>{selectedMenuItem?.persianName}</h3>
                   <p className="table-subtext ltr-text">{selectedMenuItem?.englishName}</p>
                 </div>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={guideForm.isPublished}
-                    onChange={(event) => setGuideForm((current) => ({ ...current, isPublished: event.target.checked }))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                  <GeminiDraftButton
+                    section="product-wiki"
+                    label="تولید راهنما و مراحل با Gemini"
+                    getPayload={() => ({
+                      title: selectedMenuItem?.persianName || selectedMenuItem?.englishName || '',
+                      context: selectedMenuItem?.englishName ? `نام انگلیسی: ${selectedMenuItem.englishName}` : '',
+                    })}
+                    onDraft={(draft) => {
+                      setGuideForm((cur) => ({
+                        ...cur,
+                        overview: draft.overview ?? cur.overview,
+                        qualityStandards: draft.qualityStandards ?? cur.qualityStandards,
+                        equipmentNotes: draft.equipmentNotes ?? cur.equipmentNotes,
+                        servingNotes: draft.servingNotes ?? cur.servingNotes,
+                      }))
+                      if (Array.isArray(draft.steps) && draft.steps.length > 0) {
+                        setSteps(
+                          draft.steps.map((s, idx) => ({
+                            stepOrder: idx + 1,
+                            title: s.title ?? '',
+                            instructions: s.instructions ?? '',
+                            durationMinutes: s.durationMinutes != null ? String(s.durationMinutes) : '',
+                            isQualityCheckpoint: Boolean(s.isQualityCheckpoint),
+                          })),
+                        )
+                      }
+                    }}
                   />
-                  <span>منتشر شده برای تیم</span>
-                </label>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={guideForm.isPublished}
+                      onChange={(event) => setGuideForm((current) => ({ ...current, isPublished: event.target.checked }))}
+                    />
+                    <span>منتشر شده برای تیم</span>
+                  </label>
+                </div>
               </div>
 
               <div className="wiki-section">

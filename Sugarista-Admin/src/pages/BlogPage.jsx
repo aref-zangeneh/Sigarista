@@ -5,6 +5,7 @@ import { DataTable } from '../components/DataTable'
 import { ImageUploader } from '../components/ImageUploader'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
 import { useAdmin } from '../context/AdminContext'
+import { GeminiDraftButton } from '../components/GeminiDraftButton.jsx'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { toPersianNumber } from '../utils/adminFormatters'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
@@ -835,16 +836,39 @@ export function BlogPage() {
                       <h3>{postForm.id ? 'ویرایش مقاله' : 'نگارش مقاله جدید'}</h3>
                       <p>از زیرتیترهای H2 و H3 برای ساخت خودکار فهرست مطالب (TOC) استفاده کنید.</p>
                     </div>
-                    <button
-                      type="button"
-                      className="ghost-button"
-                      onClick={() => {
-                        setEditorOpen(false)
-                        setPostForm(emptyPostForm())
-                      }}
-                    >
-                      بازگشت به لیست
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <GeminiDraftButton
+                        section="blog"
+                        label="تولید مقاله و سئو با Gemini"
+                        getPayload={() => ({
+                          title: postForm.title,
+                          context: postForm.focusKeyword ? `کلمه کلیدی هدف: ${postForm.focusKeyword}` : '',
+                        })}
+                        onDraft={(draft) =>
+                          setPostForm((prev) => ({
+                            ...prev,
+                            title: draft.title || prev.title,
+                            slug: prev.slug?.trim() ? prev.slug : (draft.slug || prev.slug),
+                            excerpt: draft.excerpt ?? prev.excerpt,
+                            contentMarkdown: draft.contentMarkdown ?? prev.contentMarkdown,
+                            tagsInput: draft.tagsInput ?? prev.tagsInput,
+                            metaTitle: draft.metaTitle ?? prev.metaTitle,
+                            metaDescription: draft.metaDescription ?? prev.metaDescription,
+                            focusKeyword: draft.focusKeyword ?? prev.focusKeyword,
+                          }))
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => {
+                          setEditorOpen(false)
+                          setPostForm(emptyPostForm())
+                        }}
+                      >
+                        بازگشت به لیست
+                      </button>
+                    </div>
                   </div>
 
                   <label>

@@ -69,5 +69,7 @@ public class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteSettings>
         builder.Property(settings => settings.OrderAlertSoundIntervalSeconds).HasDefaultValue(10).IsRequired();
         builder.Property(settings => settings.IsBlogEnabled).HasDefaultValue(true).IsRequired();
         builder.Property(settings => settings.BlogSettingsJson).HasMaxLength(16000);
+        builder.Property(settings => settings.GeminiApiKey).HasMaxLength(256).HasDefaultValue(string.Empty).IsRequired();
+        builder.Property(settings => settings.GeminiModel).HasMaxLength(80).HasDefaultValue("gemini-2.5-flash").IsRequired();
     }
 }

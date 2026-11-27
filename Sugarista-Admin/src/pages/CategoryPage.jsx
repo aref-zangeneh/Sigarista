@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
 import { ImageUploader } from '../components/ImageUploader'
+import { GeminiDraftButton } from '../components/GeminiDraftButton.jsx'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
 import './CategoryPage.css'
 
@@ -186,6 +187,20 @@ export function CategoryPage() {
               </div>
 
               <div className="category-modal-actions">
+                <GeminiDraftButton
+                  section="category"
+                  label="پیشنهاد اسلاگ با Gemini"
+                  getPayload={() => ({
+                    title: categoryForm.name || categoryForm.slug,
+                  })}
+                  onDraft={(draft) =>
+                    setCategoryForm((cur) => ({
+                      ...cur,
+                      name: cur.name?.trim() ? cur.name : (draft.name ?? cur.name),
+                      slug: draft.slug ?? cur.slug,
+                    }))
+                  }
+                />
                 <button type="button" className="ghost-button" onClick={closeModal} disabled={saving}>
                   انصراف
                 </button>

@@ -408,4 +408,14 @@ public class SiteSettings : BaseAuditableEntity
     /// Null uses the built-in Sugarista brand defaults (#0C344F, #E5AA2F, #AA3171).
     /// </summary>
     public string? BlogSettingsJson { get; set; }
+
+    /// <summary>
+    /// Optional server-side Google Gemini API key used strictly for generating
+    /// draft content (never exposed in public or admin DTOs). Falls back to
+    /// the GEMINI_API_KEY environment variable when empty.
+    /// </summary>
+    public string GeminiApiKey { get; set; } = string.Empty;
+
+    /// <summary>Gemini model id used for draft content generation (e.g. "gemini-2.5-flash").</summary>
+    public string GeminiModel { get; set; } = "gemini-2.5-flash";
 }

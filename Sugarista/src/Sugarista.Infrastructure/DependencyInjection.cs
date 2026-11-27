@@ -79,6 +79,7 @@ public static class DependencyInjection
         services.AddHostedService<ExportJobRunnerService>();
         services.AddHttpClient<KavenegarSmsService>();
         services.AddHttpClient<KavenegarMaintenanceSmsService>();
+        services.AddHttpClient<Sugarista.Application.AiContent.IGeminiContentService, GeminiContentService>();
         services.AddScoped<LoggingSmsService>();
         services.AddScoped<LoggingMaintenanceSmsService>();
         services.AddScoped<LoggingMaintenanceEmailService>();

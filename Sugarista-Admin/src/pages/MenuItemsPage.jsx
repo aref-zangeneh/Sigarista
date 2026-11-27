@@ -7,6 +7,7 @@ import { MenuItemOptionGroupsPanel } from '../components/MenuItemOptionGroupsPan
 import { MenuItemBundlePanel } from '../components/MenuItemBundlePanel.jsx'
 import { MenuItemPriceHistoryModal } from '../components/MenuItemPriceHistoryModal.jsx'
 import { NumberStepperInput } from '../components/NumberStepperInput.jsx'
+import { GeminiDraftButton } from '../components/GeminiDraftButton.jsx'
 import { Tip } from '../components/Tip'
 import { buildMenuItemPricingColumns } from '../components/adminTableColumns'
 import {
@@ -342,6 +343,29 @@ export function MenuItemsPage() {
               <p>آیتم‌های منو هم در بخش پرفروش‌ها و هم در منوی عمومی نمایش داده می‌شوند.</p>
             </div>
             <div className="mi-head-actions">
+              <GeminiDraftButton
+                section="menu-item"
+                label="تولید توضیحات با Gemini"
+                getPayload={() => ({
+                  title: menuItemForm.persianName || menuItemForm.englishName,
+                  context: [
+                    selectedCategory?.name ? `دسته‌بندی: ${selectedCategory.name}` : '',
+                    menuItemForm.englishName ? `نام انگلیسی: ${menuItemForm.englishName}` : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' | '),
+                })}
+                onDraft={(draft) =>
+                  setMenuItemForm((cur) => ({
+                    ...cur,
+                    englishName: cur.englishName?.trim() ? cur.englishName : (draft.englishName ?? cur.englishName),
+                    description: draft.description ?? cur.description,
+                    tags: draft.tags ?? cur.tags,
+                    badge: draft.badge ?? cur.badge,
+                    allergens: draft.allergens ?? cur.allergens,
+                  }))
+                }
+              />
               <button
                 type="button"
                 className="ghost-button"

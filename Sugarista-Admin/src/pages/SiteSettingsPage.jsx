@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { settingsSections } from '../constants/adminForms'
 import { ReceiptLayoutPanel } from '../components/ReceiptLayoutPanel'
+import { GeminiSettingsPanel } from '../components/GeminiSettingsPanel.jsx'
 import { uploadImage, validateImageFile } from '../utils/imageUpload'
 import {
   ALERT_SOUND_INTERVAL_PRESETS,
@@ -2094,6 +2095,13 @@ export function SiteSettingsPage() {
           </button>
         </div>
       </form>
+
+      {/* ---------- تولید محتوا با Gemini (ذخیرهٔ مستقل) ---------- */}
+      <GeminiSettingsPanel
+        session={session}
+        apiRequest={apiRequest}
+        getReadableError={getReadableError}
+      />
 
       {/* ---------- طرح فیش‌های چاپی (ذخیرهٔ مستقل) ---------- */}
       <ReceiptLayoutPanel

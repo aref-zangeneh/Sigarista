@@ -632,120 +632,133 @@ export function RecipesPage() {
       {viewingCard ? (
         <div className="rc-modal-backdrop" onClick={() => setViewingCard(null)}>
           <div className="rc-viewer-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="rc-viewer-media">
-              {viewingCard.effectiveImageUrl ? (
-                <img
-                  src={normalizeImageUrl(viewingCard.effectiveImageUrl)}
-                  alt={viewingCard.persianName}
-                />
-              ) : (
-                <div className="rc-card-placeholder">
-                  <span>☕</span>
-                </div>
-              )}
-              <button
-                type="button"
-                className="rc-viewer-close"
-                onClick={() => setViewingCard(null)}
-                aria-label="بستن"
-              >
-                ×
-              </button>
-              <div className="rc-viewer-hero-caption">
-                <span className="rc-media-badge is-cat">{viewingCard.categoryName}</span>
-                {viewingCard.servingTemp ? (
-                  <span className="rc-media-badge is-temp">{viewingCard.servingTemp}</span>
-                ) : null}
-                {viewingCard.prepSeconds ? (
-                  <span className="rc-media-badge">⏱ {formatPrepDuration(viewingCard.prepSeconds)}</span>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="rc-viewer-body">
-              <div className="rc-viewer-head">
-                <div>
-                  <h3>{viewingCard.persianName}</h3>
-                  {viewingCard.englishName ? <span className="rc-en-name" dir="ltr">{viewingCard.englishName}</span> : null}
-                </div>
-                {viewingCard.glasswareOrPlate ? (
-                  <span className="rc-glass-pill">🥃 {viewingCard.glasswareOrPlate}</span>
-                ) : null}
-              </div>
-
-              {viewingCard.ingredients?.length > 0 ? (
-                <div className="rc-viewer-section">
-                  <h4>مقادیر دقیق مواد اولیه</h4>
-                  <div className="rc-ing-chips">
-                    {viewingCard.ingredients.map((ing) => (
-                      <span key={ing.id} className="rc-ing-chip is-lg">
-                        <strong>{ing.ingredientName}</strong>
-                        <em>{formatIngredientQty(ing.quantity, ing.unit)}</em>
-                      </span>
-                    ))}
+            <div className="rc-viewer-layout">
+              <div className="rc-viewer-media">
+                {viewingCard.effectiveImageUrl ? (
+                  <>
+                    <img
+                      className="rc-viewer-media-bg"
+                      src={normalizeImageUrl(viewingCard.effectiveImageUrl)}
+                      alt=""
+                      aria-hidden="true"
+                    />
+                    <img
+                      className="rc-viewer-media-img"
+                      src={normalizeImageUrl(viewingCard.effectiveImageUrl)}
+                      alt={viewingCard.persianName}
+                    />
+                  </>
+                ) : (
+                  <div className="rc-card-placeholder">
+                    <span>☕</span>
                   </div>
-                </div>
-              ) : null}
-
-              {viewingCard.bulletPoints?.length > 0 ? (
-                <div className="rc-viewer-section">
-                  <h4>مراحل و نکات تهیه (موردی)</h4>
-                  <ul className="rc-bullets is-lg">
-                    {viewingCard.bulletPoints.map((step, idx) => (
-                      <li key={idx}>
-                        <span className="rc-bullet-num">{toPersianDigits(idx + 1)}</span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {viewingCard.recipeDescription ? (
-                <div className="rc-viewer-section">
-                  <h4>توضیحات تکمیلی</h4>
-                  <p className="rc-viewer-desc">{viewingCard.recipeDescription}</p>
-                </div>
-              ) : null}
-
-              {viewingCard.baristaTip ? (
-                <div className="rc-tip-box is-lg">
-                  <span>💡</span>
-                  <div>
-                    <strong>نکته کلیدی باریستا:</strong> {viewingCard.baristaTip}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="rc-viewer-foot">
-              <button type="button" className="rc-btn-ghost" onClick={() => setViewingCard(null)}>
-                بستن
-              </button>
-              <button
-                type="button"
-                className="rc-btn-subtle"
-                onClick={() => {
-                  const id = viewingCard.menuItemId
-                  setViewingCard(null)
-                  openFormulaTabForItem(id)
-                }}
-              >
-                ویرایش مقادیر مواد اولیه
-              </button>
-              {canUpdate ? (
+                )}
                 <button
                   type="button"
-                  className="rc-btn-primary"
-                  onClick={() => {
-                    const card = viewingCard
-                    setViewingCard(null)
-                    openCardEditor(card)
-                  }}
+                  className="rc-viewer-close"
+                  onClick={() => setViewingCard(null)}
+                  aria-label="بستن"
                 >
-                  ویرایش رسپی کارت
+                  ×
                 </button>
-              ) : null}
+                <div className="rc-viewer-hero-caption">
+                  <span className="rc-media-badge is-cat">{viewingCard.categoryName}</span>
+                  {viewingCard.servingTemp ? (
+                    <span className="rc-media-badge is-temp">{viewingCard.servingTemp}</span>
+                  ) : null}
+                  {viewingCard.prepSeconds ? (
+                    <span className="rc-media-badge">⏱ {formatPrepDuration(viewingCard.prepSeconds)}</span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rc-viewer-content">
+                <div className="rc-viewer-body">
+                  <div className="rc-viewer-head">
+                    <div>
+                      <h3>{viewingCard.persianName}</h3>
+                      {viewingCard.englishName ? <span className="rc-en-name" dir="ltr">{viewingCard.englishName}</span> : null}
+                    </div>
+                    {viewingCard.glasswareOrPlate ? (
+                      <span className="rc-glass-pill">🥃 {viewingCard.glasswareOrPlate}</span>
+                    ) : null}
+                  </div>
+
+                  {viewingCard.ingredients?.length > 0 ? (
+                    <div className="rc-viewer-section">
+                      <h4>مقادیر دقیق مواد اولیه</h4>
+                      <div className="rc-ing-chips">
+                        {viewingCard.ingredients.map((ing) => (
+                          <span key={ing.id} className="rc-ing-chip is-lg">
+                            <strong>{ing.ingredientName}</strong>
+                            <em>{formatIngredientQty(ing.quantity, ing.unit)}</em>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {viewingCard.bulletPoints?.length > 0 ? (
+                    <div className="rc-viewer-section">
+                      <h4>مراحل و نکات تهیه (موردی)</h4>
+                      <ul className="rc-bullets is-lg">
+                        {viewingCard.bulletPoints.map((step, idx) => (
+                          <li key={idx}>
+                            <span className="rc-bullet-num">{toPersianDigits(idx + 1)}</span>
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {viewingCard.recipeDescription ? (
+                    <div className="rc-viewer-section">
+                      <h4>توضیحات تکمیلی</h4>
+                      <p className="rc-viewer-desc">{viewingCard.recipeDescription}</p>
+                    </div>
+                  ) : null}
+
+                  {viewingCard.baristaTip ? (
+                    <div className="rc-tip-box is-lg">
+                      <span>💡</span>
+                      <div>
+                        <strong>نکته کلیدی باریستا:</strong> {viewingCard.baristaTip}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="rc-viewer-foot">
+                  <button type="button" className="rc-btn-ghost" onClick={() => setViewingCard(null)}>
+                    بستن
+                  </button>
+                  <button
+                    type="button"
+                    className="rc-btn-subtle"
+                    onClick={() => {
+                      const id = viewingCard.menuItemId
+                      setViewingCard(null)
+                      openFormulaTabForItem(id)
+                    }}
+                  >
+                    ویرایش مقادیر مواد اولیه
+                  </button>
+                  {canUpdate ? (
+                    <button
+                      type="button"
+                      className="rc-btn-primary"
+                      onClick={() => {
+                        const card = viewingCard
+                        setViewingCard(null)
+                        openCardEditor(card)
+                      }}
+                    >
+                      ویرایش رسپی کارت
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             </div>
           </div>
         </div>

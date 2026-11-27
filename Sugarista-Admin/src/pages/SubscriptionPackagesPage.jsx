@@ -289,7 +289,7 @@ export function SubscriptionPackagesPage() {
         {message ? <p className="feedback feedback-success">{message}</p> : null}
       </form>
 
-      <section className="panel">
+      <section className="panel" style={{ minWidth: 0, overflow: 'hidden' }}>
         <div className="panel-head">
           <div>
             <h2>بسته‌های اشتراک</h2>
@@ -302,78 +302,84 @@ export function SubscriptionPackagesPage() {
         ) : packages.length === 0 ? (
           <p>هنوز بسته‌ای ساخته نشده است.</p>
         ) : (
-          <div className="admin-table-scroll">
-          <table className="admin-table">
+          <table className="admin-table" style={{ width: '100%', tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th>ردیف</th>
-                <th>نام</th>
-                <th>ترتیب نمایش</th>
-                <th>استفاده</th>
-                <th>قیمت</th>
-                <th>اعتبار</th>
-                <th>سقف روزانه</th>
-                <th>محصولات</th>
-                <th>وضعیت</th>
-                <th />
+                <th style={{ width: 46 }}>#</th>
+                <th style={{ width: '28%' }}>نام بسته</th>
+                <th style={{ width: '20%' }}>استفاده / اعتبار</th>
+                <th style={{ width: '16%' }}>قیمت</th>
+                <th style={{ width: '18%' }}>مشمول / وضعیت</th>
+                <th style={{ width: 92 }}>عملیات</th>
               </tr>
             </thead>
             <tbody>
               {packages.map((pack, index) => {
                 const catsText = categoryNames(pack.allowedCategoryIds)
                 return (
-                <tr key={pack.id}>
-                  <td>{index + 1}</td>
-                  <td style={{ maxWidth: 210 }}>
-                    <strong>{pack.name}</strong>
-                    {pack.description ? (
+                  <tr key={pack.id}>
+                    <td>{index + 1}</td>
+                    <td>
                       <div
-                        className="table-subtext"
-                        title={pack.description}
                         style={{
-                          maxWidth: 200,
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={pack.name}
+                      >
+                        {pack.name}
+                      </div>
+                      {pack.description ? (
+                        <div
+                          className="table-subtext"
+                          title={pack.description}
+                          style={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {pack.description}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td>
+                      <div>{pack.totalUseCount} بار · {pack.validityDays} روز</div>
+                      <div className="table-subtext">
+                        {pack.dailyUseLimit > 0 ? `سقف روزانه: ${pack.dailyUseLimit}` : 'بدون سقف روزانه'}
+                      </div>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{formatPrice(pack.price)} تومان</td>
+                    <td>
+                      <div
+                        title={catsText}
+                        style={{
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                         }}
                       >
-                        {pack.description}
+                        {catsText}
                       </div>
-                    ) : null}
-                  </td>
-                  <td>{pack.displayOrder ?? 0}</td>
-                  <td>{pack.totalUseCount}</td>
-                  <td>{formatPrice(pack.price)} تومان</td>
-                  <td>{pack.validityDays} روز</td>
-                  <td>{pack.dailyUseLimit > 0 ? pack.dailyUseLimit : 'بدون سقف'}</td>
-                  <td>
-                    <div
-                      title={catsText}
-                      style={{
-                        maxWidth: 160,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {catsText}
-                    </div>
-                  </td>
-                  <td>{pack.isEnabled ? 'فعال' : 'غیرفعال'}</td>
-                  <td className="table-actions">
-                    <button type="button" className="link-button" onClick={() => startEdit(pack)}>
-                      ویرایش
-                    </button>
-                    <button type="button" className="link-button link-danger" onClick={() => handleDelete(pack)}>
-                      حذف
-                    </button>
-                  </td>
-                </tr>
+                      <div className="table-subtext">
+                        {pack.isEnabled ? '● فعال' : '○ غیرفعال'} · ترتیب {pack.displayOrder ?? 0}
+                      </div>
+                    </td>
+                    <td className="table-actions">
+                      <button type="button" className="link-button" onClick={() => startEdit(pack)}>
+                        ویرایش
+                      </button>
+                      <button type="button" className="link-button link-danger" onClick={() => handleDelete(pack)}>
+                        حذف
+                      </button>
+                    </td>
+                  </tr>
                 )
               })}
             </tbody>
           </table>
-          </div>
         )}
       </section>
     </section>

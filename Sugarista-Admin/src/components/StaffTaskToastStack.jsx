@@ -12,19 +12,19 @@ function playGentleTaskChime() {
     if (!AudioCtx) return
     const ctx = new AudioCtx()
     const now = ctx.currentTime
-    const notes = [587.33, 880] // D5 -> A5 crisp pleasant chime
+    const notes = [587.33, 880]
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.type = 'sine'
       osc.frequency.setValueAtTime(freq, now + i * 0.14)
       gain.gain.setValueAtTime(0.0001, now + i * 0.14)
-      gain.gain.exponentialRampToValueAtTime(0.08, now + i * 0.14 + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.14 + 0.28)
+      gain.gain.exponentialRampToValueAtTime(0.07, now + i * 0.14 + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.14 + 0.26)
       osc.connect(gain)
       gain.connect(ctx.destination)
       osc.start(now + i * 0.14)
-      osc.stop(now + i * 0.14 + 0.3)
+      osc.stop(now + i * 0.14 + 0.28)
     })
     setTimeout(() => ctx.close().catch(() => {}), 700)
   } catch {
@@ -38,7 +38,9 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
   const [noteOpenId, setNoteOpenId] = useState(null)
   const [busyId, setBusyId] = useState(null)
   const [toastError, setToastError] = useState({})
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)')?.matches,
+  )
   const knownIdsRef = useRef(new Set())
   const initializedRef = useRef(false)
 
@@ -59,7 +61,6 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
           }
         }
         if (hasBrandNew) {
-          setCollapsed(false)
           playGentleTaskChime()
         }
       } else {
@@ -67,7 +68,7 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
       }
       knownIdsRef.current = nextKeys
     } catch {
-      // Silent background poll — never interrupt user workflow on transient network hiccups
+      // Silent background poll
     }
   }, [token])
 
@@ -99,7 +100,7 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
       setNoteOpenId(task.id)
       setToastError((prev) => ({
         ...prev,
-        [task.id]: 'نوشتن توضیح کوتاه برای ثبت انجام این تسک الزامی است.',
+        [task.id]: 'توضیح کوتاه الزامی است.',
       }))
       return
     }
@@ -115,7 +116,9 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
           occurrenceDate: task.occurrenceDate,
         },
       })
-      setItems((prev) => prev.filter((item) => !(item.id === task.id && item.occurrenceDate === task.occurrenceDate)))
+      setItems((prev) =>
+        prev.filter((item) => !(item.id === task.id && item.occurrenceDate === task.occurrenceDate)),
+      )
       setNotes((prev) => {
         const next = { ...prev }
         delete next[task.id]
@@ -131,7 +134,7 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
 
   if (!items.length) return null
 
-  const visibleItems = collapsed ? items.slice(0, 1) : items
+  const visibleItems = collapsed && items.length > 1 ? items.slice(0, 1) : items
 
   return (
     <aside
@@ -141,23 +144,23 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
       aria-live="assertive"
     >
       {items.length > 1 ? (
-        <div className="st-toast-header-bar">
-          <span className="st-toast-header-title">
-            <span className="st-toast-pulse-dot" aria-hidden="true" />
-            {toPersianDigits(items.length)} تسک در انتظار انجام
+        <div className="st-toast-bar">
+          <span className="st-toast-bar-label">
+            <span className="st-toast-dot is-gold" aria-hidden="true" />
+            {toPersianDigits(items.length)} تسک باز
           </span>
-          <div className="st-toast-header-actions">
+          <div className="st-toast-bar-btns">
             {onOpenStaffTasks ? (
-              <button type="button" className="st-toast-link-btn" onClick={onOpenStaffTasks}>
-                صفحه تسک‌ها
+              <button type="button" className="st-toast-bar-btn" onClick={onOpenStaffTasks}>
+                همه
               </button>
             ) : null}
             <button
               type="button"
-              className="st-toast-collapse-btn"
+              className="st-toast-bar-btn"
               onClick={() => setCollapsed((c) => !c)}
             >
-              {collapsed ? `نمایش همه (${toPersianDigits(items.length)})` : 'فشرده'}
+              {collapsed ? `+${toPersianDigits(items.length - 1)} بیشتر` : 'فشرده'}
             </button>
           </div>
         </div>
@@ -172,37 +175,56 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
         return (
           <div
             key={`${task.id}:${task.occurrenceDate}`}
-            className={`st-toast-card is-${pMeta.tone}`}
+            className={`st-toast-item is-${pMeta.tone}`}
             role="alert"
           >
-            <div className="st-toast-top">
-              <div className="st-toast-badges">
-                <span className={`st-toast-priority is-${pMeta.tone}`}>{pMeta.label}</span>
-                <span className="st-toast-cat">{task.category}</span>
+            <div className="st-toast-row">
+              <div className="st-toast-content">
+                <div className="st-toast-title-line">
+                  <span className={`st-toast-dot is-${pMeta.tone}`} aria-hidden="true" />
+                  <span className="st-toast-title">{task.title}</span>
+                </div>
+                {task.description ? <p className="st-toast-desc">{task.description}</p> : null}
+                <div className="st-toast-meta">
+                  <span className="st-toast-clock">{toPersianDigits(task.raiseTime)}</span>
+                  <span className="st-toast-sep">·</span>
+                  <span className="st-toast-elapsed">{formatOverdueLabel(task.overdueMinutes)}</span>
+                </div>
               </div>
-              <span className="st-toast-time" title="ساعت مقرر">
-                ⏰ {toPersianDigits(task.raiseTime)}
-              </span>
-            </div>
 
-            <div className="st-toast-title">{task.title}</div>
-            {task.description ? <p className="st-toast-desc">{task.description}</p> : null}
-
-            <div className="st-toast-overdue">
-              <span className="st-toast-lock-hint">تا انجام نشود بسته نمی‌شود</span>
-              <span>•</span>
-              <span>{formatOverdueLabel(task.overdueMinutes)}</span>
+              <div className="st-toast-controls">
+                <button
+                  type="button"
+                  className="st-toast-check-btn"
+                  disabled={isBusy}
+                  onClick={() => handleComplete(task)}
+                  title="ثبت انجام تسک"
+                >
+                  {isBusy ? '…' : 'انجام ✓'}
+                </button>
+                {!task.requireNoteOnComplete ? (
+                  <button
+                    type="button"
+                    className={`st-toast-note-btn ${isNoteVisible ? 'is-open' : ''}`}
+                    onClick={() => setNoteOpenId((cur) => (cur === task.id ? null : task.id))}
+                    title="افزودن توضیح اختیاری"
+                    aria-label="افزودن توضیح"
+                  >
+                    ✎
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             {isNoteVisible ? (
               <input
                 type="text"
-                className="st-toast-note-input"
+                className="st-toast-note"
                 maxLength={500}
                 placeholder={
                   task.requireNoteOnComplete
-                    ? 'توضیح انجام تسک (الزامی)...'
-                    : 'توضیح اختیاری هنگام انجام...'
+                    ? 'توضیح الزامی + Enter...'
+                    : 'توضیح اختیاری + Enter...'
                 }
                 value={notes[task.id] || ''}
                 onChange={(e) => setNotes((prev) => ({ ...prev, [task.id]: e.target.value }))}
@@ -215,27 +237,7 @@ export function StaffTaskToastStack({ token, onOpenStaffTasks }) {
               />
             ) : null}
 
-            {err ? <div className="st-toast-error">{err}</div> : null}
-
-            <div className="st-toast-actions">
-              <button
-                type="button"
-                className="st-toast-done-btn"
-                disabled={isBusy}
-                onClick={() => handleComplete(task)}
-              >
-                {isBusy ? 'در حال ثبت…' : 'انجام شد ✓'}
-              </button>
-              {!isNoteVisible ? (
-                <button
-                  type="button"
-                  className="st-toast-note-toggle"
-                  onClick={() => setNoteOpenId(task.id)}
-                >
-                  + توضیح
-                </button>
-              ) : null}
-            </div>
+            {err ? <div className="st-toast-err">{err}</div> : null}
           </div>
         )
       })}

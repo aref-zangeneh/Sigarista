@@ -72,23 +72,8 @@ public class RequestCustomerOtpCommandHandler(
                 Message: "ثبت شماره موبایل ناموفق بود.");
         }
 
-        var existingContact = await dbContext.SmsContacts
-            .FirstOrDefaultAsync(c => c.Mobile == smsMobile, cancellationToken);
-        if (existingContact is null)
-        {
-            var firstName = customer.PersianName != phone && customer.PersianName != "مهمان"
-                ? customer.PersianName
-                : null;
-            dbContext.SmsContacts.Add(new SmsContact(
-                firstName: firstName,
-                lastName: null,
-                mobile: smsMobile,
-                email: customer.Email,
-                notes: "ثبت خودکار از ورود پیامکی (OTP) سایت",
-                isActive: true,
-                marketingConsent: true));
-        }
-
+        // CustomerDirectoryService.ResolveCustomerAsync already syncs the mobile
+        // into SmsContacts (checking both .Local and DB) — do not insert a duplicate.
         await dbContext.SaveChangesAsync(cancellationToken);
 
         if (!customer.IsActive)

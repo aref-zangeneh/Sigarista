@@ -21,7 +21,7 @@ namespace Sugarista.Api.Controllers;
 public class AdminBadgesController : ApiControllerBase
 {
     [HttpGet]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.Customers.View)]
     public async Task<ActionResult<IReadOnlyCollection<AdminBadgeDto>>> Get(CancellationToken cancellationToken = default)
     {
         var badges = await Mediator.Send(new GetAdminBadgesQuery(), cancellationToken);
@@ -29,7 +29,7 @@ public class AdminBadgesController : ApiControllerBase
     }
 
     [HttpPost]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult<AdminBadgeDto>> Create(
         [FromBody] UpsertBadgeCommand request,
         CancellationToken cancellationToken = default)
@@ -39,7 +39,7 @@ public class AdminBadgesController : ApiControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult<AdminBadgeDto>> Update(
         Guid id,
         [FromBody] UpsertBadgeCommand request,
@@ -50,7 +50,7 @@ public class AdminBadgesController : ApiControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         await Mediator.Send(new DeleteBadgeCommand(id), cancellationToken);

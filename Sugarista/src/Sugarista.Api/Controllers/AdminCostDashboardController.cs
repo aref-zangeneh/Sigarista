@@ -12,14 +12,14 @@ namespace Sugarista.Api.Controllers;
 public class AdminCostDashboardController : ApiControllerBase
 {
     [HttpGet("bundle")]
-    [RequirePermission(AdminPermissions.Dashboard.View)]
+    [RequirePermission(AdminPermissions.CostDashboard.View)]
     public async Task<ActionResult<CostDashboardBundleDto>> GetBundle(CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new GetCostDashboardQuery(), cancellationToken));
     }
 
     [HttpPut("state")]
-    [RequirePermission(AdminPermissions.Dashboard.Update)]
+    [RequirePermission(AdminPermissions.CostDashboard.Update)]
     public async Task<ActionResult<SaveCostControlStateResultDto>> SaveState(
         [FromBody] SaveCostControlStateCommand command,
         CancellationToken cancellationToken)

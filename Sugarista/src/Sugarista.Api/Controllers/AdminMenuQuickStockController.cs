@@ -24,7 +24,7 @@ public class AdminMenuQuickStockController : ApiControllerBase
     }
 
     [HttpGet]
-    [RequirePermission(AdminPermissions.MenuItems.View)]
+    [RequirePermission(AdminPermissions.QuickStock.View)]
     public async Task<ActionResult<QuickStockBoardDto>> GetBoard(
         [FromQuery] Guid? categoryId = null,
         [FromQuery] string? search = null,
@@ -137,7 +137,7 @@ public class AdminMenuQuickStockController : ApiControllerBase
     }
 
     [HttpPatch("{menuItemId:guid}/quick-update")]
-    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    [RequirePermission(AdminPermissions.QuickStock.Update)]
     public async Task<ActionResult<QuickStockItemDto>> QuickUpdate(
         Guid menuItemId,
         [FromBody] QuickUpdateMenuItemRequest request,
@@ -263,7 +263,7 @@ public class AdminMenuQuickStockController : ApiControllerBase
     }
 
     [HttpPost("{menuItemId:guid}/lots")]
-    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    [RequirePermission(AdminPermissions.QuickStock.Update)]
     public async Task<ActionResult<QuickStockItemDto>> AddLot(
         Guid menuItemId,
         [FromBody] UpsertStockLotRequest request,
@@ -324,7 +324,7 @@ public class AdminMenuQuickStockController : ApiControllerBase
     }
 
     [HttpPut("{menuItemId:guid}/lots/{lotId:guid}")]
-    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    [RequirePermission(AdminPermissions.QuickStock.Update)]
     public async Task<ActionResult<QuickStockItemDto>> UpdateLot(
         Guid menuItemId,
         Guid lotId,
@@ -380,7 +380,7 @@ public class AdminMenuQuickStockController : ApiControllerBase
     }
 
     [HttpPost("{menuItemId:guid}/lots/{lotId:guid}/discard")]
-    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    [RequirePermission(AdminPermissions.QuickStock.Update)]
     public async Task<ActionResult<QuickStockItemDto>> DiscardLot(
         Guid menuItemId,
         Guid lotId,
@@ -421,7 +421,7 @@ public class AdminMenuQuickStockController : ApiControllerBase
     }
 
     [HttpDelete("{menuItemId:guid}/lots/{lotId:guid}")]
-    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    [RequirePermission(AdminPermissions.QuickStock.Update)]
     public async Task<ActionResult<QuickStockItemDto>> DeleteLot(
         Guid menuItemId,
         Guid lotId,

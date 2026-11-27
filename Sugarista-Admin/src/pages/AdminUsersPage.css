@@ -1,122 +1,769 @@
-.admin-users-page .admin-users-list {
-  list-style: none;
+.au-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.au-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.au-title {
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.75rem;
+  font-size: 1.22rem;
+  font-weight: 800;
+  color: var(--heading);
 }
 
-.admin-users-list-item {
-  display: grid;
-  gap: 0.5rem;
+.au-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
-.admin-users-list-button {
-  width: 100%;
+.au-header-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  color: inherit;
-  text-align: right;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.au-tab-strip {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.au-tab-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 13px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.admin-users-list-item--active .admin-users-list-button {
-  border-color: rgba(255, 196, 120, 0.45);
-  background: rgba(255, 196, 120, 0.08);
+.au-tab-btn.is-active {
+  background: #0c344f;
+  color: #ffffff;
 }
 
-.admin-users-list-button strong {
-  display: block;
+.au-primary-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #0c344f, #15527a);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
 }
 
-.admin-users-list-button small {
-  display: block;
-  opacity: 0.75;
+.au-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
-.admin-users-list-meta {
+.au-secondary-btn,
+.au-danger-ghost-btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.au-danger-ghost-btn {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+/* ── 2-Column Workspace ── */
+.au-workspace {
   display: grid;
-  gap: 0.35rem;
-  justify-items: end;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
 }
 
-.admin-users-badge {
+.au-directory {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  position: sticky;
+  top: 76px;
+}
+
+.au-directory-head {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.au-search-input {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--tint);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.au-user-list {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 210px);
+  overflow-y: auto;
+}
+
+.au-user-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.au-user-item:last-child {
+  border-bottom: 0;
+}
+
+.au-user-item:hover {
+  background: var(--tint);
+}
+
+.au-user-item.is-selected {
+  background: rgba(12, 52, 79, 0.08);
+  border-inline-start: 3px solid #0c344f;
+}
+
+[data-theme='dark'] .au-user-item.is-selected {
+  background: rgba(229, 170, 47, 0.12);
+  border-inline-start-color: #e5aa2f;
+}
+
+.au-user-item.is-inactive {
+  opacity: 0.58;
+}
+
+.au-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #0c344f;
+  color: #e5aa2f;
+  font-weight: 900;
+  font-size: 0.88rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.au-user-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.au-user-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+}
+
+.au-user-name-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.au-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.au-status-dot.is-on { background: #16a34a; }
+.au-status-dot.is-off { background: #94a3b8; }
+
+.au-user-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.au-perm-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--heading);
+  font-size: 0.72rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.au-perm-badge.is-super {
+  background: rgba(229, 170, 47, 0.22);
+  color: #92400e;
+}
+
+[data-theme='dark'] .au-perm-badge.is-super {
+  color: #fbbf24;
+}
+
+/* ── Main Editor Card ── */
+.au-editor-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.au-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.au-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.au-card-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.au-card-head p {
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.au-card-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.au-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.au-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--heading);
+}
+
+.au-field input,
+.au-field select {
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--tint);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.au-role-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.au-role-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.au-role-preset-select {
+  max-width: 145px;
+}
+
+.au-toggle-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.au-switch {
   display: inline-flex;
   align-items: center;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(255, 196, 120, 0.16);
-  color: #ffdca8;
-  font-size: 0.78rem;
+  gap: 7px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.admin-users-badge--muted {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.72);
+.au-divider {
+  height: 1px;
+  background: var(--border);
 }
 
-.admin-users-super-admin {
-  padding: 0.85rem 1rem;
+.au-super-banner,
+.au-info-banner {
+  padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(255, 196, 120, 0.08);
+  font-size: 0.82rem;
 }
 
-.admin-users-permissions {
+.au-super-banner {
+  background: rgba(229, 170, 47, 0.14);
+  border: 1px solid rgba(229, 170, 47, 0.35);
+}
+
+.au-info-banner {
+  background: var(--tint);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* ── Categorized Permission Matrix ── */
+.au-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.au-matrix-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.au-matrix-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.au-matrix-search {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--tint);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.81rem;
+  outline: none;
+}
+
+.au-matrix-search:focus {
+  border-color: #0c344f;
+}
+
+.au-matrix-counter {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.au-matrix-global-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.au-chip-btn,
+.au-mini-btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.au-chip-btn:hover,
+.au-mini-btn:hover {
+  border-color: #0c344f;
+}
+
+.au-chip-btn.is-viewer,
+.au-mini-btn.is-viewer {
+  border-color: rgba(12, 52, 79, 0.3);
+  color: #0c344f;
+}
+
+[data-theme='dark'] .au-chip-btn.is-viewer,
+[data-theme='dark'] .au-mini-btn.is-viewer {
+  border-color: rgba(229, 170, 47, 0.4);
+  color: #e5aa2f;
+}
+
+.au-chip-btn.is-danger,
+.au-mini-btn.is-danger {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+/* Category Accordion Cards */
+.au-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.au-cat-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.au-cat-card.has-selected {
+  border-color: rgba(12, 52, 79, 0.24);
+}
+
+.au-cat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--tint);
+}
+
+.au-cat-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--heading);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.au-chevron {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 900;
+  transition: transform 0.16s ease;
+}
+
+.au-chevron.is-open {
+  transform: rotate(-90deg);
+}
+
+.au-cat-title {
+  font-size: 0.86rem;
+}
+
+.au-cat-count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.au-cat-count.is-active {
+  background: #0c344f;
+  border-color: #0c344f;
+  color: #ffffff;
+}
+
+.au-cat-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.au-sections-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.au-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.au-section-row.has-active {
+  background: rgba(12, 52, 79, 0.025);
+}
+
+.au-section-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 195px;
+}
+
+.au-section-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.au-section-quick {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.au-quick-tag {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.au-quick-tag:hover {
+  border-color: #0c344f;
+  color: var(--heading);
+}
+
+.au-quick-tag.is-selected {
+  background: #0c344f;
+  border-color: #0c344f;
+  color: #ffffff;
+}
+
+/* Fine-Grained CRUD Pill Toggles */
+.au-perm-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.au-perm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.14s ease;
+}
+
+.au-perm-pill input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: #0c344f;
+}
+
+.au-perm-pill.is-checked {
+  background: rgba(12, 52, 79, 0.1);
+  border-color: #0c344f;
+  color: #0c344f;
+}
+
+.au-perm-pill.is-view.is-checked {
+  background: rgba(22, 163, 74, 0.12);
+  border-color: #16a34a;
+  color: #15803d;
+}
+
+[data-theme='dark'] .au-perm-pill.is-checked {
+  background: rgba(229, 170, 47, 0.16);
+  border-color: #e5aa2f;
+  color: #fbbf24;
+}
+
+[data-theme='dark'] .au-perm-pill.is-view.is-checked {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+.au-perm-pill.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Password Card */
+.au-password-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.au-password-row h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.au-password-row p {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.au-password-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.au-password-controls input {
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--tint);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+/* Roles Grid */
+.au-roles-grid {
   display: grid;
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
 }
 
-.admin-users-permission-groups {
-  display: grid;
-  gap: 0.85rem;
+.au-role-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--tint);
 }
 
-.admin-users-permission-group {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 0.85rem 1rem;
-  background: rgba(255, 255, 255, 0.02);
+.au-role-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.admin-users-permission-group header {
-  margin-bottom: 0.65rem;
+.au-role-code {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
-.admin-users-permission-items {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.45rem 0.75rem;
+.au-role-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.admin-users-password-panel {
-  margin-top: 0.5rem;
+.au-role-meta {
+  font-size: 0.73rem;
+  color: var(--muted);
 }
 
-.admin-users-password-form {
-  display: grid;
-  gap: 0.85rem;
-  max-width: 420px;
+.au-role-actions {
+  display: flex;
+  gap: 5px;
 }
 
-.admin-table-scroll {
-  max-width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+.au-role-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-@media (max-width: 900px) {
-  .admin-users-list-button {
-    flex-direction: column;
-    align-items: stretch;
+.au-role-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.au-muted-note,
+.au-empty-search {
+  text-align: center;
+  padding: 18px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 960px) {
+  .au-workspace {
+    grid-template-columns: 1fr;
   }
 
-  .admin-users-list-meta {
-    justify-items: start;
+  .au-directory {
+    position: static;
+  }
+
+  .au-user-list {
+    max-height: 240px;
+  }
+
+  .au-perm-pills {
+    justify-content: flex-start;
   }
 }

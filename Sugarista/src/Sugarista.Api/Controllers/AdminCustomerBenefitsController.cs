@@ -19,7 +19,7 @@ namespace Sugarista.Api.Controllers;
 public class AdminCustomerGroupsController : ApiControllerBase
 {
     [HttpGet]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.Customers.View)]
     public async Task<ActionResult<IReadOnlyCollection<AdminCustomerGroupDto>>> Get(
         CancellationToken cancellationToken = default)
     {
@@ -27,7 +27,7 @@ public class AdminCustomerGroupsController : ApiControllerBase
     }
 
     [HttpPost]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult<AdminCustomerGroupDto>> Upsert(
         [FromBody] UpsertCustomerGroupCommand command,
         CancellationToken cancellationToken = default)
@@ -36,7 +36,7 @@ public class AdminCustomerGroupsController : ApiControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         try
@@ -56,7 +56,7 @@ public class AdminCustomerGroupsController : ApiControllerBase
 public class AdminSubscriptionPackagesController : ApiControllerBase
 {
     [HttpGet]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.Customers.View)]
     public async Task<ActionResult<IReadOnlyCollection<AdminSubscriptionPackageDto>>> Get(
         CancellationToken cancellationToken = default)
     {
@@ -64,7 +64,7 @@ public class AdminSubscriptionPackagesController : ApiControllerBase
     }
 
     [HttpPost]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult<AdminSubscriptionPackageDto>> Upsert(
         [FromBody] UpsertSubscriptionPackageCommand command,
         CancellationToken cancellationToken = default)
@@ -73,7 +73,7 @@ public class AdminSubscriptionPackagesController : ApiControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         try
@@ -100,7 +100,7 @@ public class AdminSubscriptionPackagesController : ApiControllerBase
 public class AdminCustomerBenefitsController : ApiControllerBase
 {
     [HttpGet("groups")]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.Customers.View)]
     public async Task<ActionResult> GetGroups(
         Guid customerId,
         CancellationToken cancellationToken = default)
@@ -109,7 +109,7 @@ public class AdminCustomerBenefitsController : ApiControllerBase
     }
 
     [HttpPost("groups")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult> AssignGroup(
         Guid customerId,
         [FromBody] AssignCustomerGroupCommand command,
@@ -132,7 +132,7 @@ public class AdminCustomerBenefitsController : ApiControllerBase
     }
 
     [HttpDelete("groups/{groupId:guid}")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult> RemoveGroup(
         Guid customerId,
         Guid groupId,
@@ -150,7 +150,7 @@ public class AdminCustomerBenefitsController : ApiControllerBase
     }
 
     [HttpGet("subscriptions")]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.Customers.View)]
     public async Task<ActionResult<IReadOnlyCollection<AdminCustomerSubscriptionDto>>> GetSubscriptions(
         Guid customerId,
         CancellationToken cancellationToken = default)
@@ -159,7 +159,7 @@ public class AdminCustomerBenefitsController : ApiControllerBase
     }
 
     [HttpPost("subscriptions")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult<AdminCustomerSubscriptionDto>> Activate(
         Guid customerId,
         [FromBody] ActivateCustomerSubscriptionCommand command,
@@ -188,7 +188,7 @@ public class AdminCustomerBenefitsController : ApiControllerBase
     }
 
     [HttpPost("subscriptions/{subscriptionId:guid}/cancel")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult<AdminCustomerSubscriptionDto>> Cancel(
         Guid customerId,
         Guid subscriptionId,

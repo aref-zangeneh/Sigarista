@@ -1,0 +1,117 @@
+.ord-head-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ord-adv-toggle.is-open {
+  background: #0c344f;
+  border-color: #0c344f;
+  color: #ffffff;
+}
+
+.ord-reset-btn {
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.3) !important;
+}
+
+.ord-quick-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ord-date-presets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ord-preset-pill {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.ord-preset-pill:hover {
+  border-color: #0c344f;
+  color: var(--heading);
+}
+
+.ord-preset-pill.is-active {
+  background: #0c344f;
+  border-color: #0c344f;
+  color: #ffffff;
+}
+
+.ord-quick-selects {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ord-quick-selects select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--tint);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.ord-adv-panel {
+  padding: 14px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--tint);
+}
+
+.ord-adv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 10px 12px;
+}
+
+.ord-adv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.ord-adv-field input,
+.ord-adv-field select {
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 960px) {
+  .ord-quick-selects {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .ord-quick-selects {
+    grid-template-columns: 1fr;
+  }
+}

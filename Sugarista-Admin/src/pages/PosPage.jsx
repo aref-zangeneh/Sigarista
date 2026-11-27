@@ -383,6 +383,7 @@ function ProductModal({ item, initialLine = null, modifiers, onClose, onConfirm 
 
 function PosPrintModal({ bundle, onClose, onPrinted }) {
   const printButtonRef = useRef(null)
+  const mountedRef = useRef(true)
   const [printCustomer, setPrintCustomer] = useState(true)
   const [printBarista, setPrintBarista] = useState(true)
   const [agentHealth, setAgentHealth] = useState({
@@ -396,7 +397,15 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
   const [printing, setPrinting] = useState(false)
   const [printError, setPrintError] = useState('')
 
-  useEscapeKey(!printing, onClose)
+  // Always allow Esc to close the print modal even if the OS print dialog didn't fire afterprint
+  useEscapeKey(true, onClose)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -432,10 +441,14 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
           copies: selectedCopies,
           forceBrowser,
         })
-        onPrinted(res)
+        if (mountedRef.current) {
+          onPrinted(res)
+        }
       } catch (err) {
-        setPrintError(getReadableError(err))
-        setPrinting(false)
+        if (mountedRef.current) {
+          setPrintError(getReadableError(err))
+          setPrinting(false)
+        }
       }
     },
     [bundle, onPrinted, printing, selectedCopies],
@@ -458,7 +471,7 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
   const { customer, barista } = bundle
 
   return (
-    <div className="pos-modal-backdrop" onClick={() => !printing && onClose()}>
+    <div className="pos-modal-backdrop" onClick={onClose}>
       <div
         className="pos-modal pos-print-modal"
         role="dialog"
@@ -471,15 +484,26 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
             <h3 id="pos-print-modal-title">چاپ فیش سفارش #{customer.trackingCode}</h3>
             <p>تنظیمات چاپگر حرارتی از پیش تعریف شده است؛ فقط دکمهٔ «چاپ فیش» (یا Enter) را بزنید.</p>
           </div>
-          <span
-            className={`pos-print-status-badge ${agentHealth.connected && agentHealth.printerReady ? 'ready' : 'fallback'}`}
-          >
-            {agentHealth.connected && agentHealth.printerReady
-              ? `چاپگر ${agentHealth.printerName || 'GA-E200I'} آماده (ESC/POS مستقیم)`
-              : agentHealth.connected
-                ? `چاپگر ${agentHealth.printerName || 'GA-E200I'} (بررسی صف)`
-                : 'چاپ مرورگر'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span
+              className={`pos-print-status-badge ${agentHealth.connected && agentHealth.printerReady ? 'ready' : 'fallback'}`}
+            >
+              {agentHealth.connected && agentHealth.printerReady
+                ? `چاپگر ${agentHealth.printerName || 'GA-E200I'} آماده (ESC/POS مستقیم)`
+                : agentHealth.connected
+                  ? `چاپگر ${agentHealth.printerName || 'GA-E200I'} (بررسی صف)`
+                  : 'چاپ مرورگر'}
+            </span>
+            <button
+              type="button"
+              className="pos-modal-close"
+              onClick={onClose}
+              aria-label="بستن پنجره چاپ"
+              title="بستن (Esc)"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="pos-print-settings-bar">
@@ -681,7 +705,6 @@ function PosPrintModal({ bundle, onClose, onPrinted }) {
             type="button"
             className="pos-secondary-button"
             onClick={onClose}
-            disabled={printing}
           >
             بستن (Esc)
           </button>

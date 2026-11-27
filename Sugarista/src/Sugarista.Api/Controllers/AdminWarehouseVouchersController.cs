@@ -18,7 +18,7 @@ namespace Sugarista.Api.Controllers;
 public class AdminWarehouseVouchersController : ApiControllerBase
 {
     [HttpGet]
-    [RequireAnyPermission(AdminPermissions.Warehouses.View, AdminPermissions.Inventory.View)]
+    [RequirePermission(AdminPermissions.WarehouseVouchers.View)]
     public async Task<ActionResult<WarehouseVoucherListResponseDto>> GetAll(
         [FromQuery] string? type = null,
         [FromQuery] string? status = null,
@@ -38,7 +38,7 @@ public class AdminWarehouseVouchersController : ApiControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [RequireAnyPermission(AdminPermissions.Warehouses.View, AdminPermissions.Inventory.View)]
+    [RequirePermission(AdminPermissions.WarehouseVouchers.View)]
     public async Task<ActionResult<WarehouseVoucherDto>> GetById(
         Guid id,
         CancellationToken cancellationToken = default)
@@ -48,10 +48,7 @@ public class AdminWarehouseVouchersController : ApiControllerBase
     }
 
     [HttpPost]
-    [RequireAnyPermission(
-        AdminPermissions.Warehouses.Update,
-        AdminPermissions.Inventory.Create,
-        AdminPermissions.Inventory.Update)]
+    [RequirePermission(AdminPermissions.WarehouseVouchers.Create)]
     public async Task<ActionResult<WarehouseVoucherDto>> Create(
         [FromBody] CreateWarehouseVoucherCommand request,
         CancellationToken cancellationToken = default)
@@ -61,7 +58,7 @@ public class AdminWarehouseVouchersController : ApiControllerBase
     }
 
     [HttpPost("{id:guid}/cancel")]
-    [RequireAnyPermission(AdminPermissions.Warehouses.Update, AdminPermissions.Inventory.Update)]
+    [RequirePermission(AdminPermissions.WarehouseVouchers.Update)]
     public async Task<ActionResult<WarehouseVoucherDto>> Cancel(
         Guid id,
         [FromBody] CancelWarehouseVoucherRequest request,

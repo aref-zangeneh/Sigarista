@@ -16,14 +16,14 @@ namespace Sugarista.Api.Controllers;
 public class AdminOptionTemplatesController : ApiControllerBase
 {
     [HttpGet]
-    [RequirePermission(AdminPermissions.MenuItems.View)]
+    [RequirePermission(AdminPermissions.OptionTemplates.View)]
     public async Task<ActionResult<OptionGroupTemplatesResponseDto>> Get(CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new GetOptionGroupTemplatesQuery(), cancellationToken));
     }
 
     [HttpPost]
-    [RequirePermission(AdminPermissions.MenuItems.Create)]
+    [RequirePermission(AdminPermissions.OptionTemplates.Create)]
     public async Task<ActionResult<Guid>> Create(
         [FromBody] UpsertOptionGroupTemplateCommand command,
         CancellationToken cancellationToken)
@@ -32,7 +32,7 @@ public class AdminOptionTemplatesController : ApiControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    [RequirePermission(AdminPermissions.OptionTemplates.Update)]
     public async Task<ActionResult<Guid>> Update(
         Guid id,
         [FromBody] UpsertOptionGroupTemplateCommand command,
@@ -42,7 +42,7 @@ public class AdminOptionTemplatesController : ApiControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [RequirePermission(AdminPermissions.MenuItems.Delete)]
+    [RequirePermission(AdminPermissions.OptionTemplates.Delete)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await Mediator.Send(new DeleteOptionGroupTemplateCommand(id), cancellationToken);
@@ -50,14 +50,14 @@ public class AdminOptionTemplatesController : ApiControllerBase
     }
 
     [HttpPost("{id:guid}/duplicate")]
-    [RequirePermission(AdminPermissions.MenuItems.Create)]
+    [RequirePermission(AdminPermissions.OptionTemplates.Create)]
     public async Task<ActionResult<Guid>> Duplicate(Guid id, CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new DuplicateOptionGroupTemplateCommand(id), cancellationToken));
     }
 
     [HttpPost("{id:guid}/apply")]
-    [RequirePermission(AdminPermissions.MenuItems.Update)]
+    [RequirePermission(AdminPermissions.OptionTemplates.Update)]
     public async Task<ActionResult<ApplyOptionGroupTemplateResultDto>> Apply(
         Guid id,
         [FromBody] ApplyOptionGroupTemplateCommand command,

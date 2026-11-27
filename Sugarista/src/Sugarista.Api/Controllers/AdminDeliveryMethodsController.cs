@@ -14,7 +14,7 @@ namespace Sugarista.Api.Controllers;
 public class AdminDeliveryMethodsController : ApiControllerBase
 {
     [HttpGet]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.DeliveryMethods.View)]
     public async Task<ActionResult<IReadOnlyCollection<DeliveryMethodDto>>> Get(
         [FromQuery] bool includeInactive = true,
         CancellationToken cancellationToken = default)
@@ -23,7 +23,7 @@ public class AdminDeliveryMethodsController : ApiControllerBase
     }
 
     [HttpGet("options")]
-    [RequireAnyPermission(AdminPermissions.Orders.View, AdminPermissions.Pos.View, AdminPermissions.Pos.Pay, AdminPermissions.Pos.Create)]
+    [RequireAnyPermission(AdminPermissions.DeliveryMethods.View, AdminPermissions.Orders.View, AdminPermissions.Pos.View, AdminPermissions.Pos.Pay, AdminPermissions.Pos.Create)]
     public async Task<ActionResult<IReadOnlyCollection<DeliveryMethodOptionDto>>> GetOptions(
         CancellationToken cancellationToken = default)
     {
@@ -31,7 +31,7 @@ public class AdminDeliveryMethodsController : ApiControllerBase
     }
 
     [HttpPost]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.DeliveryMethods.Create)]
     public async Task<ActionResult<Guid>> Create(
         [FromBody] UpsertDeliveryMethodCommand command,
         CancellationToken cancellationToken)
@@ -40,7 +40,7 @@ public class AdminDeliveryMethodsController : ApiControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.DeliveryMethods.Update)]
     public async Task<ActionResult<Guid>> Update(
         Guid id,
         [FromBody] UpsertDeliveryMethodCommand command,
@@ -55,7 +55,7 @@ public class AdminDeliveryMethodsController : ApiControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [RequirePermission(AdminPermissions.Orders.Delete)]
+    [RequirePermission(AdminPermissions.DeliveryMethods.Delete)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await Mediator.Send(new DeleteDeliveryMethodCommand(id), cancellationToken);

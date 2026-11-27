@@ -23,6 +23,7 @@ public class AdminExportsController : ApiControllerBase
 {
     [HttpPost("jobs")]
     [RequireAnyPermission(
+        AdminPermissions.Exports.View,
         AdminPermissions.Accounting.View,
         AdminPermissions.Orders.View,
         AdminPermissions.Pos.View,
@@ -41,6 +42,7 @@ public class AdminExportsController : ApiControllerBase
 
     [HttpGet("jobs")]
     [RequireAnyPermission(
+        AdminPermissions.Exports.View,
         AdminPermissions.Accounting.View,
         AdminPermissions.Orders.View,
         AdminPermissions.Pos.View,
@@ -59,6 +61,7 @@ public class AdminExportsController : ApiControllerBase
 
     [HttpGet("jobs/{id:guid}/download")]
     [RequireAnyPermission(
+        AdminPermissions.Exports.View,
         AdminPermissions.Accounting.View,
         AdminPermissions.Orders.View,
         AdminPermissions.Pos.View,
@@ -84,6 +87,7 @@ public class AdminExportsController : ApiControllerBase
 
     [HttpDelete("jobs/{id:guid}")]
     [RequireAnyPermission(
+        AdminPermissions.Exports.View,
         AdminPermissions.Accounting.View,
         AdminPermissions.Orders.View,
         AdminPermissions.Pos.View,

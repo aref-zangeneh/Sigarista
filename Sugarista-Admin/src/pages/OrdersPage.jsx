@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
+import { ShamsiDatePicker } from '../components/ShamsiDatePicker.jsx'
 import { formatDateTime, toPersianNumber } from '../utils/adminFormatters'
+import { hasPermission, PERMISSIONS } from '../utils/adminPermissions.js'
 import { fulfillmentStatusLabel } from '../components/OrderAlertsBar'
+import {
+  EMPTY_ORDER_FILTERS,
+  buildOrdersApiPath,
+  countActiveOrderFilters,
+  getOrderDatePresetRange,
+} from '../utils/orderFiltersHelpers.js'
+import './OrdersPage.css'
 
 const QUEUE_TABS = [
   { id: 'pending', label: 'در انتظار پرداخت' },
@@ -33,17 +42,41 @@ export function OrdersPage() {
   const [queueError, setQueueError] = useState('')
   const [message, setMessage] = useState('')
   const [actingOrderId, setActingOrderId] = useState(null)
-  const [orderKindFilter, setOrderKindFilter] = useState('')
-  const [accountingFilter, setAccountingFilter] = useState('')
+  const [filters, setFilters] = useState(EMPTY_ORDER_FILTERS)
+  const [datePreset, setDatePreset] = useState('all')
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [deliveryMethods, setDeliveryMethods] = useState([])
   const refreshTimerRef = useRef(null)
 
-  const ordersApiPath = (() => {
-    const params = new URLSearchParams()
-    if (orderKindFilter) params.set('orderKind', orderKindFilter)
-    if (accountingFilter) params.set('excludedFromAccounting', accountingFilter)
-    const qs = params.toString()
-    return qs ? `/admin/orders?${qs}` : '/admin/orders'
-  })()
+  const canViewManagerNote = hasPermission(session, PERMISSIONS.pos?.managerNote)
+  const activeFilterCount = useMemo(() => countActiveOrderFilters(filters), [filters])
+  const ordersApiPath = useMemo(() => buildOrdersApiPath(filters), [filters])
+
+  const updateFilter = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }))
+    if (key === 'fromDate' || key === 'toDate') {
+      setDatePreset('custom')
+    }
+  }
+
+  const applyDatePreset = (preset) => {
+    setDatePreset(preset)
+    const range = getOrderDatePresetRange(preset)
+    setFilters((prev) => ({ ...prev, ...range }))
+  }
+
+  const resetAllFilters = () => {
+    setDatePreset('all')
+    setFilters(EMPTY_ORDER_FILTERS)
+  }
+
+  useEffect(() => {
+    if (!session?.token) return
+    apiRequest('/admin/delivery-methods/options', { token: session.token })
+      .then((list) => setDeliveryMethods(Array.isArray(list) ? list : []))
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.token])
 
   const loadQueue = useCallback(async () => {
     if (!session?.token) return
@@ -290,40 +323,293 @@ export function OrdersPage() {
         <div className="panel-head">
           <div>
             <h3>همه سفارش‌ها</h3>
-            <p>پرداخت، آماده‌سازی، مصرف داخلی/مهمان، خروج از حسابداری و حذف سفارش‌ها.</p>
+            <p>جستجو و فیلتر جامع بر اساس مشتری، آیتم سفارش، روش پرداخت، تاریخ، مبلغ، میز، تخفیف و یادداشت.</p>
           </div>
-          <div className="orders-table-filters">
-            <select
-              aria-label="فیلتر نوع سفارش"
-              value={orderKindFilter}
-              onChange={(event) => setOrderKindFilter(event.target.value)}
+          <div className="ord-head-actions">
+            <button
+              type="button"
+              className={`ghost-button ord-adv-toggle ${showAdvancedFilters ? 'is-open' : ''}`}
+              onClick={() => setShowAdvancedFilters((v) => !v)}
             >
-              <option value="">همه انواع سفارش</option>
-              <option value="Standard">فروش عادی</option>
-              <option value="InternalUse">مصرف داخلی</option>
-              <option value="Complimentary">مهمان / رایگان</option>
-            </select>
-            <select
-              aria-label="فیلتر وضعیت حسابداری"
-              value={accountingFilter}
-              onChange={(event) => setAccountingFilter(event.target.value)}
-            >
-              <option value="">همه وضعیت‌های حسابداری</option>
-              <option value="false">لحاظ در حسابداری</option>
-              <option value="true">خارج از حسابداری</option>
-            </select>
+              فیلترهای پیشرفته{activeFilterCount > 0 ? ` (${toPersianNumber(activeFilterCount)})` : ''}
+            </button>
+            {activeFilterCount > 0 ? (
+              <button type="button" className="ghost-button ord-reset-btn" onClick={resetAllFilters}>
+                پاک کردن فیلترها
+              </button>
+            ) : null}
             <button type="button" className="ghost-button" onClick={() => bumpTableReload()}>
               بروزرسانی
             </button>
           </div>
         </div>
+
+        {/* نوار فیلتر سریع همیشه در دسترس */}
+        <div className="ord-quick-bar">
+          <div className="ord-date-presets" role="group" aria-label="بازه زمانی سریع">
+            {[
+              { id: 'all', label: 'همه زمان‌ها' },
+              { id: 'today', label: 'امروز' },
+              { id: 'yesterday', label: 'دیروز' },
+              { id: '7d', label: '۷ روز اخیر' },
+              { id: '30d', label: '۳۰ روز اخیر' },
+            ].map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`ord-preset-pill ${datePreset === p.id ? 'is-active' : ''}`}
+                onClick={() => applyDatePreset(p.id)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="ord-quick-selects">
+            <select
+              aria-label="وضعیت پرداخت"
+              value={filters.status}
+              onChange={(e) => updateFilter('status', e.target.value)}
+            >
+              <option value="">همه وضعیت‌های پرداخت</option>
+              <option value="Paid">پرداخت‌شده</option>
+              <option value="PendingPayment">در انتظار پرداخت</option>
+              <option value="PartiallyPaid">پرداخت جزئی</option>
+              <option value="Held">نگه‌داشت‌شده (Held)</option>
+              <option value="Failed">ناموفق</option>
+              <option value="Cancelled">لغوشده</option>
+            </select>
+
+            <select
+              aria-label="وضعیت آماده‌سازی"
+              value={filters.fulfillment}
+              onChange={(e) => updateFilter('fulfillment', e.target.value)}
+            >
+              <option value="">همه وضعیت‌های آماده‌سازی</option>
+              <option value="Registered">ثبت‌شده</option>
+              <option value="Preparing">در حال آماده‌سازی</option>
+              <option value="Ready">آماده تحویل</option>
+              <option value="Completed">تحویل‌شده</option>
+              <option value="None">تعیین‌نشده</option>
+            </select>
+
+            <select
+              aria-label="کانال ثبت سفارش"
+              value={filters.channel}
+              onChange={(e) => updateFilter('channel', e.target.value)}
+            >
+              <option value="">همه کانال‌ها (آنلاین / POS)</option>
+              <option value="Pos">صندوق فروش (POS)</option>
+              <option value="Online">منوی آنلاین</option>
+            </select>
+
+            <select
+              aria-label="روش پرداخت"
+              value={filters.paymentMethod}
+              onChange={(e) => updateFilter('paymentMethod', e.target.value)}
+            >
+              <option value="">همه روش‌های پرداخت</option>
+              <option value="Card">کارتخوان (POS)</option>
+              <option value="Cash">نقد</option>
+              <option value="CardToCard">کارت به کارت</option>
+              <option value="OnlineGateway">درگاه آنلاین</option>
+              <option value="Split">ترکیبی (Split)</option>
+              <option value="Complimentary">مهمان / رایگان</option>
+            </select>
+          </div>
+        </div>
+
+        {/* پنل فیلترهای پیشرفته (بازشونده) */}
+        {showAdvancedFilters ? (
+          <div className="ord-adv-panel">
+            <div className="ord-adv-grid">
+              <div className="ord-adv-field">
+                <span>از تاریخ (شمسی)</span>
+                <ShamsiDatePicker
+                  value={filters.fromDate}
+                  onChange={(iso) => updateFilter('fromDate', iso)}
+                  placeholder="از تاریخ..."
+                />
+              </div>
+
+              <div className="ord-adv-field">
+                <span>تا تاریخ (شمسی)</span>
+                <ShamsiDatePicker
+                  value={filters.toDate}
+                  onChange={(iso) => updateFilter('toDate', iso)}
+                  placeholder="تا تاریخ..."
+                />
+              </div>
+
+              <label className="ord-adv-field">
+                <span>نام آیتم داخل سفارش</span>
+                <input
+                  type="text"
+                  placeholder="مثلاً: لاته، تیرامیسو..."
+                  value={filters.menuItemQuery}
+                  onChange={(e) => updateFilter('menuItemQuery', e.target.value)}
+                />
+              </label>
+
+              <label className="ord-adv-field">
+                <span>نام یا کد میز</span>
+                <input
+                  type="text"
+                  placeholder="مثلاً: میز ۴..."
+                  value={filters.tableQuery}
+                  onChange={(e) => updateFilter('tableQuery', e.target.value)}
+                />
+              </label>
+
+              <label className="ord-adv-field">
+                <span>حداقل مبلغ (تومان)</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  dir="ltr"
+                  placeholder="مثلاً 100000"
+                  value={filters.minAmount}
+                  onChange={(e) => updateFilter('minAmount', e.target.value)}
+                />
+              </label>
+
+              <label className="ord-adv-field">
+                <span>حداکثر مبلغ (تومان)</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  dir="ltr"
+                  placeholder="مثلاً 500000"
+                  value={filters.maxAmount}
+                  onChange={(e) => updateFilter('maxAmount', e.target.value)}
+                />
+              </label>
+
+              <label className="ord-adv-field">
+                <span>نوع سفارش</span>
+                <select
+                  value={filters.orderKind}
+                  onChange={(e) => updateFilter('orderKind', e.target.value)}
+                >
+                  <option value="">همه انواع</option>
+                  <option value="Standard">فروش عادی</option>
+                  <option value="InternalUse">مصرف داخلی</option>
+                  <option value="Complimentary">مهمان / رایگان</option>
+                </select>
+              </label>
+
+              <label className="ord-adv-field">
+                <span>نوع سرویس</span>
+                <select
+                  value={filters.serviceType}
+                  onChange={(e) => updateFilter('serviceType', e.target.value)}
+                >
+                  <option value="">همه</option>
+                  <option value="DineIn">سالن (Dine-In)</option>
+                  <option value="TakeAway">بیرون‌بر (TakeAway)</option>
+                </select>
+              </label>
+
+              {deliveryMethods.length > 0 ? (
+                <label className="ord-adv-field">
+                  <span>روش تحویل</span>
+                  <select
+                    value={filters.deliveryMethodId}
+                    onChange={(e) => updateFilter('deliveryMethodId', e.target.value)}
+                  >
+                    <option value="">همه روش‌های تحویل</option>
+                    {deliveryMethods.map((dm) => (
+                      <option key={dm.id} value={dm.id}>{dm.persianName || dm.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              <label className="ord-adv-field">
+                <span>وضعیت حسابداری</span>
+                <select
+                  value={filters.excludedFromAccounting}
+                  onChange={(e) => updateFilter('excludedFromAccounting', e.target.value)}
+                >
+                  <option value="">همه</option>
+                  <option value="false">لحاظ در حسابداری</option>
+                  <option value="true">خارج از حسابداری</option>
+                </select>
+              </label>
+
+              <label className="ord-adv-field">
+                <span>تخفیف</span>
+                <select
+                  value={filters.hasDiscount}
+                  onChange={(e) => updateFilter('hasDiscount', e.target.value)}
+                >
+                  <option value="">همه</option>
+                  <option value="true">دارای تخفیف</option>
+                  <option value="false">بدون تخفیف</option>
+                </select>
+              </label>
+
+              <label className="ord-adv-field">
+                <span>تقسیم دنگ (Split Bill)</span>
+                <select
+                  value={filters.isSplitBill}
+                  onChange={(e) => updateFilter('isSplitBill', e.target.value)}
+                >
+                  <option value="">همه</option>
+                  <option value="true">فقط سفارش‌های دنگ</option>
+                  <option value="false">فقط تک‌فاکتور</option>
+                </select>
+              </label>
+
+              <label className="ord-adv-field">
+                <span>یادداشت مشتری / سفارش</span>
+                <select
+                  value={filters.hasNote}
+                  onChange={(e) => updateFilter('hasNote', e.target.value)}
+                >
+                  <option value="">همه</option>
+                  <option value="true">دارای یادداشت</option>
+                  <option value="false">بدون یادداشت</option>
+                </select>
+              </label>
+
+              {canViewManagerNote ? (
+                <label className="ord-adv-field">
+                  <span>یادداشت محرمانه مدیریت</span>
+                  <select
+                    value={filters.hasManagerNote}
+                    onChange={(e) => updateFilter('hasManagerNote', e.target.value)}
+                  >
+                    <option value="">همه</option>
+                    <option value="true">دارای یادداشت مدیریت</option>
+                    <option value="false">بدون یادداشت مدیریت</option>
+                  </select>
+                </label>
+              ) : null}
+
+              <label className="ord-adv-field">
+                <span>مرتب‌سازی</span>
+                <select
+                  value={filters.sortBy}
+                  onChange={(e) => updateFilter('sortBy', e.target.value)}
+                >
+                  <option value="newest">جدیدترین اول</option>
+                  <option value="oldest">قدیمی‌ترین اول</option>
+                  <option value="amount_desc">بیشترین مبلغ</option>
+                  <option value="amount_asc">کمترین مبلغ</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        ) : null}
+
         <PaginatedAdminTable
           apiPath={ordersApiPath}
           token={session.token}
           columns={orderColumns}
           enabled
           reloadToken={tableReloadToken}
-          searchPlaceholder="جستجو بر اساس کد پیگیری، نام یا شماره تماس..."
+          searchPlaceholder="جستجو با کد پیگیری، نام، موبایل، نام آیتم، کد پیگیری پرداخت، میز یا یادداشت..."
         />
       </section>
     </section>

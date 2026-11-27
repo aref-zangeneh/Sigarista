@@ -17,7 +17,7 @@ namespace Sugarista.Api.Controllers;
 public class AdminCustomersController : ApiControllerBase
 {
     [HttpGet]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.Customers.View)]
     public async Task<ActionResult<PaginatedList<AdminCustomerListItemDto>>> Get(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -28,7 +28,7 @@ public class AdminCustomersController : ApiControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.Customers.View)]
     public async Task<ActionResult<AdminCustomerDetailDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var customer = await Mediator.Send(new GetAdminCustomerByIdQuery(id), cancellationToken);
@@ -41,7 +41,7 @@ public class AdminCustomersController : ApiControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult> Update(
         Guid id,
         [FromBody] UpdateCustomerCommand command,
@@ -57,7 +57,7 @@ public class AdminCustomersController : ApiControllerBase
 
     /// <summary>Wallet balance + the full logged transaction history (last 50).</summary>
     [HttpGet("{id:guid}/wallet")]
-    [RequirePermission(AdminPermissions.Orders.View)]
+    [RequirePermission(AdminPermissions.Customers.View)]
     public async Task<ActionResult<AdminCustomerWalletDto>> GetWallet(
         Guid id,
         CancellationToken cancellationToken = default)
@@ -77,7 +77,7 @@ public class AdminCustomersController : ApiControllerBase
     /// go below zero; every action is logged as one wallet transaction.
     /// </summary>
     [HttpPost("{id:guid}/wallet")]
-    [RequirePermission(AdminPermissions.Orders.Update)]
+    [RequirePermission(AdminPermissions.Customers.Update)]
     public async Task<ActionResult<AdminCustomerWalletDto>> AdjustWallet(
         Guid id,
         [FromBody] AdjustCustomerWalletCommand command,

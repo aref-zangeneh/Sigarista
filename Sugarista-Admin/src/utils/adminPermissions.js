@@ -6,34 +6,37 @@ export const PERMISSIONS = {
     delete: 'admin.maintenance.delete',
   },
   exports: {
-    view: 'admin.accounting.view',
-    create: 'admin.accounting.create',
-    update: 'admin.accounting.update',
-    delete: 'admin.accounting.delete',
+    view: 'admin.exports.view',
   },
   customers: {
-    view: 'admin.orders.view',
-    create: 'admin.orders.update',
-    update: 'admin.orders.update',
-    delete: 'admin.orders.delete',
+    view: 'admin.customers.view',
+    create: 'admin.customers.create',
+    update: 'admin.customers.update',
+    delete: 'admin.customers.delete',
   },
   'customer-groups': {
-    view: 'admin.orders.view',
-    create: 'admin.orders.update',
-    update: 'admin.orders.update',
-    delete: 'admin.orders.delete',
+    view: 'admin.customers.view',
+    create: 'admin.customers.create',
+    update: 'admin.customers.update',
+    delete: 'admin.customers.delete',
   },
   'subscription-packages': {
-    view: 'admin.orders.view',
-    create: 'admin.orders.update',
-    update: 'admin.orders.update',
-    delete: 'admin.orders.delete',
+    view: 'admin.customers.view',
+    create: 'admin.customers.create',
+    update: 'admin.customers.update',
+    delete: 'admin.customers.delete',
+  },
+  badges: {
+    view: 'admin.customers.view',
+    create: 'admin.customers.create',
+    update: 'admin.customers.update',
+    delete: 'admin.customers.delete',
   },
   'delivery-methods': {
-    view: 'admin.orders.view',
-    create: 'admin.orders.update',
-    update: 'admin.orders.update',
-    delete: 'admin.orders.delete',
+    view: 'admin.delivery-methods.view',
+    create: 'admin.delivery-methods.create',
+    update: 'admin.delivery-methods.update',
+    delete: 'admin.delivery-methods.delete',
   },
   assets: {
     view: 'admin.assets.view',
@@ -56,18 +59,18 @@ export const PERMISSIONS = {
     viewLogs: 'admin.staff-tasks.view-logs',
   },
   suppliers: {
-    view: 'admin.ingredients.view',
-    create: 'admin.ingredients.create',
-    update: 'admin.ingredients.update',
-    delete: 'admin.ingredients.delete',
+    view: 'admin.suppliers.view',
+    create: 'admin.suppliers.create',
+    update: 'admin.suppliers.update',
+    delete: 'admin.suppliers.delete',
   },
   dashboard: {
     view: 'admin.dashboard.view',
     update: 'admin.dashboard.update',
   },
   'cost-dashboard': {
-    view: 'admin.dashboard.view',
-    update: 'admin.dashboard.update',
+    view: 'admin.cost-dashboard.view',
+    update: 'admin.cost-dashboard.update',
   },
   salon: {
     view: 'admin.salon.view',
@@ -88,16 +91,16 @@ export const PERMISSIONS = {
     delete: 'admin.menu-items.delete',
   },
   'quick-stock': {
-    view: 'admin.menu-items.view',
-    create: 'admin.menu-items.update',
-    update: 'admin.menu-items.update',
-    delete: 'admin.menu-items.update',
+    view: 'admin.quick-stock.view',
+    create: 'admin.quick-stock.update',
+    update: 'admin.quick-stock.update',
+    delete: 'admin.quick-stock.update',
   },
   'option-templates': {
-    view: 'admin.menu-items.view',
-    create: 'admin.menu-items.create',
-    update: 'admin.menu-items.update',
-    delete: 'admin.menu-items.delete',
+    view: 'admin.option-templates.view',
+    create: 'admin.option-templates.create',
+    update: 'admin.option-templates.update',
+    delete: 'admin.option-templates.delete',
   },
   addons: {
     view: 'admin.addons.view',
@@ -160,6 +163,11 @@ export const PERMISSIONS = {
     update: 'admin.warehouses.update',
     delete: 'admin.warehouses.delete',
   },
+  'warehouse-vouchers': {
+    view: 'admin.warehouse-vouchers.view',
+    create: 'admin.warehouse-vouchers.create',
+    update: 'admin.warehouse-vouchers.update',
+  },
   production: {
     view: 'admin.production.view',
     create: 'admin.production.create',
@@ -197,8 +205,8 @@ export const PERMISSIONS = {
     update: 'admin.tooltips.update',
   },
   'special-routes': {
-    view: 'admin.site-settings.view',
-    update: 'admin.site-settings.update',
+    view: 'admin.special-routes.view',
+    update: 'admin.special-routes.update',
   },
   'system-logs': {
     view: 'admin.system-logs.view',
@@ -258,7 +266,7 @@ export function viewPermissionForRoute(routeId) {
   }
 
   if (routeId === 'warehouse-vouchers') {
-    return PERMISSIONS.warehouses.view
+    return PERMISSIONS['warehouse-vouchers'].view
   }
 
   return PERMISSIONS[routeId]?.view ?? null
@@ -285,9 +293,6 @@ export function hasAnyPermission(session, permissions = []) {
 }
 
 export function canViewRoute(session, routeId) {
-  if (routeId === 'warehouse-vouchers') {
-    return hasAnyPermission(session, [PERMISSIONS.warehouses.view, PERMISSIONS.inventory.view])
-  }
   return hasPermission(session, viewPermissionForRoute(routeId))
 }
 

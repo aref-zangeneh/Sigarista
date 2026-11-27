@@ -873,20 +873,59 @@ function printHtmlDocument(html) {
     frameWindow.document.close()
 
     const triggerPrint = () => {
-      const handleAfterPrint = () => {
-        frameWindow.removeEventListener('afterprint', handleAfterPrint)
+      let fallbackTimer = null
+      let focusTimer = null
+      const mediaQueryList =
+        typeof frameWindow.matchMedia === 'function' ? frameWindow.matchMedia('print') : null
+
+      const finish = () => {
+        if (fallbackTimer) window.clearTimeout(fallbackTimer)
+        if (focusTimer) window.clearTimeout(focusTimer)
+        frameWindow.removeEventListener('afterprint', finish)
+        window.removeEventListener('afterprint', finish)
+        window.removeEventListener('focus', handleParentFocus)
+        if (mediaQueryList) {
+          if (mediaQueryList.removeEventListener) {
+            mediaQueryList.removeEventListener('change', handleMediaChange)
+          } else if (mediaQueryList.removeListener) {
+            mediaQueryList.removeListener(handleMediaChange)
+          }
+        }
         cleanup()
       }
 
-      frameWindow.addEventListener('afterprint', handleAfterPrint)
-      frameWindow.focus()
-      frameWindow.print()
+      const handleMediaChange = (event) => {
+        if (!event.matches) finish()
+      }
 
-      // Fallback cleanup only after 60s in case browser does not fire afterprint
-      window.setTimeout(() => {
-        frameWindow.removeEventListener('afterprint', handleAfterPrint)
-        cleanup()
-      }, 60000)
+      // On Safari / some Windows Chrome & Edge setups, iframe afterprint never fires;
+      // when the OS print dialog closes, focus returns to the parent window immediately.
+      const handleParentFocus = () => {
+        if (focusTimer) window.clearTimeout(focusTimer)
+        focusTimer = window.setTimeout(finish, 350)
+      }
+
+      frameWindow.addEventListener('afterprint', finish)
+      window.addEventListener('afterprint', finish)
+      window.addEventListener('focus', handleParentFocus)
+      if (mediaQueryList) {
+        if (mediaQueryList.addEventListener) {
+          mediaQueryList.addEventListener('change', handleMediaChange)
+        } else if (mediaQueryList.addListener) {
+          mediaQueryList.addListener(handleMediaChange)
+        }
+      }
+
+      try {
+        frameWindow.focus()
+        frameWindow.print()
+      } catch {
+        finish()
+        return
+      }
+
+      // Hard safety cleanup (15s) so the modal can never stay stuck on any system
+      fallbackTimer = window.setTimeout(finish, 15000)
     }
 
     if (frameWindow.document.readyState === 'complete') {

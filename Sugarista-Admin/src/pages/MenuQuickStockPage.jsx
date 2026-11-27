@@ -15,6 +15,7 @@ import {
   toIsoDateOnly,
 } from '../utils/quickStockHelpers.js'
 import './MenuQuickStockPage.css'
+import './MenuSectionMinimal.css'
 
 const EXPIRY_PRESETS = [
   { days: 0, label: 'امروز' },
@@ -398,7 +399,7 @@ export function MenuQuickStockPage() {
   const summary = board?.summary
 
   return (
-    <div className="qs-shell">
+    <div className="qs-shell menu-minimal-scope">
       {/* ── Minimal Header & Clickable KPI Filter Strip ── */}
       <section className="panel qs-top-panel">
         <div className="qs-head-row">

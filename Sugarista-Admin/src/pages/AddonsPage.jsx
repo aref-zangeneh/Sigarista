@@ -1,5 +1,6 @@
 import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
+import './MenuSectionMinimal.css'
 
 export function AddonsPage() {
   const {
@@ -20,7 +21,7 @@ export function AddonsPage() {
   } = useAdmin()
 
   return (
-      <section className="two-column-layout">
+      <section className="two-column-layout menu-minimal-scope">
         <form
           className="panel form-panel"
           onSubmit={async (event) => {

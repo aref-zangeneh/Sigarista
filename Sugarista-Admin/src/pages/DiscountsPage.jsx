@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
+import './MenuSectionMinimal.css'
 
 const CUSTOMER_GROUP_OPTIONS = [
   { value: 'All', label: 'همه مشتریان' },
@@ -86,7 +87,7 @@ export function DiscountsPage() {
   }
 
   return (
-      <section className="two-column-layout">
+      <section className="two-column-layout menu-minimal-scope">
         <form
           className="panel form-panel"
           onSubmit={async (event) => {

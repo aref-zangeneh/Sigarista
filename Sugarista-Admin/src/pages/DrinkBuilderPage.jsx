@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
+import './MenuSectionMinimal.css'
 
 const UNITS = [
   { value: 'Gram', label: 'گرم' },
@@ -563,7 +564,7 @@ export function DrinkBuilderPage() {
   }
 
   return (
-    <section className="panel-stack">
+    <section className="panel-stack menu-minimal-scope">
       <section className="panel">
         <div className="panel-head">
           <div>

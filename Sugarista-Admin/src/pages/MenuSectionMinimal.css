@@ -1,0 +1,168 @@
+/* ============================================================
+   Unified Minimal Design System for Menu & Products Pages
+   Scoped strictly to `.menu-minimal-scope` — zero side effects
+   on POS, Orders, Accounting, or other admin sections.
+   ============================================================ */
+
+.menu-minimal-scope {
+  gap: 0.9rem;
+}
+
+.menu-minimal-scope.two-column-layout {
+  grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 1120px) {
+  .menu-minimal-scope.two-column-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Calm hairline cards — remove heavy shadows & visual noise */
+.menu-minimal-scope .panel {
+  border-radius: 13px;
+  border: 1px solid var(--border);
+  box-shadow: none;
+  padding: 1rem 1.1rem;
+  gap: 0.85rem;
+}
+
+.menu-minimal-scope .panel-head {
+  padding-bottom: 0.7rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 1px solid var(--border);
+  gap: 0.65rem;
+}
+
+.menu-minimal-scope .panel-head h2,
+.menu-minimal-scope .panel-head h3 {
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.menu-minimal-scope .panel-head p {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0.2rem 0 0;
+  line-height: 1.5;
+}
+
+/* Clean, lighter form sections */
+.menu-minimal-scope .form-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  gap: 0.6rem;
+}
+
+.menu-minimal-scope .form-section h4 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--heading);
+  margin: 0 0 0.2rem;
+}
+
+.menu-minimal-scope .field-grid {
+  gap: 0.65rem;
+}
+
+/* Minimal, uniform form controls */
+.menu-minimal-scope label > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.menu-minimal-scope input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='color']),
+.menu-minimal-scope select,
+.menu-minimal-scope textarea {
+  min-height: 36px;
+  padding: 0.4rem 0.68rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 0.84rem;
+  box-shadow: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.menu-minimal-scope textarea {
+  min-height: 76px;
+  padding: 0.5rem 0.68rem;
+}
+
+.menu-minimal-scope input:not([type='checkbox']):not([type='radio']):focus,
+.menu-minimal-scope select:focus,
+.menu-minimal-scope textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--brand-accent-soft);
+  outline: none;
+}
+
+.menu-minimal-scope .checkbox-row {
+  font-size: 0.82rem;
+  gap: 0.45rem;
+}
+
+/* Minimal buttons */
+.menu-minimal-scope button:not(.nav-group-toggle):not(.topbar-icon-btn):not(.qs-kpi-pill) {
+  min-height: 34px;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.menu-minimal-scope .ghost-button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.menu-minimal-scope .ghost-button:hover:not(:disabled) {
+  background: var(--tint-strong);
+}
+
+/* Refined, breathable tables */
+.menu-minimal-scope table {
+  font-size: 0.83rem;
+}
+
+.menu-minimal-scope thead th {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0.58rem 0.6rem;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+}
+
+.menu-minimal-scope tbody td {
+  padding: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.menu-minimal-scope tbody tr:hover {
+  background: var(--tint-strong);
+}
+
+/* Quick Stock minimal refinements */
+.menu-minimal-scope.qs-shell .qs-top-panel {
+  padding: 0.9rem 1.05rem;
+}
+
+.menu-minimal-scope.qs-shell .qs-kpi-pill {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+/* Blog CMS minimal refinements */
+.menu-minimal-scope.blog-shell .blog-hero-bar {
+  gap: 0.65rem;
+}

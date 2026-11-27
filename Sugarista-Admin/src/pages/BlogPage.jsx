@@ -16,6 +16,7 @@ import {
 } from '../utils/blogSeoAnalyzer'
 import { uploadImage, validateImageFile } from '../utils/imageUpload'
 import './BlogPage.css'
+import './MenuSectionMinimal.css'
 
 const STATUS_LABELS = {
   Published: 'منتشرشده',
@@ -660,7 +661,7 @@ export function BlogPage() {
   )
 
   return (
-    <div className="blog-shell">
+    <div className="blog-shell menu-minimal-scope">
       {/* ── هدر و دسترسی سریع ─────────────────────────────── */}
       <section className="panel">
         <div className="blog-hero-bar">

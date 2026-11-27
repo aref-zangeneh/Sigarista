@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAdmin } from '../context/AdminContext'
+import './MenuSectionMinimal.css'
 import { formatMoney } from '../components/DataTable'
 import { NumberStepperInput } from '../components/NumberStepperInput.jsx'
 import { applyOptionGroupRuleChange } from '../utils/optionGroupRules'
@@ -408,7 +409,7 @@ export function OptionTemplatesPage() {
   )
 
   return (
-    <section className="page-grid">
+    <section className="page-grid menu-minimal-scope">
       <section className="panel full-width">
         <div className="panel-head">
           <div>

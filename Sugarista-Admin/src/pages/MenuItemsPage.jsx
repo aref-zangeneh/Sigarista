@@ -15,6 +15,7 @@ import {
   inferDefaultVolumeUnit,
   parseVolumeValue,
 } from '../utils/volumeUnit'
+import './MenuSectionMinimal.css'
 
 export function MenuItemsPage() {
   const {
@@ -217,7 +218,7 @@ export function MenuItemsPage() {
   )
 
   return (
-      <section className="two-column-layout">
+      <section className="two-column-layout menu-minimal-scope">
         <form className="panel form-panel" onSubmit={handleMenuItemSubmit}>
           <div className="panel-head">
             <div>

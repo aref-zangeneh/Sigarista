@@ -1,0 +1,470 @@
+/* ============================================================
+   MenuItemsPage — Full-Width Table-First + Minimal Editor Form
+   Responsive across Desktop, Tablet, and Mobile (RTL-first)
+   ============================================================ */
+
+.mi-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.mi-page > .panel,
+.mi-page > section,
+.mi-page > form {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ── Top Table Panel ── */
+.mi-list-panel .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.mi-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ── Editor Panel (Below Table) ── */
+.mi-editor-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  scroll-margin-top: 16px;
+}
+
+.mi-editor-panel .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.mi-editor-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.mi-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--tint-strong);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.mi-mode-pill.is-editing {
+  background: var(--brand-accent-soft);
+  color: var(--accent);
+  border-color: rgba(170, 49, 113, 0.28);
+}
+
+/* ── Uniform Section Cards inside Editor ── */
+.mi-editor-panel .form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.mi-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px dashed var(--border);
+}
+
+.mi-section-header h4 {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--heading);
+}
+
+.mi-section-header span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ── Field Grids (strictly responsive, zero overlap) ── */
+.mi-editor-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.mi-editor-panel label > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.mi-editor-panel input:not([type='checkbox']):not([type='radio']),
+.mi-editor-panel select,
+.mi-editor-panel textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.mi-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.mi-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.mi-split-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+/* ── Base Pricing Row Override (prevents App.css inline flex squeeze) ── */
+.mi-editor-panel .mi-base-price-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
+/* ── Inventory Track Box ── */
+.mi-editor-panel .inventory-track-box {
+  padding: 0.85rem 0.95rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mi-editor-panel .checkbox-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.mi-editor-panel .checkbox-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.mi-editor-panel .checkbox-row > span {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 0.82rem;
+}
+
+/* ── Variant / Size Cards ── */
+.mi-editor-panel .mi-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.mi-editor-panel .variant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--panel);
+  min-width: 0;
+  transition: border-color 0.15s ease;
+}
+
+.mi-editor-panel .variant-card:focus-within {
+  border-color: rgba(170, 49, 113, 0.35);
+}
+
+.mi-editor-panel .variant-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.mi-editor-panel .variant-card-head strong {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.mi-editor-panel .variant-card-head span {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+/* ── Volume Input Group ── */
+.mi-editor-panel .volume-input-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 86px;
+  gap: 0.45rem;
+  align-items: center;
+  width: 100%;
+}
+
+/* ── Toggles Strip (Featured / Active / Orderable) ── */
+.mi-toggles-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding-top: 0.25rem;
+}
+
+.mi-toggle-chip {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.mi-toggle-chip:hover {
+  border-color: rgba(170, 49, 113, 0.3);
+  background: var(--tint-strong);
+}
+
+.mi-toggle-chip input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.mi-toggle-chip > span {
+  color: var(--text) !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  white-space: nowrap;
+}
+
+/* ── Recipe / Ingredient Lines ── */
+.mi-recipe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.mi-editor-panel .recipe-line-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 120px auto 36px;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.mi-editor-panel .recipe-line-qty {
+  width: 100%;
+}
+
+.mi-editor-panel .recipe-line-show {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.mi-editor-panel .recipe-line-show input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+
+.mi-editor-panel .recipe-line-show > span {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.mi-editor-panel .recipe-line-remove {
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--danger, #dc2626);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mi-editor-panel .recipe-line-remove:hover {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.mi-recipe-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* ── Form Footer Bar ── */
+.mi-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.mi-form-footer-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.mi-form-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.mi-form-footer-actions button[type='submit'] {
+  min-width: 165px;
+}
+
+/* ── Auto Pricing Panel Controls ── */
+.mi-page .pricing-panel .panel-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.mi-page .pricing-bulk-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.mi-page .pricing-bulk-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 140px;
+}
+
+/* ── Tablet Breakpoint (≤ 1024px) ── */
+@media (max-width: 1024px) {
+  .mi-split-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .mi-editor-panel .mi-variant-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mi-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── Mobile Breakpoint (≤ 680px) ── */
+@media (max-width: 680px) {
+  .mi-editor-panel .form-section {
+    padding: 0.85rem;
+  }
+
+  .mi-grid-2,
+  .mi-grid-3,
+  .mi-editor-panel .mi-base-price-grid,
+  .mi-editor-panel .mi-variant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mi-editor-panel .recipe-line-row {
+    grid-template-columns: minmax(0, 1fr) 36px;
+  }
+
+  .mi-editor-panel .recipe-line-row select,
+  .mi-editor-panel .recipe-line-row .recipe-line-static {
+    grid-column: 1 / -1;
+  }
+
+  .mi-editor-panel .recipe-line-qty {
+    grid-column: 1 / 2;
+  }
+
+  .mi-editor-panel .recipe-line-remove {
+    grid-column: 2 / 3;
+  }
+
+  .mi-editor-panel .recipe-line-show {
+    grid-column: 1 / -1;
+  }
+
+  .mi-form-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mi-form-footer-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .mi-form-footer-actions > button {
+    flex: 1 1 0;
+  }
+
+  .mi-toggle-chip {
+    flex: 1 1 100%;
+  }
+}

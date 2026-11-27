@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { PaginatedAdminTable } from '../components/PaginatedAdminTable'
 import { DataTable, formatMoney } from '../components/DataTable'
@@ -16,6 +16,7 @@ import {
   parseVolumeValue,
 } from '../utils/volumeUnit'
 import './MenuSectionMinimal.css'
+import './MenuItemsPage.css'
 
 export function MenuItemsPage() {
   const {
@@ -51,6 +52,25 @@ export function MenuItemsPage() {
   const [manualByItem, setManualByItem] = useState({})
   const [bulkMarkup, setBulkMarkup] = useState('30')
   const [volumeUnitOverrides, setVolumeUnitOverrides] = useState({})
+  const editorFormRef = useRef(null)
+  const prevEditingIdRef = useRef(menuItemForm.id ?? '')
+
+  const scrollToEditor = useCallback(() => {
+    editorFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  useEffect(() => {
+    const currentId = menuItemForm.id ?? ''
+    if (currentId && currentId !== prevEditingIdRef.current) {
+      scrollToEditor()
+    }
+    prevEditingIdRef.current = currentId
+  }, [menuItemForm.id, scrollToEditor])
+
+  const handleStartNewItem = () => {
+    resetMenuItemForm()
+    scrollToEditor()
+  }
 
   const selectedCategory = useMemo(
     () => (categoryOptions ?? []).find((cat) => cat.id === menuItemForm.categoryId),
@@ -218,39 +238,76 @@ export function MenuItemsPage() {
   )
 
   return (
-      <section className="two-column-layout menu-minimal-scope">
-        <form className="panel form-panel" onSubmit={handleMenuItemSubmit}>
+      <section className="mi-page menu-minimal-scope">
+        <section className="panel mi-list-panel">
           <div className="panel-head">
             <div>
-              <h3>{menuItemForm.id ? 'ویرایش آیتم منو' : 'آیتم جدید منو'}</h3>
+              <h3>آیتم‌های موجود منو</h3>
+              <p>لیست کامل محصولات منو با جستجو، فیلتر و صفحه‌بندی مستقیم از سرور</p>
+            </div>
+            <div className="mi-head-actions">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleStartNewItem}
+              >
+                + افزودن آیتم جدید
+              </button>
+            </div>
+          </div>
+          <PaginatedAdminTable
+            apiPath="/admin/menu-items"
+            token={session.token}
+            columns={menuItemColumns}
+            enabled
+            reloadToken={tableReloadToken}
+            searchPlaceholder="جستجو در آیتم‌های منو..."
+          />
+        </section>
+
+        <form ref={editorFormRef} className="panel mi-editor-panel" onSubmit={handleMenuItemSubmit}>
+          <div className="panel-head">
+            <div>
+              <div className="mi-editor-title-wrap">
+                <h3>{menuItemForm.id ? 'ویرایش آیتم منو' : 'افزودن آیتم جدید منو'}</h3>
+                <span className={`mi-mode-pill ${menuItemForm.id ? 'is-editing' : ''}`}>
+                  {menuItemForm.id ? 'در حال ویرایش' : 'آیتم جدید'}
+                </span>
+              </div>
               <p>آیتم‌های منو هم در بخش پرفروش‌ها و هم در منوی عمومی نمایش داده می‌شوند.</p>
             </div>
-            <button type="button" className="ghost-button" onClick={resetMenuItemForm}>
-              پاک کردن فرم
-            </button>
+            <div className="mi-head-actions">
+              <button type="button" className="ghost-button" onClick={resetMenuItemForm}>
+                پاک کردن فرم
+              </button>
+            </div>
           </div>
-          <label>
-            <span>دسته‌بندی</span>
-            <select
-              value={menuItemForm.categoryId}
-              onChange={(event) =>
-                setMenuItemForm((currentForm) => ({
-                  ...currentForm,
-                  categoryId: event.target.value,
-                }))
-              }
-            >
-              <option value="">یک دسته‌بندی انتخاب کنید</option>
-              {categoryOptions.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
+
           <div className="form-section">
-            <h4>هویت آیتم</h4>
-            <div className="field-grid">
+            <div className="mi-section-header">
+              <h4>هویت و دسته‌بندی</h4>
+              <span>اطلاعات اصلی نمایش در منوی دیجیتال</span>
+            </div>
+            <div className="mi-grid-3">
+              <label>
+                <span>دسته‌بندی</span>
+                <select
+                  value={menuItemForm.categoryId}
+                  onChange={(event) =>
+                    setMenuItemForm((currentForm) => ({
+                      ...currentForm,
+                      categoryId: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">یک دسته‌بندی انتخاب کنید</option>
+                  {categoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label>
                 <span>نام فارسی</span>
                 <input
@@ -277,56 +334,65 @@ export function MenuItemsPage() {
                 />
               </label>
             </div>
+            <label>
+              <span>توضیحات</span>
+              <textarea
+                rows="3"
+                value={menuItemForm.description}
+                onChange={(event) =>
+                  setMenuItemForm((currentForm) => ({
+                    ...currentForm,
+                    description: event.target.value,
+                  }))
+                }
+              />
+            </label>
           </div>
-          <label>
-            <span>توضیحات</span>
-            <textarea
-              rows="4"
-              value={menuItemForm.description}
-              onChange={(event) =>
-                setMenuItemForm((currentForm) => ({
-                  ...currentForm,
-                  description: event.target.value,
-                }))
-              }
-            />
-          </label>
+
           <div className="form-section">
-            <h4>تصاویر</h4>
-            <ImageUploader
-              label="تصویر اصلی"
-              hint="برای نمایش در منوی مشتری — طبق طراحی، تصویر مربعی بهترین نتیجه را می‌دهد"
-              value={menuItemForm.imageUrl ?? ''}
-              token={session?.token}
-              onChange={(url) =>
-                setMenuItemForm((currentForm) => ({
-                  ...currentForm,
-                  imageUrl: url ?? '',
-                }))
-              }
-            />
-            <ImageUploader
-              label="گالری تصاویر"
-              hint="با کشیدن فایل، هر تعداد عکس اضافه کنید؛ ترتیب با فلش‌ها قابل جابه‌جایی است"
-              multiple
-              allowUrl={false}
-              value={(menuItemForm.galleryImageUrls ?? '')
-                .split('\n')
-                .map((line) => line.trim())
-                .filter(Boolean)}
-              token={session?.token}
-              onChange={(urls) =>
-                setMenuItemForm((currentForm) => ({
-                  ...currentForm,
-                  galleryImageUrls: (urls ?? []).join('\n'),
-                }))
-              }
-            />
+            <div className="mi-section-header">
+              <h4>تصاویر محصول</h4>
+              <span>تصویر کاور مربعی و گالری تصاویر تکمیلی</span>
+            </div>
+            <div className="mi-grid-2">
+              <ImageUploader
+                label="تصویر اصلی"
+                hint="برای نمایش در منوی مشتری — طبق طراحی، تصویر مربعی بهترین نتیجه را می‌دهد"
+                value={menuItemForm.imageUrl ?? ''}
+                token={session?.token}
+                onChange={(url) =>
+                  setMenuItemForm((currentForm) => ({
+                    ...currentForm,
+                    imageUrl: url ?? '',
+                  }))
+                }
+              />
+              <ImageUploader
+                label="گالری تصاویر"
+                hint="با کشیدن فایل، هر تعداد عکس اضافه کنید؛ ترتیب با فلش‌ها قابل جابه‌جایی است"
+                multiple
+                allowUrl={false}
+                value={(menuItemForm.galleryImageUrls ?? '')
+                  .split('\n')
+                  .map((line) => line.trim())
+                  .filter(Boolean)}
+                token={session?.token}
+                onChange={(urls) =>
+                  setMenuItemForm((currentForm) => ({
+                    ...currentForm,
+                    galleryImageUrls: (urls ?? []).join('\n'),
+                  }))
+                }
+              />
+            </div>
           </div>
-    
+
           <div className="form-section">
-            <h4>قیمت‌گذاری و سایزها</h4>
-            <div className="form-row form-row-base-price">
+            <div className="mi-section-header">
+              <h4>قیمت‌گذاری، موجودی و سایزها</h4>
+              <span>قیمت پایه یا قیمت تفکیکی بر اساس سایز</span>
+            </div>
+            <div className="mi-base-price-grid">
               <label>
                 <span>قیمت فروش پایه (آیتم بدون سایز)</span>
                 <input
@@ -404,7 +470,7 @@ export function MenuItemsPage() {
                       ) : null}
                     </div>
                   ) : menuItemForm.id ? (
-                    <div className="option-groups-actions" style={{ marginTop: 4 }}>
+                    <div className="option-groups-actions">
                       <button
                         type="button"
                         className="link-button"
@@ -421,7 +487,7 @@ export function MenuItemsPage() {
                     </div>
                   ) : null}
 
-                  <label style={{ marginTop: 6 }}>
+                  <label>
                     <span>یادداشت تغییر قیمت (اختیاری — در لاگ تاریخچه قیمت ثبت می‌شود)</span>
                     <input
                       maxLength="500"
@@ -466,7 +532,7 @@ export function MenuItemsPage() {
               </label>
 
               {menuItemForm.trackInventory ? (
-                <div className="field-grid compact-grid" style={{ marginTop: 10 }}>
+                <div className="mi-grid-2">
                   <label>
                     <span>تعداد موجودی فعلی</span>
                     <NumberStepperInput
@@ -498,14 +564,18 @@ export function MenuItemsPage() {
                 </div>
               ) : null}
             </div>
-            <div className="variant-grid">
+
+            <div className="mi-variant-grid">
               {[
                 ['small', 'کوچک'],
                 ['medium', 'متوسط'],
                 ['large', 'بزرگ'],
               ].map(([variantKey, variantLabel]) => (
                 <div key={variantKey} className="variant-card">
-                  <strong>{menuItemForm[`${variantKey}Name`]?.trim() || variantLabel}</strong>
+                  <div className="variant-card-head">
+                    <strong>{menuItemForm[`${variantKey}Name`]?.trim() || variantLabel}</strong>
+                    <span>سایز {variantLabel}</span>
+                  </div>
                   <label>
                     <span>نام نمایشی سایز (اختیاری)</span>
                     <input
@@ -520,36 +590,38 @@ export function MenuItemsPage() {
                       }
                     />
                   </label>
-                  <label>
-                    <span>قیمت</span>
-                    <input
-                      className="ltr-input"
-                      type="number"
-                      min="0"
-                      value={menuItemForm[`${variantKey}Price`]}
-                      onChange={(event) =>
-                        setMenuItemForm((currentForm) => ({
-                          ...currentForm,
-                          [`${variantKey}Price`]: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>قیمت پیشنهادی</span>
-                    <input
-                      className="ltr-input"
-                      type="number"
-                      min="0"
-                      value={menuItemForm[`${variantKey}SpecialOfferPrice`]}
-                      onChange={(event) =>
-                        setMenuItemForm((currentForm) => ({
-                          ...currentForm,
-                          [`${variantKey}SpecialOfferPrice`]: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
+                  <div className="mi-grid-2">
+                    <label>
+                      <span>قیمت</span>
+                      <input
+                        className="ltr-input"
+                        type="number"
+                        min="0"
+                        value={menuItemForm[`${variantKey}Price`]}
+                        onChange={(event) =>
+                          setMenuItemForm((currentForm) => ({
+                            ...currentForm,
+                            [`${variantKey}Price`]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>قیمت پیشنهادی</span>
+                      <input
+                        className="ltr-input"
+                        type="number"
+                        min="0"
+                        value={menuItemForm[`${variantKey}SpecialOfferPrice`]}
+                        onChange={(event) =>
+                          setMenuItemForm((currentForm) => ({
+                            ...currentForm,
+                            [`${variantKey}SpecialOfferPrice`]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
                   <label>
                     <span>حجم / وزن همین سایز</span>
                     <div className="volume-input-group">
@@ -582,7 +654,8 @@ export function MenuItemsPage() {
                 </div>
               ))}
             </div>
-            <div className="field-grid">
+
+            <div className="mi-grid-2">
               <label>
                 <span>قیمت پیشنهادی عمومی</span>
                 <input
@@ -616,40 +689,45 @@ export function MenuItemsPage() {
               </label>
             </div>
           </div>
-    
-          <div className="form-section">
-            <h4>جزئیات محصول</h4>
-            <div className="field-grid">
-              <label>
-                <span>زمان آماده‌سازی (دقیقه)</span>
-                <input
-                  className="ltr-input"
-                  type="number"
-                  min="0"
-                  value={menuItemForm.preparingDurationMinutes}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      preparingDurationMinutes: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span>کالری</span>
-                <input
-                  className="ltr-input"
-                  type="number"
-                  min="0"
-                  value={menuItemForm.calories}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      calories: event.target.value,
-                    }))
-                  }
-                />
-              </label>
+
+          <div className="mi-split-sections">
+            <div className="form-section">
+              <div className="mi-section-header">
+                <h4>جزئیات محصول</h4>
+                <span>مشخصات تغذیه‌ای و آماده‌سازی</span>
+              </div>
+              <div className="mi-grid-2">
+                <label>
+                  <span>زمان آماده‌سازی (دقیقه)</span>
+                  <input
+                    className="ltr-input"
+                    type="number"
+                    min="0"
+                    value={menuItemForm.preparingDurationMinutes}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        preparingDurationMinutes: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>کالری</span>
+                  <input
+                    className="ltr-input"
+                    type="number"
+                    min="0"
+                    value={menuItemForm.calories}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        calories: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
               <label>
                 <span>حجم / وزن عمومی</span>
                 <div className="volume-input-group">
@@ -689,208 +767,215 @@ export function MenuItemsPage() {
                 />
               </label>
             </div>
+
+            <div className="form-section">
+              <div className="mi-section-header">
+                <h4>نمایش و وضعیت</h4>
+                <span>تنظیمات انتشار در منو و کارت محصول</span>
+              </div>
+              <label>
+                <span>برچسب‌ها (با کاما جدا کنید)</span>
+                <input
+                  value={menuItemForm.tags}
+                  onChange={(event) =>
+                    setMenuItemForm((currentForm) => ({ ...currentForm, tags: event.target.value }))
+                  }
+                />
+              </label>
+              <div className="mi-grid-2">
+                <label>
+                  <span>نشان ویژه</span>
+                  <input
+                    value={menuItemForm.badge}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({ ...currentForm, badge: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>حروف کوتاه</span>
+                  <input
+                    className="ltr-input"
+                    value={menuItemForm.shortLabel}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        shortLabel: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>ترتیب نمایش</span>
+                  <input
+                    className="ltr-input"
+                    type="number"
+                    value={menuItemForm.displayOrder}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        displayOrder: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>گرادینت پس‌زمینه</span>
+                  <input
+                    className="ltr-input"
+                    value={menuItemForm.accent}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({ ...currentForm, accent: event.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="mi-toggles-row">
+                <label className="mi-toggle-chip">
+                  <input
+                    type="checkbox"
+                    checked={menuItemForm.featured}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        featured: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>در بخش ویژه نمایش داده شود</span>
+                </label>
+                <label className="mi-toggle-chip">
+                  <input
+                    type="checkbox"
+                    checked={menuItemForm.isActive}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        isActive: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>قابل نمایش باشد</span>
+                </label>
+                <label className="mi-toggle-chip">
+                  <input
+                    type="checkbox"
+                    checked={menuItemForm.isOrderable}
+                    onChange={(event) =>
+                      setMenuItemForm((currentForm) => ({
+                        ...currentForm,
+                        isOrderable: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>قابل سفارش باشد</span>
+                </label>
+              </div>
+            </div>
           </div>
-    
+
           <div className="form-section">
-            <h4>محتویات (مواد اولیه)</h4>
+            <div className="mi-section-header">
+              <h4>محتویات (مواد اولیه)</h4>
+              <span>مبنای کسر از انبار، نمایش به مشتری و محاسبه بهای تمام‌شده</span>
+            </div>
             <p className="form-hint">
               مواد تشکیل‌دهندهٔ آیتم را از میان مواد اولیه انتخاب کنید. مواردی که «نمایش به مشتری» دارند
               در منوی دیجیتال به مشتری نشان داده می‌شوند؛ مقدار مصرف هم مبنای کسر از انبار و قیمت‌گذاری خودکار است.
             </p>
             {(menuItemForm.recipeLines ?? []).length === 0 ? (
               <p className="form-hint">هنوز ماده‌ای انتخاب نشده است.</p>
-            ) : null}
-            {(menuItemForm.recipeLines ?? []).map((line, index) => {
-              const selectedOption = (ingredientOptions ?? []).find(
-                (option) => option.id === line.ingredientId,
-              )
-              const pickableOptions = (ingredientOptions ?? []).filter(
-                (option) =>
-                  option.kind === 'ingredient' &&
-                  (option.isActive || option.id === line.ingredientId),
-              )
+            ) : (
+              <div className="mi-recipe-list">
+                {(menuItemForm.recipeLines ?? []).map((line, index) => {
+                  const selectedOption = (ingredientOptions ?? []).find(
+                    (option) => option.id === line.ingredientId,
+                  )
+                  const pickableOptions = (ingredientOptions ?? []).filter(
+                    (option) =>
+                      option.kind === 'ingredient' &&
+                      (option.isActive || option.id === line.ingredientId),
+                  )
 
-              return (
-                <div key={index} className="recipe-line-row">
-                  {selectedOption || !line.ingredientId ? (
-                    <select
-                      value={line.ingredientId}
-                      onChange={(event) =>
-                        updateRecipeLine(index, { ingredientId: event.target.value })
-                      }
-                    >
-                      <option value="">-- انتخاب ماده --</option>
-                      {pickableOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.persianName} ({option.unit})
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="recipe-line-static" title="این قلم در صفحه دستور پخت ثبت شده است">
-                      {line.ingredientPersianName || 'قلم ثبت‌شدهٔ قبلی'}
-                    </span>
-                  )}
-                  <input
-                    className="ltr-input recipe-line-qty"
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    placeholder="مقدار"
-                    title="مقدار مصرف در هر عدد آیتم"
-                    value={line.quantity ?? ''}
-                    onChange={(event) =>
-                      updateRecipeLine(index, { quantity: event.target.value })
-                    }
-                  />
-                  <label className="recipe-line-show">
-                    <input
-                      type="checkbox"
-                      checked={line.showToCustomer !== false}
-                      onChange={(event) =>
-                        updateRecipeLine(index, { showToCustomer: event.target.checked })
-                      }
-                    />
-                    <span>نمایش به مشتری</span>
-                  </label>
-                  <button
-                    type="button"
-                    className="recipe-line-remove"
-                    title="حذف این ماده"
-                    onClick={() => removeRecipeLine(index)}
-                  >
-                    −
-                  </button>
-                </div>
-              )
-            })}
-            <button type="button" className="ghost-button recipe-line-add" onClick={addRecipeLine}>
-              + افزودن ماده
-            </button>
-          </div>
-
-          <div className="form-section">
-            <h4>نمایش و وضعیت</h4>
-            <label>
-              <span>برچسب‌ها (با کاما جدا کنید)</span>
-              <input
-                value={menuItemForm.tags}
-                onChange={(event) =>
-                  setMenuItemForm((currentForm) => ({ ...currentForm, tags: event.target.value }))
-                }
-              />
-            </label>
-            <div className="field-grid">
-              <label>
-                <span>نشان ویژه</span>
-                <input
-                  value={menuItemForm.badge}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({ ...currentForm, badge: event.target.value }))
-                  }
-                />
-              </label>
-              <label>
-                <span>حروف کوتاه</span>
-                <input
-                  className="ltr-input"
-                  value={menuItemForm.shortLabel}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      shortLabel: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span>ترتیب نمایش</span>
-                <input
-                  className="ltr-input"
-                  type="number"
-                  value={menuItemForm.displayOrder}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      displayOrder: Number(event.target.value),
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span>گرادینت پس‌زمینه</span>
-                <input
-                  className="ltr-input"
-                  value={menuItemForm.accent}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({ ...currentForm, accent: event.target.value }))
-                  }
-                />
-              </label>
-            </div>
-            <div className="field-grid compact-grid">
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={menuItemForm.featured}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      featured: event.target.checked,
-                    }))
-                  }
-                />
-                <span>در بخش ویژه نمایش داده شود</span>
-              </label>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={menuItemForm.isActive}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      isActive: event.target.checked,
-                    }))
-                  }
-                />
-                <span>قابل نمایش باشد</span>
-              </label>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={menuItemForm.isOrderable}
-                  onChange={(event) =>
-                    setMenuItemForm((currentForm) => ({
-                      ...currentForm,
-                      isOrderable: event.target.checked,
-                    }))
-                  }
-                />
-                <span>قابل سفارش باشد</span>
-              </label>
+                  return (
+                    <div key={index} className="recipe-line-row">
+                      {selectedOption || !line.ingredientId ? (
+                        <select
+                          value={line.ingredientId}
+                          onChange={(event) =>
+                            updateRecipeLine(index, { ingredientId: event.target.value })
+                          }
+                        >
+                          <option value="">-- انتخاب ماده --</option>
+                          {pickableOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.persianName} ({option.unit})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="recipe-line-static" title="این قلم در صفحه دستور پخت ثبت شده است">
+                          {line.ingredientPersianName || 'قلم ثبت‌شدهٔ قبلی'}
+                        </span>
+                      )}
+                      <input
+                        className="ltr-input recipe-line-qty"
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        placeholder="مقدار"
+                        title="مقدار مصرف در هر عدد آیتم"
+                        value={line.quantity ?? ''}
+                        onChange={(event) =>
+                          updateRecipeLine(index, { quantity: event.target.value })
+                        }
+                      />
+                      <label className="recipe-line-show">
+                        <input
+                          type="checkbox"
+                          checked={line.showToCustomer !== false}
+                          onChange={(event) =>
+                            updateRecipeLine(index, { showToCustomer: event.target.checked })
+                          }
+                        />
+                        <span>نمایش به مشتری</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="recipe-line-remove"
+                        title="حذف این ماده"
+                        onClick={() => removeRecipeLine(index)}
+                      >
+                        −
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div className="mi-recipe-footer">
+              <button type="button" className="ghost-button recipe-line-add" onClick={addRecipeLine}>
+                + افزودن ماده
+              </button>
             </div>
           </div>
-          <button type="submit" disabled={saving || !categoryOptions.length}>
-            {saving ? 'در حال ذخیره...' : 'ذخیره آیتم منو'}
-          </button>
+
+          <div className="mi-form-footer">
+            <span className="mi-form-footer-hint">
+              {menuItemForm.id
+                ? 'تغییرات پس از ذخیره بلافاصله در منوی دیجیتال و صندوق اعمال می‌شوند.'
+                : 'پس از تکمیل اطلاعات بالا، روی ذخیره بزنید تا آیتم به منو اضافه شود.'}
+            </span>
+            <div className="mi-form-footer-actions">
+              <button type="button" className="ghost-button" onClick={resetMenuItemForm}>
+                پاک کردن فرم
+              </button>
+              <button type="submit" className="primary-button" disabled={saving || !categoryOptions.length}>
+                {saving ? 'در حال ذخیره...' : menuItemForm.id ? 'ذخیره تغییرات آیتم' : 'ذخیره آیتم منو'}
+              </button>
+            </div>
+          </div>
         </form>
-    
-        <section className="panel list-panel">
-          <div className="panel-head">
-            <div>
-              <h3>آیتم‌های موجود منو</h3>
-              <p>بارگذاری صفحه‌بندی شده از سرور</p>
-            </div>
-          </div>
-          <PaginatedAdminTable
-            apiPath="/admin/menu-items"
-            token={session.token}
-            columns={menuItemColumns}
-            enabled
-            reloadToken={tableReloadToken}
-            searchPlaceholder="جستجو در آیتم‌های منو..."
-          />
-        </section>
 
         <section className="panel pricing-panel">
           <div className="panel-head">

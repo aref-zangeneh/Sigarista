@@ -78,7 +78,7 @@
   color: var(--muted);
 }
 
-.menu-minimal-scope input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='color']),
+.menu-minimal-scope input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='color']):not(.number-stepper-input):not(.qs-qty-input),
 .menu-minimal-scope select,
 .menu-minimal-scope textarea {
   min-height: 36px;
@@ -91,12 +91,21 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.menu-minimal-scope .number-stepper {
+  height: 36px;
+  border-radius: 8px;
+}
+
+.menu-minimal-scope .number-stepper .number-stepper-input {
+  font-size: 0.84rem;
+}
+
 .menu-minimal-scope textarea {
   min-height: 76px;
   padding: 0.5rem 0.68rem;
 }
 
-.menu-minimal-scope input:not([type='checkbox']):not([type='radio']):focus,
+.menu-minimal-scope input:not([type='checkbox']):not([type='radio']):not(.number-stepper-input):focus,
 .menu-minimal-scope select:focus,
 .menu-minimal-scope textarea:focus {
   border-color: var(--accent);
@@ -109,14 +118,20 @@
   gap: 0.45rem;
 }
 
-/* Minimal buttons */
-.menu-minimal-scope button:not(.nav-group-toggle):not(.topbar-icon-btn):not(.qs-kpi-pill) {
+/* Minimal buttons — preserve compact steppers & custom icon/pill buttons */
+.menu-minimal-scope button:not(.nav-group-toggle):not(.topbar-icon-btn):not(.qs-kpi-pill):not(.number-stepper-btn):not(.qs-step-btn):not(.icon-btn) {
   min-height: 34px;
   padding: 0.4rem 0.85rem;
   border-radius: 8px;
   font-size: 0.82rem;
   font-weight: 600;
   box-shadow: none;
+}
+
+.menu-minimal-scope .bundle-qty-stepper button {
+  min-height: 26px;
+  padding: 0;
+  border-radius: 50%;
 }
 
 .menu-minimal-scope .ghost-button {

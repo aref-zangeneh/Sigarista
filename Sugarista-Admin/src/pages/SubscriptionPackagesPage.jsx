@@ -302,6 +302,7 @@ export function SubscriptionPackagesPage() {
         ) : packages.length === 0 ? (
           <p>هنوز بسته‌ای ساخته نشده است.</p>
         ) : (
+          <div className="admin-table-scroll">
           <table className="admin-table">
             <thead>
               <tr>
@@ -318,19 +319,46 @@ export function SubscriptionPackagesPage() {
               </tr>
             </thead>
             <tbody>
-              {packages.map((pack, index) => (
+              {packages.map((pack, index) => {
+                const catsText = categoryNames(pack.allowedCategoryIds)
+                return (
                 <tr key={pack.id}>
                   <td>{index + 1}</td>
-                  <td>
+                  <td style={{ maxWidth: 210 }}>
                     <strong>{pack.name}</strong>
-                    {pack.description ? <div className="table-subtext">{pack.description}</div> : null}
+                    {pack.description ? (
+                      <div
+                        className="table-subtext"
+                        title={pack.description}
+                        style={{
+                          maxWidth: 200,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {pack.description}
+                      </div>
+                    ) : null}
                   </td>
                   <td>{pack.displayOrder ?? 0}</td>
                   <td>{pack.totalUseCount}</td>
                   <td>{formatPrice(pack.price)} تومان</td>
                   <td>{pack.validityDays} روز</td>
                   <td>{pack.dailyUseLimit > 0 ? pack.dailyUseLimit : 'بدون سقف'}</td>
-                  <td>{categoryNames(pack.allowedCategoryIds)}</td>
+                  <td>
+                    <div
+                      title={catsText}
+                      style={{
+                        maxWidth: 160,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {catsText}
+                    </div>
+                  </td>
                   <td>{pack.isEnabled ? 'فعال' : 'غیرفعال'}</td>
                   <td className="table-actions">
                     <button type="button" className="link-button" onClick={() => startEdit(pack)}>
@@ -341,9 +369,11 @@ export function SubscriptionPackagesPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </section>

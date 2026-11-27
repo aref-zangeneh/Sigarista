@@ -96,6 +96,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<HrGlossaryTerm> HrGlossaryTerms => Set<HrGlossaryTerm>();
 
+    public DbSet<StaffTask> StaffTasks => Set<StaffTask>();
+
+    public DbSet<StaffTaskCompletion> StaffTaskCompletions => Set<StaffTaskCompletion>();
+
+    public DbSet<StaffTaskActivityLog> StaffTaskActivityLogs => Set<StaffTaskActivityLog>();
+
     public DbSet<RecipeItem> RecipeItems => Set<RecipeItem>();
 
     public DbSet<InventoryStock> InventoryStocks => Set<InventoryStock>();

@@ -31,6 +31,25 @@ public class AdminSmsController : ApiControllerBase
             new GetSmsDashboardQuery(range, from, to, providerId, kind), cancellationToken));
     }
 
+    // ── OTP Readiness, Delivery Verification & Live Test ──
+    [HttpGet("otp-diagnostics")]
+    [RequirePermission(AdminPermissions.Sms.ViewDashboard)]
+    public async Task<ActionResult<SmsOtpDiagnosticsDto>> GetOtpDiagnostics(
+        [FromQuery] int limit = 15,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(new GetSmsOtpDiagnosticsQuery(limit), cancellationToken));
+    }
+
+    [HttpPost("otp-test")]
+    [RequirePermission(AdminPermissions.Sms.SendSingle)]
+    public async Task<ActionResult<SendTestOtpSmsResultDto>> SendTestOtp(
+        [FromBody] SendTestOtpSmsCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        return Ok(await Mediator.Send(command, cancellationToken));
+    }
+
     // ── Single send ──
     [HttpPost("send")]
     [RequirePermission(AdminPermissions.Sms.SendSingle)]

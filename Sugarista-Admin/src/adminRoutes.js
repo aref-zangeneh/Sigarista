@@ -37,6 +37,7 @@ export const adminRoutes = [
   { id: 'assets', path: 'assets-registry', label: 'اموال و تجهیزات' },
   { id: 'maintenance', path: 'equipment-maintenance', label: 'سرویس دوره‌ای تجهیزات' },
   { id: 'hr', path: 'hr', label: 'منابع انسانی' },
+  { id: 'staff-tasks', path: 'staff-tasks', label: 'تسک‌های پرسنل' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },
   { id: 'tooltips', path: 'tooltips', label: 'راهنماهای صفحه‌ها' },
   { id: 'special-routes', path: 'special-routes', label: 'مسیرهای متفرقه' },

@@ -5722,6 +5722,168 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.ToTable("SmsTemplateProviderMappings");
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.StaffTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssignedToAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DaysOfWeekMask")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(800)
+                        .HasColumnType("character varying(800)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly?>("OneTimeDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<TimeOnly>("RaiseTimeOfDay")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<int>("RecurrenceType")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("RequireNoteOnComplete")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedToAdminUserId", "IsActive");
+
+                    b.HasIndex("IsActive", "RaiseTimeOfDay");
+
+                    b.ToTable("StaffTasks", (string)null);
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.StaffTaskActivityLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid?>("ActorAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("AssignedToDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("StaffTaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TaskTitleSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.HasIndex("StaffTaskId");
+
+                    b.ToTable("StaffTaskActivityLogs", (string)null);
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.StaffTaskCompletion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CompletedByAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CompletedByDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("DelayMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateOnly>("OccurrenceDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("ScheduledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("StaffTaskId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompletedAtUtc");
+
+                    b.HasIndex("CompletedByAdminUserId");
+
+                    b.HasIndex("StaffTaskId", "OccurrenceDate")
+                        .IsUnique();
+
+                    b.ToTable("StaffTaskCompletions", (string)null);
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.StampCardReward", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7240,6 +7402,28 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Sugarista.Domain.Entities.StaffTask", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.AdminUser", "AssignedToAdminUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedToAdminUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AssignedToAdminUser");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.StaffTaskCompletion", b =>
+                {
+                    b.HasOne("Sugarista.Domain.Entities.StaffTask", "StaffTask")
+                        .WithMany("Completions")
+                        .HasForeignKey("StaffTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StaffTask");
+                });
+
             modelBuilder.Entity("Sugarista.Domain.Entities.StampCardReward", b =>
                 {
                     b.HasOne("Sugarista.Domain.Entities.Customer", "Customer")
@@ -7583,6 +7767,11 @@ namespace Sugarista.Infrastructure.Data.Migrations
             modelBuilder.Entity("Sugarista.Domain.Entities.SmsTemplate", b =>
                 {
                     b.Navigation("ProviderMappings");
+                });
+
+            modelBuilder.Entity("Sugarista.Domain.Entities.StaffTask", b =>
+                {
+                    b.Navigation("Completions");
                 });
 
             modelBuilder.Entity("Sugarista.Domain.Entities.Supplier", b =>

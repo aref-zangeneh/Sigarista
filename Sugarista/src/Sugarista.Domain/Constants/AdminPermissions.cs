@@ -169,6 +169,16 @@ public static class AdminPermissions
         public const string Delete = "admin.hr.delete";
     }
 
+    public static class StaffTasks
+    {
+        public const string View = "admin.staff-tasks.view";
+        public const string ViewAll = "admin.staff-tasks.view-all";
+        public const string Create = "admin.staff-tasks.create";
+        public const string Update = "admin.staff-tasks.update";
+        public const string Delete = "admin.staff-tasks.delete";
+        public const string ViewLogs = "admin.staff-tasks.view-logs";
+    }
+
     public static class Assets
     {
         public const string View = "admin.assets.view";
@@ -324,6 +334,12 @@ public static class AdminPermissions
         new(Hr.Create, "hr", "create", "منابع انسانی", "ثبت پرسنل / ساختار پرداخت"),
         new(Hr.Update, "hr", "update", "منابع انسانی", "ویرایش / حضور و پرداخت حقوق"),
         new(Hr.Delete, "hr", "delete", "منابع انسانی", "حذف / غیرفعال‌سازی"),
+        new(StaffTasks.View, "staff-tasks", "view", "تسک‌های پرسنل", "مشاهده و انجام تسک‌های محول‌شده به خود"),
+        new(StaffTasks.ViewAll, "staff-tasks", "view-all", "تسک‌های پرسنل", "مشاهده تسک‌ها و وضعیت تمام پرسنل"),
+        new(StaffTasks.Create, "staff-tasks", "create", "تسک‌های پرسنل", "تعریف و تخصیص تسک جدید"),
+        new(StaffTasks.Update, "staff-tasks", "update", "تسک‌های پرسنل", "ویرایش، تغییر ساعت و فعال/غیرفعال‌سازی تسک"),
+        new(StaffTasks.Delete, "staff-tasks", "delete", "تسک‌های پرسنل", "حذف تسک"),
+        new(StaffTasks.ViewLogs, "staff-tasks", "view-logs", "تسک‌های پرسنل", "مشاهده تاریخچه، تاخیرها و لاگ کامل تسک‌ها"),
         new(Assets.View, "assets", "view", "اموال و تجهیزات", "مشاهدهٔ اموال"),
         new(Assets.Create, "assets", "create", "اموال و تجهیزات", "ثبت قلم / بارگذاری عکس"),
         new(Assets.Update, "assets", "update", "اموال و تجهیزات", "ویرایش / خارج از رده کردن"),

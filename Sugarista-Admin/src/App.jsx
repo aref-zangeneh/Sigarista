@@ -39,6 +39,7 @@ import { SubscriptionPackagesPage } from './pages/SubscriptionPackagesPage'
 import { BadgesPage } from './pages/BadgesPage'
 import { ExportsPage } from './pages/ExportsPage'
 import { HrPage } from './pages/HrPage'
+import { StaffTasksPage } from './pages/StaffTasksPage.jsx'
 import { AssetsPage } from './pages/AssetsPage'
 import { EquipmentMaintenancePage } from './pages/EquipmentMaintenancePage'
 import { ActivityLogPage } from './pages/ActivityLogPage'
@@ -95,6 +96,7 @@ const pageComponents = {
   assets: AssetsPage,
   maintenance: EquipmentMaintenancePage,
   hr: HrPage,
+  'staff-tasks': StaffTasksPage,
   'site-settings': SiteSettingsPage,
   tooltips: TooltipsPage,
   'special-routes': SpecialRoutesPage,

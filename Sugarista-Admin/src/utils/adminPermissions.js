@@ -47,6 +47,14 @@ export const PERMISSIONS = {
     update: 'admin.hr.update',
     delete: 'admin.hr.delete',
   },
+  'staff-tasks': {
+    view: 'admin.staff-tasks.view',
+    viewAll: 'admin.staff-tasks.view-all',
+    create: 'admin.staff-tasks.create',
+    update: 'admin.staff-tasks.update',
+    delete: 'admin.staff-tasks.delete',
+    viewLogs: 'admin.staff-tasks.view-logs',
+  },
   suppliers: {
     view: 'admin.ingredients.view',
     create: 'admin.ingredients.create',

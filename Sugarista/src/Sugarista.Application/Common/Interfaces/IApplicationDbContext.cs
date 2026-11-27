@@ -83,6 +83,12 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.HrGlossaryTerm> HrGlossaryTerms { get; }
 
+    DbSet<Sugarista.Domain.Entities.StaffTask> StaffTasks { get; }
+
+    DbSet<Sugarista.Domain.Entities.StaffTaskCompletion> StaffTaskCompletions { get; }
+
+    DbSet<Sugarista.Domain.Entities.StaffTaskActivityLog> StaffTaskActivityLogs { get; }
+
     DbSet<Sugarista.Domain.Entities.DeliveryMethodPackaging> DeliveryMethodPackagings { get; }
 
     DbSet<Sugarista.Domain.Entities.IngredientSupplier> IngredientSuppliers { get; }

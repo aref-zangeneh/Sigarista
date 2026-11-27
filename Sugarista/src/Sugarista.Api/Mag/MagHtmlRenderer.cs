@@ -1481,26 +1481,34 @@ public static class MagHtmlRenderer
           --surface-soft:#f3eee5;
           --ink:#132533;
           --muted:#586977;
-          --border:rgba(12,52,79,.11);
-          --border-strong:rgba(12,52,79,.22);
-          --shadow-sm:0 6px 20px rgba(12,52,79,.06);
-          --shadow-md:0 16px 42px rgba(12,52,79,.10);
-          --shadow-lg:0 24px 58px rgba(12,52,79,.16);
+          --border:color-mix(in srgb,var(--mag-deep) 11%,transparent);
+          --border-strong:color-mix(in srgb,var(--mag-deep) 24%,transparent);
+          --shadow-sm:0 6px 20px color-mix(in srgb,var(--mag-deep) 7%,transparent);
+          --shadow-md:0 16px 42px color-mix(in srgb,var(--mag-deep) 12%,transparent);
+          --shadow-lg:0 24px 58px color-mix(in srgb,var(--mag-deep) 18%,transparent);
           --radius-xl:26px;
           --radius-lg:20px;
           --radius-md:14px;
         }
         [data-theme="dark"]{
-          --mag-bg:#071927;
-          --surface:#0d2538;
-          --surface-soft:#123149;
+          --mag-bg:color-mix(in srgb,var(--mag-deep) 52%,#030b12);
+          --surface:color-mix(in srgb,var(--mag-deep) 76%,#06131e);
+          --surface-soft:color-mix(in srgb,var(--mag-deep) 92%,#091b2a);
           --ink:#f2f6fa;
           --muted:#9fb5c7;
           --border:rgba(255,255,255,.11);
-          --border-strong:rgba(229,170,47,.38);
+          --border-strong:color-mix(in srgb,var(--mag-gold) 40%,transparent);
           --shadow-sm:0 8px 24px rgba(0,0,0,.28);
           --shadow-md:0 18px 44px rgba(0,0,0,.38);
           --shadow-lg:0 26px 64px rgba(0,0,0,.48);
+        }
+        @keyframes magFloat{
+          0%,100%{transform:translate3d(0,0,0) scale(1);}
+          50%{transform:translate3d(0,-14px,0) scale(1.04);}
+        }
+        @keyframes magPulse{
+          0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--mag-gold) 70%,transparent);}
+          60%{box-shadow:0 0 0 8px transparent;}
         }
         *,*::before,*::after{box-sizing:border-box;}
         html{scroll-behavior:smooth;overflow-x:clip;max-width:100%;}
@@ -1531,7 +1539,7 @@ public static class MagHtmlRenderer
           width:44px;height:44px;border-radius:13px;display:grid;place-items:center;flex-shrink:0;
           background:var(--mag-gold);color:var(--mag-deep);
           font-weight:900;font-size:1.3rem;letter-spacing:-.02em;
-          box-shadow:0 8px 22px rgba(229,170,47,.34);overflow:hidden;
+          box-shadow:0 8px 22px color-mix(in srgb,var(--mag-gold) 38%,transparent);overflow:hidden;
         }
         .mag-brand-emblem.has-img{background:#ffffff;padding:2px;}
         .mag-brand-emblem img{width:100%;height:100%;object-fit:cover;border-radius:10px;}
@@ -1543,7 +1551,7 @@ public static class MagHtmlRenderer
           color:rgba(255,255,255,.82);transition:all .2s ease;
         }
         .mag-nav-link:hover{color:#ffffff;background:rgba(255,255,255,.09);}
-        .mag-nav-link.is-active{background:rgba(229,170,47,.18);color:var(--mag-gold);box-shadow:inset 0 0 0 1px rgba(229,170,47,.42);}
+        .mag-nav-link.is-active{background:color-mix(in srgb,var(--mag-gold) 18%,transparent);color:var(--mag-gold);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mag-gold) 44%,transparent);}
         .mag-header-actions{display:flex;align-items:center;gap:10px;flex-shrink:0;}
         .mag-icon-btn{
           width:40px;height:40px;border-radius:999px;border:1px solid rgba(255,255,255,.18);
@@ -1603,16 +1611,23 @@ public static class MagHtmlRenderer
         .mag-hero{
           position:relative;overflow:hidden;
           background:
-            radial-gradient(circle at 85% 18%,color-mix(in srgb,var(--mag-magenta) 34%,transparent),transparent 46%),
-            radial-gradient(circle at 14% 78%,color-mix(in srgb,var(--mag-gold) 24%,transparent),transparent 48%),
-            linear-gradient(155deg,var(--mag-deep) 0%,color-mix(in srgb,var(--mag-deep) 78%,#051624) 100%);
+            radial-gradient(circle at 86% 16%,color-mix(in srgb,var(--mag-magenta) 38%,transparent),transparent 46%),
+            radial-gradient(circle at 12% 78%,color-mix(in srgb,var(--mag-gold) 28%,transparent),transparent 48%),
+            linear-gradient(155deg,var(--mag-deep) 0%,color-mix(in srgb,var(--mag-deep) 74%,#04131f) 100%);
           color:#ffffff;
           padding:clamp(36px,5.5vw,68px) 0 clamp(72px,8vw,98px);
         }
+        .mag-hero::before{
+          content:'';position:absolute;inset:0;pointer-events:none;opacity:.22;
+          background-image:radial-gradient(rgba(255,255,255,.28) 1px,transparent 1px);
+          background-size:26px 26px;
+          mask-image:linear-gradient(to bottom,rgba(0,0,0,.85),transparent 90%);
+          -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.85),transparent 90%);
+        }
         .mag-hero--compact{padding:32px 0 74px;}
-        .mag-hero-orb{position:absolute;border-radius:50%;pointer-events:none;filter:blur(4px);}
-        .mag-hero-orb--magenta{width:340px;height:340px;bottom:-110px;left:18%;background:color-mix(in srgb,var(--mag-magenta) 24%,transparent);}
-        .mag-hero-orb--gold{width:280px;height:280px;top:-90px;left:-60px;background:color-mix(in srgb,var(--mag-gold) 18%,transparent);}
+        .mag-hero-orb{position:absolute;border-radius:50%;pointer-events:none;filter:blur(8px);will-change:transform;}
+        .mag-hero-orb--magenta{width:340px;height:340px;bottom:-110px;left:18%;background:color-mix(in srgb,var(--mag-magenta) 28%,transparent);animation:magFloat 12s ease-in-out infinite;}
+        .mag-hero-orb--gold{width:280px;height:280px;top:-90px;left:-60px;background:color-mix(in srgb,var(--mag-gold) 22%,transparent);animation:magFloat 15s ease-in-out infinite reverse;}
         .mag-hero-orb--teal{width:380px;height:380px;bottom:-150px;left:-40px;background:rgba(255,255,255,.05);}
         .mag-hero-wave{position:absolute;bottom:-1px;inset-inline:0;line-height:0;color:var(--mag-bg);pointer-events:none;}
         .mag-hero-wave svg{width:100%;height:clamp(36px,5vw,64px);display:block;}
@@ -1620,11 +1635,12 @@ public static class MagHtmlRenderer
         .mag-hero-grid{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,.88fr);gap:clamp(28px,4vw,52px);align-items:center;}
         .mag-hero-pill{
           display:inline-flex;align-items:center;gap:9px;padding:7px 16px;border-radius:999px;margin-bottom:18px;
-          background:color-mix(in srgb,var(--mag-magenta) 34%,rgba(12,52,79,.6));
+          background:color-mix(in srgb,var(--mag-magenta) 34%,color-mix(in srgb,var(--mag-deep) 60%,transparent));
           border:1px solid color-mix(in srgb,var(--mag-magenta) 72%,#ffffff);
           color:#fff5fa;font-size:.83rem;font-weight:700;max-width:100%;
+          box-shadow:0 8px 24px color-mix(in srgb,var(--mag-magenta) 28%,transparent);
         }
-        .mag-hero-pill-dot{width:9px;height:9px;border-radius:50%;background:var(--mag-gold);box-shadow:0 0 12px var(--mag-gold);flex-shrink:0;}
+        .mag-hero-pill-dot{width:9px;height:9px;border-radius:50%;background:var(--mag-gold);box-shadow:0 0 12px var(--mag-gold);flex-shrink:0;animation:magPulse 2.6s ease-out infinite;}
         .mag-hero-title{
           margin:0 0 18px;
           font-size:clamp(2rem,4vw,3.35rem);
@@ -1650,12 +1666,17 @@ public static class MagHtmlRenderer
         /* Hero Showcase Bento Card */
         .mag-hero-visual{min-width:0;}
         .mag-hero-showcase-card{
-          display:flex;flex-direction:column;border-radius:var(--radius-xl);overflow:hidden;
+          position:relative;display:flex;flex-direction:column;border-radius:var(--radius-xl);overflow:hidden;
           background:rgba(255,255,255,.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-          border:1.5px solid rgba(255,255,255,.22);box-shadow:0 24px 54px rgba(0,0,0,.32);
-          transition:transform .3s ease,border-color .3s ease;
+          border:1.5px solid rgba(255,255,255,.24);
+          box-shadow:0 24px 54px rgba(0,0,0,.34),0 0 0 1px color-mix(in srgb,var(--mag-gold) 18%,transparent);
+          transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease;
         }
-        a.mag-hero-showcase-card:hover{transform:translateY(-5px);border-color:var(--mag-gold);}
+        .mag-hero-showcase-card::before{
+          content:'';position:absolute;top:0;inset-inline:0;height:3px;z-index:3;
+          background:linear-gradient(90deg,var(--mag-magenta),var(--mag-gold),var(--mag-magenta));
+        }
+        a.mag-hero-showcase-card:hover{transform:translateY(-6px);border-color:var(--mag-gold);box-shadow:0 28px 64px rgba(0,0,0,.42),0 0 28px color-mix(in srgb,var(--mag-gold) 24%,transparent);}
         .mag-hero-showcase-media{position:relative;aspect-ratio:16/10;overflow:hidden;background:rgba(0,0,0,.2);}
         .mag-hero-showcase-media img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease;}
         a.mag-hero-showcase-card:hover .mag-hero-showcase-media img{transform:scale(1.05);}
@@ -1690,7 +1711,7 @@ public static class MagHtmlRenderer
           box-shadow:0 8px 20px color-mix(in srgb,var(--mag-deep) 28%,transparent);
         }
         .mag-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-        .mag-cat-count{padding:1px 7px;border-radius:999px;font-size:.74rem;background:rgba(12,52,79,.09);}
+        .mag-cat-count{padding:1px 7px;border-radius:999px;font-size:.74rem;background:color-mix(in srgb,var(--mag-deep) 10%,transparent);}
         .mag-cat-pill.is-active .mag-cat-count{background:var(--mag-gold);color:var(--mag-deep);font-weight:900;}
         .mag-dock-search{
           display:flex;align-items:center;gap:4px;flex-shrink:0;
@@ -1748,7 +1769,9 @@ public static class MagHtmlRenderer
           display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);
           background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);
           overflow:hidden;box-shadow:var(--shadow-md);
+          transition:border-color .25s ease,box-shadow .25s ease,transform .25s ease;
         }
+        .mag-featured-banner:hover{border-color:color-mix(in srgb,var(--mag-magenta) 45%,var(--mag-gold));box-shadow:var(--shadow-lg);transform:translateY(-3px);}
         .mag-featured-media{display:block;position:relative;min-height:320px;height:100%;overflow:hidden;background:var(--surface-soft);}
         .mag-featured-media img,.mag-card-media img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease;}
         .mag-featured-banner:hover .mag-featured-media img,.mag-card:hover .mag-card-media img{transform:scale(1.045);}
@@ -1779,7 +1802,7 @@ public static class MagHtmlRenderer
         .mag-card-media{position:relative;aspect-ratio:16/10;overflow:hidden;background:var(--surface-soft);}
         .mag-card-time{
           position:absolute;bottom:10px;left:10px;padding:4px 10px;border-radius:999px;
-          background:rgba(12,52,79,.86);backdrop-filter:blur(6px);color:#ffffff;font-size:.74rem;font-weight:700;
+          background:color-mix(in srgb,var(--mag-deep) 88%,transparent);backdrop-filter:blur(6px);color:#ffffff;font-size:.74rem;font-weight:700;
         }
         .mag-card-body{padding:20px;display:flex;flex-direction:column;gap:9px;flex:1;}
         .mag-card-cat{
@@ -1787,7 +1810,7 @@ public static class MagHtmlRenderer
           background:color-mix(in srgb,var(--card-accent,var(--mag-magenta)) 13%,transparent);
           color:var(--card-accent,var(--mag-magenta));
         }
-        [data-theme="dark"] .mag-card-cat{background:rgba(229,170,47,.16);color:var(--mag-gold);}
+        [data-theme="dark"] .mag-card-cat{background:color-mix(in srgb,var(--mag-gold) 18%,transparent);color:var(--mag-gold);}
         .mag-card-body h3{margin:0;font-size:1.1rem;line-height:1.48;}
         .mag-card-body h3 a:hover{color:var(--mag-magenta);}
         .mag-card-body p{margin:0;color:var(--muted);font-size:.9rem;line-height:1.8;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
@@ -1805,8 +1828,8 @@ public static class MagHtmlRenderer
           color:var(--mag-gold);
         }
         .mag-art-circle{position:absolute;border-radius:50%;pointer-events:none;}
-        .mag-art-circle.c1{width:140px;height:140px;top:-40px;right:-30px;background:rgba(229,170,47,.16);}
-        .mag-art-circle.c2{width:120px;height:120px;bottom:-35px;left:-25px;background:rgba(170,49,113,.28);}
+        .mag-art-circle.c1{width:140px;height:140px;top:-40px;right:-30px;background:color-mix(in srgb,var(--mag-gold) 20%,transparent);}
+        .mag-art-circle.c2{width:120px;height:120px;bottom:-35px;left:-25px;background:color-mix(in srgb,var(--mag-magenta) 32%,transparent);}
         .mag-art-canvas svg{position:relative;z-index:1;width:74px;height:74px;}
         .mag-art-canvas span{position:relative;z-index:1;font-size:.82rem;font-weight:800;color:#ffffff;background:rgba(0,0,0,.24);padding:3px 12px;border-radius:999px;}
 
@@ -1814,10 +1837,17 @@ public static class MagHtmlRenderer
         .mag-cafe-cta{
           position:relative;overflow:hidden;border-radius:var(--radius-xl);padding:clamp(26px,4vw,42px);
           background:
-            radial-gradient(circle at 12% 20%,color-mix(in srgb,var(--mag-magenta) 42%,transparent),transparent 52%),
-            linear-gradient(135deg,var(--mag-deep),color-mix(in srgb,var(--mag-deep) 80%,#04131e));
+            radial-gradient(circle at 12% 20%,color-mix(in srgb,var(--mag-magenta) 44%,transparent),transparent 52%),
+            radial-gradient(circle at 88% 82%,color-mix(in srgb,var(--mag-gold) 24%,transparent),transparent 48%),
+            linear-gradient(135deg,var(--mag-deep),color-mix(in srgb,var(--mag-deep) 78%,#04131e));
           color:#ffffff;box-shadow:var(--shadow-lg);
+          border:1px solid color-mix(in srgb,var(--mag-gold) 28%,transparent);
           display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+        }
+        .mag-cafe-cta::before{
+          content:'';position:absolute;inset:0;pointer-events:none;opacity:.16;
+          background-image:radial-gradient(rgba(255,255,255,.35) 1px,transparent 1px);
+          background-size:22px 22px;
         }
         .mag-cta-copy{position:relative;z-index:2;max-width:58ch;display:grid;gap:8px;}
         .mag-cta-copy h2{margin:0;font-size:clamp(1.3rem,2.2vw,1.8rem);line-height:1.38;}

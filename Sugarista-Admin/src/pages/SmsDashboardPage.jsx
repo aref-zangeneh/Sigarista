@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiRequest, getReadableError } from '../utils/adminApi'
 import { useAdmin } from '../context/AdminContext'
+import { SmsOtpMonitorCard } from '../components/SmsOtpMonitorCard.jsx'
 import {
   SMS_KIND_LABELS,
   formatToman,
@@ -137,6 +138,8 @@ export function SmsDashboardPage() {
           <div className="sms-stat-label">سرویس‌دهندهٔ فعال (اعتبار از صفحهٔ Providers)</div>
         </div>
       </section>
+
+      <SmsOtpMonitorCard token={session.token} />
 
       <div className="sms-card">
         <h2>روند ارسال‌ها</h2>

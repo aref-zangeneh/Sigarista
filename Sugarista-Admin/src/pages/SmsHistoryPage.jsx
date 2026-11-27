@@ -137,6 +137,17 @@ export function SmsHistoryPage() {
               ))}
             </select>
           </label>
+          <button
+            type="button"
+            className={`sms-btn ${filters.kind === 'Otp' ? 'sms-btn--primary' : 'sms-btn--secondary'}`}
+            style={{ flex: 'initial' }}
+            onClick={() => {
+              setFilters((prev) => ({ ...prev, kind: prev.kind === 'Otp' ? '' : 'Otp' }))
+              setPage(1)
+            }}
+          >
+            {filters.kind === 'Otp' ? 'نمایش همه پیامک‌ها' : 'فقط کدهای تایید (OTP)'}
+          </button>
           <button type="button" className="sms-btn sms-btn--secondary" style={{ flex: 'initial' }} onClick={exportCsv}>
             خروجی CSV
           </button>

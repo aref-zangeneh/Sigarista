@@ -28,7 +28,7 @@ public sealed class SmsIrGateway(
     public bool SupportsBulkSend => true;
     public bool SupportsPatternSend => true;
     public bool SupportsCreditCheck => true;
-    public bool SupportsMessageStatus => false; // DR webhook only
+    public bool SupportsMessageStatus => true;
     public bool SupportsDeliveryReport => true;
     public int BulkBatchSize => 100;
 
@@ -149,7 +149,9 @@ public sealed class SmsIrGateway(
                 return SmsSendResult.Failed($"SMS.ir: {payload?.Message ?? "خطای نامشخص"}");
             }
 
-            return SmsSendResult.Ok(ExtractMessageId(payload.Data), null, null);
+            var rawCost = ExtractDecimal(payload.Data, "cost");
+            var cost = rawCost is > 0 ? rawCost / 10m : (decimal?)null; // Rial → Toman
+            return SmsSendResult.Ok(ExtractMessageId(payload.Data), payload.Message, cost);
         }
         catch (TaskCanceledException)
         {
@@ -199,14 +201,88 @@ public sealed class SmsIrGateway(
         }
     }
 
-    public Task<SmsMessageStatusResult> GetMessageStatusAsync(
+    public async Task<SmsMessageStatusResult> GetMessageStatusAsync(
         string providerMessageId,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(new SmsMessageStatusResult(
-            false,
-            SmsOutcomeStatus.Unknown,
-            null,
-            "این Provider وضعیت را فقط با Webhook گزارش می‌کند."));
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return new SmsMessageStatusResult(false, SmsOutcomeStatus.Unknown, null, "کلید API سرویس SMS.ir تنظیم نشده است.");
+        }
+
+        if (string.IsNullOrWhiteSpace(providerMessageId))
+        {
+            return new SmsMessageStatusResult(false, SmsOutcomeStatus.Unknown, null, "شناسه پیامک برای استعلام موجود نیست.");
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"{Base}/send/{Uri.EscapeDataString(providerMessageId.Trim())}");
+            request.Headers.Add("x-api-key", apiKey);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            using var response = await httpClient.SendAsync(request, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            var (payload, parseError) = ParseResponse(response, body, "send/report");
+            if (parseError is not null)
+            {
+                return new SmsMessageStatusResult(false, SmsOutcomeStatus.Unknown, null, parseError);
+            }
+
+            if (payload?.Status is not 1)
+            {
+                return new SmsMessageStatusResult(false, SmsOutcomeStatus.Unknown, null, $"SMS.ir: {payload?.Message ?? "خطای نامشخص"}");
+            }
+
+            var deliveryState = (int?)ExtractDecimal(payload.Data, "deliveryState");
+            var rawCost = ExtractDecimal(payload.Data, "cost");
+            var cost = rawCost is > 0 ? rawCost / 10m : (decimal?)null;
+
+            // SMS.ir v1 deliveryState codes:
+            // 1 = رسیده به گوشی (Delivered)
+            // 2 = نرسیده به گوشی (Not delivered / Failed)
+            // 3 = پردازش در مخابرات (Accepted)
+            // 4 = نرسیده به مخابرات / در صف (Accepted)
+            // 5 = رسیده به اپراتور (Sent)
+            // 6 = ناموفق (Failed)
+            // 7 = لیست سیاه مخابرات (Rejected)
+            var mapped = MapSmsIrDeliveryState(deliveryState);
+            var note = deliveryState switch
+            {
+                1 => "رسیده به گوشی گیرنده",
+                2 => "نرسیده به گوشی گیرنده",
+                3 => "در حال پردازش در مخابرات",
+                4 => "در صف ارسال اپراتور",
+                5 => "رسیده به مخابرات (در انتظار تحویل به گوشی)",
+                6 => "خطا در ارسال پیامک",
+                7 => "مسدودشده توسط لیست سیاه مخابرات",
+                _ => payload.Message
+            };
+
+            return new SmsMessageStatusResult(true, mapped, cost, note);
+        }
+        catch (TaskCanceledException)
+        {
+            return new SmsMessageStatusResult(false, SmsOutcomeStatus.Unknown, null, SmsSendErrors.AmbiguousTimeout);
+        }
+        catch (HttpRequestException)
+        {
+            return new SmsMessageStatusResult(false, SmsOutcomeStatus.Unknown, null, "ارتباط با SMS.ir برقرار نشد.");
+        }
+    }
+
+    public static SmsOutcomeStatus MapSmsIrDeliveryState(int? deliveryState) =>
+        deliveryState switch
+        {
+            1 => SmsOutcomeStatus.Delivered,
+            2 or 6 => SmsOutcomeStatus.Failed,
+            3 or 4 => SmsOutcomeStatus.Accepted,
+            5 => SmsOutcomeStatus.Sent,
+            7 => SmsOutcomeStatus.Rejected,
+            _ => SmsOutcomeStatus.Unknown
+        };
 
     public async Task<SmsConnectionTestResult> TestConnectionAsync(CancellationToken cancellationToken = default)
     {

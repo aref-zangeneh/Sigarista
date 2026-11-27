@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { OrderAlertsBar } from '../components/OrderAlertsBar'
 import { LowStockAlertBar } from '../components/LowStockAlertBar'
 import { OrderEditorModal } from '../components/OrderEditorModal'
+import { StaffTaskToastStack } from '../components/StaffTaskToastStack.jsx'
 import { adminRoutes, routeForPath } from '../adminRoutes'
 import { API_BASE_URL } from '../utils/adminApi'
 import { toPersianNumber } from '../utils/adminFormatters'
@@ -193,6 +194,12 @@ const ROUTE_ICONS = {
       <path d="M20 9.5v5M17.5 12h5" />
     </>,
   ),
+  'staff-tasks': icon(
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+      <path d="M8.5 12.2l2.3 2.3 4.8-5" />
+    </>,
+  ),
   assets: icon(
     <>
       <rect x="4" y="7" width="16" height="13" rx="2" />
@@ -228,7 +235,7 @@ const NAV_GROUPS = [
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
   { title: 'انبار', routes: ['warehouses', 'warehouse-vouchers', 'inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
-  { title: 'منابع انسانی', routes: ['hr'] },
+  { title: 'منابع انسانی', routes: ['hr', 'staff-tasks'] },
   { title: 'مدیریت پیامک', routes: ['sms-dashboard', 'sms-send', 'sms-bulk', 'sms-contacts', 'sms-groups', 'sms-templates', 'sms-history', 'sms-providers', 'sms-settings'] },
   { title: 'سیستم', routes: ['site-settings', 'special-routes', 'admin-users', 'activity-log'] },
 ]
@@ -546,6 +553,14 @@ export function AdminLayout() {
 
           <Outlet />
           <OrderEditorModal />
+          <StaffTaskToastStack
+            token={session?.token}
+            onOpenStaffTasks={
+              hasPermission(session, PERMISSIONS['staff-tasks']?.view)
+                ? () => navigate('/staff-tasks')
+                : undefined
+            }
+          />
         </main>
       </div>
     </div>

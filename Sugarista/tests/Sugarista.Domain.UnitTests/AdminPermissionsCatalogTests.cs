@@ -51,6 +51,7 @@ public class AdminPermissionsCatalogTests
             AdminPermissions.Warehouses.View,
             AdminPermissions.WarehouseVouchers.View,
             AdminPermissions.Inventory.View,
+            AdminPermissions.MoqAlerts.View,
             AdminPermissions.InventoryPurchases.View,
             AdminPermissions.Suppliers.View,
             AdminPermissions.Assets.View,

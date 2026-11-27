@@ -11,6 +11,7 @@ using Sugarista.Application.Carts.Services;
 using Sugarista.Application.Customers.Services;
 using Sugarista.Application.Exports;
 using Sugarista.Application.Maintenance;
+using Sugarista.Application.MoqAlerts;
 using Sugarista.Application.Pickup;
 using Sugarista.Application.Sms;
 using Sugarista.Application.Common.Options;
@@ -41,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<IAdminAuthorizationService, AdminAuthorizationService>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<AuditableEntityInterceptor>();
+        services.AddSingleton<IMoqAlertBroadcaster, MoqAlertBroadcaster>();
+        services.AddScoped<MoqStockChangeInterceptor>();
         services.AddScoped<ApplicationDbContextSeeder>();
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
@@ -129,7 +132,9 @@ public static class DependencyInjection
             options.ConfigureWarnings(warnings =>
                 warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
 
-            options.AddInterceptors(serviceProvider.GetRequiredService<AuditableEntityInterceptor>());
+            options.AddInterceptors(
+                serviceProvider.GetRequiredService<AuditableEntityInterceptor>(),
+                serviceProvider.GetRequiredService<MoqStockChangeInterceptor>());
         });
 
         services.AddScoped<IApplicationDbContext>(provider =>

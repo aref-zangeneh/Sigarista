@@ -4,6 +4,7 @@ import { OrderAlertsBar } from '../components/OrderAlertsBar'
 import { LowStockAlertBar } from '../components/LowStockAlertBar'
 import { OrderEditorModal } from '../components/OrderEditorModal'
 import { StaffTaskToastStack } from '../components/StaffTaskToastStack.jsx'
+import { MoqAlertToastStack } from '../components/MoqAlertToastStack.jsx'
 import { adminRoutes, routeForPath } from '../adminRoutes'
 import { API_BASE_URL } from '../utils/adminApi'
 import { toPersianNumber } from '../utils/adminFormatters'
@@ -233,6 +234,12 @@ const ROUTE_ICONS = {
       <circle cx="16.5" cy="14.5" r="1.2" />
     </>,
   ),
+  'moq-alerts': icon(
+    <>
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+      <path d="M12 9v4M12 17h.01" />
+    </>,
+  ),
 }
 
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
@@ -240,7 +247,7 @@ const NAV_GROUPS = [
   { title: 'اصلی', routes: ['overview', 'cost-dashboard', 'orders', 'pos', 'delivery-methods', 'customers', 'wallets', 'salon'] },
   { title: 'منو و محصولات', routes: ['categories', 'menu-items', 'quick-stock', 'option-templates', 'addons', 'drink-builder', 'discounts', 'modifiers', 'blog'] },
   { title: 'آشپزخانه و تولید', routes: ['ingredients', 'recipes', 'production', 'product-wiki'] },
-  { title: 'انبار', routes: ['warehouses', 'warehouse-vouchers', 'inventory', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
+  { title: 'انبار', routes: ['warehouses', 'warehouse-vouchers', 'inventory', 'moq-alerts', 'inventory-purchases', 'suppliers', 'assets', 'maintenance'] },
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports'] },
   { title: 'منابع انسانی', routes: ['hr', 'staff-tasks'] },
   { title: 'مدیریت پیامک', routes: ['sms-dashboard', 'sms-send', 'sms-bulk', 'sms-contacts', 'sms-groups', 'sms-templates', 'sms-history', 'sms-providers', 'sms-settings'] },
@@ -280,9 +287,11 @@ export function AdminLayout() {
     loadAdminData,
   } = useAdmin()
 
+  const [moqAlertCount, setMoqAlertCount] = useState(0)
   const visibleRoutes = getAccessibleRoutes(session, adminRoutes)
   const canViewOrders = hasPermission(session, PERMISSIONS.orders.view)
   const canViewInventory = hasPermission(session, PERMISSIONS.inventory.view)
+  const canViewMoqAlerts = hasPermission(session, PERMISSIONS['moq-alerts']?.view)
   const currentRoute = routeForPath(location.pathname)
   const isPosRoute = location.pathname.includes('/pos')
 
@@ -339,6 +348,9 @@ export function AdminLayout() {
       <span className="nav-link-label">{route.label}</span>
       {route.id === 'orders' && orderAlerts?.pendingKitchenCount > 0 ? (
         <span className="nav-badge">{toPersianNumber(orderAlerts.pendingKitchenCount)}</span>
+      ) : null}
+      {route.id === 'moq-alerts' && moqAlertCount > 0 ? (
+        <span className="nav-badge">{toPersianNumber(moqAlertCount)}</span>
       ) : null}
     </NavLink>
   )
@@ -567,6 +579,12 @@ export function AdminLayout() {
                 ? () => navigate('/staff-tasks')
                 : undefined
             }
+          />
+          <MoqAlertToastStack
+            token={session?.token}
+            enabled={canViewMoqAlerts}
+            onOpenMoqPage={() => navigate('/moq-alerts')}
+            onSnapshotChange={(snap) => setMoqAlertCount(snap?.totalAlertsCount ?? 0)}
           />
         </main>
       </div>

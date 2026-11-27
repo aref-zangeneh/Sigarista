@@ -25,6 +25,7 @@ import { RecipesPage } from './pages/RecipesPage'
 import { ProductWikiPage } from './pages/ProductWikiPage'
 import { BlogPage } from './pages/BlogPage.jsx'
 import { InventoryPage } from './pages/InventoryPage'
+import { MoqAlertsPage } from './pages/MoqAlertsPage.jsx'
 import { InventoryPurchasesPage } from './pages/InventoryPurchasesPage'
 import { WarehousesPage } from './pages/WarehousesPage'
 import { WarehouseVouchersPage } from './pages/WarehouseVouchersPage.jsx'
@@ -79,6 +80,7 @@ const pageComponents = {
   'product-wiki': ProductWikiPage,
   blog: BlogPage,
   inventory: InventoryPage,
+  'moq-alerts': MoqAlertsPage,
   'inventory-purchases': InventoryPurchasesPage,
   warehouses: WarehousesPage,
   'warehouse-vouchers': WarehouseVouchersPage,

@@ -244,6 +244,12 @@ public static class AdminPermissions
         public const string Update = "admin.wallets.update";
     }
 
+    public static class MoqAlerts
+    {
+        public const string View = "admin.moq-alerts.view";
+        public const string Update = "admin.moq-alerts.update";
+    }
+
     public static class Accounting
     {
         public const string View = "admin.accounting.view";
@@ -405,6 +411,8 @@ public static class AdminPermissions
         new(Inventory.View, "inventory", "view", "انبار موجودی", "مشاهده", "warehouse", "انبار و تجهیزات"),
         new(Inventory.Create, "inventory", "create", "انبار موجودی", "ورود / شارژ", "warehouse", "انبار و تجهیزات"),
         new(Inventory.Update, "inventory", "update", "انبار موجودی", "تعدیل / آستانه", "warehouse", "انبار و تجهیزات"),
+        new(MoqAlerts.View, "moq-alerts", "view", "هشدارهای MOQ و کمبود موجودی", "مشاهده هشدارها و اعلان زنده", "warehouse", "انبار و تجهیزات"),
+        new(MoqAlerts.Update, "moq-alerts", "update", "هشدارهای MOQ و کمبود موجودی", "تنظیم نقطه سفارش (MOQ) و شارژ سریع", "warehouse", "انبار و تجهیزات"),
         new(InventoryPurchases.View, "inventory-purchases", "view", "خرید مواد اولیه", "مشاهده", "warehouse", "انبار و تجهیزات"),
         new(InventoryPurchases.Create, "inventory-purchases", "create", "خرید مواد اولیه", "ثبت خرید", "warehouse", "انبار و تجهیزات"),
         new(Suppliers.View, "suppliers", "view", "تامین‌کنندگان", "مشاهده", "warehouse", "انبار و تجهیزات"),

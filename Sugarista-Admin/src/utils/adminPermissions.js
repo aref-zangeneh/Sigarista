@@ -18,6 +18,10 @@ export const PERMISSIONS = {
     view: 'admin.wallets.view',
     update: 'admin.wallets.update',
   },
+  'moq-alerts': {
+    view: 'admin.moq-alerts.view',
+    update: 'admin.moq-alerts.update',
+  },
   'customer-groups': {
     view: 'admin.customers.view',
     create: 'admin.customers.create',

@@ -20,6 +20,7 @@ export const adminRoutes = [
   { id: 'product-wiki', path: 'product-wiki', label: 'ویکی محصولات' },
   { id: 'blog', path: 'blog', label: 'مجله و بلاگ (SEO)' },
   { id: 'inventory', path: 'inventory', label: 'انبار موجودی' },
+  { id: 'moq-alerts', path: 'moq-alerts', label: 'هشدارهای MOQ' },
   { id: 'inventory-purchases', path: 'inventory-purchases', label: 'خرید مواد اولیه' },
   { id: 'warehouses', path: 'warehouses', label: 'انبارها' },
   { id: 'warehouse-vouchers', path: 'warehouse-vouchers', label: 'رسید ورود و سند خروج' },

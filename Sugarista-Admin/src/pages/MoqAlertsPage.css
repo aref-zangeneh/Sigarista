@@ -1,0 +1,423 @@
+.moq-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.05rem;
+  min-width: 0;
+}
+
+.moq-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.moq-header-title h1 {
+  margin: 0;
+  font-size: 1.32rem;
+  font-weight: 700;
+}
+
+.moq-header-title p {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted, #64748b);
+}
+
+.moq-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.moq-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.34rem 0.72rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.moq-live-pill--offline {
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--muted, #64748b);
+  border-color: var(--border, #cbd5e1);
+}
+
+.moq-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: moq-live-blink 2s infinite;
+}
+
+@keyframes moq-live-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* KPI Strip */
+.moq-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 1024px) {
+  .moq-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 580px) {
+  .moq-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.moq-kpi-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  padding: 0.95rem 1.05rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.moq-kpi-card--danger {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.06), transparent 65%), var(--surface, #fff);
+}
+
+.moq-kpi-card--critical {
+  border-color: rgba(249, 115, 22, 0.32);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.06), transparent 65%), var(--surface, #fff);
+}
+
+.moq-kpi-card--warning {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), transparent 65%), var(--surface, #fff);
+}
+
+.moq-kpi-label {
+  font-size: 0.79rem;
+  color: var(--muted, #64748b);
+  font-weight: 500;
+}
+
+.moq-kpi-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text, #0f172a);
+}
+
+.moq-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--muted, #64748b);
+}
+
+/* Mode Switch & Filters */
+.moq-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.moq-mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  padding-bottom: 0.65rem;
+}
+
+.moq-mode-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted, #64748b);
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.moq-mode-tab:hover {
+  background: var(--surface-soft, #f8fafc);
+  color: var(--text, #0f172a);
+}
+
+.moq-mode-tab--active {
+  background: var(--accent, #6366f1);
+  color: #fff;
+}
+
+.moq-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.moq-filters input,
+.moq-filters select {
+  min-height: 38px;
+  padding: 0.4rem 0.7rem;
+  border-radius: 9px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font-size: 0.85rem;
+}
+
+.moq-search-input {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+/* Table */
+.moq-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.moq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.moq-table th {
+  text-align: right;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  padding: 0.65rem 0.55rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+
+.moq-table td {
+  padding: 0.7rem 0.55rem;
+  border-bottom: 1px solid var(--border, #f1f5f9);
+  vertical-align: middle;
+}
+
+.moq-table tbody tr:hover {
+  background: var(--surface-soft, rgba(148, 163, 184, 0.06));
+}
+
+.moq-item-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.moq-item-name {
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.moq-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--muted, #64748b);
+}
+
+.moq-source-chip {
+  display: inline-flex;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.moq-source-chip--indigo {
+  background: rgba(99, 102, 241, 0.11);
+  color: #4f46e5;
+}
+
+.moq-source-chip--purple {
+  background: rgba(168, 85, 247, 0.11);
+  color: #7e22ce;
+}
+
+.moq-source-chip--teal {
+  background: rgba(20, 184, 166, 0.12);
+  color: #0f766e;
+}
+
+.moq-sev-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.moq-sev-badge--danger {
+  background: rgba(239, 68, 68, 0.13);
+  color: #dc2626;
+}
+
+.moq-sev-badge--critical {
+  background: rgba(249, 115, 22, 0.14);
+  color: #ea580c;
+}
+
+.moq-sev-badge--warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}
+
+.moq-sev-badge--healthy {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.moq-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 110px;
+}
+
+.moq-progress-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.22);
+  overflow: hidden;
+}
+
+.moq-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.moq-progress-fill--danger { background: #ef4444; }
+.moq-progress-fill--critical { background: #f97316; }
+.moq-progress-fill--warning { background: #f59e0b; }
+.moq-progress-fill--healthy { background: #10b981; }
+
+.moq-row-actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.moq-btn-xs {
+  padding: 0.32rem 0.6rem;
+  font-size: 0.77rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.moq-btn-xs:hover {
+  background: var(--surface-soft, #f1f5f9);
+}
+
+.moq-btn-xs--restock {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.09);
+  color: #059669;
+}
+
+.moq-btn-xs--restock:hover {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+.moq-empty {
+  text-align: center;
+  padding: 2.2rem 1rem;
+  color: var(--muted, #64748b);
+  font-size: 0.9rem;
+}
+
+/* Modal */
+.moq-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1200;
+}
+
+.moq-modal {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 15px;
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+.moq-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.moq-modal-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.moq-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.moq-field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.moq-field input {
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+  border-radius: 9px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font-size: 0.88rem;
+}
+
+.moq-field small {
+  font-size: 0.74rem;
+  color: var(--muted, #64748b);
+}

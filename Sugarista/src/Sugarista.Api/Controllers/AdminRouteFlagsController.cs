@@ -91,7 +91,21 @@ public class AdminRouteFlagsController(
                 "/db-admin",
                 appSetupStore.IsDbAdminOpen,
                 Editable: true,
-                "پیش‌فرض بسته. فقط برای جلسات نگهداری بازش کنید — کار تمام شد بلافاصله ببندید. آدرس‌های بسته به صفحهٔ اصلی ریدایرکت می‌شوند.")
+                "پیش‌فرض بسته. فقط برای جلسات نگهداری بازش کنید — کار تمام شد بلافاصله ببندید. آدرس‌های بسته به صفحهٔ اصلی ریدایرکت می‌شوند."),
+            new RouteFlagDto(
+                "affiliate_portal",
+                "پنل همکاران فروش (Affiliate)",
+                "/affiliate/",
+                appSetupStore.IsAffiliatePortalOpen,
+                Editable: true,
+                "صفحه معرفی، ثبت‌نام با OTP و داشبورد همکاران فروش — پیش‌فرض باز. در صورت بستن، بازدیدکنندگان به صفحهٔ اصلی ریدایرکت می‌شوند."),
+            new RouteFlagDto(
+                "affiliate_redirect",
+                "لینک‌های ارجاع همکاری در فروش",
+                "/r/{slug}",
+                Enabled: true,
+                Editable: false,
+                "مسیر ردیابی کلیک‌ها، ثبت کوکی افیلیت (aff_token) و ریدایرکت به مقصد — همیشه باز.")
         });
     }
 
@@ -129,6 +143,10 @@ public class AdminRouteFlagsController(
 
             case "db_admin":
                 appSetupStore.SetDbAdminOpen(request.Enabled);
+                break;
+
+            case "affiliate_portal":
+                appSetupStore.SetAffiliatePortalOpen(request.Enabled);
                 break;
 
             case "swagger":

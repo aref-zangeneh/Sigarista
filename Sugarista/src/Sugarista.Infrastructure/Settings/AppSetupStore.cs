@@ -107,6 +107,33 @@ public sealed class AppSetupStore
         }
     }
 
+    /// <summary>
+    /// Marker file for the /affiliate/ portal route. Absent file = OPEN (default);
+    /// writing the file closes the route immediately at the nginx layer.
+    /// </summary>
+    private string AffiliateClosedMarkerPath =>
+        Path.Combine(Path.GetDirectoryName(_filePath) ?? ".", "route-flag-affiliate-closed");
+
+    public bool IsAffiliatePortalOpen => !File.Exists(AffiliateClosedMarkerPath);
+
+    public void SetAffiliatePortalOpen(bool open)
+    {
+        var directory = Path.GetDirectoryName(AffiliateClosedMarkerPath);
+        if (!open)
+        {
+            Directory.CreateDirectory(directory!);
+            File.WriteAllText(AffiliateClosedMarkerPath, DateTimeOffset.UtcNow.ToString("O"));
+            _logger.LogInformation("The /affiliate/ route is now CLOSED (marker written to {Marker}).", AffiliateClosedMarkerPath);
+            return;
+        }
+
+        if (File.Exists(AffiliateClosedMarkerPath))
+        {
+            File.Delete(AffiliateClosedMarkerPath);
+            _logger.LogInformation("The /affiliate/ route is now OPEN (marker {Marker} removed).", AffiliateClosedMarkerPath);
+        }
+    }
+
     public AppSetupSecrets Load()
     {
         try

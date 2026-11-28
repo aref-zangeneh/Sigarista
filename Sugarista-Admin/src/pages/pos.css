@@ -2848,9 +2848,10 @@
 
 .pos-c2c-bold-number {
   direction: ltr;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  font-size: 1.25rem;
-  font-weight: 900;
+  font-family: 'Space Grotesk', 'SF Pro Display', ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.32rem;
+  font-weight: 800;
   letter-spacing: 0.1em;
   color: var(--heading);
   user-select: text;

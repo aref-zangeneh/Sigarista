@@ -3228,7 +3228,7 @@ export function PosPage() {
                       >
                         <strong>{card.bankName}</strong>
                         <small>{card.cardHolderName}</small>
-                        <small dir="ltr">•••• {card.cardNumber.slice(-4)}</small>
+                        <small dir="ltr" data-latin-digits="true">•••• {card.cardNumber.slice(-4)}</small>
                       </button>
                     ))}
                   </div>
@@ -3242,7 +3242,7 @@ export function PosPage() {
                         <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
                           شماره کارت جهت واریز ({selectedBankCard.bankName} — {selectedBankCard.cardHolderName})
                         </div>
-                        <div className="pos-c2c-bold-number" dir="ltr">
+                        <div className="pos-c2c-bold-number" dir="ltr" data-latin-digits="true">
                           {formatCardNumberGroups(selectedBankCard.cardNumber)}
                         </div>
                       </div>

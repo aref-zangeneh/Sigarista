@@ -1,24 +1,38 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ImageUploader } from './ImageUploader'
+import { BankCardVisual } from './BankCardVisual.jsx'
 import {
-  BANK_CARD_THEMES,
-  BankCardVisual,
+  IRANIAN_BANKS,
+  detectBankByCardNumber,
+  formatCardInputDisplay,
   normalizeCardDigits,
-} from './BankCardVisual.jsx'
+} from '../utils/iranianBanks.js'
 import './AdminBankCardsPanel.css'
 
 const EMPTY_FORM = {
   id: '',
   title: '',
-  bankName: '',
+  bankKey: 'saman',
+  bankName: 'بانک سامان',
   cardHolderName: '',
   cardNumber: '',
   shebaNumber: '',
   cardImageUrl: '',
-  cardTheme: 'ocean',
+  cardTheme: 'saman',
   isDefault: false,
   isActive: true,
   displayOrder: 0,
+}
+
+function findBankKeyFromCard(card) {
+  const byTheme = IRANIAN_BANKS.find((b) => b.key === (card?.cardTheme || '').toLowerCase())
+  if (byTheme) return byTheme.key
+  const byName = IRANIAN_BANKS.find(
+    (b) => b.key !== 'custom' && card?.bankName && card.bankName.includes(b.name.replace('بانک ', '')),
+  )
+  if (byName) return byName.key
+  const byBin = detectBankByCardNumber(card?.cardNumber)
+  return byBin ? byBin.key : 'custom'
 }
 
 export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
@@ -46,16 +60,50 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
     loadCards()
   }, [loadCards])
 
+  const handleBankSelect = (nextKey) => {
+    const preset = IRANIAN_BANKS.find((b) => b.key === nextKey) || IRANIAN_BANKS[0]
+    setForm((current) => ({
+      ...current,
+      bankKey: preset.key,
+      cardTheme: preset.key,
+      bankName: preset.key === 'custom' ? (current.bankKey === 'custom' ? current.bankName : '') : preset.name,
+    }))
+  }
+
+  const handleCardNumberChange = (rawValue) => {
+    const digits = normalizeCardDigits(rawValue)
+    const detected = detectBankByCardNumber(digits)
+
+    setForm((current) => {
+      // Auto-detect bank from first 6 digits unless user explicitly chose BluBank (same BIN as Saman)
+      if (detected && current.bankKey !== 'blu' && current.bankKey !== detected.key) {
+        return {
+          ...current,
+          cardNumber: digits,
+          bankKey: detected.key,
+          cardTheme: detected.key,
+          bankName: detected.name,
+        }
+      }
+      return {
+        ...current,
+        cardNumber: digits,
+      }
+    })
+  }
+
   const handleEdit = (card) => {
+    const bankKey = findBankKeyFromCard(card)
     setForm({
       id: card.id,
       title: card.title ?? '',
+      bankKey,
       bankName: card.bankName ?? '',
       cardHolderName: card.cardHolderName ?? '',
-      cardNumber: card.cardNumber ?? '',
+      cardNumber: normalizeCardDigits(card.cardNumber ?? ''),
       shebaNumber: card.shebaNumber ?? '',
       cardImageUrl: card.cardImageUrl ?? '',
-      cardTheme: card.cardTheme || 'ocean',
+      cardTheme: card.cardTheme || bankKey,
       isDefault: Boolean(card.isDefault),
       isActive: card.isActive !== false,
       displayOrder: card.displayOrder ?? 0,
@@ -76,8 +124,9 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
       setError('شماره کارت باید دقیقاً ۱۶ رقم باشد.')
       return
     }
-    if (!form.bankName.trim() || !form.cardHolderName.trim()) {
-      setError('نام بانک و نام صاحب کارت الزامی است.')
+    const resolvedBankName = form.bankName.trim()
+    if (!resolvedBankName || !form.cardHolderName.trim()) {
+      setError('انتخاب یا وارد کردن نام بانک و نام صاحب کارت الزامی است.')
       return
     }
 
@@ -86,13 +135,13 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
     setFeedback('')
     try {
       const payload = {
-        title: form.title.trim() || `${form.bankName.trim()} — ${form.cardHolderName.trim()}`,
-        bankName: form.bankName.trim(),
+        title: form.title.trim() || `${resolvedBankName} — ${form.cardHolderName.trim()}`,
+        bankName: resolvedBankName,
         cardHolderName: form.cardHolderName.trim(),
         cardNumber: digits,
         shebaNumber: form.shebaNumber.trim() || null,
         cardImageUrl: form.cardImageUrl.trim() || null,
-        cardTheme: form.cardTheme || 'ocean',
+        cardTheme: form.bankKey || form.cardTheme || 'saman',
         isDefault: Boolean(form.isDefault),
         isActive: Boolean(form.isActive),
         displayOrder: Number(form.displayOrder) || 0,
@@ -153,7 +202,7 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
           <div>
             <h2>کارت‌های بانکی ادمین (کارت به کارت POS)</h2>
             <p>
-              کارت‌های بانکی کافه را همراه با عکس و شبیه‌ساز کارت تعریف کنید تا در صندوق فروش (POS) هنگام ثبت پرداخت «کارت به کارت»، صندوقدار کارت را انتخاب کند و شماره کارت به‌صورت خوانا و درشت نمایش داده شود.
+              بانک را انتخاب کنید یا شماره کارت را وارد کنید تا کارت به‌صورت واقعی شبیه‌سازی شود. اعداد فارسی و انگلیسی هر دو پذیرفته و روی کارت با فونت خوانا و انگلیسی نمایش داده می‌شوند.
             </p>
           </div>
         </div>
@@ -163,20 +212,32 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
         <form className="abc-form" onSubmit={handleSubmit}>
           <div className="abc-fields-2">
             <label>
-              <span>عنوان کارت (مثلاً کارت اصلی صندوق)</span>
-              <input
-                placeholder="مثلاً کارت اصلی کافه"
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              />
+              <span>انتخاب بانک *</span>
+              <select
+                value={form.bankKey}
+                onChange={(e) => handleBankSelect(e.target.value)}
+              >
+                {IRANIAN_BANKS.map((bank) => (
+                  <option key={bank.key} value={bank.key}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
             </label>
+
             <label>
-              <span>نام بانک *</span>
+              <span>شماره کارت ۱۶ رقمی * (فارسی یا انگلیسی)</span>
               <input
                 required
-                placeholder="مثلاً بانک ملت، سامان، بلوبانک..."
-                value={form.bankName}
-                onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+                type="text"
+                className="ltr-input"
+                dir="ltr"
+                data-latin-digits="true"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="6219 - 8619 - 1234 - 5678"
+                value={formatCardInputDisplay(form.cardNumber)}
+                onChange={(e) => handleCardNumberChange(e.target.value)}
               />
             </label>
           </div>
@@ -191,20 +252,27 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
                 onChange={(e) => setForm((f) => ({ ...f, cardHolderName: e.target.value }))}
               />
             </label>
-            <label>
-              <span>شماره کارت ۱۶ رقمی *</span>
-              <input
-                required
-                className="ltr-input"
-                dir="ltr"
-                inputMode="numeric"
-                placeholder="6104337812345678"
-                value={form.cardNumber}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, cardNumber: normalizeCardDigits(e.target.value) }))
-                }
-              />
-            </label>
+
+            {form.bankKey === 'custom' ? (
+              <label>
+                <span>نام بانک دلخواه *</span>
+                <input
+                  required
+                  placeholder="مثلاً بانک دی یا رسالت"
+                  value={form.bankName}
+                  onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+                />
+              </label>
+            ) : (
+              <label>
+                <span>عنوان دلخواه کارت (اختیاری)</span>
+                <input
+                  placeholder="مثلاً کارت اصلی صندوق"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                />
+              </label>
+            )}
           </div>
 
           <div className="abc-fields-2">
@@ -213,6 +281,7 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
               <input
                 className="ltr-input"
                 dir="ltr"
+                data-latin-digits="true"
                 placeholder="IR..."
                 value={form.shebaNumber}
                 onChange={(e) => setForm((f) => ({ ...f, shebaNumber: e.target.value }))}
@@ -231,8 +300,8 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
           </div>
 
           <ImageUploader
-            label="عکس کارت بانکی (اختیاری)"
-            hint="می‌توانید تصویر کارت یا پس‌زمینه دلخواه را آپلود کنید تا روی شبیه‌ساز کارت نمایش داده شود."
+            label="عکس کارت بانکی (اختیاری — در صورت آپلود جایگزین پس‌زمینه شبیه‌ساز می‌شود)"
+            hint="اگر عکسی آپلود نکنید، طراحی واقعی همان بانک انتخاب‌شده نمایش داده می‌شود."
             value={form.cardImageUrl}
             token={session?.token}
             onChange={(url) => setForm((f) => ({ ...f, cardImageUrl: url ?? '' }))}
@@ -273,20 +342,11 @@ export function AdminBankCardsPanel({ session, apiRequest, getReadableError }) {
         </form>
 
         <div className="abc-preview-col">
-          <span className="abc-preview-label">پیش‌نمایش زنده شبیه‌ساز کارت ادمین</span>
+          <span className="abc-preview-label">پیش‌نمایش زنده شبیه‌ساز کارت بانکی</span>
           <BankCardVisual card={form} size="normal" />
-          <div className="abc-theme-pills">
-            {BANK_CARD_THEMES.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                className={`abc-theme-pill ${form.cardTheme === t.key ? 'is-active' : ''}`}
-                onClick={() => setForm((f) => ({ ...f, cardTheme: t.key }))}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <small style={{ fontSize: '0.73rem', color: 'var(--muted)', textAlign: 'center' }}>
+            با انتخاب بانک یا وارد کردن ۶ رقم اول کارت، طراحی کارت به‌صورت خودکار تغییر می‌کند.
+          </small>
         </div>
       </div>
 

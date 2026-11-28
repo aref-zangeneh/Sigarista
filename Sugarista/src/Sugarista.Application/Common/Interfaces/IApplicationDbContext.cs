@@ -111,6 +111,10 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.AdminBankCard> AdminBankCards { get; }
 
+    DbSet<Sugarista.Domain.Entities.CafeIncident> CafeIncidents { get; }
+
+    DbSet<Sugarista.Domain.Entities.CustomerDemand> CustomerDemands { get; }
+
     DbSet<Sugarista.Domain.Entities.ProductionBatch> ProductionBatches { get; }
 
     DbSet<Sugarista.Domain.Entities.ProductWikiGuide> ProductWikiGuides { get; }

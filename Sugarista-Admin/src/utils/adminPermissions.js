@@ -114,6 +114,18 @@ export const PERMISSIONS = {
     update: 'admin.order-list.update',
     delete: 'admin.order-list.delete',
   },
+  incidents: {
+    view: 'admin.incidents.view',
+    create: 'admin.incidents.create',
+    update: 'admin.incidents.update',
+    delete: 'admin.incidents.delete',
+  },
+  'customer-demands': {
+    view: 'admin.customer-demands.view',
+    create: 'admin.customer-demands.create',
+    update: 'admin.customer-demands.update',
+    delete: 'admin.customer-demands.delete',
+  },
   'option-templates': {
     view: 'admin.option-templates.view',
     create: 'admin.option-templates.create',

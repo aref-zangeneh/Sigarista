@@ -291,6 +291,11 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             tableSessionId,
             request.ServedByAdminUserId);
 
+        if (order.PackagingDeducted && order.DeliveryMethodId != deliveryMethod?.Id)
+        {
+            await DeliveryMethodInventoryService.RestoreForOrderAsync(_dbContext, order, cancellationToken);
+        }
+
         order.ApplyDeliveryMethod(deliveryMethod?.Id, deliveryFee);
         order.AssignCustomer(customer?.Id);
 
@@ -709,6 +714,10 @@ public class UpsertPosOrderCommandHandler : IRequestHandler<UpsertPosOrderComman
             case PosOrderAction.Hold:
                 order.ConfigureOrderKind(resolvedOrderKind, request.ComplimentaryReason);
                 order.Hold();
+                // Reserve stock immediately when an order is placed on Hold so held items
+                // cannot be oversold. Editing replaces/reconciles cleanly via ReplaceLinesAsync,
+                // cancelling restores all reserved stock, and paying finalizes without double-deducting.
+                await DeductPosOrderInventoryAsync(order, cancellationToken);
                 break;
 
             case PosOrderAction.PayCash:

@@ -61,12 +61,16 @@ import { SmsHistoryPage } from './pages/SmsHistoryPage'
 import { SmsProvidersPage } from './pages/SmsProvidersPage'
 import { SmsSettingsPage } from './pages/SmsSettingsPage'
 import { OrderListPage } from './pages/OrderListPage.jsx'
+import { IncidentsPage } from './pages/IncidentsPage.jsx'
+import { CustomerDemandsPage } from './pages/CustomerDemandsPage.jsx'
 import './App.css'
 
 const pageComponents = {
   overview: DashboardPage,
   'cost-dashboard': CostDashboardPage,
   salon: SalonStatePage,
+  incidents: IncidentsPage,
+  'customer-demands': CustomerDemandsPage,
   categories: CategoryPage,
   'menu-items': MenuItemsPage,
   'quick-stock': MenuQuickStockPage,

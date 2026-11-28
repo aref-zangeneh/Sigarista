@@ -55,6 +55,22 @@ public static class AdminPermissions
         public const string Delete = "admin.order-list.delete";
     }
 
+    public static class Incidents
+    {
+        public const string View = "admin.incidents.view";
+        public const string Create = "admin.incidents.create";
+        public const string Update = "admin.incidents.update";
+        public const string Delete = "admin.incidents.delete";
+    }
+
+    public static class CustomerDemands
+    {
+        public const string View = "admin.customer-demands.view";
+        public const string Create = "admin.customer-demands.create";
+        public const string Update = "admin.customer-demands.update";
+        public const string Delete = "admin.customer-demands.delete";
+    }
+
     public static class OptionTemplates
     {
         public const string View = "admin.option-templates.view";
@@ -445,6 +461,14 @@ public static class AdminPermissions
         new(Maintenance.Create, "maintenance", "create", "سرویس دوره‌ای تجهیزات", "ایجاد", "warehouse", "انبار و تجهیزات"),
         new(Maintenance.Update, "maintenance", "update", "سرویس دوره‌ای تجهیزات", "ویرایش / ثبت سرویس", "warehouse", "انبار و تجهیزات"),
         new(Maintenance.Delete, "maintenance", "delete", "سرویس دوره‌ای تجهیزات", "حذف", "warehouse", "انبار و تجهیزات"),
+        new(Incidents.View, "incidents", "view", "ثبت و مدیریت حوادث", "مشاهده گزارش حوادث و اختلالات", "operations", "عملیات و سالن"),
+        new(Incidents.Create, "incidents", "create", "ثبت و مدیریت حوادث", "ثبت حادثه جدید", "operations", "عملیات و سالن"),
+        new(Incidents.Update, "incidents", "update", "ثبت و مدیریت حوادث", "ویرایش و ثبت رفع حادثه", "operations", "عملیات و سالن"),
+        new(Incidents.Delete, "incidents", "delete", "ثبت و مدیریت حوادث", "حذف حادثه", "operations", "عملیات و سالن"),
+        new(CustomerDemands.View, "customer-demands", "view", "نیازمندی‌های مشتریان", "مشاهده و تحلیل درخواست‌های ناموجود", "operations", "عملیات و سالن"),
+        new(CustomerDemands.Create, "customer-demands", "create", "نیازمندی‌های مشتریان", "ثبت درخواست جدید مشتری", "operations", "عملیات و سالن"),
+        new(CustomerDemands.Update, "customer-demands", "update", "نیازمندی‌های مشتریان", "ویرایش و تغییر وضعیت درخواست", "operations", "عملیات و سالن"),
+        new(CustomerDemands.Delete, "customer-demands", "delete", "نیازمندی‌های مشتریان", "حذف درخواست", "operations", "عملیات و سالن"),
 
         // ── ۵. فروش و مالی ──────────────────────────────────────────────────
         new(RecordSale.View, "record-sale", "view", "ثبت فروش", "مشاهده", "sales", "فروش و مالی"),

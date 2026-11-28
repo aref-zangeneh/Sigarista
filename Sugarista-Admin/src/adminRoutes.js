@@ -4,6 +4,8 @@ export const adminRoutes = [
   { id: 'overview', path: 'dashboard', label: 'نمای کلی' },
   { id: 'cost-dashboard', path: 'cost-dashboard', label: 'کاست کنترل و قیمت‌گذاری' },
   { id: 'salon', path: 'salon-state', label: 'وضعیت سالن' },
+  { id: 'incidents', path: 'incidents', label: 'ثبت و مدیریت حوادث' },
+  { id: 'customer-demands', path: 'customer-demands', label: 'نیازمندی‌های مشتریان' },
   { id: 'categories', path: 'category', label: 'دسته‌بندی‌ها' },
   { id: 'menu-items', path: 'menu-items', label: 'آیتم‌های منو' },
   { id: 'quick-stock', path: 'quick-stock', label: 'موجودی و انقضا سریع' },

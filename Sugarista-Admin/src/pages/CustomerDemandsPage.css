@@ -1,0 +1,300 @@
+/* ============================================================
+   CustomerDemandsPage — Unmet Customer Demand & Menu Insights
+   Minimal, analytical, responsive across all devices
+   ============================================================ */
+
+.cd-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.cd-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Date Range Bar ── */
+.cd-range-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.cd-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.cd-preset-btn {
+  min-height: 31px !important;
+  padding: 0.28rem 0.68rem !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.77rem !important;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cd-preset-btn.is-active {
+  background: var(--brand-accent-soft);
+  border-color: rgba(170, 49, 113, 0.32);
+  color: var(--accent);
+}
+
+.cd-custom-dates {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cd-custom-dates label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ── KPI Grid ── */
+.cd-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.cd-kpi-card {
+  padding: 0.75rem 0.95rem;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cd-kpi-card.is-highlight {
+  border-color: rgba(170, 49, 113, 0.32);
+  background: var(--brand-accent-soft);
+}
+
+.cd-kpi-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cd-kpi-val {
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.cd-kpi-sub {
+  font-size: 0.71rem;
+  color: var(--muted);
+}
+
+/* ── Quick Add Form ── */
+.cd-add-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) minmax(150px, 1fr) 86px 120px minmax(140px, 1fr);
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.cd-add-row2 {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.cd-add-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.cd-add-form label > span {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ── Ranked Summary Cards ── */
+.cd-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+
+.cd-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cd-rank-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.cd-rank-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cd-rank-left {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.cd-rank-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--tint-strong);
+  color: var(--heading);
+  font-size: 0.76rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cd-rank-num.is-top {
+  background: var(--brand-accent-soft);
+  color: var(--accent);
+}
+
+.cd-rank-name {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.cd-cat-pill {
+  font-size: 0.71rem;
+  font-weight: 600;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.cd-rank-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.cd-count-badge {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--accent);
+  padding: 0.18rem 0.62rem;
+  border-radius: 999px;
+  background: var(--brand-accent-soft);
+}
+
+.cd-bar-track {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--tint-strong);
+  overflow: hidden;
+}
+
+.cd-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), #ec4899);
+  transition: width 0.25s ease;
+}
+
+.cd-rank-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+/* ── Entries Log Table ── */
+.cd-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cd-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cd-table th,
+.cd-table td {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cd-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+@media (max-width: 1024px) {
+  .cd-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cd-add-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .cd-kpi-grid,
+  .cd-add-grid,
+  .cd-add-row2,
+  .cd-filters {
+    grid-template-columns: 1fr;
+  }
+}

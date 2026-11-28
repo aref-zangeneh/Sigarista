@@ -120,6 +120,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<AdminBankCard> AdminBankCards => Set<AdminBankCard>();
 
+    public DbSet<CafeIncident> CafeIncidents => Set<CafeIncident>();
+
+    public DbSet<CustomerDemand> CustomerDemands => Set<CustomerDemand>();
+
     public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
 
     public DbSet<ProductWikiGuide> ProductWikiGuides => Set<ProductWikiGuide>();

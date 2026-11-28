@@ -54,12 +54,17 @@ export function AffiliatesPage() {
 
   const [couponModal, setCouponModal] = useState(null)
   const [couponForm, setCouponForm] = useState({
+    id: null,
     code: '',
     discountType: 'Percentage',
     discountValue: '15',
     maxDiscountAmount: '',
     isFirstOrderOnly: false,
     usageLimitPerUser: '',
+    maxTotalUsages: '',
+    startsAt: '',
+    expiresAt: '',
+    isActive: true,
   })
 
   const [tierForm, setTierForm] = useState({
@@ -211,26 +216,83 @@ export function AffiliatesPage() {
     }
   }
 
+  const toLocalDateTime = (iso) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
+  const openCreateCouponModal = (aff) => {
+    setCouponModal(aff)
+    setCouponForm({
+      id: null,
+      code: '',
+      discountType: 'Percentage',
+      discountValue: '15',
+      maxDiscountAmount: '',
+      isFirstOrderOnly: false,
+      usageLimitPerUser: '',
+      maxTotalUsages: '',
+      startsAt: '',
+      expiresAt: '',
+      isActive: true,
+    })
+  }
+
+  const openEditCouponModal = (aff, coupon) => {
+    setCouponModal(aff)
+    setCouponForm({
+      id: coupon.id,
+      code: coupon.code ?? '',
+      discountType: coupon.discountType ?? 'Percentage',
+      discountValue: coupon.discountValue != null ? String(coupon.discountValue) : '15',
+      maxDiscountAmount: coupon.maxDiscountAmount != null ? String(coupon.maxDiscountAmount) : '',
+      isFirstOrderOnly: Boolean(coupon.isFirstOrderOnly),
+      usageLimitPerUser: coupon.usageLimitPerUser != null ? String(coupon.usageLimitPerUser) : '',
+      maxTotalUsages: coupon.maxTotalUsages != null ? String(coupon.maxTotalUsages) : '',
+      startsAt: toLocalDateTime(coupon.startsAt),
+      expiresAt: toLocalDateTime(coupon.expiresAt),
+      isActive: coupon.isActive !== false,
+    })
+  }
+
   const handleCreateCoupon = async (event) => {
     event.preventDefault()
     if (!couponModal || !canManage) return
     setError('')
     try {
-      await apiRequest(`/admin/affiliates/${couponModal.id}/coupons`, {
-        method: 'POST',
-        token: session.token,
-        body: {
-          code: couponForm.code.trim(),
-          discountType: couponForm.discountType,
-          discountValue: Number(couponForm.discountValue) || 0,
-          maxDiscountAmount: couponForm.maxDiscountAmount !== '' ? Number(couponForm.maxDiscountAmount) : null,
-          isFirstOrderOnly: Boolean(couponForm.isFirstOrderOnly),
-          usageLimitPerUser: couponForm.usageLimitPerUser !== '' ? Number(couponForm.usageLimitPerUser) : null,
-        },
-      })
-      setMessage('کد تخفیف اختصاصی برای بازاریاب ثبت شد.')
+      const payload = {
+        code: couponForm.code.trim(),
+        discountType: couponForm.discountType,
+        discountValue: Number(couponForm.discountValue) || 0,
+        maxDiscountAmount: couponForm.maxDiscountAmount !== '' ? Number(couponForm.maxDiscountAmount) : null,
+        isFirstOrderOnly: Boolean(couponForm.isFirstOrderOnly),
+        usageLimitPerUser: couponForm.usageLimitPerUser !== '' ? Number(couponForm.usageLimitPerUser) : null,
+        maxTotalUsages: couponForm.maxTotalUsages !== '' ? Number(couponForm.maxTotalUsages) : null,
+        startsAt: couponForm.startsAt ? new Date(couponForm.startsAt).toISOString() : null,
+        expiresAt: couponForm.expiresAt ? new Date(couponForm.expiresAt).toISOString() : null,
+        isActive: Boolean(couponForm.isActive),
+      }
+
+      if (couponForm.id) {
+        await apiRequest(`/admin/affiliates/coupons/${couponForm.id}`, {
+          method: 'PUT',
+          token: session.token,
+          body: payload,
+        })
+        setMessage(`کد تخفیف ${couponForm.code.toUpperCase()} ویرایش شد.`)
+      } else {
+        await apiRequest(`/admin/affiliates/${couponModal.id}/coupons`, {
+          method: 'POST',
+          token: session.token,
+          body: payload,
+        })
+        setMessage('کد تخفیف اختصاصی برای بازاریاب ثبت شد.')
+      }
+
       setCouponModal(null)
-      setCouponForm({ code: '', discountType: 'Percentage', discountValue: '15', maxDiscountAmount: '', isFirstOrderOnly: false, usageLimitPerUser: '' })
       await loadAll()
     } catch (err) {
       setError(err.message)
@@ -475,9 +537,21 @@ export function AffiliatesPage() {
                         <div style={{ fontSize: '0.74rem', color: 'var(--muted)', fontWeight: 400 }}>معلق: {toPersianNumber(aff.pendingCommission)} ت</div>
                       </td>
                       <td>
-                        {(aff.coupons ?? []).map((c) => (
-                          <span key={c.id} className="aff-status-chip aff-status-chip--active" style={{ marginLeft: '0.25rem' }}>{c.code}</span>
-                        ))}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.28rem' }}>
+                          {(aff.coupons ?? []).map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className={`aff-status-chip ${c.isActive ? 'aff-status-chip--active' : ''}`}
+                              style={{ cursor: canManage ? 'pointer' : 'default', border: 'none' }}
+                              title="کلیک برای ویرایش بازه زمانی و سقف تعداد کد تخفیف"
+                              onClick={() => canManage && openEditCouponModal(aff, c)}
+                            >
+                              <span dir="ltr">{c.code}</span>
+                              {c.maxTotalUsages ? ` (${toPersianNumber(c.maxTotalUsages)}×)` : ''}
+                            </button>
+                          ))}
+                        </div>
                       </td>
                       {canManage && (
                         <td>
@@ -501,7 +575,7 @@ export function AffiliatesPage() {
                             >
                               سطح / VIP
                             </button>
-                            <button type="button" className="aff-btn-xs" onClick={() => setCouponModal(aff)}>+ کد تخفیف</button>
+                            <button type="button" className="aff-btn-xs" onClick={() => openCreateCouponModal(aff)}>+ کد تخفیف</button>
                           </div>
                         </td>
                       )}
@@ -755,33 +829,69 @@ export function AffiliatesPage() {
         </div>
       )}
 
-      {/* Modal: Create Coupon */}
+      {/* Modal: Create / Edit Coupon */}
       {couponModal && (
         <div className="aff-admin-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setCouponModal(null) }}>
           <form className="aff-admin-modal" onSubmit={handleCreateCoupon}>
-            <h2 style={{ margin: 0 }}>ساخت کد تخفیف اختصاصی — {couponModal.customerName}</h2>
+            <h2 style={{ margin: 0 }}>
+              {couponForm.id ? 'ویرایش کد تخفیف اختصاصی' : 'ساخت کد تخفیف اختصاصی'} — {couponModal.customerName}
+            </h2>
             <div className="aff-admin-field">
               <label>کد تخفیف (مثلاً ALI15)</label>
-              <input required dir="ltr" value={couponForm.code} onChange={(e) => setCouponForm((p) => ({ ...p, code: e.target.value }))} />
+              <input required dir="ltr" data-latin-digits="true" value={couponForm.code} onChange={(e) => setCouponForm((p) => ({ ...p, code: e.target.value }))} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+              <div className="aff-admin-field">
+                <label>نوع تخفیف</label>
+                <select value={couponForm.discountType} onChange={(e) => setCouponForm((p) => ({ ...p, discountType: e.target.value }))}>
+                  <option value="Percentage">درصدی</option>
+                  <option value="FixedAmount">مبلغ ثابت (تومان)</option>
+                </select>
+              </div>
+              <div className="aff-admin-field">
+                <label>مقدار تخفیف</label>
+                <input required type="number" min="1" value={couponForm.discountValue} onChange={(e) => setCouponForm((p) => ({ ...p, discountValue: e.target.value }))} />
+              </div>
             </div>
             <div className="aff-admin-field">
-              <label>نوع تخفیف</label>
-              <select value={couponForm.discountType} onChange={(e) => setCouponForm((p) => ({ ...p, discountType: e.target.value }))}>
-                <option value="Percentage">درصدی</option>
-                <option value="FixedAmount">مبلغ ثابت (تومان)</option>
-              </select>
+              <label>سقف مبلغ تخفیف (تومان — اختیاری)</label>
+              <input type="number" min="1" placeholder="مثلاً 100000 (خالی = بدون سقف)" value={couponForm.maxDiscountAmount} onChange={(e) => setCouponForm((p) => ({ ...p, maxDiscountAmount: e.target.value }))} />
             </div>
-            <div className="aff-admin-field">
-              <label>مقدار تخفیف</label>
-              <input required type="number" min="1" value={couponForm.discountValue} onChange={(e) => setCouponForm((p) => ({ ...p, discountValue: e.target.value }))} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+              <div className="aff-admin-field">
+                <label>سقف کل تعداد استفاده (اختیاری)</label>
+                <input type="number" min="1" placeholder="مثلاً 50 (خالی = نامحدود)" value={couponForm.maxTotalUsages} onChange={(e) => setCouponForm((p) => ({ ...p, maxTotalUsages: e.target.value }))} />
+              </div>
+              <div className="aff-admin-field">
+                <label>سقف استفاده برای هر مشتری (اختیاری)</label>
+                <input type="number" min="1" placeholder="مثلاً 1 (خالی = نامحدود)" value={couponForm.usageLimitPerUser} onChange={(e) => setCouponForm((p) => ({ ...p, usageLimitPerUser: e.target.value }))} />
+              </div>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.84rem' }}>
-              <input type="checkbox" checked={couponForm.isFirstOrderOnly} onChange={(e) => setCouponForm((p) => ({ ...p, isFirstOrderOnly: e.target.checked }))} />
-              فقط ویژه سفارش اول مشتریان جدید
-            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+              <div className="aff-admin-field">
+                <label>تاریخ و ساعت شروع اعتبار (اختیاری)</label>
+                <input type="datetime-local" dir="ltr" data-latin-digits="true" value={couponForm.startsAt} onChange={(e) => setCouponForm((p) => ({ ...p, startsAt: e.target.value }))} />
+              </div>
+              <div className="aff-admin-field">
+                <label>تاریخ و ساعت پایان / انقضا (اختیاری)</label>
+                <input type="datetime-local" dir="ltr" data-latin-digits="true" value={couponForm.expiresAt} onChange={(e) => setCouponForm((p) => ({ ...p, expiresAt: e.target.value }))} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.84rem' }}>
+                <input type="checkbox" checked={couponForm.isFirstOrderOnly} onChange={(e) => setCouponForm((p) => ({ ...p, isFirstOrderOnly: e.target.checked }))} />
+                فقط ویژه سفارش اول مشتریان جدید
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.84rem' }}>
+                <input type="checkbox" checked={couponForm.isActive} onChange={(e) => setCouponForm((p) => ({ ...p, isActive: e.target.checked }))} />
+                فعال باشد
+              </label>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button type="button" className="ghost-button" onClick={() => setCouponModal(null)}>انصراف</button>
-              <button type="submit">ثبت کد تخفیف</button>
+              <button type="submit">
+                {couponForm.id ? 'ذخیره تغییرات' : 'ثبت کد تخفیف'}
+              </button>
             </div>
           </form>
         </div>

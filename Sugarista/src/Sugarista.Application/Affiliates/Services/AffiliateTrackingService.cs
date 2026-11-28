@@ -194,6 +194,45 @@ public sealed class AffiliateTrackingService : IAffiliateTrackingService
             return null;
         }
 
+        var nowUtc = DateTimeOffset.UtcNow;
+        if (coupon.StartsAt.HasValue && nowUtc < coupon.StartsAt.Value)
+        {
+            if (throwOnInvalidCoupon)
+            {
+                throw new DomainException("زمان استفاده از این کد تخفیف هنوز شروع نشده است.");
+            }
+            return null;
+        }
+
+        if (coupon.ExpiresAt.HasValue && nowUtc > coupon.ExpiresAt.Value)
+        {
+            if (throwOnInvalidCoupon)
+            {
+                throw new DomainException("مهلت استفاده از این کد تخفیف به پایان رسیده است.");
+            }
+            return null;
+        }
+
+        if (coupon.MaxTotalUsages.HasValue)
+        {
+            var totalUsed = await _dbContext.OrderDiscounts
+                .AsNoTracking()
+                .CountAsync(
+                    od => od.Code == normalizedCode &&
+                          od.Order.Status != OrderStatus.Cancelled &&
+                          od.Order.Status != OrderStatus.Failed,
+                    cancellationToken);
+
+            if (totalUsed >= coupon.MaxTotalUsages.Value)
+            {
+                if (throwOnInvalidCoupon)
+                {
+                    throw new DomainException("ظرفیت کل استفاده از این کد تخفیف تکمیل شده است.");
+                }
+                return null;
+            }
+        }
+
         // Anti-Fraud Rule 1: Self-Referral Check (CustomerId + Normalized Phone)
         var selfReferral = AffiliateAntiFraudEvaluator.DetectSelfReferral(
             new AffiliateIdentitySnapshot(customerId, customerPhone),

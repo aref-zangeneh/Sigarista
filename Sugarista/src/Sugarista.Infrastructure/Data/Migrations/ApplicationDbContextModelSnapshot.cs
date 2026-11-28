@@ -690,6 +690,9 @@ namespace Sugarista.Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -705,6 +708,12 @@ namespace Sugarista.Infrastructure.Data.Migrations
                     b.Property<decimal?>("MaxDiscountAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<int?>("MaxTotalUsages")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("StartsAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("UsageLimitPerUser")
                         .HasColumnType("integer");

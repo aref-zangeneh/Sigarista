@@ -45,7 +45,11 @@ public sealed record AdminCreateAffiliateCouponRequest(
     decimal DiscountValue,
     decimal? MaxDiscountAmount,
     bool IsFirstOrderOnly,
-    int? UsageLimitPerUser);
+    int? UsageLimitPerUser,
+    int? MaxTotalUsages = null,
+    DateTimeOffset? StartsAt = null,
+    DateTimeOffset? ExpiresAt = null,
+    bool IsActive = true);
 
 public sealed record AdminCompletePayoutRequest(
     string? TrackingCode,
@@ -195,7 +199,20 @@ public class AdminAffiliatesController : ApiControllerBase
                 pendingCommission = stat.Pending,
                 approvedCommission = stat.Approved,
                 linksCount = a.Links.Count,
-                coupons = a.Coupons.Select(c => new { c.Id, c.Code, c.DiscountType, c.DiscountValue, c.IsFirstOrderOnly, c.IsActive }),
+                coupons = a.Coupons.Select(c => new
+                {
+                    c.Id,
+                    c.Code,
+                    c.DiscountType,
+                    c.DiscountValue,
+                    c.MaxDiscountAmount,
+                    c.IsFirstOrderOnly,
+                    c.UsageLimitPerUser,
+                    c.MaxTotalUsages,
+                    c.StartsAt,
+                    c.ExpiresAt,
+                    c.IsActive,
+                }),
                 a.CreatedAt,
             };
         });
@@ -397,9 +414,53 @@ public class AdminAffiliatesController : ApiControllerBase
                 request.DiscountValue,
                 request.MaxDiscountAmount,
                 request.IsFirstOrderOnly,
-                request.UsageLimitPerUser);
+                request.UsageLimitPerUser,
+                request.IsActive,
+                request.MaxTotalUsages,
+                request.StartsAt,
+                request.ExpiresAt);
 
             _dbContext.AffiliateCoupons.Add(coupon);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return Ok(new { coupon.Id, coupon.Code });
+        }
+        catch (DomainException exception)
+        {
+            return Problem(exception.Message, statusCode: 400);
+        }
+    }
+
+    [HttpPut("coupons/{couponId:guid}")]
+    [RequirePermission(AdminPermissions.Affiliates.Update)]
+    public async Task<ActionResult<object>> UpdateCoupon(
+        Guid couponId,
+        [FromBody] AdminCreateAffiliateCouponRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var coupon = await _dbContext.AffiliateCoupons
+            .FirstOrDefaultAsync(c => c.Id == couponId, cancellationToken);
+        if (coupon is null) return NotFound();
+
+        try
+        {
+            var normalizedCode = request.Code.Trim().ToUpperInvariant();
+            if (await _dbContext.AffiliateCoupons.AnyAsync(c => c.Code == normalizedCode && c.Id != couponId, cancellationToken))
+            {
+                return Problem("این کد تخفیف قبلاً ثبت شده است.", statusCode: 400);
+            }
+
+            coupon.Update(
+                normalizedCode,
+                request.DiscountType,
+                request.DiscountValue,
+                request.MaxDiscountAmount,
+                request.IsFirstOrderOnly,
+                request.UsageLimitPerUser,
+                request.IsActive,
+                request.MaxTotalUsages,
+                request.StartsAt,
+                request.ExpiresAt);
+
             await _dbContext.SaveChangesAsync(cancellationToken);
             return Ok(new { coupon.Id, coupon.Code });
         }

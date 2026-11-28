@@ -63,6 +63,7 @@ import { SmsSettingsPage } from './pages/SmsSettingsPage'
 import { OrderListPage } from './pages/OrderListPage.jsx'
 import { IncidentsPage } from './pages/IncidentsPage.jsx'
 import { CustomerDemandsPage } from './pages/CustomerDemandsPage.jsx'
+import { SystemMonitoringPage } from './pages/SystemMonitoringPage.jsx'
 import './App.css'
 
 const pageComponents = {
@@ -110,6 +111,7 @@ const pageComponents = {
   hr: HrPage,
   'staff-tasks': StaffTasksPage,
   'site-settings': SiteSettingsPage,
+  monitoring: SystemMonitoringPage,
   tooltips: TooltipsPage,
   'special-routes': SpecialRoutesPage,
   'system-logs': SystemLogsPage,

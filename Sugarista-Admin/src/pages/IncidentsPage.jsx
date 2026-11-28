@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
 import { ImageUploader } from '../components/ImageUploader'
+import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
 import { formatMoney } from '../components/DataTable'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
 import { normalizeImageUrl } from '../utils/imageUrl.js'
@@ -41,11 +42,21 @@ const QUICK_TEMPLATES = [
   { label: 'ایمنی / بهداشت', icon: '🛡️', category: 'SafetyOrHealth', severity: 'Medium', title: 'رخداد ایمنی یا بهداشتی' },
 ]
 
-function toLocalDateTimeInput(dateValue) {
+function splitLocalDateTime(dateValue) {
   const d = dateValue ? new Date(dateValue) : new Date()
-  if (Number.isNaN(d.getTime())) return ''
+  if (Number.isNaN(d.getTime())) return { date: '', time: '' }
   const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  }
+}
+
+function combineDateTimeToIso(dateStr, timeStr) {
+  if (!dateStr) return null
+  const safeTime = timeStr && /^\d{2}:\d{2}/.test(timeStr) ? timeStr.slice(0, 5) : '00:00'
+  const parsed = new Date(`${dateStr}T${safeTime}`)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
 }
 
 function formatMinutesReadable(minutes, toPersianNumber) {
@@ -59,14 +70,17 @@ function formatMinutesReadable(minutes, toPersianNumber) {
 }
 
 function emptyIncidentForm(overrides = {}) {
+  const nowParts = splitLocalDateTime(new Date())
   return {
     id: '',
     title: '',
     category: 'PowerOutage',
     severity: 'Medium',
     status: 'Open',
-    occurredAt: toLocalDateTimeInput(new Date()),
-    resolvedAt: '',
+    occurredDate: nowParts.date,
+    occurredTime: nowParts.time,
+    resolvedDate: '',
+    resolvedTime: '',
     location: '',
     description: '',
     impactSummary: '',
@@ -115,7 +129,8 @@ export function IncidentsPage() {
   const [form, setForm] = useState(() => emptyIncidentForm())
 
   const [resolveTarget, setResolveTarget] = useState(null)
-  const [resolveAt, setResolveAt] = useState('')
+  const [resolveDate, setResolveDate] = useState('')
+  const [resolveTime, setResolveTime] = useState('')
   const [resolveNotes, setResolveNotes] = useState('')
 
   const loadIncidents = useCallback(async () => {
@@ -167,14 +182,18 @@ export function IncidentsPage() {
   }
 
   const openEditModal = (item) => {
+    const occurredParts = splitLocalDateTime(item.occurredAt)
+    const resolvedParts = item.resolvedAt ? splitLocalDateTime(item.resolvedAt) : { date: '', time: '' }
     setForm({
       id: item.id,
       title: item.title ?? '',
       category: item.category ?? 'Other',
       severity: item.severity ?? 'Medium',
       status: item.status ?? 'Open',
-      occurredAt: toLocalDateTimeInput(item.occurredAt),
-      resolvedAt: item.resolvedAt ? toLocalDateTimeInput(item.resolvedAt) : '',
+      occurredDate: occurredParts.date,
+      occurredTime: occurredParts.time,
+      resolvedDate: resolvedParts.date,
+      resolvedTime: resolvedParts.time,
       location: item.location ?? '',
       description: item.description ?? '',
       impactSummary: item.impactSummary ?? '',
@@ -193,6 +212,10 @@ export function IncidentsPage() {
       setError('عنوان حادثه الزامی است.')
       return
     }
+    if (!form.occurredDate) {
+      setError('تاریخ وقوع حادثه الزامی است.')
+      return
+    }
 
     setSaving(true)
     setError('')
@@ -203,8 +226,8 @@ export function IncidentsPage() {
         category: form.category,
         severity: form.severity,
         status: form.status,
-        occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : new Date().toISOString(),
-        resolvedAt: form.resolvedAt ? new Date(form.resolvedAt).toISOString() : null,
+        occurredAt: combineDateTimeToIso(form.occurredDate, form.occurredTime) || new Date().toISOString(),
+        resolvedAt: form.resolvedDate ? combineDateTimeToIso(form.resolvedDate, form.resolvedTime) : null,
         location: form.location.trim() || null,
         description: form.description.trim() || null,
         impactSummary: form.impactSummary.trim() || null,
@@ -244,8 +267,10 @@ export function IncidentsPage() {
   }
 
   const openResolveModal = (item) => {
+    const nowParts = splitLocalDateTime(new Date())
     setResolveTarget(item)
-    setResolveAt(toLocalDateTimeInput(new Date()))
+    setResolveDate(nowParts.date)
+    setResolveTime(nowParts.time)
     setResolveNotes(item.resolutionNotes ?? '')
   }
 
@@ -260,7 +285,7 @@ export function IncidentsPage() {
         method: 'POST',
         token: session.token,
         body: {
-          resolvedAt: resolveAt ? new Date(resolveAt).toISOString() : new Date().toISOString(),
+          resolvedAt: combineDateTimeToIso(resolveDate, resolveTime) || new Date().toISOString(),
           resolutionNotes: resolveNotes.trim() || null,
         },
       })
@@ -599,29 +624,50 @@ export function IncidentsPage() {
             </div>
 
             <div className="inc-form-grid-2">
-              <label>
-                <span>تاریخ و ساعت وقوع *</span>
-                <input
-                  required
-                  type="datetime-local"
-                  className="ltr-input"
-                  dir="ltr"
-                  data-latin-digits="true"
-                  value={form.occurredAt}
-                  onChange={(e) => setForm((f) => ({ ...f, occurredAt: e.target.value }))}
-                />
-              </label>
-              <label>
-                <span>تاریخ و ساعت رفع (اختیاری)</span>
-                <input
-                  type="datetime-local"
-                  className="ltr-input"
-                  dir="ltr"
-                  data-latin-digits="true"
-                  value={form.resolvedAt}
-                  onChange={(e) => setForm((f) => ({ ...f, resolvedAt: e.target.value }))}
-                />
-              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--muted)' }}>
+                  تاریخ و ساعت وقوع (شمسی) *
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: '0.45rem' }}>
+                  <ShamsiDatePicker
+                    value={form.occurredDate}
+                    required
+                    showHint={false}
+                    placeholder="تاریخ وقوع"
+                    onChange={(nextIso) => setForm((f) => ({ ...f, occurredDate: nextIso || '' }))}
+                  />
+                  <input
+                    required
+                    type="time"
+                    className="ltr-input"
+                    dir="ltr"
+                    data-latin-digits="true"
+                    value={form.occurredTime}
+                    onChange={(e) => setForm((f) => ({ ...f, occurredTime: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--muted)' }}>
+                  تاریخ و ساعت رفع (شمسی — اختیاری)
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: '0.45rem' }}>
+                  <ShamsiDatePicker
+                    value={form.resolvedDate}
+                    showHint={false}
+                    placeholder="تاریخ رفع"
+                    onChange={(nextIso) => setForm((f) => ({ ...f, resolvedDate: nextIso || '' }))}
+                  />
+                  <input
+                    type="time"
+                    className="ltr-input"
+                    dir="ltr"
+                    data-latin-digits="true"
+                    value={form.resolvedTime}
+                    onChange={(e) => setForm((f) => ({ ...f, resolvedTime: e.target.value }))}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="inc-form-grid-3">
@@ -736,18 +782,29 @@ export function IncidentsPage() {
               حادثه: <strong>{resolveTarget.title}</strong>
             </p>
 
-            <label>
-              <span>زمان دقیق رفع حادثه</span>
-              <input
-                required
-                type="datetime-local"
-                className="ltr-input"
-                dir="ltr"
-                data-latin-digits="true"
-                value={resolveAt}
-                onChange={(e) => setResolveAt(e.target.value)}
-              />
-            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--muted)' }}>
+                تاریخ و ساعت دقیق رفع حادثه (شمسی)
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: '0.45rem' }}>
+                <ShamsiDatePicker
+                  value={resolveDate}
+                  required
+                  showHint={false}
+                  placeholder="تاریخ رفع"
+                  onChange={(nextIso) => setResolveDate(nextIso || '')}
+                />
+                <input
+                  required
+                  type="time"
+                  className="ltr-input"
+                  dir="ltr"
+                  data-latin-digits="true"
+                  value={resolveTime}
+                  onChange={(e) => setResolveTime(e.target.value)}
+                />
+              </div>
+            </div>
 
             <label>
               <span>شرح اقدام انجام‌شده / علت رفع</span>

@@ -1,0 +1,286 @@
+/* ============================================================
+   SystemMonitoringPage — Real-Time Server, APM & Security Hub
+   Crisp, minimal, high-density telemetry dashboard (RTL-first)
+   ============================================================ */
+
+.mon-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.mon-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.mon-head-right {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.mon-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.mon-live-pill.is-live {
+  border-color: rgba(22, 163, 74, 0.35);
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+}
+
+.mon-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.mon-live-pill.is-live .mon-live-dot {
+  animation: monPulse 1.6s infinite;
+}
+
+@keyframes monPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+.mon-health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.72rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.mon-health-badge.is-Healthy { background: rgba(22, 163, 74, 0.14); color: #16a34a; }
+.mon-health-badge.is-Warning { background: rgba(245, 158, 11, 0.16); color: #d97706; }
+.mon-health-badge.is-Critical { background: rgba(220, 38, 38, 0.16); color: #dc2626; }
+
+/* ── Tabs ── */
+.mon-tabs {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.mon-tab {
+  min-height: 34px !important;
+  padding: 0.35rem 0.85rem !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem !important;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mon-tab.is-active {
+  border-color: rgba(170, 49, 113, 0.35);
+  background: var(--brand-accent-soft);
+  color: var(--accent);
+}
+
+/* ── Metric Cards ── */
+.mon-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.mon-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.mon-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.mon-card {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.mon-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mon-card-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.mon-card-val {
+  font-size: 1.32rem;
+  font-weight: 900;
+  color: var(--heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.mon-card-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* ── Progress Bar ── */
+.mon-bar {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--tint-strong);
+  overflow: hidden;
+}
+
+.mon-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+  background: #16a34a;
+}
+
+.mon-bar-fill.is-warn { background: #f59e0b; }
+.mon-bar-fill.is-crit { background: #dc2626; }
+
+/* ── Sparkline ── */
+.mon-sparkline {
+  width: 100%;
+  height: 44px;
+  display: block;
+}
+
+/* ── Storage Drives ── */
+.mon-drives {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.7rem;
+}
+
+.mon-drive-card {
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* ── Tables ── */
+.mon-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.mon-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.mon-table th,
+.mon-table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mon-code-path {
+  direction: ltr;
+  display: inline-block;
+  font-family: ui-monospace, monospace;
+  font-size: 0.76rem;
+  color: var(--heading);
+}
+
+.mon-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.mon-pill.is-ok { background: rgba(22, 163, 74, 0.14); color: #16a34a; }
+.mon-pill.is-warn { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+.mon-pill.is-err { background: rgba(220, 38, 38, 0.14); color: #dc2626; }
+
+/* ── Security Audit Strip ── */
+.mon-audit-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.mon-audit-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.72rem;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.mon-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1080px) {
+  .mon-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mon-grid-3,
+  .mon-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .mon-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}

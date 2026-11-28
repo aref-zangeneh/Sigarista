@@ -265,6 +265,11 @@ const ROUTE_ICONS = {
       <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2Z" />
     </>,
   ),
+  monitoring: icon(
+    <>
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </>,
+  ),
 }
 
 /* ── Sidebar groups (world-class admin nav pattern) ─────── */
@@ -276,7 +281,7 @@ const NAV_GROUPS = [
   { title: 'فروش و مالی', routes: ['record-sale', 'accounting', 'exports', 'affiliates'] },
   { title: 'منابع انسانی', routes: ['hr', 'staff-tasks'] },
   { title: 'مدیریت پیامک', routes: ['sms-dashboard', 'sms-send', 'sms-bulk', 'sms-contacts', 'sms-groups', 'sms-templates', 'sms-history', 'sms-providers', 'sms-settings'] },
-  { title: 'سیستم', routes: ['site-settings', 'special-routes', 'admin-users', 'activity-log'] },
+  { title: 'سیستم', routes: ['monitoring', 'site-settings', 'special-routes', 'admin-users', 'activity-log'] },
 ]
 
 export function AdminLayout() {

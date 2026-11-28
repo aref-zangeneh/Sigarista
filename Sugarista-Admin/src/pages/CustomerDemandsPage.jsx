@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAdmin } from '../context/AdminContext'
+import { ShamsiDatePicker } from '../components/ShamsiDatePicker'
 import { hasPermission, PERMISSIONS } from '../utils/adminPermissions'
 import './MenuSectionMinimal.css'
 import './CustomerDemandsPage.css'
@@ -264,29 +265,25 @@ export function CustomerDemandsPage() {
           <div className="cd-custom-dates">
             <label>
               <span>از تاریخ:</span>
-              <input
-                type="date"
-                className="ltr-input"
-                dir="ltr"
-                data-latin-digits="true"
+              <ShamsiDatePicker
                 value={fromDate}
-                onChange={(e) => {
+                showHint={false}
+                placeholder="از تاریخ (شمسی)"
+                onChange={(nextIso) => {
                   setRangePreset('custom')
-                  setFromDate(e.target.value)
+                  setFromDate(nextIso || '')
                 }}
               />
             </label>
             <label>
               <span>تا تاریخ:</span>
-              <input
-                type="date"
-                className="ltr-input"
-                dir="ltr"
-                data-latin-digits="true"
+              <ShamsiDatePicker
                 value={toDate}
-                onChange={(e) => {
+                showHint={false}
+                placeholder="تا تاریخ (شمسی)"
+                onChange={(nextIso) => {
                   setRangePreset('custom')
-                  setToDate(e.target.value)
+                  setToDate(nextIso || '')
                 }}
               />
             </label>

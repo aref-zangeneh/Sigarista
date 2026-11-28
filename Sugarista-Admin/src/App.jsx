@@ -64,6 +64,7 @@ import { OrderListPage } from './pages/OrderListPage.jsx'
 import { IncidentsPage } from './pages/IncidentsPage.jsx'
 import { CustomerDemandsPage } from './pages/CustomerDemandsPage.jsx'
 import { SystemMonitoringPage } from './pages/SystemMonitoringPage.jsx'
+import { BackupsPage } from './pages/BackupsPage.jsx'
 import './App.css'
 
 const pageComponents = {
@@ -112,6 +113,7 @@ const pageComponents = {
   'staff-tasks': StaffTasksPage,
   'site-settings': SiteSettingsPage,
   monitoring: SystemMonitoringPage,
+  backups: BackupsPage,
   tooltips: TooltipsPage,
   'special-routes': SpecialRoutesPage,
   'system-logs': SystemLogsPage,

@@ -124,6 +124,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<CustomerDemand> CustomerDemands => Set<CustomerDemand>();
 
+    public DbSet<BackupCloudTarget> BackupCloudTargets => Set<BackupCloudTarget>();
+
+    public DbSet<BackupJob> BackupJobs => Set<BackupJob>();
+
+    public DbSet<BackupRecord> BackupRecords => Set<BackupRecord>();
+
     public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
 
     public DbSet<ProductWikiGuide> ProductWikiGuides => Set<ProductWikiGuide>();

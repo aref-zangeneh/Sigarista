@@ -115,6 +115,12 @@ public interface IApplicationDbContext
 
     DbSet<Sugarista.Domain.Entities.CustomerDemand> CustomerDemands { get; }
 
+    DbSet<Sugarista.Domain.Entities.BackupCloudTarget> BackupCloudTargets { get; }
+
+    DbSet<Sugarista.Domain.Entities.BackupJob> BackupJobs { get; }
+
+    DbSet<Sugarista.Domain.Entities.BackupRecord> BackupRecords { get; }
+
     DbSet<Sugarista.Domain.Entities.ProductionBatch> ProductionBatches { get; }
 
     DbSet<Sugarista.Domain.Entities.ProductWikiGuide> ProductWikiGuides { get; }

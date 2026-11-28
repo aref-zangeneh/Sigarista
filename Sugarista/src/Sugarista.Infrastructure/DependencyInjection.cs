@@ -80,6 +80,9 @@ public static class DependencyInjection
         services.AddHttpClient<KavenegarSmsService>();
         services.AddHttpClient<KavenegarMaintenanceSmsService>();
         services.AddHttpClient<Sugarista.Application.AiContent.IGeminiContentService, GeminiContentService>();
+        services.AddHttpClient<Sugarista.Infrastructure.Backups.S3V4CloudUploader>();
+        services.AddSingleton<Sugarista.Infrastructure.Backups.BackupExecutionService>();
+        services.AddHostedService<Sugarista.Infrastructure.Backups.BackupSchedulerHostedService>();
         services.AddScoped<LoggingSmsService>();
         services.AddScoped<LoggingMaintenanceSmsService>();
         services.AddScoped<LoggingMaintenanceEmailService>();

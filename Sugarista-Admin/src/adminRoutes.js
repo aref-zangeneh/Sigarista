@@ -46,6 +46,7 @@ export const adminRoutes = [
   { id: 'staff-tasks', path: 'staff-tasks', label: 'تسک‌های پرسنل' },
   { id: 'site-settings', path: 'site-settings', label: 'تنظیمات سایت' },
   { id: 'monitoring', path: 'monitoring', label: 'مانیتورینگ هوشمند' },
+  { id: 'backups', path: 'backups', label: 'مدیریت و مانیتورینگ بکاپ' },
   { id: 'tooltips', path: 'tooltips', label: 'راهنماهای صفحه‌ها' },
   { id: 'special-routes', path: 'special-routes', label: 'مسیرهای متفرقه' },
   { id: 'system-logs', path: 'system-logs', label: 'لاگ‌ها و سلامت سیستم' },

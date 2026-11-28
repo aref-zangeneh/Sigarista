@@ -1,0 +1,202 @@
+/* ============================================================
+   BackupsPage — Enterprise Backup, Scheduler, Multi-Cloud & Health
+   ============================================================ */
+
+.bkp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bkp-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.bkp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.bkp-kpi-card {
+  padding: 0.8rem 0.95rem;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.bkp-kpi-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bkp-kpi-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.bkp-kpi-sub {
+  font-size: 0.71rem;
+  color: var(--muted);
+}
+
+.bkp-tabs {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.bkp-tab {
+  min-height: 34px !important;
+  padding: 0.35rem 0.85rem !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem !important;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bkp-tab.is-active {
+  border-color: rgba(170, 49, 113, 0.35);
+  background: var(--brand-accent-soft);
+  color: var(--accent);
+}
+
+/* ── Quick Run Bar ── */
+.bkp-run-bar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.bkp-form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.bkp-form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.bkp-page label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.bkp-page label > span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bkp-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.bkp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.bkp-table th,
+.bkp-table td {
+  padding: 0.58rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bkp-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.52rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.bkp-pill.is-ok { background: rgba(22, 163, 74, 0.14); color: #16a34a; }
+.bkp-pill.is-warn { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+.bkp-pill.is-err { background: rgba(220, 38, 38, 0.14); color: #dc2626; }
+.bkp-pill.is-muted { background: var(--tint-strong); color: var(--muted); }
+
+.bkp-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+/* ── Health Timeline Bars ── */
+.bkp-health-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  min-height: 46px;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  overflow-x: auto;
+}
+
+.bkp-health-tick {
+  width: 12px;
+  height: 32px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.bkp-health-tick.is-ok { background: #16a34a; }
+.bkp-health-tick.is-err { background: #dc2626; height: 22px; }
+.bkp-health-tick.is-run { background: #f59e0b; height: 26px; }
+
+.bkp-empty {
+  padding: 1.8rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+@media (max-width: 1024px) {
+  .bkp-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bkp-run-bar,
+  .bkp-form-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .bkp-kpi-grid,
+  .bkp-run-bar,
+  .bkp-form-grid-3,
+  .bkp-form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}

@@ -234,6 +234,10 @@ export const PERMISSIONS = {
     view: 'admin.site-settings.view',
     update: 'admin.site-settings.update',
   },
+  backups: {
+    view: 'admin.site-settings.view',
+    update: 'admin.site-settings.update',
+  },
   tooltips: {
     view: 'admin.tooltips.view',
     update: 'admin.tooltips.update',

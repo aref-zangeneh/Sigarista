@@ -10,7 +10,8 @@ namespace Sugarista.Application.Customers.Auth.Commands.RequestCustomerOtp;
 
 public record RequestCustomerOtpCommand(
     string PhoneNumber,
-    string? RequestIp = null) : IRequest<RequestCustomerOtpResultDto>;
+    string? RequestIp = null,
+    string? PersianName = null) : IRequest<RequestCustomerOtpResultDto>;
 
 public record RequestCustomerOtpResultDto(
     bool Sent,
@@ -57,7 +58,7 @@ public class RequestCustomerOtpCommandHandler(
         // so the cafe never loses customer phone numbers even if verification is abandoned.
         var customer = await CustomerDirectoryService.ResolveCustomerAsync(
             dbContext,
-            customerName: null,
+            customerName: request.PersianName,
             phone,
             "online",
             cancellationToken);
@@ -148,7 +149,16 @@ public class RequestCustomerOtpCommandHandler(
             .Select(s => s.CafeName)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var smsOutcome = await smsGateway.SendOtpAsync(phone, code, cafeName, cancellationToken);
+        var resolvedRecipientName = !string.IsNullOrWhiteSpace(request.PersianName)
+            ? request.PersianName.Trim()
+            : customer.PersianName;
+
+        var smsOutcome = await smsGateway.SendOtpAsync(
+            phone,
+            code,
+            cafeName,
+            resolvedRecipientName,
+            cancellationToken);
         if (!smsOutcome.Success)
         {
             // Release cooldown if the SMS provider failed to send so the user can retry immediately.

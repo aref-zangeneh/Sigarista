@@ -1,0 +1,134 @@
+.abc-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(290px, 390px);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.abc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.abc-fields-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.abc-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.abc-form label > span {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.abc-preview-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: var(--bg);
+}
+
+.abc-preview-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.abc-theme-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.abc-theme-pill {
+  padding: 0.24rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.abc-theme-pill.is-active {
+  border-color: var(--accent);
+  background: var(--brand-accent-soft);
+  color: var(--accent);
+}
+
+.abc-toggles {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.abc-toggles label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.abc-toggles input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.abc-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.abc-card-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.abc-card-item.is-inactive {
+  opacity: 0.6;
+}
+
+.abc-card-item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 960px) {
+  .abc-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .abc-fields-2 {
+    grid-template-columns: 1fr;
+  }
+}

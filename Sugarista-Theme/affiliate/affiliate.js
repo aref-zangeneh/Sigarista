@@ -102,7 +102,10 @@ function affiliatePortalApp() {
       try {
         await this.api('/customers/auth/otp/request', {
           method: 'POST',
-          body: JSON.stringify({ phoneNumber: phone }),
+          body: JSON.stringify({
+            phoneNumber: phone,
+            persianName: this.otpName.trim() || undefined,
+          }),
         });
         this.otpStep = 'code';
         this.notify('کد تایید پیامکی ارسال شد.');

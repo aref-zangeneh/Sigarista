@@ -261,7 +261,12 @@ public class SendTestOtpSmsCommandHandler(
             .Select(s => s.CafeName)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var outcome = await smsGateway.SendOtpAsync(normalized, testCode, cafeName, cancellationToken);
+        var outcome = await smsGateway.SendOtpAsync(
+            normalized,
+            testCode,
+            cafeName,
+            recipientName: "کاربر آزمایشی",
+            cancellationToken: cancellationToken);
 
         var summary = outcome.Success
             ? $"درخواست ارسال کد آزمایشی {testCode} توسط سرویس‌دهنده پذیرفته شد. برای اطمینان از رسیدن به گوشی، چند ثانیه بعد روی «استعلام تحویل» کلیک کنید."

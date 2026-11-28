@@ -2688,3 +2688,170 @@
   font-size: 0.77rem;
   font-weight: 700;
 }
+
+/* ── POS Customer Autocomplete Dropdown (Name + 5-Digit Phone Prefix) ── */
+.pos-customer-fields-wrap {
+  position: relative;
+}
+
+.pos-customer-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline: 0;
+  z-index: 45;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pos-customer-suggest-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  text-align: right;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.12s ease;
+}
+
+.pos-customer-suggest-item:hover {
+  background: var(--brand-accent-soft);
+}
+
+.pos-customer-suggest-name {
+  font-weight: 700;
+  color: var(--heading);
+}
+
+.pos-customer-suggest-phone {
+  direction: ltr;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.pos-customer-suggest-meta {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.pos-customer-suggest-empty {
+  padding: 8px 10px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── POS Card-to-Card Admin Bank Card Selector Modal ── */
+.pos-c2c-modal {
+  max-width: 560px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.pos-c2c-amount-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.95rem;
+  border-radius: 10px;
+  background: var(--brand-accent-soft);
+  border: 1px solid rgba(170, 49, 113, 0.25);
+}
+
+.pos-c2c-amount-bar span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--heading);
+}
+
+.pos-c2c-amount-bar strong {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.pos-c2c-card-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+}
+
+.pos-c2c-card-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  text-align: right;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.pos-c2c-card-pill.is-selected {
+  border-color: var(--accent);
+  background: var(--brand-accent-soft);
+}
+
+.pos-c2c-card-pill strong {
+  font-size: 0.8rem;
+  color: var(--heading);
+}
+
+.pos-c2c-card-pill small {
+  direction: ltr;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.pos-c2c-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.pos-c2c-bold-strip {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  flex-wrap: wrap;
+}
+
+.pos-c2c-bold-number {
+  direction: ltr;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: var(--heading);
+  user-select: text;
+}

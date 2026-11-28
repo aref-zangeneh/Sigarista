@@ -12,6 +12,7 @@ import {
   printPosReceipts,
 } from '../utils/posReceipt'
 import { Tip } from '../components/Tip'
+import { BankCardVisual, formatCardNumberGroups } from '../components/BankCardVisual.jsx'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { playOrderAlertSound } from '../utils/orderAlertSound'
 import {
@@ -1057,6 +1058,15 @@ export function PosPage() {
   const [customerLookup, setCustomerLookup] = useState(null)
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false)
   const autoFilledCustomerNameRef = useRef('')
+  const [customerSearchResults, setCustomerSearchResults] = useState([])
+  const [customerSearchLoading, setCustomerSearchLoading] = useState(false)
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false)
+  const [customerSearchMode, setCustomerSearchMode] = useState('phone') // 'phone' | 'name'
+  const skipNextCustomerSearchRef = useRef(false)
+  const [adminBankCards, setAdminBankCards] = useState([])
+  const [selectedBankCardId, setSelectedBankCardId] = useState('')
+  const [cardToCardModalOpen, setCardToCardModalOpen] = useState(false)
+  const [copiedCardNumber, setCopiedCardNumber] = useState(false)
   const [discountCode, setDiscountCode] = useState('')
   const [affiliatePreview, setAffiliatePreview] = useState(null)
   const [affiliatePreviewError, setAffiliatePreviewError] = useState('')
@@ -1103,6 +1113,17 @@ export function PosPage() {
     apiRequest('/admin/delivery-methods/options', { token: session.token })
       .then((data) => setDeliveryOptions(Array.isArray(data) ? data : []))
       .catch(() => setDeliveryOptions([]))
+
+    apiRequest('/admin/bank-cards?activeOnly=true', { token: session.token })
+      .then((data) => {
+        const list = Array.isArray(data) ? data : []
+        setAdminBankCards(list)
+        if (list.length > 0) {
+          const defaultCard = list.find((c) => c.isDefault) || list[0]
+          setSelectedBankCardId((prev) => prev || defaultCard.id)
+        }
+      })
+      .catch(() => setAdminBankCards([]))
   }, [loadBootstrap, session.token])
 
   useEffect(() => {
@@ -1156,9 +1177,90 @@ export function PosPage() {
     }
   }, [customerPhone, session.token])
 
+  // Fast POS customer autocomplete:
+  // - Phone mode: triggers as soon as the 5th digit is typed (e.g. 09123) and updates on every subsequent digit
+  // - Name mode: triggers as soon as 2+ characters are typed
+  useEffect(() => {
+    if (skipNextCustomerSearchRef.current) {
+      skipNextCustomerSearchRef.current = false
+      return undefined
+    }
+
+    const query = customerSearchMode === 'phone' ? customerPhone : customerName
+    const trimmed = String(query || '').trim()
+    const latinDigits = trimmed
+      .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+      .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+      .replace(/\D/g, '')
+
+    const shouldSearch =
+      customerSearchMode === 'phone'
+        ? latinDigits.length >= 5
+        : trimmed.length >= 2
+
+    if (!shouldSearch) {
+      setCustomerSearchResults([])
+      setCustomerSearchLoading(false)
+      return undefined
+    }
+
+    let active = true
+    setCustomerSearchLoading(true)
+    const timer = window.setTimeout(async () => {
+      try {
+        const qParam = customerSearchMode === 'phone' ? latinDigits : trimmed
+        const data = await apiRequest(
+          `/admin/pos/customers/search?q=${encodeURIComponent(qParam)}&mode=${customerSearchMode}&limit=10`,
+          { token: session.token },
+        )
+        if (!active) return
+        setCustomerSearchResults(Array.isArray(data) ? data : [])
+      } catch {
+        if (active) setCustomerSearchResults([])
+      } finally {
+        if (active) setCustomerSearchLoading(false)
+      }
+    }, 180)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [customerPhone, customerName, customerSearchMode, session.token])
+
+  const handleSelectSearchedCustomer = useCallback((customer) => {
+    skipNextCustomerSearchRef.current = true
+    setCustomerPhone(customer.phoneNumber || '')
+    setCustomerName(customer.persianName || '')
+    autoFilledCustomerNameRef.current = customer.persianName || ''
+    setCustomerSearchOpen(false)
+    setCustomerSearchResults([])
+  }, [])
+
+  const selectedBankCard = useMemo(
+    () => adminBankCards.find((c) => c.id === selectedBankCardId) || adminBankCards[0] || null,
+    [adminBankCards, selectedBankCardId],
+  )
+
+  const handleOpenCardToCard = useCallback(() => {
+    setCopiedCardNumber(false)
+    setCardToCardModalOpen(true)
+  }, [])
+
+  const handleCopySelectedCardNumber = useCallback(async () => {
+    if (!selectedBankCard?.cardNumber) return
+    try {
+      await navigator.clipboard.writeText(selectedBankCard.cardNumber)
+      setCopiedCardNumber(true)
+      window.setTimeout(() => setCopiedCardNumber(false), 2000)
+    } catch {
+      // Fallback ignored; number is selectable
+    }
+  }, [selectedBankCard])
+
   useEffect(() => {
     function onKeyDown(event) {
-      if (printModal || productModal || splitPaymentModalOpen || managerNoteModalOrder) {
+      if (printModal || productModal || splitPaymentModalOpen || cardToCardModalOpen || managerNoteModalOrder) {
         return
       }
       if (
@@ -1193,7 +1295,7 @@ export function PosPage() {
 
       if (event.key === 'F6' && cart.length > 0 && canSubmit && orderKind === 'Standard') {
         event.preventDefault()
-        submitOrder('PayCardToCard')
+        handleOpenCardToCard()
       }
     }
 
@@ -2031,24 +2133,82 @@ export function PosPage() {
                     </button>
                   </div>
 
-                  <div className="pos-compact-fields">
-                    <input
-                      id="pos-customer-phone-input"
-                      type="tel"
-                      dir="ltr"
-                      className="pos-meta-input ltr-input"
-                      placeholder="شماره موبایل مشتری"
-                      value={customerPhone}
-                      onChange={(event) => setCustomerPhone(event.target.value)}
-                    />
-                    <input
-                      id="pos-customer-name-input"
-                      type="text"
-                      className="pos-meta-input"
-                      placeholder="نام مشتری (اختیاری)"
-                      value={customerName}
-                      onChange={(event) => setCustomerName(event.target.value)}
-                    />
+                  <div className="pos-customer-fields-wrap">
+                    <div className="pos-compact-fields">
+                      <input
+                        id="pos-customer-phone-input"
+                        type="tel"
+                        dir="ltr"
+                        className="pos-meta-input ltr-input"
+                        placeholder="شماره موبایل مشتری (جستجو از رقم ۵)"
+                        value={customerPhone}
+                        onFocus={() => {
+                          setCustomerSearchMode('phone')
+                          setCustomerSearchOpen(true)
+                        }}
+                        onBlur={() => {
+                          window.setTimeout(() => setCustomerSearchOpen(false), 160)
+                        }}
+                        onChange={(event) => {
+                          setCustomerSearchMode('phone')
+                          setCustomerSearchOpen(true)
+                          setCustomerPhone(event.target.value)
+                        }}
+                      />
+                      <input
+                        id="pos-customer-name-input"
+                        type="text"
+                        className="pos-meta-input"
+                        placeholder="نام مشتری (جستجو در مشتریان قبلی)"
+                        value={customerName}
+                        onFocus={() => {
+                          setCustomerSearchMode('name')
+                          setCustomerSearchOpen(true)
+                        }}
+                        onBlur={() => {
+                          window.setTimeout(() => setCustomerSearchOpen(false), 160)
+                        }}
+                        onChange={(event) => {
+                          setCustomerSearchMode('name')
+                          setCustomerSearchOpen(true)
+                          setCustomerName(event.target.value)
+                        }}
+                      />
+                    </div>
+
+                    {customerSearchOpen && (customerSearchLoading || customerSearchResults.length > 0) ? (
+                      <div className="pos-customer-suggest" role="listbox" aria-label="نتایج جستجوی مشتری">
+                        {customerSearchLoading ? (
+                          <div className="pos-customer-suggest-empty">در حال جستجوی مشتریان قبلی...</div>
+                        ) : (
+                          customerSearchResults.map((customer) => (
+                            <button
+                              key={customer.id}
+                              type="button"
+                              className="pos-customer-suggest-item"
+                              onMouseDown={(event) => {
+                                event.preventDefault()
+                                handleSelectSearchedCustomer(customer)
+                              }}
+                            >
+                              <div>
+                                <div className="pos-customer-suggest-name">
+                                  {customer.persianName || 'مشتری بدون نام'}
+                                </div>
+                                {customer.membershipTierName ? (
+                                  <div className="pos-customer-suggest-meta">
+                                    🏅 {customer.membershipTierName}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <span className="pos-customer-suggest-phone" dir="ltr">
+                                {customer.phoneNumber}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    ) : null}
                   </div>
 
                   {customerLookupLoading ? (
@@ -2945,7 +3105,7 @@ export function PosPage() {
                   <button
                     type="button"
                     className="pos-primary-button pos-pay-btn pos-pay-c2c-btn"
-                    onClick={() => submitOrder('PayCardToCard')}
+                    onClick={handleOpenCardToCard}
                     disabled={submitting || !cart.length}
                   >
                     <span>📲 کارت به کارت</span>
@@ -3018,6 +3178,119 @@ export function PosPage() {
           <strong>{formatPrice(effectivePayableTotal)} ت</strong>
         </button>
       </nav>
+
+      {cardToCardModalOpen ? (
+        <div
+          className="pos-modal-backdrop"
+          onClick={() => !submitting && setCardToCardModalOpen(false)}
+        >
+          <div
+            className="pos-modal pos-c2c-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="انتخاب کارت بانکی برای پرداخت کارت به کارت"
+          >
+            <div className="pos-modal-head">
+              <div>
+                <h3>📲 پرداخت کارت به کارت</h3>
+                <p>کارت مقصد را انتخاب کنید و شماره کارت را برای مشتری بخوانید یا نمایش دهید.</p>
+              </div>
+              <button
+                type="button"
+                className="pos-icon-close"
+                disabled={submitting}
+                onClick={() => setCardToCardModalOpen(false)}
+                aria-label="بستن"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="pos-c2c-amount-bar">
+              <span>مبلغ قابل پرداخت:</span>
+              <strong>{formatPrice(effectivePayableTotal)} تومان</strong>
+            </div>
+
+            {adminBankCards.length > 0 ? (
+              <>
+                {adminBankCards.length > 1 ? (
+                  <div className="pos-c2c-card-picker">
+                    {adminBankCards.map((card) => (
+                      <button
+                        key={card.id}
+                        type="button"
+                        className={`pos-c2c-card-pill ${selectedBankCard?.id === card.id ? 'is-selected' : ''}`}
+                        onClick={() => {
+                          setSelectedBankCardId(card.id)
+                          setCopiedCardNumber(false)
+                        }}
+                      >
+                        <strong>{card.bankName}</strong>
+                        <small>{card.cardHolderName}</small>
+                        <small dir="ltr">•••• {card.cardNumber.slice(-4)}</small>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {selectedBankCard ? (
+                  <div className="pos-c2c-stage">
+                    <BankCardVisual card={selectedBankCard} size="large" />
+                    <div className="pos-c2c-bold-strip">
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+                          شماره کارت جهت واریز ({selectedBankCard.bankName} — {selectedBankCard.cardHolderName})
+                        </div>
+                        <div className="pos-c2c-bold-number" dir="ltr">
+                          {formatCardNumberGroups(selectedBankCard.cardNumber)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="pos-secondary-button"
+                        onClick={handleCopySelectedCardNumber}
+                      >
+                        {copiedCardNumber ? 'کپی شد ✓' : '📋 کپی شماره کارت'}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="pos-empty-hint" style={{ textAlign: 'center', padding: '1rem' }}>
+                هنوز کارت بانکی ادمین تعریف نشده است. می‌توانید همین الان پرداخت را ثبت کنید یا از{' '}
+                <Link to="/site-settings" onClick={() => setCardToCardModalOpen(false)}>
+                  تنظیمات سایت ← کارت‌های بانکی ادمین
+                </Link>{' '}
+                کارت‌های کافه را تعریف کنید.
+              </div>
+            )}
+
+            <div className="pos-modal-actions" style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="pos-secondary-button"
+                disabled={submitting}
+                onClick={() => setCardToCardModalOpen(false)}
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                className="pos-primary-button"
+                disabled={submitting || !cart.length}
+                onClick={async () => {
+                  setCardToCardModalOpen(false)
+                  await submitOrder('PayCardToCard')
+                }}
+              >
+                {submitting ? 'در حال ثبت...' : '✓ تایید و ثبت پرداخت کارت به کارت'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {productModal ? (
         <ProductModal

@@ -239,6 +239,7 @@ public sealed class SmsGateway(
         string? mobile,
         string code,
         string? cafeName = null,
+        string? recipientName = null,
         CancellationToken cancellationToken = default)
     {
         var normalized = SmsTextUtilities.NormalizeMobile(mobile);
@@ -268,12 +269,13 @@ public sealed class SmsGateway(
             .FirstOrDefaultAsync(cancellationToken);
 
         var brand = string.IsNullOrWhiteSpace(cafeName) ? "شوگریستا" : cafeName.Trim();
+        var displayName = string.IsNullOrWhiteSpace(recipientName) ? "کاربر گرامی" : recipientName.Trim();
         var rawTemplate = !string.IsNullOrWhiteSpace(otpTemplate?.Body)
             ? otpTemplate.Body
             : $"کد تایید ورود به {brand}: {{Code}}\nاعتبار: ۲ دقیقه";
 
-        var maskedBody = RenderOtpBody(rawTemplate, "••••••");
-        var actualBody = RenderOtpBody(rawTemplate, code);
+        var maskedBody = RenderOtpBody(rawTemplate, "••••••", displayName, brand);
+        var actualBody = RenderOtpBody(rawTemplate, code, displayName, brand);
 
         var dbMessage = new SmsMessage(
             provider.Id,
@@ -300,6 +302,13 @@ public sealed class SmsGateway(
             {
                 [paramName] = code
             };
+
+            var nameParam = ResolveOtpPatternNameParamName(rawTemplate);
+            if (!string.IsNullOrWhiteSpace(nameParam) && !parameters.ContainsKey(nameParam))
+            {
+                parameters[nameParam] = displayName;
+            }
+
             result = await gateway.SendPatternAsync(
                 normalized,
                 mapping.ProviderTemplateId.Trim(),
@@ -329,13 +338,19 @@ public sealed class SmsGateway(
             SmsTextUtilities.ToDisplayMobile(normalized));
     }
 
-    private static string RenderOtpBody(string template, string code)
+    private static string RenderOtpBody(string template, string code, string recipientName, string brand)
     {
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Code"] = code,
             ["Otp"] = code,
             ["Token"] = code,
+            ["Name"] = recipientName,
+            ["CustomerName"] = recipientName,
+            ["FullName"] = recipientName,
+            ["Token2"] = recipientName,
+            ["Cafe"] = brand,
+            ["Brand"] = brand,
         };
 
         var rendered = SmsTextUtilities.RenderTemplate(template, values);
@@ -343,6 +358,16 @@ public sealed class SmsGateway(
         return rendered.Contains(code, StringComparison.Ordinal)
             ? rendered
             : $"{rendered.Trim()} {code}";
+    }
+
+    private static string? ResolveOtpPatternNameParamName(string templateBody)
+    {
+        var placeholders = SmsTextUtilities.ExtractPlaceholders(templateBody);
+        return placeholders.FirstOrDefault(name =>
+            name.Equals("name", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("customername", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("fullname", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("token2", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ResolveOtpPatternParamName(string templateBody, SmsProviderType providerType)

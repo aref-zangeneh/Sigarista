@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Sugarista.Api.Authorization;
 using Sugarista.Application.Affiliates.Services;
+using Sugarista.Application.Common.Interfaces;
 using Sugarista.Application.Pos;
 using Sugarista.Application.Pos.Commands.CancelPosOrder;
 using Sugarista.Application.Pos.Commands.CopyPosOrder;
@@ -18,15 +20,26 @@ namespace Sugarista.Api.Controllers;
 
 public sealed record UpdateManagerNoteBody(string? ManagerNote);
 
+public sealed record PosCustomerSearchItemDto(
+    Guid Id,
+    string PersianName,
+    string PhoneNumber,
+    decimal LoyaltyPoints,
+    string? MembershipTierName);
+
 [Authorize]
 [Route("api/admin/pos")]
 public class AdminPosController : ApiControllerBase
 {
     private readonly IAffiliateTrackingService _affiliateTrackingService;
+    private readonly IApplicationDbContext _dbContext;
 
-    public AdminPosController(IAffiliateTrackingService affiliateTrackingService)
+    public AdminPosController(
+        IAffiliateTrackingService affiliateTrackingService,
+        IApplicationDbContext dbContext)
     {
         _affiliateTrackingService = affiliateTrackingService;
+        _dbContext = dbContext;
     }
 
     [HttpGet("affiliate-coupon")]
@@ -79,6 +92,101 @@ public class AdminPosController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         return Ok(await Mediator.Send(new GetPosCustomerByPhoneQuery(phone), cancellationToken));
+    }
+
+    /// <summary>
+    /// Fast autocomplete customer search for POS cashiers:
+    /// - By phone prefix once at least 5 digits are entered (e.g. "09123" -> matching customers starting with 09123...)
+    /// - By Persian name once at least 2 characters are entered.
+    /// </summary>
+    [HttpGet("customers/search")]
+    [RequirePermission(AdminPermissions.Pos.View)]
+    public async Task<ActionResult<IReadOnlyList<PosCustomerSearchItemDto>>> SearchCustomers(
+        [FromQuery] string? q,
+        [FromQuery] string? mode = "auto",
+        [FromQuery] int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var raw = (q ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return Ok(Array.Empty<PosCustomerSearchItemDto>());
+        }
+
+        var take = Math.Clamp(limit, 1, 20);
+        var latinDigits = NormalizeDigitsOnly(raw);
+        var isPhoneSearch = string.Equals(mode, "phone", StringComparison.OrdinalIgnoreCase)
+            || (string.Equals(mode, "auto", StringComparison.OrdinalIgnoreCase) && latinDigits.Length >= 5 && latinDigits.Length >= raw.Replace(" ", "").Length - 2);
+
+        if (isPhoneSearch)
+        {
+            if (latinDigits.Length < 5)
+            {
+                return Ok(Array.Empty<PosCustomerSearchItemDto>());
+            }
+
+            // Support both "09123..." and "9123..." prefixes smoothly.
+            var altPrefix = latinDigits.StartsWith("98", StringComparison.Ordinal) && latinDigits.Length >= 6
+                ? "0" + latinDigits[2..]
+                : latinDigits;
+
+            var matches = await _dbContext.Customers
+                .AsNoTracking()
+                .Include(c => c.MembershipTier)
+                .Where(c => c.IsActive &&
+                    (c.PhoneNumber.StartsWith(latinDigits) ||
+                     c.PhoneNumber.StartsWith(altPrefix) ||
+                     c.PhoneNumber.Contains(latinDigits)))
+                .OrderByDescending(c => c.PhoneNumber.StartsWith(latinDigits) || c.PhoneNumber.StartsWith(altPrefix))
+                .ThenBy(c => c.PhoneNumber)
+                .Take(take)
+                .Select(c => new PosCustomerSearchItemDto(
+                    c.Id,
+                    c.PersianName,
+                    c.PhoneNumber,
+                    c.LoyaltyPoints,
+                    c.MembershipTier != null ? c.MembershipTier.Name : null))
+                .ToListAsync(cancellationToken);
+
+            return Ok(matches);
+        }
+
+        if (raw.Length < 2)
+        {
+            return Ok(Array.Empty<PosCustomerSearchItemDto>());
+        }
+
+        var lowered = raw.ToLowerInvariant();
+        var nameMatches = await _dbContext.Customers
+            .AsNoTracking()
+            .Include(c => c.MembershipTier)
+            .Where(c => c.IsActive &&
+                (c.PersianName.ToLower().Contains(lowered) ||
+                 (latinDigits.Length >= 5 && c.PhoneNumber.StartsWith(latinDigits))))
+            .OrderByDescending(c => c.PersianName.ToLower().StartsWith(lowered))
+            .ThenBy(c => c.PersianName)
+            .Take(take)
+            .Select(c => new PosCustomerSearchItemDto(
+                c.Id,
+                c.PersianName,
+                c.PhoneNumber,
+                c.LoyaltyPoints,
+                c.MembershipTier != null ? c.MembershipTier.Name : null))
+            .ToListAsync(cancellationToken);
+
+        return Ok(nameMatches);
+    }
+
+    private static string NormalizeDigitsOnly(string input)
+    {
+        var chars = new List<char>(input.Length);
+        foreach (var ch in input)
+        {
+            if (ch is >= '0' and <= '9') chars.Add(ch);
+            else if (ch is >= '۰' and <= '۹') chars.Add((char)('0' + (ch - '۰')));
+            else if (ch is >= '٠' and <= '٩') chars.Add((char)('0' + (ch - '٠')));
+        }
+        return new string(chars.ToArray());
     }
 
     [HttpGet("orders/{id:guid}")]

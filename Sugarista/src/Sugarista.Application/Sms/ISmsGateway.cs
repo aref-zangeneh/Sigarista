@@ -52,6 +52,7 @@ public interface ISmsGateway
         string? mobile,
         string code,
         string? cafeName = null,
+        string? recipientName = null,
         CancellationToken cancellationToken = default);
 }
 

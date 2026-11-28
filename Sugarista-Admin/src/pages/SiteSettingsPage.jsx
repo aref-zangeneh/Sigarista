@@ -3,6 +3,7 @@ import { useAdmin } from '../context/AdminContext'
 import { settingsSections } from '../constants/adminForms'
 import { ReceiptLayoutPanel } from '../components/ReceiptLayoutPanel'
 import { GeminiSettingsPanel } from '../components/GeminiSettingsPanel.jsx'
+import { AdminBankCardsPanel } from '../components/AdminBankCardsPanel.jsx'
 import { uploadImage, validateImageFile } from '../utils/imageUpload'
 import {
   ALERT_SOUND_INTERVAL_PRESETS,
@@ -2095,6 +2096,13 @@ export function SiteSettingsPage() {
           </button>
         </div>
       </form>
+
+      {/* ---------- کارت‌های بانکی ادمین (کارت به کارت POS) ---------- */}
+      <AdminBankCardsPanel
+        session={session}
+        apiRequest={apiRequest}
+        getReadableError={getReadableError}
+      />
 
       {/* ---------- تولید محتوا با Gemini (ذخیرهٔ مستقل) ---------- */}
       <GeminiSettingsPanel

@@ -118,6 +118,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<SupplierOrderListItem> SupplierOrderListItems => Set<SupplierOrderListItem>();
 
+    public DbSet<AdminBankCard> AdminBankCards => Set<AdminBankCard>();
+
     public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
 
     public DbSet<ProductWikiGuide> ProductWikiGuides => Set<ProductWikiGuide>();
